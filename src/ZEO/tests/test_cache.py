@@ -313,6 +313,37 @@ __test__ = dict(
     >>> cache.close()
     
     """,
+
+    broken_non_current =
+    r"""
+
+    In production, we saw a situation where an _del_noncurrent raused
+    a key error when trying to free space, causing the cache to become
+    unusable.  I can't see why this would occur, but added a logging
+    exception handler so, in the future, we'll still see cases in the
+    log, but will ignore the error and keep going.
+    
+    >>> import ZEO.cache, ZODB.utils, logging, sys
+    >>> logger = logging.getLogger('ZEO.cache')
+    >>> logger.setLevel(logging.ERROR)
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> logger.addHandler(handler)
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> cache.store(ZODB.utils.p64(1), ZODB.utils.p64(1), None, '0')
+    >>> cache.invalidate(ZODB.utils.p64(1), ZODB.utils.p64(2))
+    >>> cache._del_noncurrent(ZODB.utils.p64(1), ZODB.utils.p64(2))
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Couldn't find non-current
+    ('\x00\x00\x00\x00\x00\x00\x00\x01', '\x00\x00\x00\x00\x00\x00\x00\x02')
+    >>> cache._del_noncurrent(ZODB.utils.p64(1), ZODB.utils.p64(1))
+    >>> cache._del_noncurrent(ZODB.utils.p64(1), ZODB.utils.p64(1)) # 
+    ... # doctest: +NORMALIZE_WHITESPACE
+    Couldn't find non-current
+    ('\x00\x00\x00\x00\x00\x00\x00\x01', '\x00\x00\x00\x00\x00\x00\x00\x01')
+
+    >>> logger.setLevel(logging.NOTSET)
+    >>> logger.removeHandler(handler)
+    """
     )
 
 def test_suite():

@@ -292,11 +292,15 @@ class ClientCache(object):
         noncurrent_for_oid[u64(tid)] = ofs
 
     def _del_noncurrent(self, oid, tid):
-        noncurrent_for_oid = self.noncurrent[u64(oid)]
-        del noncurrent_for_oid[u64(tid)]
-        if not noncurrent_for_oid:
-            del self.noncurrent[u64(oid)]
+        try:
+            noncurrent_for_oid = self.noncurrent[u64(oid)]
+            del noncurrent_for_oid[u64(tid)]
+            if not noncurrent_for_oid:
+                del self.noncurrent[u64(oid)]
+        except KeyError:
+            logger.error("Couldn't find non-current %r", (oid, tid))
 
+            
     def clearStats(self):
         self._n_adds = self._n_added_bytes = 0
         self._n_evicts = self._n_evicted_bytes = 0
