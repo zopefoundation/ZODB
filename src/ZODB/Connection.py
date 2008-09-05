@@ -587,7 +587,14 @@ class Connection(ExportImport, object):
             oid = obj._p_oid
             serial = getattr(obj, "_p_serial", z64)
 
-            if serial == z64:
+            if ((serial == z64)
+                and
+                ((self._savepoint_storage is None)
+                 or (oid not in self._savepoint_storage.creating)
+                 or self._savepoint_storage.creating[oid]
+                 )
+                ):
+                
                 # obj is a new object
 
                 # Because obj was added, it is now in _creating, so it
