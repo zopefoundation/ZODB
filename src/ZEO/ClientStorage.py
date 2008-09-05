@@ -1239,6 +1239,7 @@ class ClientStorage(object):
         # Invalidation as result of verify_cache().
         # Queue an invalidate for the end the verification procedure.
         if self._pickler is None:
+            # This should never happen.
             log2("invalidateVerify with no _pickler", level = logging.ERROR)
             return
         self._pickler.dump((None, [args[0]]))
