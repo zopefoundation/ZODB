@@ -116,6 +116,7 @@ typedef struct {
     PyObject *data;                      /* oid -> object dict */
     PyObject *jar;                       /* Connection object */
     int cache_size;                      /* target number of items in cache */
+    PY_LONG_LONG cache_size_bytes;       /* target total estimated size of items in cache */
 
     /* Most of the time the ring contains only:
        * many nodes corresponding to persistent objects
@@ -167,7 +168,7 @@ unlink_from_ring(CPersistentRing *self)
 }
 
 static int
-scan_gc_items(ccobject *self, int target)
+scan_gc_items(ccobject *self, int target, PY_LONG_LONG target_bytes)
 {
     /* This function must only be called with the ring lock held,
        because it places non-object placeholders in the ring.
@@ -189,7 +190,11 @@ scan_gc_items(ccobject *self, int target)
      */
     insert_after(&before_original_home, self->ring_home.r_prev);
     here = self->ring_home.r_next;   /* least recently used object */
-    while (here != &before_original_home && self->non_ghost_count > target) {
+    while (here != &before_original_home &&
+	   (self->non_ghost_count > target
+	    || (target_bytes && self->total_estimated_size > target_bytes)
+	    )
+	   ) {
 	assert(self->ring_lock);
 	assert(here != &self->ring_home);
 
@@ -244,7 +249,7 @@ scan_gc_items(ccobject *self, int target)
 }
 
 static PyObject *
-lockgc(ccobject *self, int target_size)
+lockgc(ccobject *self, int target_size, PY_LONG_LONG target_size_bytes)
 {
     /* This is thread-safe because of the GIL, and there's nothing
      * in between checking the ring_lock and acquiring it that calls back
@@ -256,7 +261,7 @@ lockgc(ccobject *self, int target_size)
     }
 
     self->ring_lock = 1;
-    if (scan_gc_items(self, target_size) < 0) {
+    if (scan_gc_items(self, target_size, target_size_bytes) < 0) {
         self->ring_lock = 0;
         return NULL;
     }
@@ -272,6 +277,7 @@ cc_incrgc(ccobject *self, PyObject *args)
     int obsolete_arg = -999;
     int starting_size = self->non_ghost_count;
     int target_size = self->cache_size;
+    PY_LONG_LONG target_size_bytes = self->cache_size_bytes;
 
     if (self->cache_drain_resistance >= 1) {
         /* This cache will gradually drain down to a small size. Check
@@ -294,7 +300,7 @@ cc_incrgc(ccobject *self, PyObject *args)
          < 0))
         return NULL;
 
-    return lockgc(self, target_size);
+    return lockgc(self, target_size, target_size_bytes);
 }
 
 static PyObject *
@@ -307,7 +313,7 @@ cc_full_sweep(ccobject *self, PyObject *args)
     if (!PyArg_ParseTuple(args, "|i:full_sweep", &dt))
 	return NULL;
     if (dt == -999)
-	return lockgc(self, 0);
+        return lockgc(self, 0, 0);
     else
 	return cc_incrgc(self, args);
 }
@@ -327,7 +333,7 @@ cc_minimize(ccobject *self, PyObject *args)
          < 0))
         return NULL;
 
-    return lockgc(self, 0);
+    return lockgc(self, 0, 0);
 }
 
 static int
@@ -629,6 +635,32 @@ cc_ringlen(ccobject *self)
     return PyInt_FromLong(c);
 }
 
+static PyObject *
+cc_update_object_size_estimation(ccobject *self, PyObject *args)
+{
+    PyObject *oid;
+    cPersistentObject *v;
+    unsigned int new_size;
+    if (!PyArg_ParseTuple(args, "OI:updateObjectSizeEstimation", &oid, &new_size))
+	return NULL;
+    /* Note: reference borrowed */
+    v = (cPersistentObject *)PyDict_GetItem(self->data, oid);
+    if (v) {
+        /* we know this object -- update our "total_size_estimation"
+           we must only update when the object is in the ring
+	*/
+        if (v->ring.r_next) {
+            self->total_estimated_size += new_size - v->estimated_size;
+	    /* we do this in "Connection" as we need it even when the
+	       object is not in the cache (or not the ring)
+	    */
+	    /* v->estimated_size = new_size; */
+	}
+    }
+    Py_RETURN_NONE;
+ }
+
+
 static struct PyMethodDef cc_methods[] = {
     {"items", (PyCFunction)cc_items, METH_NOARGS,
      "Return list of oid, object pairs for all items in cache."},
@@ -655,6 +687,10 @@ static struct PyMethodDef cc_methods[] = {
      "ringlen() -- Returns number of non-ghost items in cache."},
     {"debug_info", (PyCFunction)cc_debug_info, METH_NOARGS,
      "debug_info() -- Returns debugging data about objects in the cache."},
+    {"update_object_size_estimation",
+     (PyCFunction)cc_update_object_size_estimation,
+     METH_VARARGS,
+     "update_object_size_estimation(oid, new_size) -- update the caches size estimation for *oid* (if this is known to the cache)."},
     {NULL, NULL}		/* sentinel */
 };
 
@@ -662,9 +698,10 @@ static int
 cc_init(ccobject *self, PyObject *args, PyObject *kwds)
 {
     int cache_size = 100;
+    PY_LONG_LONG cache_size_bytes = 0;
     PyObject *jar;
 
-    if (!PyArg_ParseTuple(args, "O|i", &jar, &cache_size))
+    if (!PyArg_ParseTuple(args, "O|iL", &jar, &cache_size, &cache_size_bytes))
 	return -1;
 
     self->jar = NULL;
@@ -687,7 +724,9 @@ cc_init(ccobject *self, PyObject *args, PyObject *kwds)
     self->jar = jar;
     Py_INCREF(jar);
     self->cache_size = cache_size;
+    self->cache_size_bytes = cache_size_bytes;
     self->non_ghost_count = 0;
+    self->total_estimated_size = 0;
     self->klass_count = 0;
     self->cache_drain_resistance = 0;
     self->ring_lock = 0;
@@ -1018,6 +1057,8 @@ static PyGetSetDef cc_getsets[] = {
 
 static PyMemberDef cc_members[] = {
     {"cache_size", T_INT, offsetof(ccobject, cache_size)},
+    {"cache_size_bytes", T_LONG, offsetof(ccobject, cache_size_bytes)},
+    {"total_estimated_size", T_LONG, offsetof(ccobject, total_estimated_size), RO},
     {"cache_drain_resistance", T_INT,
      offsetof(ccobject, cache_drain_resistance)},
     {"cache_non_ghost_count", T_INT, offsetof(ccobject, non_ghost_count), RO},

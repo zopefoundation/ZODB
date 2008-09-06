@@ -95,14 +95,18 @@ class ZODBDatabase(BaseConfig):
         section = self.config
         storage = section.storage.open()
         try:
-            return ZODB.DB(storage,
-                           pool_size=section.pool_size,
-                           cache_size=section.cache_size,
-                           historical_pool_size=section.historical_pool_size,
-                           historical_cache_size=section.historical_cache_size,
-                           historical_timeout=section.historical_timeout,
-                           database_name=section.database_name,
-                           databases=databases)
+            return ZODB.DB(
+                storage,
+                pool_size=section.pool_size,
+                cache_size=section.cache_size,
+                cache_size_bytes=section.cache_size_bytes,
+                historical_pool_size=section.historical_pool_size,
+                historical_cache_size=section.historical_cache_size,
+                historical_cache_size_bytes=section.historical_cache_size_bytes,
+                historical_timeout=section.historical_timeout,
+                database_name=section.database_name,
+                databases=databases,
+                )
         except:
             storage.close()
             raise

@@ -79,7 +79,7 @@ class Connection(ExportImport, object):
     ##########################################################################
     # Connection methods, ZODB.IConnection
 
-    def __init__(self, db, cache_size=400, before=None):
+    def __init__(self, db, cache_size=400, before=None, cache_size_bytes=0):
         """Create a new Connection."""
 
         self._log = logging.getLogger('ZODB.Connection')
@@ -109,7 +109,7 @@ class Connection(ExportImport, object):
         # Cache which can ghostify (forget the state of) objects not
         # recently used. Its API is roughly that of a dict, with
         # additional gc-related and invalidation-related methods.
-        self._cache = PickleCache(self, cache_size)
+        self._cache = PickleCache(self, cache_size, cache_size_bytes)
 
         # The pre-cache is used by get to avoid infinite loops when
         # objects immediately load their state whern they get their
@@ -629,6 +629,10 @@ class Connection(ExportImport, object):
                 obj._p_invalidate()
             else:
                 s = self._storage.store(oid, serial, p, '', transaction)
+            self._cache.update_object_size_estimation(oid,
+                                                   len(p)
+                                                   )
+            obj._p_estimated_size = len(p)
             self._store_count += 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
@@ -870,6 +874,10 @@ class Connection(ExportImport, object):
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
+        self._cache.update_object_size_estimation(obj._p_oid,
+                                               len(p)
+                                               )
+        obj._p_estimated_size = len(p)
 
         # Blob support
         if isinstance(obj, Blob):
@@ -1034,7 +1042,8 @@ class Connection(ExportImport, object):
         self._invalidated.clear()
         self._invalidatedCache = False
         cache_size = self._cache.cache_size
-        self._cache = cache = PickleCache(self, cache_size)
+        cache_size_bytes = self._cache.cache_size_bytes
+        self._cache = cache = PickleCache(self, cache_size, cache_size_bytes)
 
     ##########################################################################
     # Python protocol
@@ -1117,6 +1126,12 @@ class Connection(ExportImport, object):
 
         for oid in oids:
             data, serial = src.load(oid, src)
+            obj = self._cache.get(oid, None)
+            if obj is not None:
+                self._cache.update_object_size_estimation(obj._p_oid,
+                                                       len(data)
+                                                       )
+                obj._p_estimated_size = len(data)
             if isinstance(self._reader.getGhost(data), Blob):
                 blobfilename = src.loadBlob(oid, serial)
                 s = self._storage.storeBlob(oid, serial, data, blobfilename,

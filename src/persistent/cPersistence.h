@@ -23,11 +23,12 @@
 #define CACHE_HEAD \
     PyObject_HEAD \
     CPersistentRing ring_home; \
-    int non_ghost_count;
+    int non_ghost_count; \
+    PY_LONG_LONG total_estimated_size;   /* total estimated size of items in cache */
 
 struct ccobject_head_struct;
 
-typedef struct ccobject_head_struct PerCache;
+typedef struct ccobject_head_struct PerCache;    
 
 /* How big is a persistent object?
 
@@ -38,13 +39,14 @@ typedef struct ccobject_head_struct PerCache;
     8  ring struct
     8  serialno
     4  state + extra
+    4  size info
 
-  (52) so far
+  (56) so far
 
     4  dict ptr
     4  weaklist ptr
   -------------------------
-   64  only need 62, but obmalloc rounds up to multiple of eight
+   68  only need 62, but obmalloc rounds up to multiple of eight
 
   Even a ghost requires 64 bytes.  It's possible to make a persistent
   instance with slots and no dict, which changes the storage needed.
@@ -59,7 +61,8 @@ typedef struct ccobject_head_struct PerCache;
     CPersistentRing ring; \
     char serial[8]; \
     signed char state; \
-    unsigned char reserved[3];
+    unsigned char reserved[3]; \
+    unsigned long estimated_size;
 
 #define cPersistent_GHOST_STATE -1
 #define cPersistent_UPTODATE_STATE 0

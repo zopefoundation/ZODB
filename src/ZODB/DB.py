@@ -398,8 +398,10 @@ class DB(object):
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
+                 cache_size_bytes=0,
                  historical_pool_size=3,
                  historical_cache_size=1000,
+                 historical_cache_size_bytes=0,
                  historical_timeout=300,
                  database_name='unnamed',
                  databases=None,
@@ -410,10 +412,15 @@ class DB(object):
           - `storage`: the storage used by the database, e.g. FileStorage
           - `pool_size`: expected maximum number of open connections
           - `cache_size`: target size of Connection object cache
+          - `cache_size_bytes`: target size measured in total estimated size
+               of objects in the Connection object cache.
+               "0" means unlimited.
           - `historical_pool_size`: expected maximum number of total
             historical connections
           - `historical_cache_size`: target size of Connection object cache for
             historical (`at` or `before`) connections
+          - `historical_cache_size_bytes` -- similar to `cache_size_bytes` for
+            the historical connection.
           - `historical_timeout`: minimum number of seconds that
             an unused historical connection will be kept, or None.
         """
@@ -427,7 +434,9 @@ class DB(object):
         self.historical_pool = KeyedConnectionPool(historical_pool_size,
                                                    historical_timeout)
         self._cache_size = cache_size
+        self._cache_size_bytes = cache_size_bytes
         self._historical_cache_size = historical_cache_size
+        self._historical_cache_size_bytes = historical_cache_size_bytes
 
         # Setup storage
         self._storage=storage
@@ -642,6 +651,9 @@ class DB(object):
     def getCacheSize(self):
         return self._cache_size
 
+    def getCacheSizeBytes(self):
+        return self._cache_size_bytes
+
     def lastTransaction(self):
         return self._storage.lastTransaction()
 
@@ -656,6 +668,9 @@ class DB(object):
 
     def getHistoricalCacheSize(self):
         return self._historical_cache_size
+
+    def getHistoricalCacheSizeBytes(self):
+        return self._historical_cache_size_bytes
 
     def getHistoricalPoolSize(self):
         return self.historical_pool.size
@@ -720,13 +735,21 @@ class DB(object):
             if before is not None:
                 result = self.historical_pool.pop(before)
                 if result is None:
-                    c = self.klass(self, self._historical_cache_size, before)
+                    c = self.klass(self,
+                                   self._historical_cache_size,
+                                   before,
+                                   self._historical_cache_size_bytes,
+                                   )
                     self.historical_pool.push(c, before)
                     result = self.historical_pool.pop(before)
             else:
                 result = self.pool.pop()
                 if result is None:
-                    c = self.klass(self, self._cache_size)
+                    c = self.klass(self,
+                                   self._cache_size,
+                                   None,
+                                   self._cache_size_bytes,
+                                   )
                     self.pool.push(c)
                     result = self.pool.pop()
             assert result is not None
@@ -813,12 +836,32 @@ class DB(object):
         finally:
             self._r()
 
+    def setCacheSizeBytes(self, size):
+        self._a()
+        try:
+            self._cache_size_bytes = size
+            def setsize(c):
+                c._cache.cache_size_bytes = size
+            self.pool.map(setsize)
+        finally:
+            self._r()
+
     def setHistoricalCacheSize(self, size):       
         self._a()
         try:
             self._historical_cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
+            self.historical_pool.map(setsize)
+        finally:
+            self._r()
+
+    def setHistoricalCacheSizeBytes(self, size):       
+        self._a()
+        try:
+            self._historical_cache_size_bytes = size
+            def setsize(c):
+                c._cache.cache_size_bytes = size
             self.historical_pool.map(setsize)
         finally:
             self._r()
