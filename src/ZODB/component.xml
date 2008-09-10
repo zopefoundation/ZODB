@@ -163,6 +163,13 @@
         that are accepted by this server.
       </description>
     </key>
+    <!-- DM 2008-05-15: added -->
+    <key name="drop-cache-rather-verify" datatype="boolean" default="off">
+      <description>
+        A flag indicating whether the client cache should be dropped
+        instead of an expensive verification.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="demostorage" datatype=".DemoStorage"

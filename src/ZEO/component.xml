@@ -102,6 +102,16 @@
       <metadefault>$INSTANCE/var/ZEO.pid (or $clienthome/ZEO.pid)</metadefault>
     </key>
 
+    <!-- DM 2006-06-12: added option -->
+    <key name="drop-cache-rather-verify" datatype="boolean"
+         required="no" default="false">
+       <description>
+         indicates that the cache should be dropped rather than
+	 verified when the verification optimization is not
+	 available (e.g. when the ZEO server restarted).
+       </description>
+    </key>
+
   </sectiontype>
 
 </component>

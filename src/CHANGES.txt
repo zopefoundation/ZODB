@@ -8,6 +8,12 @@ Change History
 New Features
 ------------
 
+- New `ClientStorage` configuration option `drop_cache_rather_verify`.
+  If this option is true then the ZEO client cache is dropped instead of
+  the long (unoptimized) verification. For large caches, setting this
+  option can avoid effective downtimes in the order of hours when
+  the connection to the ZEO server was interrupted for a longer time.
+
 - The connection now estimates the object size based on its pickle size
   and informs the cache about size changes.
 

@@ -122,6 +122,7 @@ class ClientStorage(object):
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
+                 drop_cache_rather_verify=False,
                  username='', password='', realm=None,
                  blob_dir=None, shared_blob_dir=False):
         """ClientStorage constructor.
@@ -196,6 +197,9 @@ class ClientStorage(object):
 
         realm -- not documented.
 
+        drop_cache_rather_verify -- a flag indicating that the cache
+            should be dropped rather than expensively verified.
+
         blob_dir -- directory path for blob data.  'blob data' is data that
             is retrieved via the loadBlob API.
 
@@ -217,6 +221,14 @@ class ClientStorage(object):
 
         if debug:
             log2("ClientStorage(): debug argument is no longer used")
+
+        # Remember some parameters for "_setupCache"
+        self._var_ = var
+        self._storage_ = storage
+        self._client_ = client
+        self._cache_size_ = cache_size
+
+        self._drop_cache_rather_verify = drop_cache_rather_verify
 
         # wait defaults to True, but wait_for_server_on_startup overrides
         # if not None
@@ -342,13 +354,7 @@ class ClientStorage(object):
         else:
             self.fshelper = None
 
-        # Decide whether to use non-temporary files
-        if client is not None:
-            dir = var or os.getcwd()
-            cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
-        else:
-            cache_path = None
-        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
+        self._setupCache()
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,
@@ -362,6 +368,19 @@ class ClientStorage(object):
             # doesn't succeed, call connect() to start a thread.
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
+
+    def _setupCache(self):
+        '''create and open the cache.'''
+        # Decide whether to use non-temporary files
+        storage = self._storage_
+        client = self._client_
+        cache_size = self._cache_size_
+        if client is not None:
+            dir = self._var_ or os.getcwd()
+            cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
+        else:
+            cache_path = None
+        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
 
     def _wait(self, timeout=None):
         if timeout is not None:
@@ -1225,6 +1244,23 @@ class ClientStorage(object):
         elif ltid and ltid != utils.z64:
             self._cache.setLastTid(ltid)
 
+        # From this point on, we do not have complete information about
+        # the missed transactions.  The reason is that cache
+        # verification only checks objects in the client cache and
+        # there may be objects in the object caches that aren't in the
+        # client cach that would need verification too. We avoid that
+        # problem by just invalidating the objects in the object caches.
+        if self._db is not None:
+            self._db.invalidateCache()
+
+        if self._cache and self._drop_cache_rather_verify:
+            log2("dropping cache")
+            self._cache.close()
+            self._setupCache() # creates a new cache
+            self._server = server
+            self._ready.set()
+            return "cache dropped"
+
         log2("Verifying cache")
         for oid, tid in self._cache.contents():
             server.verify(oid, tid)
@@ -1381,7 +1417,8 @@ class TransactionIterator(object):
 
 class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
 
-    def __init__(self, storage, txiter, tid, status, user, description, extension):
+    def __init__(self, storage, txiter, tid, status, user, description,
+                 extension):
         self._storage = storage
         self._txiter = txiter
         self._completed = False
@@ -1394,7 +1431,8 @@ class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
         self.extension = extension
 
     def __iter__(self):
-        riid = self._storage._server.iterator_record_start(self._txiter._iid, self.tid)
+        riid = self._storage._server.iterator_record_start(self._txiter._iid,
+                                                           self.tid)
         return self._storage._setup_iterator(RecordIterator, riid)
 
 
