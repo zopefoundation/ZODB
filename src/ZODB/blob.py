@@ -93,7 +93,7 @@ class Blob(persistent.Persistent):
         # XXX should we warn of this? Maybe?
         if self._p_changed is None:
             return
-        for ref in self.readers+self.writers:
+        for ref in (self.readers or [])+(self.writers or []):
             f = ref()
             if f is not None:
                 f.close()
