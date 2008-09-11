@@ -17,6 +17,10 @@ import time
 from zope.testing import doctest
 import ZODB.tests.util
 
+from StringIO import StringIO
+from pickle import Pickler
+from pickle import Unpickler
+
 from ZODB import utils
 from ZODB.FileStorage import FileStorage
 from ZODB.blob import Blob, BlobStorage
@@ -98,7 +102,7 @@ class ZODBBlobConfigTest(BlobConfigTestBase):
                           """)
 
 
-class BlobUndoTests(unittest.TestCase):
+class BlobTests(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -111,6 +115,34 @@ class BlobUndoTests(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.here)
         ZODB.blob.remove_committed_dir(self.test_dir)
+
+class BlobCloneTests(BlobTests):
+
+    def testDeepCopyCanInvalidate(self):
+        """
+        Tests regression for invalidation problems related to missing
+        readers and writers values in cloned objects (see
+        http://mail.zope.org/pipermail/zodb-dev/2008-August/012054.html)
+        """
+        base_storage = FileStorage(self.storagefile)
+        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        database = DB(blob_storage)
+        connection = database.open()
+        root = connection.root()
+        transaction.begin()
+        root['blob'] = Blob()
+        transaction.commit()
+
+        stream = StringIO()
+        p = Pickler(stream, 1)
+        p.dump(root['blob'])
+        u = Unpickler(stream)
+        stream.seek(0)
+        clone = u.load()
+        clone._p_invalidate()
+
+
+class BlobUndoTests(BlobTests):
 
     def testUndoWithoutPreviousVersion(self):
         base_storage = FileStorage(self.storagefile)
