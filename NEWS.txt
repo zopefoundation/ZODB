@@ -4,6 +4,8 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 8) Fixed a bug that caused deep copying of blobs to fail.
+
 - (beta 8) Refactored handling of invalidations on ZEO clients to fix
   a possible ordering problem for invalidation messages.
 
