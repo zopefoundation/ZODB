@@ -515,6 +515,111 @@ def test_invalidateCache():
         >>> db.close()
     """
 
+class _PlayPersistent(Persistent):
+    def setValueWithSize(self, size=0): self.value = size*' '
+    __init__ = setValueWithSize
+
+class EstimatedSizeTests(unittest.TestCase):
+    """check that size estimations are handled correctly."""
+
+    def setUp(self):
+        self.db = db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        self.conn = c = db.open()
+        self.obj = obj = _PlayPersistent()
+        c.root()['obj'] = obj
+        transaction.commit()
+
+    def test_size_set_on_write_commit(self):
+        obj, cache = self.obj, self.conn._cache
+        # we have just written "obj". Its size should not be zero
+        size, cache_size = obj._p_estimated_size, cache.total_estimated_size
+        self.assert_(size > 0)
+        self.assert_(cache_size > size)
+        # increase the size, write again and check that the size changed
+        obj.setValueWithSize(1000)
+        transaction.commit()
+        new_size = obj._p_estimated_size
+        self.assert_(new_size > size)
+        self.assertEqual(cache.total_estimated_size, cache_size + new_size - size)
+
+    def test_size_set_on_write_savepoint(self):
+        obj, cache = self.obj, self.conn._cache
+        # we have just written "obj". Its size should not be zero
+        size, cache_size = obj._p_estimated_size, cache.total_estimated_size
+        # increase the size, write again and check that the size changed
+        obj.setValueWithSize(1000)
+        transaction.savepoint()
+        new_size = obj._p_estimated_size
+        self.assert_(new_size > size)
+        self.assertEqual(cache.total_estimated_size, cache_size + new_size - size)
+
+    def test_size_set_on_load(self):
+        c = self.db.open() # new connection
+        obj = c.root()['obj']
+        # the object is still a ghost and '_p_estimated_size' not yet set
+        # access to unghost
+        cache = c._cache
+        cache_size = cache.total_estimated_size
+        obj.value
+        size = obj._p_estimated_size
+        self.assert_(size > 0)
+        self.assertEqual(cache.total_estimated_size, cache_size + size)
+        # we test here as well that the deactivation works reduced the cache size
+        obj._p_deactivate()
+        self.assertEqual(cache.total_estimated_size, cache_size)
+
+
+    def test_configuration(self):
+        # verify defaults ....
+        expected = 0
+        # ... on db
+        db = self.db
+        self.assertEqual(db.getCacheSizeBytes(), expected)
+        # ... on connection
+        conn = self.conn
+        self.assertEqual(conn._cache.cache_size_bytes, expected)
+        # verify explicit setting ...
+        expected = 10000
+        # ... on db
+        db = databaseFromString("<zodb>\n"
+                                "  cache-size-bytes %d\n"
+                                "  <mappingstorage />\n"
+                                "</zodb>"
+                                % expected
+                                )
+        self.assertEqual(db.getCacheSizeBytes(), expected)
+        # ... on connectionB
+        conn = db.open()
+        self.assertEqual(conn._cache.cache_size_bytes, expected)
+        # test huge (larger than 4 byte) size limit
+        db = databaseFromString("<zodb>\n"
+                                "  cache-size-bytes 8GB\n"
+                                "  <mappingstorage />\n"
+                                "</zodb>"
+                                )
+        self.assertEqual(db.getCacheSizeBytes(), 0x1L << 33)
+
+
+    def test_cache_garbage_collection(self):
+        db = self.db
+        # activate size based cache garbage collection
+        db.setCacheSizeBytes(1)
+        conn = self.conn
+        cache = conn._cache
+        # verify the change worked as expected
+        self.assertEqual(cache.cache_size_bytes, 1)
+        # verify our entrance assumption is fullfilled
+        self.assert_(cache.total_estimated_size > 1)
+        conn.cacheGC()
+        self.assert_(cache.total_estimated_size <= 1)
+        # sanity check
+        self.assert_(cache.total_estimated_size >= 0)
+
+
+
+
+
+
 # ---- stubs
 
 class StubObject(Persistent):
@@ -653,4 +758,5 @@ def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')
     s.addTest(doctest.DocTestSuite())
     s.addTest(unittest.makeSuite(TestConnectionInterface))
+    s.addTest(unittest.makeSuite(EstimatedSizeTests))
     return s

@@ -89,6 +89,7 @@ unghostify(cPersistentObject *self)
         if (self->cache) {
             /* Create a node in the ring for this unghostified object. */
             self->cache->non_ghost_count++;
+	    self->cache->total_estimated_size += self->estimated_size;
 	    ring_add(&self->cache->ring_home, &self->ring);
 	    Py_INCREF(self);
         }
@@ -144,6 +145,7 @@ unlink_from_ring(cPersistentObject *self)
     /* if we're ghostifying an object, we better have some non-ghosts */
     assert(self->cache->non_ghost_count > 0);
     self->cache->non_ghost_count--;
+    self->cache->total_estimated_size -= self->estimated_size;
     ring_del(&self->ring);
 }
 
@@ -174,6 +176,7 @@ ghostify(cPersistentObject *self)
     /* If we're ghostifying an object, we better have some non-ghosts. */
     assert(self->cache->non_ghost_count > 0);
     self->cache->non_ghost_count--;
+    self->cache->total_estimated_size -= self->estimated_size;
     ring_del(&self->ring);
     self->state = cPersistent_GHOST_STATE;
     dictptr = _PyObject_GetDictPtr((PyObject *)self);
@@ -1011,6 +1014,34 @@ Per_get_state(cPersistentObject *self)
     return PyInt_FromLong(self->state);
 }
 
+static PyObject *
+Per_get_estimated_size(cPersistentObject *self)
+{
+  return PyInt_FromLong(self->estimated_size);
+}
+
+static int
+Per_set_estimated_size(cPersistentObject *self, PyObject *v)
+{
+    if (v) {
+        if (PyInt_Check(v)) {
+	    if (PyInt_AS_LONG(v) < 0) {
+	        PyErr_SetString(PyExc_ValueError,
+			        "_p_estimated_size must not be negative");
+	        return -1;
+	    }
+	    self->estimated_size = PyInt_AS_LONG(v);
+	}
+	else {
+	    PyErr_SetString(PyExc_ValueError,
+			    "_p_estimated_size must be an integer");
+	    return -1;
+	}
+    } else
+        self->estimated_size = 0;
+    return 0;
+}
+
 static PyGetSetDef Per_getsets[] = {
     {"_p_changed", (getter)Per_get_changed, (setter)Per_set_changed},
     {"_p_jar", (getter)Per_get_jar, (setter)Per_set_jar},
@@ -1018,6 +1049,9 @@ static PyGetSetDef Per_getsets[] = {
     {"_p_oid", (getter)Per_get_oid, (setter)Per_set_oid},
     {"_p_serial", (getter)Per_get_serial, (setter)Per_set_serial},
     {"_p_state", (getter)Per_get_state},
+    {"_p_estimated_size",
+     (getter)Per_get_estimated_size, (setter)Per_set_estimated_size
+    },
     {NULL}
 };
 

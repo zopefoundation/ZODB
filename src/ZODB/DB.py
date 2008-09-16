@@ -221,6 +221,7 @@ class DB(object):
     def __init__(self, storage,
                  pool_size=7,
                  cache_size=400,
+                 cache_size_bytes=0,
                  version_pool_size=3,
                  version_cache_size=100,
                  database_name='unnamed',
@@ -232,10 +233,15 @@ class DB(object):
           - `storage`: the storage used by the database, e.g. FileStorage
           - `pool_size`: expected maximum number of open connections
           - `cache_size`: target size of Connection object cache
+          - `cache_size_bytes`: target size measured in total estimated size
+               of objects in the Connection object cache.
+               "0" means unlimited.
           - `version_pool_size`: expected maximum number of connections (per
             version)
           - `version_cache_size`: target size of Connection object cache for
             version connections
+          - `historical_pool_size`: expected maximum number of total
+            historical connections
         """
         # Allocate lock.
         x = threading.RLock()
@@ -249,6 +255,7 @@ class DB(object):
         self._cache_size = cache_size
         self._version_pool_size = version_pool_size
         self._version_cache_size = version_cache_size
+        self._cache_size_bytes = cache_size_bytes
 
         # Setup storage
         self._storage=storage
@@ -515,6 +522,9 @@ class DB(object):
     def getCacheSize(self):
         return self._cache_size
 
+    def getCacheSizeBytes(self):
+        return self._cache_size_bytes
+
     def lastTransaction(self):
         return self._storage.lastTransaction()
 
@@ -612,7 +622,7 @@ class DB(object):
                     size = self._version_cache_size
                 else:
                     size = self._cache_size
-                c = self.klass(self, version, size)
+                c = self.klass(self, version, size, self._cache_size_bytes)
                 pool.push(c)
                 result = pool.pop()
             assert result is not None
@@ -710,14 +720,16 @@ class DB(object):
             "Versions are deprecated and will become unsupported "
             "in ZODB 3.9",
             DeprecationWarning, 2)            
+
+    def setCacheSizeBytes(self, size):
         self._a()
         try:
-            self._version_cache_size = size
-            def setsize(c):
-                c._cache.cache_size = size
-            for version, pool in self._pools.items():
-                if version:
-                    pool.map(setsize)
+            self._cache_size_bytes = size
+            pool = self._pools.get('')
+            if pool is not None:
+                def setsize(c):
+                    c._cache.cache_size_bytes = size
+                pool.map(setsize)
         finally:
             self._r()
 

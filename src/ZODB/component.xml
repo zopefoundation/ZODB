@@ -181,6 +181,13 @@
         Target size, in number of objects, of each connection's
         object cache.
       </description>
+    <key name="cache-size-bytes" datatype="byte-size" default="0">
+      <description>
+        Target size, in total estimated size for objects, of each connection's
+        object cache.
+        "0" means no limit.
+      </description>
+    </key>
     <key name="pool-size" datatype="integer" default="7"/>
       <description>
         The expected maximum number of simultaneously open connections.

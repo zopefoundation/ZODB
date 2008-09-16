@@ -99,6 +99,7 @@ class ZODBDatabase(BaseConfig):
             return ZODB.DB(storage,
                            pool_size=section.pool_size,
                            cache_size=section.cache_size,
+                           cache_size_bytes=section.cache_size_bytes,
                            version_pool_size=section.version_pool_size,
                            version_cache_size=section.version_cache_size,
                            database_name=section.database_name,
