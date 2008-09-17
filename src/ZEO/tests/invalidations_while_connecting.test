@@ -38,7 +38,7 @@ This tests tries to provoke this bug by:
 - starting a second client that writes objects more or less
   constantly,
 
-    >>> import random, threading
+    >>> import random, threading, time
     >>> stop = False
     >>> db2 = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr))
     >>> tm = transaction.TransactionManager()
@@ -67,7 +67,6 @@ This tests tries to provoke this bug by:
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.ERROR)
 
-    >>> import time
     >>> for c in range(10):
     ...    time.sleep(.1)
     ...    db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
