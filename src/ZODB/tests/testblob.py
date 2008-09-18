@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-import base64, os, re, shutil, tempfile, unittest
+import base64, os, re, shutil, stat, sys, tempfile, unittest
 import time
 from zope.testing import doctest, renormalizing
 import ZODB.tests.util
@@ -473,6 +473,11 @@ def secure_blob_directory():
 
     """
 
+# On windows, we can't create secure blob directories, at least not
+# with APIs in the standard library, so there's no point in testing
+# this.
+if sys.platform == 'win32':
+    del secure_blob_directory
 
 def loadblob_tmpstore():
     """
@@ -520,13 +525,26 @@ def loadblob_tmpstore():
 
     >>> database.close()
     >>> import shutil
-    >>> shutil.rmtree(blob_dir)
+    >>> rmtree(blob_dir)
 
     >>> os.unlink(storagefile)
     >>> os.unlink(storagefile+".index")
     >>> os.unlink(storagefile+".tmp")
 """
 
+def setUp(test):
+    ZODB.tests.util.setUp(test)
+    def rmtree(path):
+        for path, dirs, files in os.walk(path, False):
+            for fname in files:
+                fname = os.path.join(path, fname)
+                os.chmod(fname, stat.S_IWUSR)
+                os.remove(fname)
+            for dname in dirs:
+                dname = os.path.join(path, dname)
+                os.rmdir(dname)
+
+    test.globs['rmtree'] = rmtree
 
 def test_suite():
     suite = unittest.TestSuite()
@@ -536,22 +554,26 @@ def test_suite():
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
         "blob_tempdir.txt",
         optionflags=doctest.ELLIPSIS,
-        setUp=ZODB.tests.util.setUp,
+        setUp=setUp,
         tearDown=ZODB.tests.util.tearDown,
         ))
     suite.addTest(doctest.DocFileSuite(
         "blob_layout.txt",
         optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
-        setUp=ZODB.tests.util.setUp,
+        setUp=setUp,
         tearDown=ZODB.tests.util.tearDown,
         checker = renormalizing.RENormalizing([
-            (re.compile(r'[%(sep)s]' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
             ]),
         ))
     suite.addTest(doctest.DocTestSuite(
-        setUp=ZODB.tests.util.setUp,
+        setUp=setUp,
         tearDown=ZODB.tests.util.tearDown,
+        checker = renormalizing.RENormalizing([
+            (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
+            ]),
         ))
     suite.addTest(unittest.makeSuite(BlobUndoTests))
 

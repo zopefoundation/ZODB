@@ -298,7 +298,7 @@ class FilesystemHelper:
     # want to perform blob storage differently.
 
     def __init__(self, base_dir, layout_name='automatic'):
-        self.base_dir = os.path.normpath(base_dir) + '/'
+        self.base_dir = os.path.normpath(base_dir) + os.path.sep
         self.temp_dir = os.path.join(base_dir, 'tmp')
 
         if layout_name == 'automatic':
@@ -488,8 +488,8 @@ class BushyLayout(object):
 
     """
 
-    blob_path_pattern = r'^' + (r'0x[0-9a-f]{1,2}/*'*8) + r'$'
-    blob_path_pattern = re.compile(blob_path_pattern)
+    blob_path_pattern = re.compile(
+        r'(0x[0-9a-f]{1,2}\%s){7,7}0x[0-9a-f]{1,2}$' % os.path.sep)
 
     def oid_to_path(self, oid):
         directories = []
@@ -497,12 +497,12 @@ class BushyLayout(object):
         # first
         for byte in str(oid):
             directories.append('0x%s' % binascii.hexlify(byte))
-        return '/'.join(directories)
+        return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
             raise ValueError("Not a valid OID path: `%s`" % path)
-        path = path.split('/')
+        path = path.split(os.path.sep)
         # Each path segment stores a byte in hex representation. Turn it into
         # an int and then get the character for our byte string.
         oid = ''.join(binascii.unhexlify(byte[2:]) for byte in path)
