@@ -19,9 +19,15 @@ access methods.
 $Id$
 """
 
-from persistent import Persistent
-import transaction
-from ZODB.tests.util import DB
+from persistent import Persistent # ouch!
+
+def _resettingJar():
+    from persistent.tests.utils import ResettingJar
+    return ResettingJar()
+
+def _rememberingJar():
+    from persistent.tests.utils import RememberingJar
+    return RememberingJar()
 
 class SampleOverridingGetattr(Persistent):
     """Example of overriding __getattr__
@@ -52,10 +58,8 @@ class SampleOverridingGetattr(Persistent):
 
         We'll save the object, so it can be deactivated:
 
-        >>> db = DB()
-        >>> conn = db.open()
-        >>> conn.root()['o'] = o
-        >>> transaction.commit()
+        >>> jar = _resettingJar()
+        >>> jar.add(o)
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -66,10 +70,6 @@ class SampleOverridingGetattr(Persistent):
 
         And we see that the object was activated before calling the
         __getattr__ method.
-
-        We always close databases after we use them:
-
-        >>> db.close()
         """
         # Don't pretend we have any special attributes.
         if name.startswith("__") and name.endswrith("__"):
@@ -118,10 +118,8 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         Next, we'll save the object in a database so that we can
         deactivate it:
 
-        >>> db = DB()
-        >>> conn = db.open()
-        >>> conn.root()['o'] = o
-        >>> transaction.commit()
+        >>> jar = _rememberingJar()
+        >>> jar.add(o)
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -149,10 +147,6 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         0
 
         See the very important note in the comment below!
-
-        We always close databases after we use them:
-
-        >>> db.close()
         """
 
         #################################################################
@@ -220,13 +214,11 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         >>> 'x' in o.__dict__
         False
 
-        Next, we'll save the object in a database so that we can
+        Next, we'll give the object a "remembering" jar so we can
         deactivate it:
 
-        >>> db = DB()
-        >>> conn = db.open()
-        >>> conn.root()['o'] = o
-        >>> transaction.commit()
+        >>> jar = _rememberingJar()
+        >>> jar.add(o)
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -242,9 +234,9 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         >>> o._p_changed
         1
 
-        Now, if commit:
+        Now, if fake a commit:
 
-        >>> transaction.commit()
+        >>> jar.fake_commit()
         >>> o._p_changed
         0
 
@@ -263,11 +255,6 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         0
         >>> o.tmp_foo
         3
-
-        We always close databases after we use them:
-
-        >>> db.close()
-
         """
 
         #################################################################
@@ -320,13 +307,11 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         ...
         AttributeError: x
 
-        Next, we'll save the object in a database so that we can
+        Next, we'll save the object in a jar so that we can
         deactivate it:
 
-        >>> db = DB()
-        >>> conn = db.open()
-        >>> conn.root()['o'] = o
-        >>> transaction.commit()
+        >>> jar = _rememberingJar()
+        >>> jar.add(o)
         >>> o._p_deactivate()
         >>> o._p_changed
 
@@ -347,9 +332,9 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         >>> o.tmp_z
         3
 
-        Now, if commit:
+        Now, if fake a commit:
 
-        >>> transaction.commit()
+        >>> jar.fake_commit()
         >>> o._p_changed
         0
 
@@ -370,10 +355,6 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         Traceback (most recent call last):
         ...
         AttributeError: tmp_z
-
-        We always close databases after we use them:
-
-        >>> db.close()
 
         """
 
