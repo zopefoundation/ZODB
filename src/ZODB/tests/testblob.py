@@ -543,6 +543,7 @@ def setUp(test):
             for dname in dirs:
                 dname = os.path.join(path, dname)
                 os.rmdir(dname)
+        os.rmdir(path)
 
     test.globs['rmtree'] = rmtree
 
@@ -563,6 +564,7 @@ def test_suite():
         setUp=setUp,
         tearDown=ZODB.tests.util.tearDown,
         checker = renormalizing.RENormalizing([
+            (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
             ]),
