@@ -92,8 +92,6 @@ class FileStorage(BaseStorage.BaseStorage,
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
 
-    _records_before_save = 10000
-
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None):
 
@@ -168,8 +166,6 @@ class FileStorage(BaseStorage.BaseStorage,
                 )
             self._save_index()
 
-        self._records_before_save = max(self._records_before_save,
-                                        len(self._index))
         self._ltid = tid
 
         # self._pos should always point just past the last
@@ -815,9 +811,6 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    # Keep track of the number of records that we've written
-    _records_written = 0
-
     def _finish(self, tid, u, d, e):
         nextpos=self._nextpos
         if nextpos:
@@ -834,15 +827,6 @@ class FileStorage(BaseStorage.BaseStorage,
 
             self._index.update(self._tindex)
             self._vindex.update(self._tvindex)
-            
-            # Update the number of records that we've written
-            # +1 for the transaction record
-            self._records_written += len(self._tindex) + 1
-            if self._records_written >= self._records_before_save:
-                self._save_index()
-                self._records_written = 0
-                self._records_before_save = max(self._records_before_save,
-                                                len(self._index))
 
         self._ltid = tid
 

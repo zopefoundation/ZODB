@@ -221,26 +221,6 @@ class FileStorageTests(
         self.open()
         self.assertEqual(self._storage._oid, true_max_oid)
 
-    # This would make the unit tests too slow
-    # check_save_after_load_that_worked_hard(self)
-
-    def check_periodic_save_index(self):
-
-        # Check the basic algorithm
-        oldsaved = self._storage._saved
-        self._storage._records_before_save = 10
-        for i in range(4):
-            self._dostore()
-        self.assertEqual(self._storage._saved, oldsaved)
-        self._dostore()
-        self.assertEqual(self._storage._saved, oldsaved+1)
-
-        # Now make sure the parameter changes as we get bigger
-        for i in range(20):
-            self._dostore()
-
-        self.failUnless(self._storage._records_before_save > 20)
-
     def checkStoreBumpsOid(self):
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
