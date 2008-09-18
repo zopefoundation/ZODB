@@ -11,84 +11,29 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import pickle
-import time
 import unittest
 
-from persistent import Persistent, GHOST, UPTODATE, CHANGED, STICKY
-from persistent.cPickleCache import PickleCache
-from persistent.TimeStamp import TimeStamp
-from ZODB.utils import p64
-
-class Jar(object):
-    """Testing stub for _p_jar attribute."""
-
-    def __init__(self):
-        self.cache = PickleCache(self)
-        self.oid = 1
-        self.registered = {}
-
-    def add(self, obj):
-        obj._p_oid = p64(self.oid)
-        self.oid += 1
-        obj._p_jar = self
-        self.cache[obj._p_oid] = obj
-
-    def close(self):
-        pass
-
-    # the following methods must be implemented to be a jar
-
-    def setklassstate(self):
-        # I don't know what this method does, but the pickle cache
-        # constructor calls it.
-        pass
-
-    def register(self, obj):
-        self.registered[obj] = 1
-
-    def setstate(self, obj):
-        # Trivial setstate() implementation that just re-initializes
-        # the object.  This isn't what setstate() is supposed to do,
-        # but it suffices for the tests.
-        obj.__class__.__init__(obj)
-
-class P(Persistent):
-    pass
-
-class H1(Persistent):
-
-    def __init__(self):
-        self.n = 0
-
-    def __getattr__(self, attr):
-        self.n += 1
-        return self.n
-
-class H2(Persistent):
-
-    def __init__(self):
-        self.n = 0
-
-    def __getattribute__(self, attr):
-        supergetattr = super(H2, self).__getattribute__
-        try:
-            return supergetattr(attr)
-        except AttributeError:
-            n = supergetattr("n")
-            self.n = n + 1
-            return n + 1
+Picklable = None # avoid global import of Persistent;  updated later
 
 class PersistenceTest(unittest.TestCase):
 
     def setUp(self):
-        self.jar = Jar()
+        from persistent.tests.utils import ResettingJar
+        self.jar = ResettingJar()
 
     def tearDown(self):
         self.jar.close()
 
+    def _make_P(self):
+        from persistent import Persistent
+
+        class P(Persistent):
+            pass
+
+        return P()
+
     def testOidAndJarAttrs(self):
-        obj = P()
+        obj = self._make_P()
         self.assertEqual(obj._p_oid, None)
         obj._p_oid = 12
         self.assertEqual(obj._p_oid, 12)
@@ -112,7 +57,10 @@ class PersistenceTest(unittest.TestCase):
         self.assertRaises(ValueError, setoid)
 
     def testChangedAndState(self):
-        obj = P()
+        from persistent import CHANGED
+        from persistent import GHOST
+        from persistent import UPTODATE
+        obj = self._make_P()
         self.jar.add(obj)
 
         # The value returned for _p_changed can be one of:
@@ -146,7 +94,7 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_changed, None)
         self.assertEqual(obj._p_state, GHOST)
 
-        obj = P()
+        obj = self._make_P()
         self.jar.add(obj)
         obj._p_changed = 1
         # You can transition directly from modified to ghost if
@@ -156,9 +104,13 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_state, GHOST)
 
     def testStateReadonly(self):
+        from persistent import CHANGED
+        from persistent import GHOST
+        from persistent import STICKY
+        from persistent import UPTODATE
         # make sure we can't write to _p_state; we don't want yet
         # another way to change state!
-        obj = P()
+        obj = self._make_P()
         def setstate(value):
             obj._p_state = value
         self.assertRaises(Exception, setstate, GHOST)
@@ -167,7 +119,9 @@ class PersistenceTest(unittest.TestCase):
         self.assertRaises(Exception, setstate, STICKY)
 
     def testInvalidate(self):
-        obj = P()
+        from persistent import GHOST
+        from persistent import UPTODATE
+        obj = self._make_P()
         self.jar.add(obj)
 
         self.assertEqual(obj._p_changed, 0)
@@ -184,7 +138,7 @@ class PersistenceTest(unittest.TestCase):
 
     def testSerial(self):
         noserial = "\000" * 8
-        obj = P()
+        obj = self._make_P()
         self.assertEqual(obj._p_serial, noserial)
 
         def set(val):
@@ -199,7 +153,9 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_serial, noserial)
 
     def testMTime(self):
-        obj = P()
+        import time
+        from persistent.TimeStamp import TimeStamp
+        obj = self._make_P()
         self.assertEqual(obj._p_mtime, None)
 
         t = int(time.time())
@@ -209,13 +165,32 @@ class PersistenceTest(unittest.TestCase):
         self.assert_(isinstance(obj._p_mtime, float))
 
     def testPicklable(self):
-        obj = P()
+        import pickle
+        from persistent import Persistent
+
+        global Picklable
+        class Picklable(Persistent):
+            pass
+
+        obj = Picklable()
         obj.attr = "test"
         s = pickle.dumps(obj)
         obj2 = pickle.loads(s)
         self.assertEqual(obj.attr, obj2.attr)
 
     def testGetattr(self):
+        from persistent import CHANGED
+        from persistent import Persistent
+
+        class H1(Persistent):
+
+            def __init__(self):
+                self.n = 0
+
+            def __getattr__(self, attr):
+                self.n += 1
+                return self.n
+
         obj = H1()
         self.assertEqual(obj.larry, 1)
         self.assertEqual(obj.curly, 2)
@@ -234,6 +209,23 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj.moe, 3)
 
     def testGetattribute(self):
+        from persistent import CHANGED
+        from persistent import Persistent
+
+        class H2(Persistent):
+
+            def __init__(self):
+                self.n = 0
+
+            def __getattribute__(self, attr):
+                supergetattr = super(H2, self).__getattribute__
+                try:
+                    return supergetattr(attr)
+                except AttributeError:
+                    n = supergetattr("n")
+                    self.n = n + 1
+                    return n + 1
+
         obj = H2()
         self.assertEqual(obj.larry, 1)
         self.assertEqual(obj.curly, 2)
