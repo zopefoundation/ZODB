@@ -4,6 +4,22 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 8) If there is a failure while FileStorage is finalizing a transaction,
+  the file storage is closed because it's internal meta data may be
+  invalid.
+
+- (beta 8) FileStorages previously saved indexes after a certain
+  number of writes.  This was done during the last phase of two-phase
+  commit, which made this critical phase more subject to errors than
+  it should have been.  Also, for large databases, saves were done so
+  infrequently as to be useless.  The feature was removed to reduce
+  the chance for errors during the last phase of two-phase commit.
+
+- (beta 8) File storages previously kept an internal object id to
+  transaction id mapping as an optimization. This mapping caused
+  excessive memory usage and failures during the last phase of
+  two-phase commit. This optimization has been removed.
+
 - (beta 8) Fixed a bug that caused deep copying of blobs to fail.
 
 - (beta 8) Refactored handling of invalidations on ZEO clients to fix
