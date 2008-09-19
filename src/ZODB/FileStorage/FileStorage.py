@@ -812,22 +812,34 @@ class FileStorage(BaseStorage.BaseStorage,
             self._lock_release()
 
     def _finish(self, tid, u, d, e):
-        nextpos=self._nextpos
-        if nextpos:
-            file=self._file
-
+        # If self._nextpos is 0, then the transaction didn't write any
+        # data, so we don't bother writing anything to the file.
+        if self._nextpos:
             # Clear the checkpoint flag
-            file.seek(self._pos+16)
-            file.write(self._tstatus)
-            file.flush()
+            self._file.seek(self._pos+16)
+            self._file.write(self._tstatus)
+            try:
+                # At this point, we may have committed the data to disk.
+                # If we fail from here, we're in bad shape.
+                self._finish_finish(tid)
+            except:
+                # Ouch.  This is bad.  Let's try to get back to where we were
+                # and then roll over and die
+                logger.critical("Failure in _finish. Closing.", exc_info=True)
+                self.close()
+                raise
 
-            if fsync is not None: fsync(file.fileno())
+    def _finish_finish(self, tid):
+        # This is a separate method to allow tests to replace it with
+        # something broken. :)
+        
+        self._file.flush()
+        if fsync is not None:
+            fsync(self._file.fileno())
 
-            self._pos = nextpos
-
-            self._index.update(self._tindex)
-            self._vindex.update(self._tvindex)
-
+        self._pos = self._nextpos
+        self._index.update(self._tindex)
+        self._vindex.update(self._tvindex)
         self._ltid = tid
 
     def _abort(self):
