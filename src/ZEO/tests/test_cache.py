@@ -331,6 +331,8 @@ __test__ = dict(
 
     >>> logger.setLevel(logging.NOTSET)
     >>> logger.removeHandler(handler)
+
+    >>> cache.close()
     """
     )
 
