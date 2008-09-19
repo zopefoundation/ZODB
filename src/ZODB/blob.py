@@ -325,9 +325,8 @@ class FilesystemHelper:
                 os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
             layout_marker.write(self.layout_name)
         else:
-            layout_marker = open(
-                os.path.join(self.base_dir, LAYOUT_MARKER), 'rb')
-            layout = layout_marker.read().strip()
+            layout = open(os.path.join(self.base_dir, LAYOUT_MARKER), 'rb'
+                          ).read().strip()
             if layout != self.layout_name:
                 raise ValueError(
                     "Directory layout `%s` selected for blob directory %s, but "

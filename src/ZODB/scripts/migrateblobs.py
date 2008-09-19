@@ -17,6 +17,7 @@
 import logging
 import optparse
 import os
+import shutil
 
 from ZODB.blob import FilesystemHelper, rename_or_copy_blob
 from ZODB.utils import cp, oid_repr
@@ -28,6 +29,12 @@ def link_or_copy(f1, f2):
     except OSError:
         shutil.copy(f1, f2)
 
+# Check if we actually have link
+try:
+    os.link
+except AttributeError:
+    link_or_copy = shutil.copy
+    
 
 def migrate(source, dest, layout):
     source_fsh = FilesystemHelper(source)

@@ -29,9 +29,12 @@ entries per directory level:
 >>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
 '0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x01'
 
->>> bushy.path_to_oid('0x01/0x00/0x00/0x00/0x00/0x00/0x00/0x00')
+>>> import os
+>>> bushy.path_to_oid(os.path.join(
+...     '0x01', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00'))
 '\x01\x00\x00\x00\x00\x00\x00\x00'
->>> bushy.path_to_oid('0xff/0x00/0x00/0x00/0x00/0x00/0x00/0x00')
+>>> bushy.path_to_oid(os.path.join(
+...     '0xff', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00'))
 '\xff\x00\x00\x00\x00\x00\x00\x00'
 
 Paths that do not represent an OID will cause a ValueError:
@@ -142,8 +145,8 @@ directory that has a different marker than the chosen strategy:
 'lawn'
 >>> fsh.create() # doctest: +ELLIPSIS
 Traceback (most recent call last):
-ValueError: Directory layout `lawn` selected for blob directory /.../blobs/, but marker found for layout `bushy`
->>> shutil.rmtree(blobs)
+ValueError: Directory layout `lawn` selected for blob directory .../blobs/, but marker found for layout `bushy`
+>>> rmtree(blobs)
 
 This function interacts with the automatic detection in the way, that an
 unmarked directory will be marked the first time when it is auto-guessed and
@@ -163,10 +166,11 @@ the marker will be used in the future:
 'lawn'
 >>> blob_storage = BlobStorage(blobs, base_storage, layout='bushy') # doctest: +ELLIPSIS
 Traceback (most recent call last):
-ValueError: Directory layout `bushy` selected for blob directory /.../blobs/, but marker found for layout `lawn`
+ValueError: Directory layout `bushy` selected for blob directory .../blobs/, but marker found for layout `lawn`
 
 
->>> shutil.rmtree(d)
+>>> base_storage.close()
+>>> rmtree(d)
 
 
 Migrating between directory layouts
@@ -206,7 +210,7 @@ that shall be used for the new directory:
 
 >>> bushy = os.path.join(d, 'bushy')
 >>> migrate(old, bushy, 'bushy')  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-Migrating blob data from `/.../old` (lawn) to `/.../bushy` (bushy)
+Migrating blob data from `.../old` (lawn) to `.../bushy` (bushy)
     OID: 0x0a - 2 files
     OID: 0x1b7a - 2 files
     OID: 0x1b7f - 2 files
@@ -248,7 +252,7 @@ We can also migrate the bushy layout back to the lawn layout:
 
 >>> lawn = os.path.join(d, 'lawn')
 >>> migrate(bushy, lawn, 'lawn')
-Migrating blob data from `/.../bushy` (bushy) to `/.../lawn` (lawn)
+Migrating blob data from `.../bushy` (bushy) to `.../lawn` (lawn)
    OID: 0x0a - 2 files
    OID: 0x1b7a - 2 files
    OID: 0x1b7f - 2 files
@@ -278,4 +282,4 @@ bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo4 --> lawn/0x0a/foo4
 bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo5 --> lawn/0x1b7a/foo5
 bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo6 --> lawn/0x1b7a/foo6
 
->>> shutil.rmtree(d)
+>>> rmtree(d)
