@@ -114,6 +114,18 @@ Bugs Fixed
 
 Bugs Fixed:
 
+- FileStorages previously saved indexes after a certain
+  number of writes.  This was done during the last phase of two-phase
+  commit, which made this critical phase more subject to errors than
+  it should have been.  Also, for large databases, saves were done so
+  infrequently as to be useless.  The feature was removed to reduce
+  the chance for errors during the last phase of two-phase commit.
+
+- File storages previously kept an internal object id to
+  transaction id mapping as an optimization. This mapping caused
+  excessive memory usage and failures during the last phase of
+  two-phase commit. This optimization has been removed.
+
 - Refactored handling of invalidations on ZEO clients to fix
   a possible ordering problem for invalidation messages.
 
