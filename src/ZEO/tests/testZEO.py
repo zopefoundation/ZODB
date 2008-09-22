@@ -856,6 +856,100 @@ transaction, we'll get a result:
 
     """
 
+def tpc_finish_error():
+    """Server errors in tpc_finish weren't handled properly.
+
+    >>> import ZEO.ClientStorage
+
+    >>> class Connection:
+    ...     def __init__(self, client):
+    ...         self.client = client
+    ...     def get_addr(self):
+    ...         return 'server'
+    ...     def is_async(self):
+    ...         return True
+    ...     def register_object(self, ob):
+    ...         pass
+    ...     def close(self):
+    ...         print 'connection closed'
+
+    >>> class ConnectionManager:
+    ...     def __init__(self, addr, client, tmin, tmax):
+    ...         self.client = client
+    ...     def connect(self, sync=1):
+    ...         self.client.notifyConnected(Connection(self.client))
+
+    >>> class StorageServer:
+    ...     should_fail = True
+    ...     def __init__(self, conn):
+    ...         self.conn = conn
+    ...         self.t = None
+    ...     def get_info(self):
+    ...         return {}
+    ...     def endZeoVerify(self):
+    ...         self.conn.client.endVerify()
+    ...     def tpc_begin(self, t, *args):
+    ...         if self.t is not None:
+    ...             raise TypeError('already trans')
+    ...         self.t = t
+    ...         print 'begin', args
+    ...     def vote(self, t):
+    ...         if self.t != t:
+    ...             raise TypeError('bad trans')
+    ...         print 'vote'
+    ...     def tpc_finish(self, *args):
+    ...         if self.should_fail:
+    ...             raise TypeError()
+    ...         print 'finish'
+    ...     def tpc_abort(self, t):
+    ...         if self.t != t:
+    ...             raise TypeError('bad trans')
+    ...         self.t = None
+    ...         print 'abort'
+
+    >>> class ClientStorage(ZEO.ClientStorage.ClientStorage):
+    ...     ConnectionManagerClass = ConnectionManager
+    ...     StorageServerStubClass = StorageServer
+
+    >>> class Transaction:
+    ...     user = 'test'
+    ...     description = ''
+    ...     _extension = {}
+
+    >>> cs = ClientStorage(('', ''))
+    >>> t1 = Transaction()
+    >>> cs.tpc_begin(t1)
+    begin ('test', '', {}, None, ' ')
+
+    >>> cs.tpc_vote(t1)
+    vote
+
+    >>> cs.tpc_finish(t1)
+    Traceback (most recent call last):
+    ...
+    TypeError
+
+    >>> cs.tpc_abort(t1)
+    abort
+
+    >>> t2 = Transaction()
+    >>> cs.tpc_begin(t2)
+    begin ('test', '', {}, None, ' ')
+    >>> cs.tpc_vote(t2)
+    vote
+
+    If client storage has an internal error after the storage finish
+    succeeeds, it will close the connection, which will force a
+    restart and reverification.
+
+    >>> StorageServer.should_fail = False
+    >>> cs._update_cache = lambda : None
+    >>> try: cs.tpc_finish(t2)
+    ... except: pass
+    ... else: print "Should have failed"
+    finish
+    connection closed
+    """
 
 test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
                 BlobAdaptedFileStorageTests, BlobWritableCacheTests]
