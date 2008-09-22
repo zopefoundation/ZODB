@@ -364,6 +364,5 @@ We don't need the storage directory and databases anymore::
     >>> tm1.abort()
     >>> tm2.abort()
     >>> database.close()
-    >>> import shutil
-    >>> shutil.rmtree(blob_dir)
-    >>> shutil.rmtree(blob_dir2)
+    >>> rmtree(blob_dir)
+    >>> rmtree(blob_dir2)
