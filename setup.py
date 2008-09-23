@@ -227,6 +227,10 @@ def alltests():
 
 doclines = __doc__.split("\n")
 
+def read_file(name):
+    base_dir = os.path.dirname(__file__)
+    return file(os.path.join(base_dir, name)).read()
+
 setup(name="ZODB3",
       version=VERSION,
       maintainer="Zope Corporation",
@@ -241,7 +245,11 @@ setup(name="ZODB3",
       platforms = ["any"],
       description = doclines[0],
       classifiers = filter(None, classifiers.split("\n")),
-      long_description = "\n".join(doclines[2:]),
+      long_description = (
+        "\n".join(doclines[2:]) + "\n\n" +
+        ".. contents::\n\n" + 
+        read_file("README.txt")  + "\n\n" +
+        read_file("HISTORY.txt")),
       distclass = MyDistribution,
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = [
