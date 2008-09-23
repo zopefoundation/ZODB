@@ -227,9 +227,10 @@ def alltests():
 
 doclines = __doc__.split("\n")
 
-def read_file(name):
+def read_file(*path):
     base_dir = os.path.dirname(__file__)
-    return file(os.path.join(base_dir, name)).read()
+    file_path = (base_dir, ) + tuple(path)
+    return file(os.path.join(*file_path)).read()
 
 setup(name="ZODB3",
       version=VERSION,
@@ -249,7 +250,7 @@ setup(name="ZODB3",
         "\n".join(doclines[2:]) + "\n\n" +
         ".. contents::\n\n" + 
         read_file("README.txt")  + "\n\n" +
-        read_file("HISTORY.txt")),
+        read_file("src", "CHANGES.txt")),
       distclass = MyDistribution,
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = [
