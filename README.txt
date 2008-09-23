@@ -1,8 +1,9 @@
-ZODB 3.8
-========
+==========
+ ZODB 3.8
+==========
 
 Introduction
-------------
+============
 
 The ZODB  package provides a  set of tools  for using the  Zope Object
 Database (ZODB).  The components you  get with the ZODB release are as
@@ -21,7 +22,8 @@ you use ZoneAlarm.  Many particularly slow tests are skipped unless
 you pass --all as an argument to test.py.
 
 Compatibility
--------------
+=============
+
 
 ZODB 3.8 requires Python 2.4.2 or later.
 
@@ -31,7 +33,7 @@ any.  ZODB 3.8 ZEO clients require ZODB 3.8 servers and later.  ZODB
 3.8 ZEO Servers will work with ZODB 3.2 clients and later.
 
 Prerequisites
--------------
+=============
 
 You must have Python installed.  If you've installed Python from RPM,
 be sure that you've installed the development RPMs too, since ZODB
@@ -43,7 +45,7 @@ zope.testing packages.  If you are using easy_install or zc.buildout to
 install ZODB, then these will be installed for you automatically.
 
 Installation
-------------
+============
 
 ZODB is released as a distutils package.  The easiest ways to build
 and install it are to use `easy_install
@@ -79,7 +81,7 @@ script::
 This should now make all of ZODB accessible to your Python programs.
 
 Testing for Developers
-----------------------
+======================
 
 The ZODB check outs are `buldouts <http://www.python.org/pypi/zc.buildout>`_.
 When working from a ZODB checkout, first run the bootstrap.py script
@@ -116,7 +118,7 @@ Running all the tests takes much longer.::
 
 
 History
--------
+=======
 
 The historical version numbering schemes for ZODB and ZEO are complicated.
 Starting with ZODB 3.4, the ZODB and ZEO version numbers are the same.
@@ -158,7 +160,7 @@ ZODB(3).
 
 
 License
--------
+=======
 
 ZODB is distributed under the Zope Public License, an OSI-approved
 open source license.  Please see the LICENSE.txt file for terms and
@@ -170,7 +172,7 @@ the terms of the GNU Free Documentation License.
 
 
 More information
-----------------
+================
 
 We maintain a Wiki page about all things ZODB, including status on
 future directions for ZODB.  Please see
@@ -199,7 +201,7 @@ browser at the file Doc/guide/zodb/index.html
 
 
 Bugs and Patches
-----------------
+================
 
 Bug reports and patches should be added to the Zope Collector, with
 topic "Database":
