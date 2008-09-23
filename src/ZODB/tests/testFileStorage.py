@@ -502,6 +502,60 @@ Of course, calling lastInvalidations on an empty storage refturns no data:
 
     """
 
+def deal_with_finish_failures():
+    r"""
+    
+    It's really bad to get errors in FileStorage's _finish method, as
+    that can cause the file storage to be in an inconsistent
+    state. The data file will be fine, but the internal data
+    structures might be hosed. For this reason, FileStorage will close
+    if there is an error after it has finished writing transaction
+    data.  It bothers to do very little after writing this data, so
+    this should rarely, if ever, happen.
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 1
+    >>> transaction.commit()
+
+    Now, we'll indentially break the file storage. It provides a hook
+    for this purpose. :)
+
+    >>> fs._finish_finish = lambda : None
+    >>> conn.root()[1] = 1
+
+    >>> import zope.testing.loggingsupport
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...     'ZODB.FileStorage')
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    TypeError: <lambda>() takes no arguments (1 given)
+
+    
+    >>> print handler
+    ZODB.FileStorage CRITICAL
+      Failure in _finish. Closing.
+
+    >>> handler.uninstall()
+
+    >>> fs.load('\0'*8, '')
+    Traceback (most recent call last):
+    ...
+    ValueError: I/O operation on closed file
+
+    >>> db.close()
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()
+    {1: 1}
+
+    >>> transaction.abort()
+    >>> db.close()
+    """
+
 def test_suite():
     from zope.testing import doctest
 
