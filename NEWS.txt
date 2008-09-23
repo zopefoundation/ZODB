@@ -4,7 +4,7 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
-- (beta 9) Fixed bug #189542 by prepending the module for a missing name.
+- (beta 9) Fixed bug #189542 by prepending the module to an undefined name.
 
 - (beta 8) If there is a failure while FileStorage is finalizing a transaction,
   the file storage is closed because it's internal meta data may be
