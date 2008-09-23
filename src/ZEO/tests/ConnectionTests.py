@@ -1075,6 +1075,8 @@ class TimeoutTests(CommonSetupTearDown):
         self.assert_(storage.is_connected())
         # We expect finish to fail.
         self.assertRaises(ClientDisconnected, storage.tpc_finish, t)
+        storage.tpc_abort(t)
+
         # Now we think we've committed the second transaction, but we really
         # haven't.  A third one should produce a POSKeyError on the server,
         # which manifests as a ConflictError on the client.

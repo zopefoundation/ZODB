@@ -1075,20 +1075,28 @@ class ClientStorage(object):
             # tpc_cond condition variable prevents more than one
             # thread from calling tpc_finish() at a time.
             tid = self._server.tpc_finish(id(txn))
-            self._lock.acquire()  # for atomic processing of invalidations
-            try:
-                self._update_cache(tid)
-                if f is not None:
-                    f(tid)
-            finally:
-                self._lock.release()
 
-            r = self._check_serials()
-            assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
+            try:
+                self._lock.acquire()  # for atomic processing of invalidations
+                try:
+                    self._update_cache(tid)
+                    if f is not None:
+                        f(tid)
+                finally:
+                    self._lock.release()
+
+                r = self._check_serials()
+                assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
+            except:
+                # The server successfully committed.  If we get a failure
+                # here, our own state will be in question, so reconnect.
+                self._connection.close()
+                raise
+
+            self.end_transaction()
         finally:
             self._load_lock.release()
             self._iterator_gc()
-            self.end_transaction()
 
     def _update_cache(self, tid):
         """Internal helper to handle objects modified by a transaction.
