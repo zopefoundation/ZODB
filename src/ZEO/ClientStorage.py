@@ -985,7 +985,7 @@ class ClientStorage(object):
             if self._have_blob(blob_filename, oid, serial):
                 return blob_filename
 
-            raise POSKeyError("No blob file", oid, serial)
+            raise POSException.POSKeyError("No blob file", oid, serial)
 
         finally:
             lock.close()
