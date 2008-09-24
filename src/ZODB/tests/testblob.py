@@ -141,6 +141,10 @@ class BlobCloneTests(BlobTests):
         clone = u.load()
         clone._p_invalidate()
 
+        # it should also be possible to open the cloned blob
+        # (even though it won't contain the original data)
+        clone.open()
+
 
 class BlobUndoTests(BlobTests):
 

@@ -120,6 +120,9 @@ class Blob(persistent.Persistent):
         if self.writers:
             raise BlobError("Already opened for writing.")
 
+        if self.readers is None:
+            self.readers = []
+
         if mode == 'r':
             if self._current_filename() is None:
                 self._create_uncommitted_file()
