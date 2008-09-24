@@ -566,6 +566,7 @@ def test_suite():
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             ]),
         ))
+    suite.addTest(unittest.makeSuite(BlobCloneTests))
     suite.addTest(unittest.makeSuite(BlobUndoTests))
 
     return suite
