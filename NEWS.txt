@@ -4,6 +4,9 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (beta 9) An exception would be raised when an error occured attempting to
+  lock a file and logging of said error was enabled.
+
 - (beta 9) Fixed a bug to allow opening of deep-copied blobs.
 
 - (beta 9) Fixed bug #189542 by prepending the module to an undefined name.
