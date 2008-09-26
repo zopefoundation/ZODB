@@ -323,7 +323,22 @@ PreviousBucket(Bucket **current, Bucket *first)
         trailing = first;
 	PER_USE_OR_RETURN(first, -1);
         first = first->next;
-	PER_UNUSE(trailing);
+
+
+
+
+
+
+
+    ((trailing)->state==cPersistent_STICKY_STATE
+     &&
+     ((trailing)->state=cPersistent_UPTODATE_STATE));
+
+    PER_ACCESSED(trailing);
+
+
+
+
 
 	if (first == *current) {
 	    *current = trailing;

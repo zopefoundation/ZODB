@@ -638,27 +638,29 @@ cc_ringlen(ccobject *self)
 static PyObject *
 cc_update_object_size_estimation(ccobject *self, PyObject *args)
 {
-    PyObject *oid;
-    cPersistentObject *v;
-    unsigned int new_size;
-    if (!PyArg_ParseTuple(args, "OI:updateObjectSizeEstimation", &oid, &new_size))
-	return NULL;
-    /* Note: reference borrowed */
-    v = (cPersistentObject *)PyDict_GetItem(self->data, oid);
-    if (v) {
-        /* we know this object -- update our "total_size_estimation"
-           we must only update when the object is in the ring
-	*/
-        if (v->ring.r_next) {
-            self->total_estimated_size += new_size - v->estimated_size;
-	    /* we do this in "Connection" as we need it even when the
-	       object is not in the cache (or not the ring)
-	    */
-	    /* v->estimated_size = new_size; */
-	}
+  PyObject *oid;
+  cPersistentObject *v;
+  unsigned int new_size;
+  if (!PyArg_ParseTuple(args, "OI:updateObjectSizeEstimation", &oid, &new_size))
+    return NULL;
+  /* Note: reference borrowed */
+  v = (cPersistentObject *)PyDict_GetItem(self->data, oid);
+  if (v) {
+    /* we know this object -- update our "total_size_estimation"
+       we must only update when the object is in the ring
+    */
+    if (v->ring.r_next) {
+      self->total_estimated_size += _estimated_size_in_bytes(
+             _estimated_size_in_24_bits(new_size) - v->estimated_size
+             );
+      /* we do this in "Connection" as we need it even when the
+         object is not in the cache (or not the ring)
+      */
+      /* v->estimated_size = new_size; */
     }
-    Py_RETURN_NONE;
- }
+  }
+  Py_RETURN_NONE;
+}
 
 
 static struct PyMethodDef cc_methods[] = {
@@ -1058,7 +1060,8 @@ static PyGetSetDef cc_getsets[] = {
 static PyMemberDef cc_members[] = {
     {"cache_size", T_INT, offsetof(ccobject, cache_size)},
     {"cache_size_bytes", T_LONG, offsetof(ccobject, cache_size_bytes)},
-    {"total_estimated_size", T_LONG, offsetof(ccobject, total_estimated_size), RO},
+    {"total_estimated_size", T_LONG, offsetof(ccobject, total_estimated_size),
+     RO},
     {"cache_drain_resistance", T_INT,
      offsetof(ccobject, cache_drain_resistance)},
     {"cache_non_ghost_count", T_INT, offsetof(ccobject, non_ghost_count), RO},

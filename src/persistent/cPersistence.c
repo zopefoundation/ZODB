@@ -89,7 +89,8 @@ unghostify(cPersistentObject *self)
         if (self->cache) {
             /* Create a node in the ring for this unghostified object. */
             self->cache->non_ghost_count++;
-	    self->cache->total_estimated_size += self->estimated_size;
+	    self->cache->total_estimated_size += 
+              _estimated_size_in_bytes(self->estimated_size);
 	    ring_add(&self->cache->ring_home, &self->ring);
 	    Py_INCREF(self);
         }
@@ -145,7 +146,8 @@ unlink_from_ring(cPersistentObject *self)
     /* if we're ghostifying an object, we better have some non-ghosts */
     assert(self->cache->non_ghost_count > 0);
     self->cache->non_ghost_count--;
-    self->cache->total_estimated_size -= self->estimated_size;
+    self->cache->total_estimated_size -=
+      _estimated_size_in_bytes(self->estimated_size);
     ring_del(&self->ring);
 }
 
@@ -176,7 +178,8 @@ ghostify(cPersistentObject *self)
     /* If we're ghostifying an object, we better have some non-ghosts. */
     assert(self->cache->non_ghost_count > 0);
     self->cache->non_ghost_count--;
-    self->cache->total_estimated_size -= self->estimated_size;
+    self->cache->total_estimated_size -= 
+      _estimated_size_in_bytes(self->estimated_size);
     ring_del(&self->ring);
     self->state = cPersistent_GHOST_STATE;
     dictptr = _PyObject_GetDictPtr((PyObject *)self);
@@ -1017,29 +1020,30 @@ Per_get_state(cPersistentObject *self)
 static PyObject *
 Per_get_estimated_size(cPersistentObject *self)
 {
-  return PyInt_FromLong(self->estimated_size);
+  return PyInt_FromLong(_estimated_size_in_bytes(self->estimated_size));
 }
 
 static int
 Per_set_estimated_size(cPersistentObject *self, PyObject *v)
 {
-    if (v) {
-        if (PyInt_Check(v)) {
-	    if (PyInt_AS_LONG(v) < 0) {
-	        PyErr_SetString(PyExc_ValueError,
-			        "_p_estimated_size must not be negative");
-	        return -1;
-	    }
-	    self->estimated_size = PyInt_AS_LONG(v);
-	}
-	else {
-	    PyErr_SetString(PyExc_ValueError,
-			    "_p_estimated_size must be an integer");
-	    return -1;
-	}
-    } else
-        self->estimated_size = 0;
-    return 0;
+  if (v) {
+    if (PyInt_Check(v)) {
+      long lv = PyInt_AS_LONG(v);
+      if (lv < 0) {
+        PyErr_SetString(PyExc_ValueError,
+                        "_p_estimated_size must not be negative");
+        return -1;
+      }
+      self->estimated_size = _estimated_size_in_24_bits(lv);
+    }
+    else {
+      PyErr_SetString(PyExc_ValueError,
+                      "_p_estimated_size must be an integer");
+      return -1;
+    }
+  } else
+    self->estimated_size = 0;
+  return 0;
 }
 
 static PyGetSetDef Per_getsets[] = {
