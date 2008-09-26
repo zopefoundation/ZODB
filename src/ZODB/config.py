@@ -164,6 +164,7 @@ class ZEOClient(BaseConfig):
             wait=self.config.wait,
             read_only=self.config.read_only,
             read_only_fallback=self.config.read_only_fallback,
+            drop_cache_rather_verify=self.config.drop_cache_rather_verify,
             username=self.config.username,
             password=self.config.password,
             realm=self.config.realm)

@@ -59,6 +59,8 @@ logger = logging.getLogger('ZEO.tests.testZEO')
 class DummyDB:
     def invalidate(self, *args):
         pass
+    def invalidateCache(*unused):
+        pass
 
 class OneTimeTests(unittest.TestCase):
 
@@ -126,6 +128,58 @@ class MiscZEOTests:
                 raise AssertionError('Invalidation message was not sent!')
         finally:
             storage2.close()
+
+    def checkDropCacheRatherVerifyImplementation(self):
+        # As it is quite difficult to set things up such that the verification
+        # optimizations do not step in, we emulate both the cache
+        # as well as the server.
+        from ZODB.TimeStamp import TimeStamp
+        class CacheEmulator(object):
+            # the settings below would be inconsitent for a normal cache
+            # but they are sufficient for our test setup
+            def __len__(self): return 1 # claim not to be empty
+            def contents(self): return () # do not invalidate anything
+            def getLastTid(self): return
+            def close(self): pass
+        class ServerEmulator(object):
+            def verify(*unused): pass
+            def endZeoVerify(*unused): pass
+            def lastTransaction(*unused): pass
+        storage = self._storage
+        storage._cache = cache = CacheEmulator()
+        server = ServerEmulator()
+        # test the standard behaviour
+        self.assertEqual(storage.verify_cache(server), "full verification")
+        # test the "drop cache rather verify" behaviour
+        storage._drop_cache_rather_verify = True
+        self.assertEqual(storage.verify_cache(server), "cache dropped")
+        # verify that we got a new cache
+        self.assert_(cache != storage._cache)
+
+
+class ConfigurationTests(unittest.TestCase):
+    def checkDropCacheRatherVerifyConfiguration(self):
+        from ZODB.config import storageFromString
+        # the default is to do verification and not drop the cache
+        cs = storageFromString('''
+        <zeoclient>
+          server localhost:9090
+          wait false
+        </zeoclient>
+        ''')
+        self.assertEqual(cs._drop_cache_rather_verify, False)
+        cs.close()
+        # now for dropping
+        cs = storageFromString('''
+        <zeoclient>
+          server localhost:9090
+          wait false
+          drop-cache-rather-verify true
+        </zeoclient>
+        ''')
+        self.assertEqual(cs._drop_cache_rather_verify, True)
+        cs.close()
+
 
 class GenericTests(
     # Base class for all ZODB tests
@@ -952,7 +1006,9 @@ def tpc_finish_error():
     """
 
 test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
-                BlobAdaptedFileStorageTests, BlobWritableCacheTests]
+                BlobAdaptedFileStorageTests, BlobWritableCacheTests,
+                ConfigurationTests,
+                ]
 
 def test_suite():
     suite = unittest.TestSuite()
