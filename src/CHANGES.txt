@@ -109,7 +109,15 @@ Bugs Fixed
 - Fixed bug in ClientCache that occurred with objects larger than the total
   cache size.
 
-3.8.1b8 (2008-09-??)
+3.8.1b9 (2008-??-??)
+====================
+
+Bugs Fixed:
+
+- When an error occured attempting to lock a file and logging of said error was
+  enabled.
+
+3.8.1b8 (2008-09-22
 ====================
 
 Bugs Fixed:
