@@ -43,8 +43,6 @@ from ZODB.FileStorage.format import CorruptedDataError
 from ZODB.loglevels import BLATHER
 from ZODB.fsIndex import fsIndex
 
-import BTrees.OOBTree
-
 packed_version = "FS21"
 
 logger = logging.getLogger('ZODB.FileStorage')
@@ -94,8 +92,6 @@ class FileStorage(BaseStorage.BaseStorage,
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
 
-    _records_before_save = 10000
-
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None):
 
@@ -122,10 +118,8 @@ class FileStorage(BaseStorage.BaseStorage,
 
         BaseStorage.BaseStorage.__init__(self, file_name)
 
-        (index, vindex, tindex, tvindex,
-         oid2tid, toid2tid, toid2tid_delete) = self._newIndexes()
-        self._initIndex(index, vindex, tindex, tvindex,
-                        oid2tid, toid2tid, toid2tid_delete)
+        index, vindex, tindex, tvindex = self._newIndexes()
+        self._initIndex(index, vindex, tindex, tvindex)
 
         # Now open the file
 
@@ -159,8 +153,7 @@ class FileStorage(BaseStorage.BaseStorage,
             self._used_index = 1 # Marker for testing
             index, vindex, start, ltid = r
 
-            self._initIndex(index, vindex, tindex, tvindex,
-                            oid2tid, toid2tid, toid2tid_delete)
+            self._initIndex(index, vindex, tindex, tvindex)
             self._pos, self._oid, tid = read_index(
                 self._file, file_name, index, vindex, tindex, stop,
                 ltid=ltid, start=start, read_only=read_only,
@@ -173,8 +166,6 @@ class FileStorage(BaseStorage.BaseStorage,
                 )
             self._save_index()
 
-        self._records_before_save = max(self._records_before_save,
-                                        len(self._index))
         self._ltid = tid
 
         # self._pos should always point just past the last
@@ -194,11 +185,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         self._quota = quota
 
-        # tid cache statistics.
-        self._oid2tid_nlookups = self._oid2tid_nhits = 0
-
-    def _initIndex(self, index, vindex, tindex, tvindex,
-                   oid2tid, toid2tid, toid2tid_delete):
+    def _initIndex(self, index, vindex, tindex, tvindex):
         self._index=index
         self._vindex=vindex
         self._tindex=tindex
@@ -206,32 +193,12 @@ class FileStorage(BaseStorage.BaseStorage,
         self._index_get=index.get
         self._vindex_get=vindex.get
 
-        # .store() needs to compare the passed-in serial to the
-        # current tid in the database.  _oid2tid caches the oid ->
-        # current tid mapping for non-version data (if the current
-        # record for oid is version data, the oid is not a key in
-        # _oid2tid).  The point is that otherwise seeking into the
-        # storage is needed to extract the current tid, and that's
-        # an expensive operation.  For example, if a transaction
-        # stores 4000 objects, and each random seek + read takes 7ms
-        # (that was approximately true on Linux and Windows tests in
-        # mid-2003), that's 28 seconds just to find the old tids.
-        # TODO:  Probably better to junk this and redefine _index as mapping
-        # oid to (offset, tid) pair, via a new memory-efficient BTree type.
-        self._oid2tid = oid2tid
-        # oid->tid map to transactionally add to _oid2tid.
-        self._toid2tid = toid2tid
-        # Set of oids to transactionally delete from _oid2tid (e.g.,
-        # oids reverted by undo, or for which the most recent record
-        # becomes version data).
-        self._toid2tid_delete = toid2tid_delete
-
     def __len__(self):
         return len(self._index)
 
     def _newIndexes(self):
         # hook to use something other than builtin dict
-        return fsIndex(), {}, {}, {}, BTrees.OOBTree.OOBTree(), {}, {}
+        return fsIndex(), {}, {}, {}
 
     _saved = 0
     def _save_index(self):
@@ -409,27 +376,6 @@ class FileStorage(BaseStorage.BaseStorage,
             # Log the error and continue
             logger.error("Error saving index on close()", exc_info=True)
 
-    # Return tid of most recent record for oid if that's in the
-    # _oid2tid cache.  Else return None.  It's important to use this
-    # instead of indexing _oid2tid directly so that cache statistics
-    # can be logged.
-    def _get_cached_tid(self, oid):
-        self._oid2tid_nlookups += 1
-        result = self._oid2tid.get(oid)
-        if result is not None:
-            self._oid2tid_nhits += 1
-
-        # Log a msg every ~8000 tries.
-        if self._oid2tid_nlookups & 0x1fff == 0:
-            logger.log(BLATHER,
-                    "_oid2tid size %s lookups %s hits %s rate %.1f%%",
-                    len(self._oid2tid),
-                    self._oid2tid_nlookups,
-                    self._oid2tid_nhits,
-                    100.0 * self._oid2tid_nhits / self._oid2tid_nlookups)
-
-        return result
-
     def abortVersion(self, src, transaction):
         return self.commitVersion(src, '', transaction, abort=True)
 
@@ -504,7 +450,6 @@ class FileStorage(BaseStorage.BaseStorage,
 
             srcpos = h.vprev
             spos = p64(srcpos)
-        self._toid2tid_delete.update(current_oids)
         return self._tid, oids
 
     def getSize(self):
@@ -616,24 +561,23 @@ class FileStorage(BaseStorage.BaseStorage,
             if oid > self._oid:
                 self.set_max_oid(oid)
             old = self._index_get(oid, 0)
-            cached_tid = None
+            committed_tid = None
             pnv = None
             if old:
-                cached_tid = self._get_cached_tid(oid)
-                if cached_tid is None:
-                    h = self._read_data_header(old, oid)
-                    if h.version:
-                        if h.version != version:
-                            raise VersionLockError(oid, h.version)
-                        pnv = h.pnv
-                    cached_tid = h.tid
+                h = self._read_data_header(old, oid)
+                if h.version:
+                    if h.version != version:
+                        raise VersionLockError(oid, h.version)
+                    pnv = h.pnv
+                committed_tid = h.tid
 
-                if oldserial != cached_tid:
-                    rdata = self.tryToResolveConflict(oid, cached_tid,
+                if oldserial != committed_tid:
+                    rdata = self.tryToResolveConflict(oid, committed_tid,
                                                      oldserial, data)
                     if rdata is None:
                         raise POSException.ConflictError(
-                            oid=oid, serials=(cached_tid, oldserial), data=data)
+                            oid=oid, serials=(committed_tid, oldserial),
+                            data=data)
                     else:
                         data = rdata
 
@@ -651,9 +595,6 @@ class FileStorage(BaseStorage.BaseStorage,
                     pnv = old
                 new.setVersion(version, pnv, pv)
                 self._tvindex[version] = here
-                self._toid2tid_delete[oid] = 1
-            else:
-                self._toid2tid[oid] = self._tid
 
             self._tfile.write(new.asString())
             self._tfile.write(data)
@@ -663,7 +604,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
 
-            if old and oldserial != cached_tid:
+            if old and oldserial != committed_tid:
                 return ConflictResolution.ResolvedSerial
             else:
                 return self._tid
@@ -771,9 +712,6 @@ class FileStorage(BaseStorage.BaseStorage,
                     vprev = self._vindex.get(version, 0)
                 new.setVersion(version, pnv, vprev)
                 self._tvindex[version] = here
-                self._toid2tid_delete[oid] = 1
-            else:
-                self._toid2tid[oid] = serial
 
             self._tfile.write(new.asString())
 
@@ -822,8 +760,6 @@ class FileStorage(BaseStorage.BaseStorage,
     def _clear_temp(self):
         self._tindex.clear()
         self._tvindex.clear()
-        self._toid2tid.clear()
-        self._toid2tid_delete.clear()
         if self._tfile is not None:
             self._tfile.seek(0)
 
@@ -875,41 +811,35 @@ class FileStorage(BaseStorage.BaseStorage,
         finally:
             self._lock_release()
 
-    # Keep track of the number of records that we've written
-    _records_written = 0
-
     def _finish(self, tid, u, d, e):
-        nextpos=self._nextpos
-        if nextpos:
-            file=self._file
-
+        # If self._nextpos is 0, then the transaction didn't write any
+        # data, so we don't bother writing anything to the file.
+        if self._nextpos:
             # Clear the checkpoint flag
-            file.seek(self._pos+16)
-            file.write(self._tstatus)
-            file.flush()
+            self._file.seek(self._pos+16)
+            self._file.write(self._tstatus)
+            try:
+                # At this point, we may have committed the data to disk.
+                # If we fail from here, we're in bad shape.
+                self._finish_finish(tid)
+            except:
+                # Ouch.  This is bad.  Let's try to get back to where we were
+                # and then roll over and die
+                logger.critical("Failure in _finish. Closing.", exc_info=True)
+                self.close()
+                raise
 
-            if fsync is not None: fsync(file.fileno())
+    def _finish_finish(self, tid):
+        # This is a separate method to allow tests to replace it with
+        # something broken. :)
+        
+        self._file.flush()
+        if fsync is not None:
+            fsync(self._file.fileno())
 
-            self._pos = nextpos
-
-            self._index.update(self._tindex)
-            self._vindex.update(self._tvindex)
-            self._oid2tid.update(self._toid2tid)
-            for oid in self._toid2tid_delete.keys():
-                try:
-                    del self._oid2tid[oid]
-                except KeyError:
-                    pass
-
-            # Update the number of records that we've written
-            # +1 for the transaction record
-            self._records_written += len(self._tindex) + 1
-            if self._records_written >= self._records_before_save:
-                self._save_index()
-                self._records_written = 0
-                self._records_before_save = max(self._records_before_save,
-                                                len(self._index))
-
+        self._pos = self._nextpos
+        self._index.update(self._tindex)
+        self._vindex.update(self._tvindex)
         self._ltid = tid
 
     def _abort(self):
@@ -945,17 +875,12 @@ class FileStorage(BaseStorage.BaseStorage,
     def getTid(self, oid):
         self._lock_acquire()
         try:
-            result = self._get_cached_tid(oid)
-            if result is None:
-                pos = self._lookup_pos(oid)
-                h = self._read_data_header(pos, oid)
-                if h.plen == 0 and h.back == 0:
-                    # Undone creation
-                    raise POSKeyError(oid)
-                else:
-                    result = h.tid
-                    self._oid2tid[oid] = result
-            return result
+            pos = self._lookup_pos(oid)
+            h = self._read_data_header(pos, oid)
+            if h.plen == 0 and h.back == 0:
+                # Undone creation
+                raise POSKeyError(oid)
+            return h.tid
         finally:
             self._lock_release()
 
@@ -1103,10 +1028,6 @@ class FileStorage(BaseStorage.BaseStorage,
         tpos = self._txn_find(tid, 1)
         tindex = self._txn_undo_write(tpos)
         self._tindex.update(tindex)
-        # Arrange to clear the affected oids from the oid2tid cache.
-        # It's too painful to try to update them to correct current
-        # values instead.
-        self._toid2tid_delete.update(tindex)
         return self._tid, tindex.keys()
 
     def _txn_find(self, tid, stop_at_pack):
@@ -1343,9 +1264,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
                 self._file = open(self._file_name, 'r+b')
-                self._initIndex(p.index, p.vindex, p.tindex, p.tvindex,
-                                p.oid2tid, p.toid2tid,
-                                p.toid2tid_delete)
+                self._initIndex(p.index, p.vindex, p.tindex, p.tvindex)
                 self._pos = opos
                 self._save_index()
             finally:

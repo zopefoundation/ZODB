@@ -146,7 +146,7 @@ revision as well as the entire directory:
 
 Clean up our blob directory and database:
 
-    >>> shutil.rmtree(blob_dir)
+    >>> rmtree(blob_dir)
     >>> base_storage.close()
     >>> os.unlink(storagefile)
     >>> os.unlink(storagefile+".index")
@@ -273,4 +273,4 @@ knowledge that the underlying storage's pack method is also called:
 
 Clean up our blob directory:
 
-    >>> shutil.rmtree(blob_dir)
+    >>> rmtree(blob_dir)

@@ -221,26 +221,6 @@ class FileStorageTests(
         self.open()
         self.assertEqual(self._storage._oid, true_max_oid)
 
-    # This would make the unit tests too slow
-    # check_save_after_load_that_worked_hard(self)
-
-    def check_periodic_save_index(self):
-
-        # Check the basic algorithm
-        oldsaved = self._storage._saved
-        self._storage._records_before_save = 10
-        for i in range(4):
-            self._dostore()
-        self.assertEqual(self._storage._saved, oldsaved)
-        self._dostore()
-        self.assertEqual(self._storage._saved, oldsaved+1)
-
-        # Now make sure the parameter changes as we get bigger
-        for i in range(20):
-            self._dostore()
-
-        self.failUnless(self._storage._records_before_save > 20)
-
     def checkStoreBumpsOid(self):
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
@@ -527,6 +507,60 @@ Of course, calling lastInvalidations on an empty storage refturns no data:
     >>> list(fs.lastInvalidations(10))
     []
 
+    """
+
+def deal_with_finish_failures():
+    r"""
+    
+    It's really bad to get errors in FileStorage's _finish method, as
+    that can cause the file storage to be in an inconsistent
+    state. The data file will be fine, but the internal data
+    structures might be hosed. For this reason, FileStorage will close
+    if there is an error after it has finished writing transaction
+    data.  It bothers to do very little after writing this data, so
+    this should rarely, if ever, happen.
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 1
+    >>> transaction.commit()
+
+    Now, we'll indentially break the file storage. It provides a hook
+    for this purpose. :)
+
+    >>> fs._finish_finish = lambda : None
+    >>> conn.root()[1] = 1
+
+    >>> import zope.testing.loggingsupport
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...     'ZODB.FileStorage')
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    TypeError: <lambda>() takes no arguments (1 given)
+
+    
+    >>> print handler
+    ZODB.FileStorage CRITICAL
+      Failure in _finish. Closing.
+
+    >>> handler.uninstall()
+
+    >>> fs.load('\0'*8, '')
+    Traceback (most recent call last):
+    ...
+    ValueError: I/O operation on closed file
+
+    >>> db.close()
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()
+    {1: 1}
+
+    >>> transaction.abort()
+    >>> db.close()
     """
 
 def test_suite():
