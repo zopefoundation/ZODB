@@ -94,7 +94,13 @@ Of course, the estimated size must not be negative.
   0
   >>> p._p_estimated_size = 1000
   >>> p._p_estimated_size
-  1000
+  1024
+
+Huh?  Why is the estimated size coming out different than what we put
+in? The reason is that the size isn't stored exactly.  For backward
+compatibility reasons, the size needs to fit in 24 bits, so,
+internally, it is adjusted somewhat.
+
   >>> p._p_estimated_size = -1
   Traceback (most recent call last):
   ....
