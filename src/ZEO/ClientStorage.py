@@ -1204,6 +1204,11 @@ class ClientStorage(object):
         the test suite.
         """
 
+        print 'verify'
+
+        def log2(*args):
+            print args
+
         self._pending_server = server
 
         # setup tempfile to hold zeoVerify results and interim
@@ -1258,8 +1263,11 @@ class ClientStorage(object):
         # there may be objects in the object caches that aren't in the
         # client cach that would need verification too. We avoid that
         # problem by just invalidating the objects in the object caches.
-        if self._db is not None:
-            self._db.invalidateCache()
+#         if self._db is not None:
+#             self._db.invalidateCache()
+
+
+        print 'VERIFY'
 
         if self._cache and self._drop_cache_rather_verify:
             log2("dropping cache")

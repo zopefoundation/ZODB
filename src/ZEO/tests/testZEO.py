@@ -1105,6 +1105,98 @@ def tpc_finish_error():
     connection closed
     """
 
+def clear_memory_cache_on_cache_verification_or_have_invalid_data():
+    r"""
+
+    When a ZEO client reconnects, there are 2 caches it has to worry
+    about. The client cache, and the memory caches.  The memory caches
+    may have data not in the client caches.  Below is a scenario that
+    illustrates this.
+
+
+    First, we start a server:
+
+    >>> port1 = get_port()
+    >>> zconf = forker.ZEOConfig(('localhost', port1))
+    >>> sconf = '<filestorage 1>\npath Data.fs\n</filestorage>\n'
+    >>> _, adminaddr, pid, conf_path = forker.start_zeo_server(
+    ...     sconf, zconf, port1, keep=True)
+
+    Now, we'll create a client:
+
+    >>> db = ZODB.DB(ClientStorage(('localhost', port1), cache_size=12))
+    >>> conn = db.open()
+    >>> conn.root()[0] = MinPO(0)
+    >>> transaction.commit()
+
+    We'll restart the server on a different port.
+
+    >>> port2 = get_port()
+    >>> zconf = forker.ZEOConfig(('localhost', port2))
+    >>> forker.shutdown_zeo_server(adminaddr)
+
+    >>> conn.sync()
+    >>> conn._storage.is_connected()
+    False
+    
+    >>> zconf = forker.ZEOConfig(('localhost', port2))
+    >>> _, adminaddr, pid, conf_path = forker.start_zeo_server(
+    ...     sconf, zconf, port2, keep=True)
+
+    And write a bunch of data to it.
+
+    >>> db2 = ZODB.DB(ClientStorage(('localhost', port2), cache_size=12))
+    >>> conn2 = db2.open()
+    >>> for i in range(10):
+    ...     conn2.root()[i+1] = MinPO(i+1)
+    ...     transaction.commit()
+    >>> conn2.root()[0].value = 42
+    >>> transaction.commit()
+    >>> db2.close()
+    >>> forker.shutdown_zeo_server(adminaddr)
+
+    Now, we'll restart the server on the original port with a small
+    invalidation queue size.  This will force the original client to
+    validate it's cache.
+
+    >>> transaction.abort()
+
+    >>> len(conn.root())
+    >>> conn.root()[0].value
+
+    >>> len(conn._cache)
+    >>> len(conn._storage._cache)
+
+    >>> zconf = forker.ZEOConfig(('localhost', port1))
+    >>> zconf.invalidation_queue_size = 1
+    >>> _, adminaddr, pid, conf_path = forker.start_zeo_server(
+    ...      sconf, zconf, port1)
+    
+    Now, if we sync the original connection, we should get  current data:
+
+
+    >>> conn._storage._wait(5)
+    >>> len(conn._cache)
+
+    >>> transaction.abort()
+
+
+
+    >>> len(conn._cache)
+    
+    >>> len(conn.root())
+    11
+    
+    >>> conn.root()[0].value
+    42
+
+    >>> forker.shutdown_zeo_server(adminaddr)
+    >>> db.close()
+
+    """
+
+
+
 test_classes = [FileStorageTests, FileStorageRecoveryTests,
                 MappingStorageTests, DemoStorageTests,
                 BlobAdaptedFileStorageTests, BlobWritableCacheTests,
