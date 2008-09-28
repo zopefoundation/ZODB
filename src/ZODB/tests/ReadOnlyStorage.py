@@ -36,7 +36,6 @@ class ReadOnlyStorage:
         for oid in self.oids.keys():
             data, revid = self._storage.load(oid, '')
             self.assertEqual(revid, self.oids[oid])
-            self.assert_(not self._storage.modifiedInVersion(oid))
             # Storages without revisions may not have loadSerial().
             try:
                 _data = self._storage.loadSerial(oid, revid)
@@ -49,12 +48,6 @@ class ReadOnlyStorage:
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
         t = transaction.Transaction()
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
-
-        if self._storage.supportsVersions():
-            self.assertRaises(ReadOnlyError, self._storage.abortVersion,
-                              '', t)
-            self.assertRaises(ReadOnlyError, self._storage.commitVersion,
-                              '', '', t)
 
         self.assertRaises(ReadOnlyError, self._storage.store,
                           '\000' * 8, None, '', '', t)

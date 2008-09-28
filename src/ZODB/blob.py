@@ -88,7 +88,7 @@ class Blob(persistent.Persistent):
         # XXX should we warn of this? Maybe?
         if self._p_changed is None:
             return
-        for ref in self.readers+self.writers:
+        for ref in (self.readers or [])+(self.writers or []):
             f = ref()
             if f is not None:
                 f.close()
@@ -119,6 +119,9 @@ class Blob(persistent.Persistent):
 
         if self.writers:
             raise BlobError("Already opened for writing.")
+
+        if self.readers is None:
+            self.readers = []
 
         if mode == 'r':
             if self._current_filename() is None:
@@ -244,7 +247,7 @@ class Blob(persistent.Persistent):
         def cleanup(ref):
             if os.path.exists(filename):
                 os.remove(filename)
-        
+
         self._p_blob_ref = weakref.ref(self, cleanup)
         return filename
 
@@ -294,6 +297,7 @@ class FilesystemHelper:
 
     def __init__(self, base_dir):
         self.base_dir = base_dir
+        self.temp_dir = os.path.join(base_dir, 'tmp')
 
     def create(self):
         if not os.path.exists(self.base_dir):
@@ -301,10 +305,15 @@ class FilesystemHelper:
             log("Blob cache directory '%s' does not exist. "
                 "Created new directory." % self.base_dir,
                 level=logging.INFO)
+        if not os.path.exists(self.temp_dir):
+            os.makedirs(self.temp_dir, 0700)
+            log("Blob temporary directory '%s' does not exist. "
+                "Created new directory." % self.temp_dir,
+                level=logging.INFO)
 
     def isSecure(self, path):
         """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 077) != 0
+        return (os.stat(path).st_mode & 077) == 0
 
     def checkSecure(self):
         if not self.isSecure(self.base_dir):
@@ -317,6 +326,21 @@ class FilesystemHelper:
 
         """
         return os.path.join(self.base_dir, utils.oid_repr(oid))
+
+    def createPathForOID(self, oid):
+        """Given an OID, creates a directory on the filesystem where
+        the blob data relating to that OID is stored, if it doesn't exist.
+
+        """
+        path = self.getPathForOID(oid)
+        if os.path.exists(path):
+            return
+        try:
+            os.makedirs(path, 0700)
+        except OSError:
+            # We might have lost a race.  If so, the directory
+            # must exist now
+            assert os.path.exists(path)
 
     def getBlobFilename(self, oid, tid):
         """Given an oid and a tid, return the full filename of the
@@ -375,6 +399,21 @@ class FilesystemHelper:
                     oids.append(oid)
         return oids
 
+    def listOIDs(self):
+        """Lists all OIDs and their paths.
+
+        """
+        for candidate in os.listdir(self.base_dir):
+            if candidate == 'tmp':
+                continue
+            oid = utils.repr_to_oid(candidate)
+            yield oid, self.getPathForOID(oid)
+
+
+class BlobStorageError(Exception):
+    """The blob storage encountered an invalid state."""
+
+
 class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
 
@@ -382,7 +421,8 @@ class BlobStorage(SpecificationDecoratorBase):
 
     # Proxies can't have a __dict__ so specifying __slots__ here allows
     # us to have instance attributes explicitly on the proxy.
-    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo')
+    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
+                 '_blobs_pack_is_in_progress', )
 
     def __new__(self, base_directory, storage):
         return SpecificationDecoratorBase.__new__(self, storage)
@@ -401,11 +441,11 @@ class BlobStorage(SpecificationDecoratorBase):
         else:
             supportsUndo = supportsUndo()
         self.__supportsUndo = supportsUndo
+        self._blobs_pack_is_in_progress = False
 
     @non_overridable
     def temporaryDirectory(self):
-        return self.fshelper.base_dir
-
+        return self.fshelper.temp_dir
 
     @non_overridable
     def __repr__(self):
@@ -471,21 +511,9 @@ class BlobStorage(SpecificationDecoratorBase):
         # if they are still needed by attempting to load the revision
         # of that object from the database.  This is maybe the slowest
         # possible way to do this, but it's safe.
-
-        # XXX we should be tolerant of "garbage" directories/files in
-        # the base_directory here.
-
-        # XXX If this method gets refactored we have to watch out for extra
-        # files from uncommitted transactions. The current implementation
-        # doesn't have a problem, but future refactorings likely will.
-
         base_dir = self.fshelper.base_dir
-        for oid_repr in os.listdir(base_dir):
-            oid = utils.repr_to_oid(oid_repr)
-            oid_path = os.path.join(base_dir, oid_repr)
+        for oid, oid_path in self.fshelper.listOIDs():
             files = os.listdir(oid_path)
-            files.sort()
-
             for filename in files:
                 filepath = os.path.join(oid_path, filename)
                 whatever, serial = self.fshelper.splitBlobFilename(filepath)
@@ -501,11 +529,8 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def _packNonUndoing(self, packtime, referencesf):
         base_dir = self.fshelper.base_dir
-        for oid_repr in os.listdir(base_dir):
-            oid = utils.repr_to_oid(oid_repr)
-            oid_path = os.path.join(base_dir, oid_repr)
+        for oid, oid_path in self.fshelper.listOIDs():
             exists = True
-
             try:
                 self.load(oid, None) # no version support
             except (POSKeyError, KeyError):
@@ -527,21 +552,29 @@ class BlobStorage(SpecificationDecoratorBase):
 
     @non_overridable
     def pack(self, packtime, referencesf):
-        """Remove all unused oid/tid combinations."""
-        unproxied = getProxiedObject(self)
-
-        # pack the underlying storage, which will allow us to determine
-        # which serials are current.
-        result = unproxied.pack(packtime, referencesf)
-
-        # perform a pack on blob data
+        """Remove all unused OID/TID combinations."""
         self._lock_acquire()
         try:
+            if self._blobs_pack_is_in_progress:
+                raise BlobStorageError('Already packing')
+            self._blobs_pack_is_in_progress = True
+        finally:
+            self._lock_release()
+
+        try:
+            # Pack the underlying storage, which will allow us to determine
+            # which serials are current.
+            unproxied = getProxiedObject(self)
+            result = unproxied.pack(packtime, referencesf)
+
+            # Perform a pack on the blob data.
             if self.__supportsUndo:
                 self._packUndoing(packtime, referencesf)
             else:
                 self._packNonUndoing(packtime, referencesf)
         finally:
+            self._lock_acquire()
+            self._blobs_pack_is_in_progress = False
             self._lock_release()
 
         return result

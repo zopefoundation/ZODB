@@ -13,6 +13,7 @@
 ##############################################################################
 """Helper file used to launch a ZEO server cross platform"""
 
+import asyncore
 import os
 import sys
 import time
@@ -23,8 +24,6 @@ import signal
 import asyncore
 import threading
 import logging
-
-import ThreadedAsync.LoopCallback
 
 from ZEO.StorageServer import StorageServer
 from ZEO.runzeo import ZEOOptions
@@ -208,8 +207,8 @@ def main():
     d.setDaemon(1)
     d.start()
     # Loop for socket events
-    log(label, 'entering ThreadedAsync loop')
-    ThreadedAsync.LoopCallback.loop()
+    log(label, 'entering asyncore loop')
+    asyncore.loop()
 
 
 if __name__ == '__main__':

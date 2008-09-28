@@ -17,12 +17,11 @@ import transaction
 from ZODB.DB import DB
 import ZODB.utils
 import ZODB.DemoStorage
-from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage
+from ZODB.tests import StorageTestBase, BasicStorage
 from ZODB.tests import Synchronization
 
 class DemoStorageTests(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
-                       VersionStorage.VersionStorage,
                        Synchronization.SynchronizedStorage,
                        ):
 
@@ -36,25 +35,6 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         # This base class test checks for the common case where a storage
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
-        pass
-
-    def checkAbortVersionNonCurrent(self):
-        # TODO:  Need to implement a real loadBefore for DemoStorage?
-        pass
-
-    def checkLoadBeforeVersion(self):
-        # TODO:  Need to implement a real loadBefore for DemoStorage?
-        pass
-
-    # the next three pack tests depend on undo
-
-    def checkPackVersionReachable(self):
-        pass
-
-    def checkPackVersions(self):
-        pass
-
-    def checkPackVersionsInPast(self):
         pass
 
     def checkLoadDelegation(self):

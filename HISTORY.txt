@@ -4,6 +4,9 @@ What's new in ZODB 3.8.0
 General
 -------
 
+- (unreleased) Fixed setup.py use of setuptools vs distutils, so .c and .h
+  files are included in the bdist_egg.
+
 - The ZODB Storage APIs have been documented and cleaned up.
 
 - ZODB versions are now officially deprecated and support for them
@@ -12,7 +15,7 @@ General
 
 - Changed the automatic garbage collection when opening a connection to only
   apply the garbage collections on those connections in the pool that are
-  closed. (This fixed issue 113932.)
+  closed. (This fixed issue 113923.)
 
 ZEO
 ---

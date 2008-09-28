@@ -12,9 +12,14 @@
 #
 ##############################################################################
 
-import base64, os, shutil, tempfile, unittest
-from zope.testing import doctest
+import base64, os, re, shutil, stat, sys, tempfile, unittest
+import time
+from zope.testing import doctest, renormalizing
 import ZODB.tests.util
+
+from StringIO import StringIO
+from pickle import Pickler
+from pickle import Unpickler
 
 from ZODB import utils
 from ZODB.FileStorage import FileStorage
@@ -25,6 +30,22 @@ import transaction
 
 from ZODB.tests.testConfig import ConfigTestBase
 from ZConfig import ConfigurationSyntaxError
+
+
+def new_time():
+    """Create a _new_ time stamp.
+
+    This method also makes sure that after retrieving a timestamp that was
+    *before* a transaction was committed, that at least one second passes so
+    the packing time actually is before the commit time.
+
+    """
+    now = new_time = time.time()
+    while new_time <= now:
+        new_time = time.time()
+    time.sleep(1)
+    return new_time
+
 
 class BlobConfigTestBase(ConfigTestBase):
 
@@ -81,7 +102,7 @@ class ZODBBlobConfigTest(BlobConfigTestBase):
                           """)
 
 
-class BlobUndoTests(unittest.TestCase):
+class BlobTests(unittest.TestCase):
 
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -94,6 +115,38 @@ class BlobUndoTests(unittest.TestCase):
     def tearDown(self):
         os.chdir(self.here)
         ZODB.blob.remove_committed_dir(self.test_dir)
+
+class BlobCloneTests(BlobTests):
+
+    def testDeepCopyCanInvalidate(self):
+        """
+        Tests regression for invalidation problems related to missing
+        readers and writers values in cloned objects (see
+        http://mail.zope.org/pipermail/zodb-dev/2008-August/012054.html)
+        """
+        base_storage = FileStorage(self.storagefile)
+        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        database = DB(blob_storage)
+        connection = database.open()
+        root = connection.root()
+        transaction.begin()
+        root['blob'] = Blob()
+        transaction.commit()
+
+        stream = StringIO()
+        p = Pickler(stream, 1)
+        p.dump(root['blob'])
+        u = Unpickler(stream)
+        stream.seek(0)
+        clone = u.load()
+        clone._p_invalidate()
+
+        # it should also be possible to open the cloned blob
+        # (even though it won't contain the original data)
+        clone.open()
+
+
+class BlobUndoTests(BlobTests):
 
     def testUndoWithoutPreviousVersion(self):
         base_storage = FileStorage(self.storagefile)
@@ -284,13 +337,220 @@ Works with savepoints too:
     
     >>> root['blob2'].open().read()
     'test2'
-    
+
     >>> os.rename = os_rename
     >>> logger.propagate = True
     >>> logger.setLevel(0)
     >>> logger.removeHandler(handler)
 
     """
+
+
+def packing_with_uncommitted_data_non_undoing():
+    """
+    This covers regression for bug #130459.
+
+    When uncommitted data exists it formerly was written to the root of the
+    blob_directory and confused our packing strategy. We now use a separate
+    temporary directory that is ignored while packing.
+
+    >>> import transaction
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp
+
+    >>> base_storage = MappingStorage("test")
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> connection.add(root['blob'])
+    >>> root['blob'].open('w').write('test')
+
+    >>> blob_storage.pack(new_time(), referencesf)
+
+    Clean up:
+
+    >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+
+    """
+
+def packing_with_uncommitted_data_undoing():
+    """
+    This covers regression for bug #130459.
+
+    When uncommitted data exists it formerly was written to the root of the
+    blob_directory and confused our packing strategy. We now use a separate
+    temporary directory that is ignored while packing.
+
+    >>> import transaction
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp, mktemp
+
+    >>> storagefile = mktemp()
+    >>> base_storage = FileStorage(storagefile)
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> connection.add(root['blob'])
+    >>> root['blob'].open('w').write('test')
+
+    >>> blob_storage.pack(new_time(), referencesf)
+
+    Clean up:
+
+    >>> database.close()
+    >>> import shutil
+    >>> shutil.rmtree(blob_dir)
+
+    >>> os.unlink(storagefile)
+    >>> os.unlink(storagefile+".index")
+    >>> os.unlink(storagefile+".tmp")
+
+
+    """
+
+
+def secure_blob_directory():
+    """
+    This is a test for secure creation and verification of secure settings of
+    blob directories.
+
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from tempfile import mkdtemp
+    >>> import os.path
+
+    >>> working_directory = mkdtemp()
+    >>> base_storage = FileStorage(os.path.join(working_directory, 'Data.fs'))
+    >>> blob_storage = BlobStorage(os.path.join(working_directory, 'blobs'),
+    ...                            base_storage)
+
+    Two directories are created:
+
+    >>> blob_dir = os.path.join(working_directory, 'blobs')
+    >>> os.path.isdir(blob_dir)
+    True
+    >>> tmp_dir = os.path.join(blob_dir, 'tmp')
+    >>> os.path.isdir(tmp_dir)
+    True
+
+    They are only accessible by the owner:
+
+    >>> oct(os.stat(blob_dir).st_mode)
+    '040700'
+    >>> oct(os.stat(tmp_dir).st_mode)
+    '040700'
+
+    These settings are recognized as secure:
+
+    >>> blob_storage.fshelper.isSecure(blob_dir)
+    True
+    >>> blob_storage.fshelper.isSecure(tmp_dir)
+    True
+
+    After making the permissions of tmp_dir more liberal, the directory is
+    recognized as insecure:
+
+    >>> os.chmod(tmp_dir, 040711)
+    >>> blob_storage.fshelper.isSecure(tmp_dir)
+    False
+
+    Clean up:
+
+    >>> blob_storage.close()
+    >>> import shutil
+    >>> shutil.rmtree(working_directory)
+
+    """
+
+# On windows, we can't create secure blob directories, at least not
+# with APIs in the standard library, so there's no point in testing
+# this.
+if sys.platform == 'win32':
+    del secure_blob_directory
+
+def loadblob_tmpstore():
+    """
+    This is a test for assuring that the TmpStore's loadBlob implementation
+    falls back correctly to loadBlob on the backend.
+
+    First, let's setup a regular database and store a blob:
+
+    >>> import transaction
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp, mktemp
+
+    >>> storagefile = mktemp()
+    >>> base_storage = FileStorage(storagefile)
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> database = DB(blob_storage)
+    >>> connection = database.open()
+    >>> root = connection.root()
+    >>> from ZODB.blob import Blob
+    >>> root['blob'] = Blob()
+    >>> connection.add(root['blob'])
+    >>> root['blob'].open('w').write('test')
+    >>> import transaction
+    >>> transaction.commit()
+    >>> blob_oid = root['blob']._p_oid
+    >>> tid = blob_storage.lastTransaction()
+
+    Now we open a database with a TmpStore in front:
+
+    >>> database.close()
+
+    >>> from ZODB.Connection import TmpStore
+    >>> tmpstore = TmpStore(blob_storage)
+
+    We can access the blob correctly:
+
+    >>> tmpstore.loadBlob(blob_oid, tid) # doctest: +ELLIPSIS
+    '.../0x01/0x...blob'
+
+    Clean up:
+
+    >>> database.close()
+    >>> import shutil
+    >>> rmtree(blob_dir)
+
+    >>> os.unlink(storagefile)
+    >>> os.unlink(storagefile+".index")
+    >>> os.unlink(storagefile+".tmp")
+"""
+
+def setUp(test):
+    ZODB.tests.util.setUp(test)
+    def rmtree(path):
+        for path, dirs, files in os.walk(path, False):
+            for fname in files:
+                fname = os.path.join(path, fname)
+                os.chmod(fname, stat.S_IWUSR)
+                os.remove(fname)
+            for dname in dirs:
+                dname = os.path.join(path, dname)
+                os.rmdir(dname)
+        os.rmdir(path)
+
+    test.globs['rmtree'] = rmtree
 
 def test_suite():
     suite = unittest.TestSuite()
@@ -299,13 +559,18 @@ def test_suite():
         "blob_basic.txt",  "blob_connection.txt", "blob_transaction.txt",
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
         "blob_tempdir.txt",
-        setUp=ZODB.tests.util.setUp,
+        setUp=setUp,
         tearDown=ZODB.tests.util.tearDown,
         ))
     suite.addTest(doctest.DocTestSuite(
-        setUp=ZODB.tests.util.setUp,
+        setUp=setUp,
         tearDown=ZODB.tests.util.tearDown,
+        checker = renormalizing.RENormalizing([
+            (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
+            ]),
         ))
+    suite.addTest(unittest.makeSuite(BlobCloneTests))
     suite.addTest(unittest.makeSuite(BlobUndoTests))
 
     return suite

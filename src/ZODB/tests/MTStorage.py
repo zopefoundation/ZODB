@@ -165,13 +165,6 @@ class ExtStorageClientThread(StorageClientThread):
         names = ["do_load"]
 
         storage = self.storage
-        try:
-            supportsVersions = storage.supportsVersions
-        except AttributeError:
-            pass
-        else:
-            if supportsVersions():
-                names.append("do_modifiedInVersion")
 
         try:
             supportsUndo = storage.supportsUndo
@@ -202,10 +195,6 @@ class ExtStorageClientThread(StorageClientThread):
     def do_loadSerial(self):
         oid = self.pick_oid()
         self.storage.loadSerial(oid, self.oids[oid])
-
-    def do_modifiedInVersion(self):
-        oid = self.pick_oid()
-        self.storage.modifiedInVersion(oid)
 
     def do_undoLog(self):
         self.storage.undoLog(0, -20)

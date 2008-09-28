@@ -25,11 +25,6 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 import transaction
 
-# deprecated39  remove when versions go away
-warnings.filterwarnings("ignore",
-                        "Versions are deprecated",
-                        DeprecationWarning, __name__)
-
 class P(Persistent):
     pass
 
@@ -135,20 +130,6 @@ class ZODBTests(unittest.TestCase):
 
     def checkExportImportAborted(self):
         self.checkExportImport(abort_it=True)
-
-    def checkVersionOnly(self):
-        # Make sure the changes to make empty transactions a no-op
-        # still allow things like abortVersion().  This should work
-        # because abortVersion() calls tpc_begin() itself.
-        conn = self._db.open("version")
-        try:
-            r = conn.root()
-            r[1] = 1
-            transaction.commit()
-        finally:
-            conn.close()
-        self._db.abortVersion("version")
-        transaction.commit()
 
     def checkResetCache(self):
         # The cache size after a reset should be 0.  Note that

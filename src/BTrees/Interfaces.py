@@ -99,7 +99,10 @@ class ISetMutable(IKeyed):
         """
 
     def remove(key):
-        """Remove the key from the set."""
+        """Remove the key from the set.
+
+        Raises KeyError if key is not in the set.
+        """
 
     def update(seq):
         """Add the items from the given sequence to the set."""
@@ -137,13 +140,19 @@ class IMinimalDictionary(ISized, IKeyed):
         Return the default if has_key(key) is false.
         """
 
+    def __getitem__(key):
+        """Get the value associated with the given key.
+
+        Raise KeyError if has_key(key) is false.
+        """
+
     def __setitem__(key, value):
         """Set the value associated with the given key."""
 
     def __delitem__(key):
         """Delete the value associated with the given key.
 
-        Raise KeyError if the key if has_key(key) is false.
+        Raise KeyError if has_key(key) is false.
         """
 
     def values(min=None, max=None, excludemin=False, excludemax=False):
@@ -312,27 +321,27 @@ class IBTreeModule(Interface):
 
     BTree = Attribute(
         """The IBTree for this module.
-        
+
         Also available as [prefix]BTree, as in IOBTree.""")
 
     Bucket = Attribute(
         """The leaf-node data buckets used by the BTree.
-        
+
         (IBucket is not currently defined in this file, but is essentially
         IDictionaryIsh, with the exception of __nonzero__, as of this
         writing.)
-        
+
         Also available as [prefix]Bucket, as in IOBucket.""")
 
     TreeSet = Attribute(
         """The ITreeSet for this module.
-        
+
         Also available as [prefix]TreeSet, as in IOTreeSet.""")
 
     Set = Attribute(
         """The ISet for this module: the leaf-node data buckets used by the
         TreeSet.
-        
+
         Also available as [prefix]BTree, as in IOSet.""")
 
 
@@ -453,37 +462,37 @@ class IBTreeFamily(Interface):
 
 class IIntegerObjectBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are integers; values are objects.
-    
+
     describes IOBTree and LOBTree"""
-    
+
     family = Attribute('The IBTreeFamily of this module')
 
 
 class IObjectIntegerBTreeModule(IBTreeModule, IIMerge):
     """keys, or set values, are objects; values are integers.
-    
+
     Object keys (and set values) must sort reliably (for instance, *not* on
     object id)!  Homogenous key types recommended.
-    
+
     describes OIBTree and LOBTree"""
-    
+
     family = Attribute('The IBTreeFamily of this module')
 
 
 class IIntegerIntegerBTreeModule(IBTreeModule, IIMerge, IMergeIntegerKey):
     """keys, or set values, are integers; values are also integers.
-    
+
     describes IIBTree and LLBTree"""
-    
+
     family = Attribute('The IBTreeFamily of this module')
 
 
 class IObjectObjectBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are objects; values are also objects.
-    
+
     Object keys (and set values) must sort reliably (for instance, *not* on
     object id)!  Homogenous key types recommended.
-    
+
     describes OOBTree"""
 
     # Note that there's no ``family`` attribute; all families include
@@ -492,9 +501,9 @@ class IObjectObjectBTreeModule(IBTreeModule, IMerge):
 
 class IIntegerFloatBTreeModule(IBTreeModule, IMerge):
     """keys, or set values, are integers; values are floats.
-    
+
     describes IFBTree and LFBTree"""
-    
+
     family = Attribute('The IBTreeFamily of this module')
 
 

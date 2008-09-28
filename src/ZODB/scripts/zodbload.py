@@ -790,9 +790,6 @@ def main(args=None):
         import Zope2
         Zope2.startup()
 
-    #from ThreadedAsync.LoopCallback import loop
-    #threading.Thread(target=loop, args=(), name='asyncore').start()
-
     jobs = JobProducer()
     for job, kw, frequency, sleep, repeatp in jobdefs:
         Job = globals()[job.capitalize()+'Job']

@@ -146,11 +146,28 @@
         read_only_fallback should be true.
       </description>
     </key>
+    <key name="username" required="no">
+      <description>
+        The authentication username of the server.
+      </description>
+    </key>
+    <key name="password" required="no">
+      <description>
+        The authentication password of the server.
+      </description>
+    </key>
     <key name="realm" required="no">
       <description>
         The authentication realm of the server.  Some authentication
         schemes use a realm to identify the logic set of usernames
         that are accepted by this server.
+      </description>
+    </key>
+    <!-- DM 2008-05-15: added -->
+    <key name="drop-cache-rather-verify" datatype="boolean" default="off">
+      <description>
+        A flag indicating whether the client cache should be dropped
+        instead of an expensive verification.
       </description>
     </key>
   </sectiontype>
@@ -171,6 +188,13 @@
         Target size, in number of objects, of each connection's
         object cache.
       </description>
+    <key name="cache-size-bytes" datatype="byte-size" default="0">
+      <description>
+        Target size, in total estimated size for objects, of each connection's
+        object cache.
+        "0" means no limit.
+      </description>
+    </key>
     <key name="pool-size" datatype="integer" default="7"/>
       <description>
         The expected maximum number of simultaneously open connections.
@@ -180,15 +204,27 @@
         and exceeding twice pool-size connections causes a critical
         message to be logged.
       </description>
-    <key name="version-pool-size" datatype="integer" default="3"/>
+    <key name="historical-pool-size" datatype="integer" default="3"/>
       <description>
-        The expected maximum number of connections simultaneously open
-        per version.
+        The expected maximum total number of historical connections
+        simultaneously open.
       </description>
-    <key name="version-cache-size" datatype="integer" default="100"/>
+    <key name="historical-cache-size" datatype="integer" default="1000"/>
       <description>
-        Target size, in number of objects, of each version connection's
+        Target size, in number of objects, of each historical connection's
         object cache.
+      </description>
+    <key name="historical-cache-size-bytes" datatype="byte-size" default="0">
+      <description>
+        Target size, in total estimated size of objects, of each historical connection's
+        object cache.
+      </description>
+    </key>
+    <key name="historical-timeout" datatype="time-interval"
+         default="5m"/>
+      <description>
+        The minimum interval that an unused historical connection should be
+        kept.
       </description>
     <key name="database-name" default="unnamed"/>
       <description>

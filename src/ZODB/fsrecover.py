@@ -82,7 +82,7 @@ except ImportError:
 
 import ZODB.FileStorage
 from ZODB.utils import u64
-from ZODB.FileStorage import RecordIterator
+from ZODB.FileStorage import TransactionRecord
 
 from persistent.TimeStamp import TimeStamp
 
@@ -146,8 +146,8 @@ def read_txn_header(f, pos, file_size, outp, ltid):
         except: e={}
     else: e={}
 
-    result = RecordIterator(tid, status, user, description, e, pos, tend,
-                            f, tpos)
+    result = TransactionRecord(tid, status, user, description, e, pos, tend,
+                               f, tpos)
     pos = tend
 
     # Read the (intentionally redundant) transaction length
@@ -338,8 +338,8 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
                     else:
                         l = len(r.data)
 
-                    print "%7d %s %s" % (u64(r.oid), l, r.version)
-                ofs.restore(r.oid, r.tid, r.data, r.version, r.data_txn,
+                    print "%7d %s %s" % (u64(r.oid), l)
+                ofs.restore(r.oid, r.tid, r.data, '', r.data_txn,
                             txn)
                 nrec += 1
         except (KeyboardInterrupt, SystemExit):

@@ -15,6 +15,7 @@
 
 Any storage that supports the iterator() method should be able to pass
 all these tests.
+
 """
 
 from ZODB.tests.MinPO import MinPO
@@ -23,22 +24,24 @@ from ZODB.utils import U64, p64
 
 from transaction import Transaction
 
+import itertools
+
+
 class IteratorCompare:
 
     def iter_verify(self, txniter, revids, val0):
         eq = self.assertEqual
         oid = self._oid
         val = val0
-        for reciter, revid in zip(txniter, revids + [None]):
+        for reciter, revid in itertools.izip(txniter, revids + [None]):
             eq(reciter.tid, revid)
             for rec in reciter:
                 eq(rec.oid, oid)
                 eq(rec.tid, revid)
-                eq(rec.version, '')
                 eq(zodb_unpickle(rec.data), MinPO(val))
                 val = val + 1
         eq(val, val0 + len(revids))
-        txniter.close()
+
 
 class IteratorStorage(IteratorCompare):
 
@@ -52,41 +55,7 @@ class IteratorStorage(IteratorCompare):
         txniter = self._storage.iterator()
         self.iter_verify(txniter, [revid1, revid2, revid3], 11)
 
-    def checkClose(self):
-        self._oid = oid = self._storage.new_oid()
-        revid1 = self._dostore(oid, data=MinPO(11))
-        txniter = self._storage.iterator()
-        txniter.close()
-        self.assertRaises(IOError, txniter.__getitem__, 0)
-
-    def checkVersionIterator(self):
-        if not self._storage.supportsVersions():
-            return
-        self._dostore()
-        self._dostore(version='abort')
-        self._dostore()
-        self._dostore(version='abort')
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        self._storage.abortVersion('abort', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-
-        self._dostore(version='commit')
-        self._dostore()
-        self._dostore(version='commit')
-        t = Transaction()
-        self._storage.tpc_begin(t)
-        self._storage.commitVersion('commit', '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-
-        txniter = self._storage.iterator()
-        for trans in txniter:
-            for data in trans:
-                pass
-
-    def checkUndoZombieNonVersion(self):
+    def checkUndoZombie(self):
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(94))
         # Get the undo information
@@ -117,7 +86,7 @@ class IteratorStorage(IteratorCompare):
         iter = self._storage.iterator()
         count = 0
         for txn in iter:
-            self.assertEqual(txn._extension, {})
+            self.assertEqual(txn.extension, {})
             count +=1
         self.assertEqual(count, 1)
 
@@ -157,7 +126,32 @@ class IteratorStorage(IteratorCompare):
                     match = True
         if not match:
             self.fail("Could not find transaction with matching id")
- 
+
+    def checkIterateRepeatedly(self):
+        self._dostore()
+        transactions = self._storage.iterator()
+        self.assertEquals(1, len(list(transactions)))
+        # The iterator can only be consumed once:
+        self.assertEquals(0, len(list(transactions)))
+
+    def checkIterateRecordsRepeatedly(self):
+        self._dostore()
+        tinfo = self._storage.iterator().next()
+        self.assertEquals(1, len(list(tinfo)))
+        # The iterator can only be consumed once:
+        self.assertEquals(0, len(list(tinfo)))
+
+    def checkIterateWhileWriting(self):
+        self._dostore()
+        iterator = self._storage.iterator()
+        # We have one transaction with 1 modified object.
+        txn_1 = iterator.next()
+        self.assertEquals(1, len(list(txn_1)))
+
+        # We store another transaction with 1 object, the already running
+        # iterator does not pick this up.
+        self._dostore()
+        self.assertRaises(StopIteration, iterator.next)
 
 
 class ExtendedIteratorStorage(IteratorCompare):
@@ -201,29 +195,36 @@ class ExtendedIteratorStorage(IteratorCompare):
         txniter = self._storage.iterator(revid3, revid3)
         self.iter_verify(txniter, [revid3], 13)
 
+
 class IteratorDeepCompare:
+
     def compare(self, storage1, storage2):
         eq = self.assertEqual
         iter1 = storage1.iterator()
         iter2 = storage2.iterator()
-        for txn1, txn2 in zip(iter1, iter2):
+        for txn1, txn2 in itertools.izip(iter1, iter2):
             eq(txn1.tid,         txn2.tid)
             eq(txn1.status,      txn2.status)
             eq(txn1.user,        txn2.user)
             eq(txn1.description, txn2.description)
-            eq(txn1._extension,  txn2._extension)
-            for rec1, rec2 in zip(txn1, txn2):
+            eq(txn1.extension,  txn2.extension)
+            itxn1 = iter(txn1)
+            itxn2 = iter(txn2)
+            for rec1, rec2 in itertools.izip(itxn1, itxn2):
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)
-                eq(rec1.version, rec2.version)
                 eq(rec1.data,    rec2.data)
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
-            self.assertRaises(IndexError, txn1.next)
-            self.assertRaises(IndexError, txn2.next)
+            # Additionally, check that we're backwards compatible to the
+            # IndexError we used to raise before.
+            self.assertRaises(IndexError, itxn1.next)
+            self.assertRaises(IndexError, itxn2.next)
+            self.assertRaises(StopIteration, itxn1.next)
+            self.assertRaises(StopIteration, itxn2.next)
         # Make sure ther are no more records left in txn1 and txn2, meaning
         # they were the same length
         self.assertRaises(IndexError, iter1.next)
         self.assertRaises(IndexError, iter2.next)
-        iter1.close()
-        iter2.close()
+        self.assertRaises(StopIteration, iter1.next)
+        self.assertRaises(StopIteration, iter2.next)

@@ -247,7 +247,7 @@ We do support optimistic savepoints:
     "I'm a happy blob. And I'm singing."
     >>> transaction.commit()
 
-We support optimistic savepoints too:
+We support non-optimistic savepoints too:
 
     >>> root5['blob'].open("a").write(" And I'm dancing.")
     >>> root5['blob'].open("r").read()
@@ -364,6 +364,5 @@ We don't need the storage directory and databases anymore::
     >>> tm1.abort()
     >>> tm2.abort()
     >>> database.close()
-    >>> import shutil
-    >>> shutil.rmtree(blob_dir)
-    >>> shutil.rmtree(blob_dir2)
+    >>> rmtree(blob_dir)
+    >>> rmtree(blob_dir2)

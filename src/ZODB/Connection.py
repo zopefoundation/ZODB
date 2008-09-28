@@ -44,7 +44,7 @@ from ZODB.ExportImport import ExportImport
 from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
-from ZODB.POSException import Unsupported
+from ZODB.POSException import Unsupported, ReadOnlyHistoryError
 from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
@@ -79,17 +79,20 @@ class Connection(ExportImport, object):
     ##########################################################################
     # Connection methods, ZODB.IConnection
 
-    def __init__(self, db, version='', cache_size=400):
+    def __init__(self, db, cache_size=400, before=None, cache_size_bytes=0):
         """Create a new Connection."""
 
         self._log = logging.getLogger('ZODB.Connection')
         self._debug_info = ()
 
         self._db = db
+        
+        # historical connection
+        self.before = before
+        
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
-        self._version = version
         self._normal_storage = self._storage = db._storage
         self.new_oid = db._storage.new_oid
         self._savepoint_storage = None
@@ -106,19 +109,12 @@ class Connection(ExportImport, object):
         # Cache which can ghostify (forget the state of) objects not
         # recently used. Its API is roughly that of a dict, with
         # additional gc-related and invalidation-related methods.
-        self._cache = PickleCache(self, cache_size)
+        self._cache = PickleCache(self, cache_size, cache_size_bytes)
 
         # The pre-cache is used by get to avoid infinite loops when
         # objects immediately load their state whern they get their
         # persistent data set.
         self._pre_cache = {}
-        
-        if version:
-            # Caches for versions end up empty if the version
-            # is not used for a while. Non-version caches
-            # keep their content indefinitely.
-            # Unclear:  Why do we want version caches to behave this way?
-            self._cache.cache_drain_resistance = 100
 
         # List of all objects (not oids) registered as modified by the
         # persistence machinery, or by add(), or whose access caused a
@@ -140,7 +136,7 @@ class Connection(ExportImport, object):
         # During commit, all objects go to either _modified or _creating:
 
         # Dict of oid->flag of new objects (without serial), either
-        # added by add() or implicitely added (discovered by the
+        # added by add() or implicitly added (discovered by the
         # serializer during commit). The flag is True for implicit
         # adding. Used during abort to remove created objects from the
         # _cache, and by persistent_id to check that a new object isn't
@@ -186,8 +182,6 @@ class Connection(ExportImport, object):
         # the upper bound on transactions visible to this connection.
         # That is, all object revisions must be written before _txn_time.
         # If it is None, then the current revisions are acceptable.
-        # If the connection is in a version, mvcc will be disabled, because
-        # loadBefore() only returns non-version data.
         self._txn_time = None
 
         # To support importFile(), implemented in the ExportImport base
@@ -240,8 +234,11 @@ class Connection(ExportImport, object):
 
         # This appears to be an MVCC violation because we are loading
         # the must recent data when perhaps we shouldnt. The key is
-        # that we are only creating a ghost!        
-        p, serial = self._storage.load(oid, self._version)
+        # that we are only creating a ghost!
+        # A disadvantage to this optimization is that _p_serial cannot be
+        # trusted until the object has been loaded, which affects both MVCC
+        # and historical connections.
+        p, serial = self._storage.load(oid, '')
         obj = self._reader.getGhost(p)
 
         # Avoid infiniate loop if obj tries to load its state before
@@ -318,13 +315,16 @@ class Connection(ExportImport, object):
         return self._db
 
     def isReadOnly(self):
-        """Returns True if the storage for this connection is read only."""
+        """Returns True if this connection is read only."""
         if self._opened is None:
             raise ConnectionStateError("The database connection is closed")
-        return self._storage.isReadOnly()
+        return self.before is not None or self._storage.isReadOnly()
 
     def invalidate(self, tid, oids):
         """Notify the Connection that transaction 'tid' invalidated oids."""
+        if self.before is not None:
+            # this is an historical connection.  Invalidations are irrelevant.
+            return
         self._inv_lock.acquire()
         try:
             if self._txn_time is None:
@@ -339,17 +339,10 @@ class Connection(ExportImport, object):
             self._invalidatedCache = True
         finally:
             self._inv_lock.release()
-        
 
     def root(self):
         """Return the database root object."""
         return self.get(z64)
-
-    def getVersion(self):
-        """Returns the version this connection is attached to."""
-        if self._storage is None:
-            raise ConnectionStateError("The database connection is closed")
-        return self._version
 
     def get_connection(self, database_name):
         """Return a Connection for the named database."""
@@ -357,7 +350,7 @@ class Connection(ExportImport, object):
         if connection is None:
             new_con = self._db.databases[database_name].open(
                 transaction_manager=self.transaction_manager,
-                version=self._version,
+                before=self.before,
                 )
             self.connections.update(new_con.connections)
             new_con.connections = self.connections
@@ -539,6 +532,9 @@ class Connection(ExportImport, object):
 
     def _commit(self, transaction):
         """Commit changes to an object"""
+        
+        if self.before is not None:
+            raise ReadOnlyHistoryError()
 
         if self._import:
             # We are importing an export file. We alsways do this
@@ -591,7 +587,14 @@ class Connection(ExportImport, object):
             oid = obj._p_oid
             serial = getattr(obj, "_p_serial", z64)
 
-            if serial == z64:
+            if ((serial == z64)
+                and
+                ((self._savepoint_storage is None)
+                 or (oid not in self._savepoint_storage.creating)
+                 or self._savepoint_storage.creating[oid]
+                 )
+                ):
+                
                 # obj is a new object
 
                 # Because obj was added, it is now in _creating, so it
@@ -618,15 +621,18 @@ class Connection(ExportImport, object):
                     raise ValueError("Can't commit with opened blobs.")
                 s = self._storage.storeBlob(oid, serial, p,
                                             obj._uncommitted(),
-                                            self._version, transaction)
+                                            '', transaction)
                 # we invalidate the object here in order to ensure
                 # that that the next attribute access of its name
                 # unghostify it, which will cause its blob data
                 # to be reattached "cleanly"
                 obj._p_invalidate()
             else:
-                s = self._storage.store(oid, serial, p, self._version,
-                                        transaction)
+                s = self._storage.store(oid, serial, p, '', transaction)
+            self._cache.update_object_size_estimation(oid,
+                                                   len(p)
+                                                   )
+            obj._p_estimated_size = len(p)
             self._store_count += 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
@@ -825,40 +831,53 @@ class Connection(ExportImport, object):
         # the code if we could drop support for it.  
         # (BTrees.Length does.)
 
-        # There is a harmless data race with self._invalidated.  A
-        # dict update could go on in another thread, but we don't care
-        # because we have to check again after the load anyway.
 
+        if self.before is not None:
+            # Load data that was current before the time we have.
+            before = self.before
+            t = self._storage.loadBefore(obj._p_oid, before)
+            if t is None:
+                raise POSKeyError() # historical connection!
+            p, serial, end = t
+        
+        else:
+            # There is a harmless data race with self._invalidated.  A
+            # dict update could go on in another thread, but we don't care
+            # because we have to check again after the load anyway.
 
-        if self._invalidatedCache:
-            raise ReadConflictError()
-
-        if (obj._p_oid in self._invalidated and
-                not myhasattr(obj, "_p_independent")):
-            # If the object has _p_independent(), we will handle it below.
-            self._load_before_or_conflict(obj)
-            return
-
-        p, serial = self._storage.load(obj._p_oid, self._version)
-        self._load_count += 1
-
-        self._inv_lock.acquire()
-        try:
-            invalid = obj._p_oid in self._invalidated
-        finally:
-            self._inv_lock.release()
-
-        if invalid:
-            if myhasattr(obj, "_p_independent"):
-                # This call will raise a ReadConflictError if something
-                # goes wrong
-                self._handle_independent(obj)
-            else:
+            if self._invalidatedCache:
+                raise ReadConflictError()
+    
+            if (obj._p_oid in self._invalidated and
+                    not myhasattr(obj, "_p_independent")):
+                # If the object has _p_independent(), we will handle it below.
                 self._load_before_or_conflict(obj)
                 return
+    
+            p, serial = self._storage.load(obj._p_oid, '')
+            self._load_count += 1
+    
+            self._inv_lock.acquire()
+            try:
+                invalid = obj._p_oid in self._invalidated
+            finally:
+                self._inv_lock.release()
+    
+            if invalid:
+                if myhasattr(obj, "_p_independent"):
+                    # This call will raise a ReadConflictError if something
+                    # goes wrong
+                    self._handle_independent(obj)
+                else:
+                    self._load_before_or_conflict(obj)
+                    return
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
+        self._cache.update_object_size_estimation(obj._p_oid,
+                                               len(p)
+                                               )
+        obj._p_estimated_size = len(p)
 
         # Blob support
         if isinstance(obj, Blob):
@@ -867,7 +886,7 @@ class Connection(ExportImport, object):
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""
-        if not ((not self._version) and self._setstate_noncurrent(obj)):
+        if not self._setstate_noncurrent(obj):
             self._register(obj)
             self._conflicts[obj._p_oid] = True
             raise ReadConflictError(object=obj)
@@ -894,6 +913,12 @@ class Connection(ExportImport, object):
         assert self._txn_time <= end, (u64(self._txn_time), u64(end))
         self._reader.setGhostState(obj, data)
         obj._p_serial = start
+
+        # MVCC Blob support
+        if isinstance(obj, Blob):
+            obj._p_blob_uncommitted = None
+            obj._p_blob_committed = self._storage.loadBlob(obj._p_oid, start)
+
         return True
 
     def _handle_independent(self, obj):
@@ -1017,17 +1042,14 @@ class Connection(ExportImport, object):
         self._invalidated.clear()
         self._invalidatedCache = False
         cache_size = self._cache.cache_size
-        self._cache = cache = PickleCache(self, cache_size)
+        cache_size_bytes = self._cache.cache_size_bytes
+        self._cache = cache = PickleCache(self, cache_size, cache_size_bytes)
 
     ##########################################################################
     # Python protocol
 
     def __repr__(self):
-        if self._version:
-            ver = ' (in version %s)' % `self._version`
-        else:
-            ver = ''
-        return '<Connection at %08x%s>' % (positive_id(self), ver)
+        return '<Connection at %08x>' % (positive_id(self),)
 
     # Python protocol
     ##########################################################################
@@ -1036,17 +1058,6 @@ class Connection(ExportImport, object):
     # DEPRECATION candidates
 
     __getitem__ = get
-
-    def modifiedInVersion(self, oid):
-        """Returns the version the object with the given oid was modified in.
-
-        If it wasn't modified in a version, the current version of this
-        connection is returned.
-        """
-        try:
-            return self._db.modifiedInVersion(oid)
-        except KeyError:
-            return self.getVersion()
 
     def exchange(self, old, new):
         # called by a ZClasses method that isn't executed by the test suite
@@ -1073,7 +1084,7 @@ class Connection(ExportImport, object):
 
     def savepoint(self):
         if self._savepoint_storage is None:
-            tmpstore = TmpStore(self._version, self._normal_storage)
+            tmpstore = TmpStore(self._normal_storage)
             self._savepoint_storage = tmpstore
             self._storage = self._savepoint_storage
 
@@ -1115,10 +1126,16 @@ class Connection(ExportImport, object):
 
         for oid in oids:
             data, serial = src.load(oid, src)
+            obj = self._cache.get(oid, None)
+            if obj is not None:
+                self._cache.update_object_size_estimation(obj._p_oid,
+                                                       len(data)
+                                                       )
+                obj._p_estimated_size = len(data)
             if isinstance(self._reader.getGhost(data), Blob):
                 blobfilename = src.loadBlob(oid, serial)
                 s = self._storage.storeBlob(oid, serial, data, blobfilename,
-                                            self._version, transaction)
+                                            '', transaction)
                 # we invalidate the object here in order to ensure
                 # that that the next attribute access of its name
                 # unghostify it, which will cause its blob data
@@ -1126,7 +1143,7 @@ class Connection(ExportImport, object):
                 self.invalidate(s, {oid:True})
             else:
                 s = self._storage.store(oid, serial, data,
-                                        self._version, transaction)
+                                        '', transaction)
 
             self._handle_serial(s, oid, change=False)
         src.close()
@@ -1176,23 +1193,14 @@ class TmpStore:
 
     implements(IBlobStorage)
 
-    def __init__(self, base_version, storage):
+    def __init__(self, storage):
         self._storage = storage
         for method in (
             'getName', 'new_oid', 'getSize', 'sortKey', 'loadBefore',
+            'isReadOnly'
             ):
             setattr(self, method, getattr(storage, method))
 
-        try:
-            supportsVersions = storage.supportsVersions
-        except AttributeError:
-            pass
-        else:
-            if supportsVersions():
-                self.modifiedInVersion = storage.modifiedInVersion
-                self.versionEmpty = storage.versionEmpty
-
-        self._base_version = base_version
         self._file = tempfile.TemporaryFile()
         # position: current file position
         # _tpos: file position at last commit point
@@ -1210,7 +1218,7 @@ class TmpStore:
     def load(self, oid, version):
         pos = self.index.get(oid)
         if pos is None:
-            return self._storage.load(oid, self._base_version)
+            return self._storage.load(oid, '')
         self._file.seek(pos)
         h = self._file.read(8)
         oidlen = u64(h)
@@ -1225,7 +1233,7 @@ class TmpStore:
     def store(self, oid, serial, data, version, transaction):
         # we have this funny signature so we can reuse the normal non-commit
         # commit logic
-        assert version == self._base_version
+        assert version == ''
         self._file.seek(self.position)
         l = len(data)
         if serial is None:
@@ -1239,7 +1247,8 @@ class TmpStore:
 
     def storeBlob(self, oid, serial, data, blobfilename, version,
                   transaction):
-        serial = self.store(oid, serial, data, version, transaction)
+        assert version == ''
+        serial = self.store(oid, serial, data, '', transaction)
 
         targetpath = self._getBlobPath(oid)
         if not os.path.exists(targetpath):
@@ -1257,7 +1266,7 @@ class TmpStore:
                 self._storage)
         filename = self._getCleanFilename(oid, serial)
         if not os.path.exists(filename):
-            raise POSKeyError("No blob file", oid, serial)
+            return self._storage.loadBlob(oid, serial)
         return filename
 
     def _getBlobPath(self, oid):

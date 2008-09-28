@@ -21,6 +21,7 @@ is used to store the data until a commit or abort.
 # A faster implementation might store trans data in memory until it
 # reaches a certain size.
 
+import os
 import cPickle
 import tempfile
 from threading import Lock
@@ -77,34 +78,28 @@ class TransactionBuffer:
         finally:
             self.lock.release()
 
-    def store(self, oid, version, data):
+    def store(self, oid, data):
+        """Store oid, version, data for later retrieval"""
         self.lock.acquire()
         try:
-            self._store(oid, version, data)
+            if self.closed:
+                return
+            self.pickler.dump((oid, data))
+            self.count += 1
+            # Estimate per-record cache size
+            self.size = self.size + len(data) + 31
         finally:
             self.lock.release()
 
     def storeBlob(self, oid, blobfilename):
         self.blobs.append((oid, blobfilename))
 
-    def _store(self, oid, version, data):
-        """Store oid, version, data for later retrieval"""
-        if self.closed:
-            return
-        self.pickler.dump((oid, version, data))
-        self.count += 1
-        # Estimate per-record cache size
-        self.size = self.size + len(data) + 31
-        if version:
-            # Assume version data has same size as non-version data
-            self.size = self.size + len(version) + len(data) + 12
-
-    def invalidate(self, oid, version):
+    def invalidate(self, oid):
         self.lock.acquire()
         try:
             if self.closed:
                 return
-            self.pickler.dump((oid, version, None))
+            self.pickler.dump((oid, None))
             self.count += 1
         finally:
             self.lock.release()
@@ -119,7 +114,7 @@ class TransactionBuffer:
             self.count = 0
             self.size = 0
             while self.blobs:
-                oid, serial, blobfilename = self.blobs.pop()
+                oid, blobfilename = self.blobs.pop()
                 if os.path.exists(blobfilename):
                     os.remove(blobfilename)
         finally:

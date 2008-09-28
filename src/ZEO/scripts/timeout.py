@@ -49,14 +49,13 @@ def main():
     print "Connected.  Now starting a transaction..."
 
     oid = storage.new_oid()
-    version = ""
     revid = ZERO
     data = MinPO("timeout.py")
     pickled_data = zodb_pickle(data)
     t = Transaction()
     t.user = "timeout.py"
     storage.tpc_begin(t)
-    storage.store(oid, revid, pickled_data, version, t)
+    storage.store(oid, revid, pickled_data, '', t)
     print "Stored.  Now voting..."
     storage.tpc_vote(t)
 

@@ -148,7 +148,7 @@ class Tracer(object):
                                       txn._tpos)
 
     def _save_references(self, drec):
-        # drec has members oid, tid, version, data, data_txn
+        # drec has members oid, tid, data, data_txn
         tid, oid, pick, pos = drec.tid, drec.oid, drec.data, drec.pos
         if pick:
             if oid in self.oids:
@@ -159,13 +159,12 @@ class Tracer(object):
             self._records_map[oid] = drec
             self._records.append(drec)
         elif oid in self.oids:
-            # Or maybe it's a version abort.
             self._msg(oid, tid, "creation undo at", pos)
 
     # Process next data record.  If a message is produced, self._produced_msg
     # will be set True.
     def _check_drec(self, drec):
-        # drec has members oid, tid, version, data, data_txn
+        # drec has members oid, tid, data, data_txn
         tid, oid, pick, pos = drec.tid, drec.oid, drec.data, drec.pos
         ref2name = self._ref2name
         ref2name_get = ref2name.get

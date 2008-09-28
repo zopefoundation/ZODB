@@ -146,7 +146,7 @@ Reaching into the internals, we can see that db's connection pool now has
 two connections available for reuse, and knows about three connections in
 all:
 
-    >>> pool = db._pools['']
+    >>> pool = db.pool
     >>> len(pool.available)
     2
     >>> len(pool.all)
@@ -219,7 +219,7 @@ closed one out of the available connection stack.
     >>> conns = [db.open() for dummy in range(6)]
     >>> len(handler.records)  # 3 warnings for the "excess" connections
     3
-    >>> pool = db._pools['']
+    >>> pool = db.pool
     >>> len(pool.available), len(pool.all)
     (0, 6)
 
@@ -239,12 +239,12 @@ Closing connections adds them to the stack:
 Closing another one will purge the one with MARKER 0 from the stack
 (since it was the first added to the stack):
 
-    >>> [c.MARKER for c in pool.available]
+    >>> [c.MARKER for c in pool.available.values()]
     [0, 1, 2]
     >>> conns[0].close()  # MARKER 3
     >>> len(pool.available), len(pool.all)
     (3, 5)
-    >>> [c.MARKER for c in pool.available]
+    >>> [c.MARKER for c in pool.available.values()]
     [1, 2, 3]
 
 Similarly for the other two:
@@ -252,7 +252,7 @@ Similarly for the other two:
     >>> conns[1].close(); conns[2].close()
     >>> len(pool.available), len(pool.all)
     (3, 3)
-    >>> [c.MARKER for c in pool.available]
+    >>> [c.MARKER for c in pool.available.values()]
     [3, 4, 5]
 
 Reducing the pool size may also purge the oldest closed connections:
@@ -260,7 +260,7 @@ Reducing the pool size may also purge the oldest closed connections:
     >>> db.setPoolSize(2)  # gets rid of MARKER 3
     >>> len(pool.available), len(pool.all)
     (2, 2)
-    >>> [c.MARKER for c in pool.available]
+    >>> [c.MARKER for c in pool.available.values()]
     [4, 5]
 
 Since MARKER 5 is still the last one added to the stack, it will be the
@@ -297,7 +297,7 @@ Now open more connections so that the total exceeds pool_size (2):
 
     >>> conn1 = db.open()
     >>> conn2 = db.open()
-    >>> pool = db._pools['']
+    >>> pool = db.pool
     >>> len(pool.all), len(pool.available)  # all Connections are in use
     (3, 0)
 

@@ -295,5 +295,3 @@ def mktemp(dir=None):
     handle, filename = mkstemp(dir=dir)
     os.close(handle)
     return filename
-
-

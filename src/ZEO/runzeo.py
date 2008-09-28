@@ -34,6 +34,7 @@ Unless -C is specified, -a and -f are required.
 # For the forseeable future, it must work under Python 2.1 as well as
 # 2.2 and above.
 
+import asyncore
 import os
 import sys
 import signal
@@ -241,8 +242,7 @@ class ZEOServer:
             auth_realm=self.options.auth_realm)
 
     def loop_forever(self):
-        import ThreadedAsync.LoopCallback
-        ThreadedAsync.LoopCallback.loop()
+        asyncore.loop()
 
     def handle_sigterm(self):
         log("terminated by SIGTERM")

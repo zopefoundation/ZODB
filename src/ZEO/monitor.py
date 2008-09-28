@@ -24,6 +24,18 @@ import logging
 
 import ZEO
 
+zeo_version = 'unknown'
+try:
+    import pkg_resources
+except ImportError:
+    pass
+else:
+    zeo_dist = pkg_resources.working_set.find(
+        pkg_resources.Requirement.parse('ZODB3')
+        )
+    if zeo_dist is not None:
+        zeo_version = zeo_dist.version
+
 class StorageStats:
     """Per-storage usage statistics."""
 
@@ -149,7 +161,7 @@ class StatsServer(asyncore.dispatcher):
         f.close()
 
     def dump(self, f):
-        print >> f, "ZEO monitor server version %s" % ZEO.version
+        print >> f, "ZEO monitor server version %s" % zeo_version
         print >> f, time.ctime()
         print >> f
 

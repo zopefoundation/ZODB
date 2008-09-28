@@ -68,7 +68,6 @@ def storageFromURL(url):
 def storageFromConfig(section):
     return section.open()
 
-
 class BaseConfig:
     """Object representing a configured storage or database.
 
@@ -96,13 +95,18 @@ class ZODBDatabase(BaseConfig):
         section = self.config
         storage = section.storage.open()
         try:
-            return ZODB.DB(storage,
-                           pool_size=section.pool_size,
-                           cache_size=section.cache_size,
-                           version_pool_size=section.version_pool_size,
-                           version_cache_size=section.version_cache_size,
-                           database_name=section.database_name,
-                           databases=databases)
+            return ZODB.DB(
+                storage,
+                pool_size=section.pool_size,
+                cache_size=section.cache_size,
+                cache_size_bytes=section.cache_size_bytes,
+                historical_pool_size=section.historical_pool_size,
+                historical_cache_size=section.historical_cache_size,
+                historical_cache_size_bytes=section.historical_cache_size_bytes,
+                historical_timeout=section.historical_timeout,
+                database_name=section.database_name,
+                databases=databases,
+                )
         except:
             storage.close()
             raise
@@ -162,7 +166,11 @@ class ZEOClient(BaseConfig):
             max_disconnect_poll=self.config.max_disconnect_poll,
             wait=self.config.wait,
             read_only=self.config.read_only,
-            read_only_fallback=self.config.read_only_fallback)
+            read_only_fallback=self.config.read_only_fallback,
+            drop_cache_rather_verify=self.config.drop_cache_rather_verify,
+            username=self.config.username,
+            password=self.config.password,
+            realm=self.config.realm)
 
 class BDBStorage(BaseConfig):
 

@@ -1,0 +1,406 @@
+======================
+Historical Connections
+======================
+
+Usage
+=====
+
+A database can be opened with a read-only, historical connection when given
+a specific transaction or datetime.  This can enable full-context application
+level conflict resolution, historical exploration and preparation for reverts,
+or even the use of a historical database revision as "production" while
+development continues on a "development" head.
+
+A database can be opened historically ``at`` or ``before`` a given transaction
+serial or datetime. Here's a simple example. It should work with any storage
+that supports ``loadBefore``.  Unfortunately that does not include
+MappingStorage, so we use a FileStorage instance.  Also unfortunately, as of
+this writing there is no reliable way to determine if a storage truly
+implements loadBefore, or if it simply returns None (as in BaseStorage), other
+than reading code.
+
+We'll begin our example with a fairly standard set up.  We
+
+- make a storage and a database;
+- open a normal connection;
+- modify the database through the connection;
+- commit a transaction, remembering the time in UTC;
+- modify the database again; and
+- commit a transaction.
+
+    >>> import ZODB.FileStorage
+    >>> storage = ZODB.FileStorage.FileStorage(
+    ...     'HistoricalConnectionTests.fs', create=True)
+    >>> import ZODB
+    >>> db = ZODB.DB(storage)
+    >>> conn = db.open()
+
+    >>> import persistent.mapping
+    
+    >>> conn.root()['first'] = persistent.mapping.PersistentMapping(count=0)
+    
+    >>> import transaction
+    >>> transaction.commit()
+    
+    >>> import datetime
+    >>> now = datetime.datetime.utcnow()
+    
+    >>> root = conn.root()
+    >>> root['second'] = persistent.mapping.PersistentMapping()
+    >>> root['first']['count'] += 1
+    
+    >>> transaction.commit()
+
+Now we will show a historical connection. We'll open one using the ``now``
+value we generated above, and then demonstrate that the state of the original
+connection, at the mutable head of the database, is different than the
+historical state.
+
+    >>> transaction1 = transaction.TransactionManager()
+    
+    >>> historical_conn = db.open(transaction_manager=transaction1, at=now)
+    
+    >>> sorted(conn.root().keys())
+    ['first', 'second']
+    >>> conn.root()['first']['count']
+    1
+    
+    >>> historical_conn.root().keys()
+    ['first']
+    >>> historical_conn.root()['first']['count']
+    0
+
+Moreover, the historical connection cannot commit changes.
+
+    >>> historical_conn.root()['first']['count'] += 1
+    >>> historical_conn.root()['first']['count']
+    1
+    >>> transaction1.commit()
+    Traceback (most recent call last):
+    ...
+    ReadOnlyHistoryError
+    >>> transaction1.abort()
+    >>> historical_conn.root()['first']['count']
+    0
+
+(It is because of the mutable behavior outside of transactional semantics that
+we must have a separate connection, and associated object cache, per thread,
+even though the semantics should be readonly.)
+
+As demonstrated, a timezone-naive datetime will be interpreted as UTC.  You
+can also pass a timezone-aware datetime or a serial (transaction id).
+Here's opening with a serial--the serial of the root at the time of the first
+commit.
+
+    >>> historical_serial = historical_conn.root()._p_serial
+    >>> historical_conn.close()
+    
+    >>> historical_conn = db.open(transaction_manager=transaction1,
+    ...                           at=historical_serial)
+    >>> historical_conn.root().keys()
+    ['first']
+    >>> historical_conn.root()['first']['count']
+    0
+    >>> historical_conn.close()
+
+We've shown the ``at`` argument. You can also ask to look ``before`` a datetime
+or serial. (It's an error to pass both [#not_both]_) In this example, we're
+looking at the database immediately prior to the most recent change to the
+root.
+
+    >>> serial = conn.root()._p_serial
+    >>> historical_conn = db.open(
+    ...     transaction_manager=transaction1, before=serial)
+    >>> historical_conn.root().keys()
+    ['first']
+    >>> historical_conn.root()['first']['count']
+    0
+
+In fact, ``at`` arguments are translated into ``before`` values because the
+underlying mechanism is a storage's loadBefore method.  When you look at a
+connection's ``before`` attribute, it is normalized into a ``before`` serial,
+no matter what you pass into ``db.open``.
+
+    >>> print conn.before
+    None
+    >>> historical_conn.before == serial
+    True
+
+    >>> conn.close()
+
+Configuration
+=============
+
+Like normal connections, the database lets you set how many total historical
+connections can be active without generating a warning, and
+how many objects should be kept in each historical connection's object cache.
+
+    >>> db.getHistoricalPoolSize()
+    3
+    >>> db.setHistoricalPoolSize(4)
+    >>> db.getHistoricalPoolSize()
+    4
+
+    >>> db.getHistoricalCacheSize()
+    1000
+    >>> db.setHistoricalCacheSize(2000)
+    >>> db.getHistoricalCacheSize()
+    2000
+
+In addition, you can specify the minimum number of seconds that an unused
+historical connection should be kept.
+
+    >>> db.getHistoricalTimeout()
+    300
+    >>> db.setHistoricalTimeout(400)
+    >>> db.getHistoricalTimeout()
+    400
+
+All three of these values can be specified in a ZConfig file.  We're using
+mapping storage for simplicity, but remember, as we said at the start of this
+document, mapping storage will not work for historical connections (and in fact
+may seem to work but then fail confusingly) because it does not implement
+loadBefore.
+
+    >>> import ZODB.config
+    >>> db2 = ZODB.config.databaseFromString('''
+    ...     <zodb>
+    ...       <mappingstorage/>
+    ...       historical-pool-size 5
+    ...       historical-cache-size 1500
+    ...       historical-timeout 6m
+    ...     </zodb>
+    ... ''')
+    >>> db2.getHistoricalPoolSize()
+    5
+    >>> db2.getHistoricalCacheSize()
+    1500
+    >>> db2.getHistoricalTimeout()
+    360
+
+Let's actually look at these values at work by shining some light into what
+has been a black box up to now.  We'll actually do some white box examination
+of what is going on in the database, pools and connections.
+
+Historical connections are held in a single connection pool with mappings
+from the ``before`` TID to available connections.  First we'll put a new
+pool on the database so we have a clean slate.
+
+    >>> historical_conn.close()
+    >>> from ZODB.DB import KeyedConnectionPool
+    >>> db.historical_pool = KeyedConnectionPool(
+    ...     db.historical_pool.size, db.historical_pool.timeout)
+
+Now lets look what happens to the pool when we create and close an historical
+connection.
+
+    >>> pool = db.historical_pool
+    >>> len(pool.all)
+    0
+    >>> len(pool.available)
+    0
+    >>> historical_conn = db.open(
+    ...     transaction_manager=transaction1, before=serial)
+    >>> len(pool.all)
+    1
+    >>> len(pool.available)
+    0
+    >>> historical_conn in pool.all
+    True
+    >>> historical_conn.close()
+    >>> len(pool.all)
+    1
+    >>> len(pool.available)
+    1
+    >>> pool.available.keys()[0] == serial
+    True
+    >>> len(pool.available.values()[0])
+    1
+
+Now we'll open and close two for the same serial to see what happens to the
+data structures.
+
+    >>> historical_conn is db.open(
+    ...     transaction_manager=transaction1, before=serial)
+    True
+    >>> len(pool.all)
+    1
+    >>> len(pool.available)
+    0
+    >>> transaction2 = transaction.TransactionManager()
+    >>> historical_conn2 = db.open(
+    ...     transaction_manager=transaction2, before=serial)
+    >>> len(pool.all)
+    2
+    >>> len(pool.available)
+    0
+    >>> historical_conn2.close()
+    >>> len(pool.all)
+    2
+    >>> len(pool.available)
+    1
+    >>> len(pool.available.values()[0])
+    1
+    >>> historical_conn.close()
+    >>> len(pool.all)
+    2
+    >>> len(pool.available)
+    1
+    >>> len(pool.available.values()[0])
+    2
+
+If you change the historical cache size, that changes the size of the
+persistent cache on our connection.
+
+    >>> historical_conn._cache.cache_size
+    2000
+    >>> db.setHistoricalCacheSize(1500)
+    >>> historical_conn._cache.cache_size
+    1500
+
+Now let's look at pool sizes.  We'll set it to two, then open and close three
+connections.  We should end up with only two available connections.
+
+    >>> db.setHistoricalPoolSize(2)
+
+    >>> historical_conn = db.open(
+    ...     transaction_manager=transaction1, before=serial)
+    >>> historical_conn2 = db.open(
+    ...     transaction_manager=transaction2, before=serial)
+    >>> transaction3 = transaction.TransactionManager()
+    >>> historical_conn3 = db.open(
+    ...     transaction_manager=transaction3, at=historical_serial)
+    >>> len(pool.all)
+    3
+    >>> len(pool.available)
+    0
+
+    >>> historical_conn3.close()
+    >>> len(pool.all)
+    3
+    >>> len(pool.available)
+    1
+    >>> len(pool.available.values()[0])
+    1
+
+    >>> historical_conn2.close()
+    >>> len(pool.all)
+    3
+    >>> len(pool.available)
+    2
+    >>> len(pool.available.values()[0])
+    1
+    >>> len(pool.available.values()[1])
+    1
+
+    >>> historical_conn.close()
+    >>> len(pool.all)
+    2
+    >>> len(pool.available)
+    1
+    >>> len(pool.available.values()[0])
+    2
+
+Notice it dumped the one that was closed at the earliest time.
+
+Finally, we'll look at the timeout.  We'll need to monkeypatch ``time`` for
+this.  (The funky __import__ of DB is because some ZODB __init__ shenanigans
+make the DB class mask the DB module.)
+
+    >>> db.getHistoricalTimeout()
+    400
+    >>> import time
+    >>> delta = 200
+    >>> def stub_time():
+    ...     return time.time() + delta
+    ...
+    >>> DB_module = __import__('ZODB.DB', globals(), locals(), ['chicken'])
+    >>> original_time = DB_module.time
+    >>> DB_module.time = stub_time
+
+    >>> historical_conn = db.open(before=serial)
+
+    >>> len(pool.all)
+    2
+    >>> len(pool.available)
+    1
+
+A close or an open will do garbage collection on the timed out connections.
+
+    >>> delta += 200
+    >>> historical_conn.close()
+
+    >>> len(pool.all)
+    1
+    >>> len(pool.available)
+    1
+    >>> len(pool.available.values()[0])
+    1
+
+Invalidations
+=============
+
+Invalidations are ignored for historical connections. This is another white box
+test.
+
+    >>> historical_conn = db.open(
+    ...     transaction_manager=transaction1, at=serial)
+    >>> conn = db.open()
+    >>> sorted(conn.root().keys())
+    ['first', 'second']
+    >>> conn.root()['first']['count']
+    1
+    >>> sorted(historical_conn.root().keys())
+    ['first', 'second']
+    >>> historical_conn.root()['first']['count']
+    1
+    >>> conn.root()['first']['count'] += 1
+    >>> conn.root()['third'] = persistent.mapping.PersistentMapping()
+    >>> transaction.commit()
+    >>> len(historical_conn._invalidated)
+    0
+    >>> historical_conn.close()
+
+Note that if you try to open an historical connection to a time in the future,
+you will get an error.
+
+    >>> historical_conn = db.open(at=datetime.datetime.utcnow())
+    Traceback (most recent call last):
+    ...
+    ValueError: cannot open an historical connection in the future.
+
+Warnings
+========
+
+First, if you use datetimes to get a historical connection, be aware that the
+conversion from datetime to transaction id has some pitfalls. Generally, the
+transaction ids in the database are only as time-accurate as the system clock
+was when the transaction id was created. Moreover, leap seconds are handled
+somewhat naively in the ZODB (largely because they are handled naively in Unix/
+POSIX time) so any minute that contains a leap second may contain serials that
+are a bit off. This is not generally a problem for the ZODB, because serials
+are guaranteed to increase, but it does highlight the fact that serials are not
+guaranteed to be accurately connected to time. Generally, they are about as
+reliable as time.time.
+
+Second, historical connections currently introduce potentially wide variance in
+memory requirements for the applications. Since you can open up many
+connections to different serials, and each gets their own pool, you may collect
+quite a few connections. For now, at least, if you use this feature you need to
+be particularly careful of your memory usage. Get rid of pools when you know
+you can, and reuse the exact same values for ``at`` or ``before`` when
+possible. If historical connections are used for conflict resolution, these
+connections will probably be temporary--not saved in a pool--so that the extra
+memory usage would also be brief and unlikely to overlap.
+
+.. ......... ..
+.. Footnotes ..
+.. ......... ..
+
+.. [#not_both] It is an error to try and pass both `at` and `before`.
+
+    >>> historical_conn = db.open(
+    ...     transaction_manager=transaction1, at=now, before=historical_serial)
+    Traceback (most recent call last):
+    ...
+    ValueError: can only pass zero or one of `at` and `before`

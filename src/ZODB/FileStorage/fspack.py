@@ -33,27 +33,13 @@ from ZODB.fsIndex import fsIndex
 from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
 
-class DataCopier(FileStorageFormatter):
-    """Mixin class for copying transactions into a storage.
+class PackCopier(FileStorageFormatter):
 
-    The restore() and pack() methods share a need to copy data records
-    and update pointers to data in earlier transaction records.  This
-    class provides the shared logic.
-
-    The mixin extends the FileStorageFormatter with a copy() method.
-    It also requires that the concrete class provides the following
-    attributes:
-
-    _file -- file with earlier destination data
-    _tfile -- destination file for copied data
-    _pos -- file pos of destination transaction
-    _tindex -- maps oid to data record file pos
-    _tvindex -- maps version name to data record file pos
-
-    _tindex and _tvindex are updated by copy().
-
-    The copy() method does not do any locking.
-    """
+    def __init__(self, f, index, tindex):
+        self._file = f
+        self._index = index
+        self._tindex = tindex
+        self._pos = None
 
     def _txn_find(self, tid, stop_at_pack):
         # _pos always points just past the last transaction
@@ -107,43 +93,7 @@ class DataCopier(FileStorageFormatter):
             pos += h.recordlen()
         return 0
 
-    def _restore_pnv(self, oid, prev, version, bp):
-        # Find a valid pnv (previous non-version) pointer for this version.
-
-        # If there is no previous record, there can't be a pnv.
-        if not prev:
-            return None
-
-        pnv = None
-        h = self._read_data_header(prev, oid)
-        # If the previous record is for a version, it must have
-        # a valid pnv.
-        if h.version:
-            return h.pnv
-        elif bp:
-            # Unclear:  Not sure the following is always true:
-            # The previous record is not for this version, yet we
-            # have a backpointer to it.  The current record must
-            # be an undo of an abort or commit, so the backpointer
-            # must be to a version record with a pnv.
-            h2 = self._read_data_header(bp, oid)
-            if h2.version:
-                return h2.pnv
-            else:
-                warn("restore could not find previous non-version data "
-                     "at %d or %d", prev, bp)
-                return None
-
-    def _resolve_backpointer(self, prev_txn, oid, data):
-        prev_pos = 0
-        if prev_txn is not None:
-            prev_txn_pos = self._txn_find(prev_txn, 0)
-            if prev_txn_pos:
-                prev_pos = self._data_find(prev_txn_pos, oid, data)
-        return prev_pos
-
-    def copy(self, oid, serial, data, version, prev_txn,
-             txnpos, datapos):
+    def copy(self, oid, serial, data, prev_txn, txnpos, datapos):
         prev_pos = self._resolve_backpointer(prev_txn, oid, data)
         old = self._index.get(oid, 0)
         # Calculate the pos the record will have in the storage.
@@ -158,31 +108,34 @@ class DataCopier(FileStorageFormatter):
         else:
             dlen = len(data)
         # Write the recovery data record
-        h = DataHeader(oid, serial, old, txnpos, len(version), dlen)
-        if version:
-            h.version = version
-            pnv = self._restore_pnv(oid, old, version, prev_pos)
-            if pnv is not None:
-                h.pnv = pnv
-            else:
-                h.pnv = old
-            # Link to the last record for this version
-            h.vprev = self._tvindex.get(version, 0)
-            if not h.vprev:
-                h.vprev = self._vindex.get(version, 0)
-            self._tvindex[version] = here
+        h = DataHeader(oid, serial, old, txnpos, 0, dlen)
 
-        self._tfile.write(h.asString())
+        self._file.write(h.asString())
         # Write the data or a backpointer
         if data is None:
             if prev_pos:
-                self._tfile.write(p64(prev_pos))
+                self._file.write(p64(prev_pos))
             else:
                 # Write a zero backpointer, which indicates an
                 # un-creation transaction.
-                self._tfile.write(z64)
+                self._file.write(z64)
         else:
-            self._tfile.write(data)
+            self._file.write(data)
+
+    def setTxnPos(self, pos):
+        self._pos = pos
+
+    def _resolve_backpointer(self, prev_txn, oid, data):
+        pos = self._file.tell()
+        try:
+            prev_pos = 0
+            if prev_txn is not None:
+                prev_txn_pos = self._txn_find(prev_txn, 0)
+                if prev_txn_pos:
+                    prev_pos = self._data_find(prev_txn_pos, oid, data)
+            return prev_pos
+        finally:
+            self._file.seek(pos)
 
 class GC(FileStorageFormatter):
 
@@ -194,7 +147,6 @@ class GC(FileStorageFormatter):
         # packpos: position of first txn header after pack time
         self.packpos = None
         self.oid2curpos = fsIndex() # maps oid to current data record position
-        self.oid2verpos = fsIndex() # maps oid to current version data
 
         # The set of reachable revisions of each object.
         #
@@ -228,7 +180,6 @@ class GC(FileStorageFormatter):
         self.findReachableFromFuture()
         # These mappings are no longer needed and may consume a lot
         # of space.
-        del self.oid2verpos
         del self.oid2curpos
 
     def buildPackIndex(self):
@@ -254,10 +205,7 @@ class GC(FileStorageFormatter):
             while pos < end:
                 dh = self._read_data_header(pos)
                 self.checkData(th, tpos, dh, pos)
-                if dh.version:
-                    self.oid2verpos[dh.oid] = pos
-                else:
-                    self.oid2curpos[dh.oid] = pos
+                self.oid2curpos[dh.oid] = pos
                 pos += dh.recordlen()
 
             tlen = self._read_num(pos)
@@ -302,11 +250,6 @@ class GC(FileStorageFormatter):
                 L.append(pos)
                 todo.extend(self.findrefs(pos))
 
-            pos = self.oid2verpos.get(oid)
-            if pos is not None:
-                L.append(pos)
-                todo.extend(self.findrefs(pos))
-
             if not L:
                 continue
 
@@ -344,15 +287,6 @@ class GC(FileStorageFormatter):
                     else:
                         self.reachable[dh.oid] = dh.back
 
-                if dh.version and dh.pnv:
-                    if self.reachable.has_key(dh.oid):
-                        L = self.reach_ex.setdefault(dh.oid, [])
-                        if dh.pnv not in L:
-                            L.append(dh.pnv)
-                            extra_roots.append(dh.pnv)
-                    else:
-                        self.reachable[dh.oid] = dh.back
-
                 pos += dh.recordlen()
 
             tlen = self._read_num(pos)
@@ -376,43 +310,6 @@ class GC(FileStorageFormatter):
             return referencesf(self._file.read(dh.plen))
         else:
             return []
-
-class PackCopier(DataCopier):
-
-    # PackCopier has to cope with _file and _tfile being the
-    # same file.  The copy() implementation is written assuming
-    # that they are different, so that using one object doesn't
-    # mess up the file pointer for the other object.
-
-    # PackCopier overrides _resolve_backpointer() and _restore_pnv()
-    # to guarantee that they keep the file pointer for _tfile in
-    # the right place.
-
-    def __init__(self, f, index, vindex, tindex, tvindex):
-        self._file = f
-        self._tfile = f
-        self._index = index
-        self._vindex = vindex
-        self._tindex = tindex
-        self._tvindex = tvindex
-        self._pos = None
-
-    def setTxnPos(self, pos):
-        self._pos = pos
-
-    def _resolve_backpointer(self, prev_txn, oid, data):
-        pos = self._tfile.tell()
-        try:
-            return DataCopier._resolve_backpointer(self, prev_txn, oid, data)
-        finally:
-            self._tfile.seek(pos)
-
-    def _restore_pnv(self, oid, prev, version, bp):
-        pos = self._tfile.tell()
-        try:
-            return DataCopier._restore_pnv(self, oid, prev, version, bp)
-        finally:
-            self._tfile.seek(pos)
 
 class FileStoragePacker(FileStorageFormatter):
 
@@ -447,22 +344,14 @@ class FileStoragePacker(FileStorageFormatter):
 
         # The packer will use several indexes.
         # index: oid -> pos
-        # vindex: version -> pos
         # tindex: oid -> pos, for current txn
-        # tvindex: version -> pos, for current txn
         # oid2tid: not used by the packer
 
         self.index = fsIndex()
-        self.vindex = {}
         self.tindex = {}
-        self.tvindex = {}
         self.oid2tid = {}
         self.toid2tid = {}
         self.toid2tid_delete = {}
-
-        # Index for non-version data.  This is a temporary structure
-        # to reduce I/O during packing
-        self.nvindex = fsIndex()
 
     def pack(self):
         # Pack copies all data reachable at the pack time or later.
@@ -486,8 +375,7 @@ class FileStoragePacker(FileStorageFormatter):
         self._file.seek(0)
         self._tfile.write(self._file.read(self._metadata_size))
 
-        self._copier = PackCopier(self._tfile, self.index, self.vindex,
-                                  self.tindex, self.tvindex)
+        self._copier = PackCopier(self._tfile, self.index, self.tindex)
 
         ipos, opos = self.copyToPacktime()
         assert ipos == self.gc.packpos
@@ -623,13 +511,7 @@ class FileStoragePacker(FileStorageFormatter):
         h.plen = len(data)
         h.tloc = new_tpos
         pos = self._tfile.tell()
-        if h.version:
-            h.pnv = self.index.get(h.oid, 0)
-            h.vprev = self.vindex.get(h.version, 0)
-            self.vindex[h.version] = pos
         self.index[h.oid] = pos
-        if h.version:
-            self.vindex[h.version] = pos
         self._tfile.write(h.asString())
         self._tfile.write(data)
         if not data:
@@ -681,8 +563,8 @@ class FileStoragePacker(FileStorageFormatter):
                 if h.back:
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
-            self._copier.copy(h.oid, h.tid, data, h.version,
-                              prev_txn, pos, self._tfile.tell())
+            self._copier.copy(h.oid, h.tid, data, prev_txn,
+                              pos, self._tfile.tell())
 
         tlen = self._tfile.tell() - pos
         assert tlen == th.tlen
@@ -691,8 +573,6 @@ class FileStoragePacker(FileStorageFormatter):
 
         self.index.update(self.tindex)
         self.tindex.clear()
-        self.vindex.update(self.tvindex)
-        self.tvindex.clear()
         if self._lock_counter % 20 == 0:
             self._commit_lock_acquire()
         return ipos

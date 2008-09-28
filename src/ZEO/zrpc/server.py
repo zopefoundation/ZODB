@@ -18,10 +18,9 @@ import types
 from ZEO.zrpc.connection import Connection
 from ZEO.zrpc.log import log
 import logging
-import ThreadedAsync.LoopCallback
 
 # Export the main asyncore loop
-loop = ThreadedAsync.LoopCallback.loop
+loop = asyncore.loop
 
 class Dispatcher(asyncore.dispatcher):
     """A server that accepts incoming RPC connections"""

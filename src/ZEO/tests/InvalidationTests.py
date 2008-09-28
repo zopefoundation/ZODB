@@ -24,8 +24,7 @@ from BTrees.OOBTree import OOBTree
 from ZEO.tests.TestThread import TestThread
 
 from ZODB.DB import DB
-from ZODB.POSException \
-     import ReadConflictError, ConflictError, VersionLockError
+from ZODB.POSException import ReadConflictError, ConflictError
 
 # The tests here let several threads have a go at one or more database
 # instances simultaneously.  Each thread appends a disjoint (from the
@@ -144,24 +143,25 @@ class StressThread(FailableThread):
         self.commitdict = commitdict
 
     def _testrun(self):
-        cn = self.db.open()
+        tm = transaction.TransactionManager()
+        cn = self.db.open(transaction_manager=tm)
         while not self.stop.isSet():
             try:
                 tree = cn.root()["tree"]
                 break
             except (ConflictError, KeyError):
-                transaction.abort()
+                tm.abort()
         key = self.startnum
         while not self.stop.isSet():
             try:
                 tree[key] = self.threadnum
-                transaction.get().note("add key %s" % key)
-                transaction.commit()
+                tm.get().note("add key %s" % key)
+                tm.commit()
                 self.commitdict[self] = 1
                 if self.sleep:
                     time.sleep(self.sleep)
             except (ReadConflictError, ConflictError), msg:
-                transaction.abort()
+                tm.abort()
             else:
                 self.added_keys.append(key)
             key += self.step
@@ -234,74 +234,6 @@ class LargeUpdatesThread(FailableThread):
         self.added_keys = keys_added.keys()
         cn.close()
 
-class VersionStressThread(FailableThread):
-
-    def __init__(self, db, stop, threadnum, commitdict, startnum,
-                 step=2, sleep=None):
-        TestThread.__init__(self)
-        self.db = db
-        self.stop = stop
-        self.threadnum = threadnum
-        self.startnum = startnum
-        self.step = step
-        self.sleep = sleep
-        self.added_keys = []
-        self.commitdict = commitdict
-
-    def _testrun(self):
-        commit = 0
-        key = self.startnum
-        while not self.stop.isSet():
-            version = "%s:%s" % (self.threadnum, key)
-            commit = not commit
-            if self.oneupdate(version, key, commit):
-                self.added_keys.append(key)
-                self.commitdict[self] = 1
-            key += self.step
-
-    def oneupdate(self, version, key, commit=1):
-        # The mess of sleeps below were added to reduce the number
-        # of VersionLockErrors, based on empirical observation.
-        # It looks like the threads don't switch enough without
-        # the sleeps.
-
-        cn = self.db.open(version)
-        while not self.stop.isSet():
-            try:
-                tree = cn.root()["tree"]
-                break
-            except (ConflictError, KeyError):
-                transaction.abort()
-        while not self.stop.isSet():
-            try:
-                tree[key] = self.threadnum
-                transaction.commit()
-                if self.sleep:
-                    time.sleep(self.sleep)
-                break
-            except (VersionLockError, ReadConflictError, ConflictError), msg:
-                transaction.abort()
-                if self.sleep:
-                    time.sleep(self.sleep)
-        try:
-            while not self.stop.isSet():
-                try:
-                    if commit:
-                        self.db.commitVersion(version)
-                        transaction.get().note("commit version %s" % version)
-                    else:
-                        self.db.abortVersion(version)
-                        transaction.get().note("abort version %s" % version)
-                    transaction.commit()
-                    if self.sleep:
-                        time.sleep(self.sleep)
-                    return commit
-                except ConflictError, msg:
-                    transaction.abort()
-        finally:
-            cn.close()
-        return 0
-
 class InvalidationTests:
 
     level = 2
@@ -338,16 +270,23 @@ class InvalidationTests:
     def _check_threads(self, tree, *threads):
         # Make sure the thread's view of the world is consistent with
         # the actual database state.
+
         expected_keys = []
-        errormsgs = []
-        err = errormsgs.append
         for t in threads:
             if not t.added_keys:
                 err("thread %d didn't add any keys" % t.threadnum)
             expected_keys.extend(t.added_keys)
         expected_keys.sort()
-        actual_keys = list(tree.keys())
-        if expected_keys != actual_keys:
+
+        for i in range(100):
+            tree._p_jar.sync()
+            actual_keys = list(tree.keys())
+            if expected_keys == actual_keys:
+                break
+            time.sleep(.1)
+        else:
+            errormsgs = []
+            err = errormsgs.append
             err("expected keys != actual keys")
             for k in expected_keys:
                 if k not in actual_keys:
@@ -355,8 +294,7 @@ class InvalidationTests:
             for k in actual_keys:
                 if k not in expected_keys:
                     err("key %s in tree but not expected" % k)
-        if errormsgs:
-            display(tree)
+
             self.fail('\n'.join(errormsgs))
 
     def go(self, stop, commitdict, *threads):
@@ -488,48 +426,9 @@ class InvalidationTests:
         self.go(stop, cd, t1, t2, t3)
 
         while db1.lastTransaction() != db2.lastTransaction():
-            db1._storage.sync()
-            db2._storage.sync()
+            time.sleep(.1)
 
-
-        cn = db1.open()
-        tree = cn.root()["tree"]
-        self._check_tree(cn, tree)
-        self._check_threads(tree, t1, t2, t3)
-
-        cn.close()
-        db1.close()
-        db2.close()
-
-    # TODO:  Temporarily disabled.  I know it fails, and there's no point
-    # getting an endless number of reports about that.
-    def xxxcheckConcurrentUpdatesInVersions(self):
-        self._storage = storage1 = self.openClientStorage()
-        db1 = DB(storage1)
-        db2 = DB(self.openClientStorage())
-        stop = threading.Event()
-
-        cn = db1.open()
-        tree = cn.root()["tree"] = OOBTree()
-        transaction.commit()
-        cn.close()
-
-        # Run three threads that update the BTree.
-        # Two of the threads share a single storage so that it
-        # is possible for both threads to read the same object
-        # at the same time.
-
-        cd = {}
-        t1 = VersionStressThread(db1, stop, 1, cd, 1, 3)
-        t2 = VersionStressThread(db2, stop, 2, cd, 2, 3, 0.01)
-        t3 = VersionStressThread(db2, stop, 3, cd, 3, 3, 0.01)
-        self.go(stop, cd, t1, t2, t3)
-
-        while db1.lastTransaction() != db2.lastTransaction():
-            db1._storage.sync()
-            db2._storage.sync()
-
-
+        time.sleep(.1)
         cn = db1.open()
         tree = cn.root()["tree"]
         self._check_tree(cn, tree)

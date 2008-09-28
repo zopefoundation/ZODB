@@ -16,16 +16,19 @@
 #define CPERSISTENCE_H
 
 #include "Python.h"
+#include "py24compat.h"
+
 #include "ring.h"
 
 #define CACHE_HEAD \
     PyObject_HEAD \
     CPersistentRing ring_home; \
-    int non_ghost_count;
+    int non_ghost_count; \
+    PY_LONG_LONG total_estimated_size;
 
 struct ccobject_head_struct;
 
-typedef struct ccobject_head_struct PerCache;
+typedef struct ccobject_head_struct PerCache;    
 
 /* How big is a persistent object?
 
@@ -36,13 +39,14 @@ typedef struct ccobject_head_struct PerCache;
     8  ring struct
     8  serialno
     4  state + extra
+    4  size info
 
-  (52) so far
+  (56) so far
 
     4  dict ptr
     4  weaklist ptr
   -------------------------
-   64  only need 62, but obmalloc rounds up to multiple of eight
+   68  only need 62, but obmalloc rounds up to multiple of eight
 
   Even a ghost requires 64 bytes.  It's possible to make a persistent
   instance with slots and no dict, which changes the storage needed.
@@ -56,8 +60,28 @@ typedef struct ccobject_head_struct PerCache;
     PerCache *cache; \
     CPersistentRing ring; \
     char serial[8]; \
-    signed char state; \
-    unsigned char reserved[3];
+    signed state:8;                              \
+    unsigned estimated_size:24;
+
+/* We recently added estimated_size.  We originally added it as a new
+   unsigned long field after a signed char state field and a
+   3-character reserved field.  This didn't work because there
+   are packages in the wild that have their own copies of cPersistence.h
+   that didn't see the update.  
+
+   To get around this, we used the reserved space by making
+   estimated_size a 24-bit bit field in the space occupied by the old
+   3-character reserved field.  To fit in 24 bits, we made the units
+   of estimated_size 64-character blocks.  This allows is to handle up
+   to a GB.  We should never see that, but to be paranoid, we also
+   truncate sizes greater than 1GB.  We also set the minimum size to
+   64 bytes.
+
+   We use the _estimated_size_in_24_bits and _estimated_size_in_bytes
+   macros both to avoid repetition and to make intent a little clearer.
+*/
+#define _estimated_size_in_24_bits(I) ((I) > 1073741696 ? 16777215 : (I)/64+1)
+#define _estimated_size_in_bytes(I) ((I)*64)
 
 #define cPersistent_GHOST_STATE -1
 #define cPersistent_UPTODATE_STATE 0

@@ -160,14 +160,13 @@ class StorageTestBase(unittest.TestCase):
     def tearDown(self):
         self._close()
 
-    def _dostore(self, oid=None, revid=None, data=None, version=None,
+    def _dostore(self, oid=None, revid=None, data=None,
                  already_pickled=0, user=None, description=None):
         """Do a complete storage transaction.  The defaults are:
 
          - oid=None, ask the storage for a new oid
          - revid=None, use a revid of ZERO
          - data=None, pickle up some arbitrary data (the integer 7)
-         - version=None, use the empty string version
 
         Returns the object's new revision id.
         """
@@ -181,8 +180,6 @@ class StorageTestBase(unittest.TestCase):
             data = MinPO(data)
         if not already_pickled:
             data = zodb_pickle(data)
-        if version is None:
-            version = ''
         # Begin the transaction
         t = transaction.Transaction()
         if user is not None:
@@ -192,7 +189,7 @@ class StorageTestBase(unittest.TestCase):
         try:
             self._storage.tpc_begin(t)
             # Store an object
-            r1 = self._storage.store(oid, revid, data, version, t)
+            r1 = self._storage.store(oid, revid, data, '', t)
             # Finish the transaction
             r2 = self._storage.tpc_vote(t)
             revid = handle_serials(oid, r1, r2)
@@ -202,9 +199,9 @@ class StorageTestBase(unittest.TestCase):
             raise
         return revid
 
-    def _dostoreNP(self, oid=None, revid=None, data=None, version=None,
+    def _dostoreNP(self, oid=None, revid=None, data=None,
                    user=None, description=None):
-        return self._dostore(oid, revid, data, version, 1, user, description)
+        return self._dostore(oid, revid, data, 1, user, description)
 
     # The following methods depend on optional storage features.
 
@@ -222,21 +219,3 @@ class StorageTestBase(unittest.TestCase):
             for oid in expected_oids:
                 self.assert_(oid in oids)
         return self._storage.lastTransaction()
-
-    def _commitVersion(self, src, dst):
-        t = transaction.Transaction()
-        t.note("commit %r to %r" % (src, dst))
-        self._storage.tpc_begin(t)
-        tid, oids = self._storage.commitVersion(src, dst, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        return oids
-
-    def _abortVersion(self, ver):
-        t = transaction.Transaction()
-        t.note("abort %r" % ver)
-        self._storage.tpc_begin(t)
-        tid, oids = self._storage.abortVersion(ver, t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        return oids

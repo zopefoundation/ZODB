@@ -21,7 +21,6 @@ import logging
 
 import traceback, time
 
-import ThreadedAsync
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller
@@ -41,7 +40,15 @@ client_timeout_count = 0 # for testing
 client_map = {}
 client_trigger = trigger(client_map)
 client_logger = logging.getLogger('ZEO.zrpc.client_loop')
-atexit.register(client_map.clear)
+client_exit_event = threading.Event()
+client_running = True
+def client_exit():
+    global client_running
+    client_running = False
+    client_trigger.pull_trigger()
+    client_exit_event.wait()
+
+atexit.register(client_exit)
 
 def client_loop():
     map = client_map
@@ -50,8 +57,11 @@ def client_loop():
     write = asyncore.write
     _exception = asyncore._exception
     loop_failures = 0
+    client_exit_event.clear()
+    global client_running
+    client_running = True
     
-    while map:
+    while client_running and map:
         try:
             
             # The next two lines intentionally don't use
@@ -72,17 +82,23 @@ def client_loop():
                         # case by looking for entries in r and w that
                         # are not in the socket map.
 
-                        if [fd for fd in r if fd not in client_map]:
+                        if [fd for fd in r if fd not in map]:
                             continue
-                        if [fd for fd in w if fd not in client_map]:
+                        if [fd for fd in w if fd not in map]:
                             continue
                         
                     raise
                 else:
                     continue
 
+            if not client_running:
+                break
+
             if not (r or w or e):
-                for obj in client_map.itervalues():
+                # The line intentionally doesn't use iterators. Other
+                # threads can close dispatchers, causeing the socket
+                # map to shrink.
+                for obj in map.values():
                     if isinstance(obj, Connection):
                         # Send a heartbeat message as a reply to a
                         # non-existent message id.
@@ -115,7 +131,7 @@ def client_loop():
         except:
             if map:
                 try:
-                    client_logger.critical('The ZEO cient loop failed.',
+                    client_logger.critical('The ZEO client loop failed.',
                                            exc_info=sys.exc_info())
                 except:
                     pass
@@ -128,10 +144,13 @@ def client_loop():
                     except:
                         map.pop(fd, None)
                         try:
-                            client_logger.critical("Couldn't close a dispatcher.",
-                                                   exc_info=sys.exc_info())
+                            client_logger.critical(
+                                "Couldn't close a dispatcher.",
+                                exc_info=sys.exc_info())
                         except:
                             pass
+
+    client_exit_event.set()
 
 client_thread = threading.Thread(target=client_loop)
 client_thread.setDaemon(True)
@@ -383,16 +402,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         ourmap = {}
         self.__super_init(sock, addr, map=ourmap)
 
-        # A Connection either uses asyncore directly or relies on an
-        # asyncore mainloop running in a separate thread.  If
-        # thr_async is true, then the mainloop is running in a
-        # separate thread.  If thr_async is true, then the asyncore
-        # trigger (self.trigger) is used to notify that thread of
-        # activity on the current thread.
-        self.thr_async = False
-        self.trigger = None
-        self._prepare_async()
-
         # The singleton dict is used in synchronous mode when a method
         # needs to call into asyncore to try to force some I/O to occur.
         # The singleton dict is a socket map containing only this object.
@@ -451,21 +460,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.logger.log(level, self.log_label + message, exc_info=exc_info)
 
     def close(self):
+        self.mgr.close_conn(self)
         if self.closed:
             return
         self._singleton.clear()
         self.closed = True
         self.__super_close()
-        self.close_trigger()
+        self.trigger.pull_trigger()
         self.replies_cond.acquire()
         self.replies_cond.notifyAll()
         self.replies_cond.release()
-
-    def close_trigger(self):
-        # Overridden by ManagedClientConnection.
-        if self.trigger is not None:
-            self.trigger.pull_trigger()
-            self.trigger.close()
 
     def register_object(self, obj):
         """Register obj as the true object to invoke methods on."""
@@ -535,14 +539,23 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.replies_cond.release()
 
     def handle_request(self, msgid, flags, name, args):
-        if not self.check_method(name):
-            msg = "Invalid method name: %s on %s" % (name, repr(self.obj))
+        obj = self.obj
+        
+        if name.startswith('_') or not hasattr(obj, name):
+            if obj is None:
+                if __debug__:
+                    self.log("no object calling %s%s"
+                             % (name, short_repr(args)),
+                             level=logging.DEBUG)
+                return
+                
+            msg = "Invalid method name: %s on %s" % (name, repr(obj))
             raise ZRPCError(msg)
         if __debug__:
             self.log("calling %s%s" % (name, short_repr(args)),
                      level=logging.DEBUG)
 
-        meth = getattr(self.obj, name)
+        meth = getattr(obj, name)
         try:
             self.waiting_for_reply = True
             try:
@@ -580,12 +593,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.log("Error caught in asyncore",
                  level=logging.ERROR, exc_info=True)
         self.close()
-
-    def check_method(self, name):
-        # TODO:  This is hardly "secure".
-        if name.startswith('_'):
-            return None
-        return hasattr(self.obj, name)
 
     def send_reply(self, msgid, ret):
         # encode() can pass on a wide variety of exceptions from cPickle.
@@ -684,10 +691,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        if self.is_async():
-            self.trigger.pull_trigger()
-        else:
-            asyncore.poll(0.01, self._singleton)
+        self.trigger.pull_trigger()
         return msgid
 
     def _deferred_wait(self, msgid):
@@ -726,41 +730,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         for method, args in iterator:
             yield self.__call_message(method, args, ASYNC)
 
-    # handle IO, possibly in async mode
-
-    def _prepare_async(self):
-        self.thr_async = False
-        ThreadedAsync.register_loop_callback(self.set_async)
-        # TODO:  If we are not in async mode, this will cause dead
-        # Connections to be leaked.
-
-    def set_async(self, map):
-        self.trigger = trigger()
-        self.thr_async = True
-
-    def is_async(self):
-        # Overridden by ManagedConnection
-        if self.thr_async:
-            return 1
-        else:
-            return 0
-
-    def _pull_trigger(self, tryagain=10):
-        try:
-            self.trigger.pull_trigger()
-        except OSError:
-            self.trigger.close()
-            self.trigger = trigger()
-            if tryagain > 0:
-                self._pull_trigger(tryagain=tryagain-1)
 
     def wait(self, msgid):
         """Invoke asyncore mainloop and wait for reply."""
         if __debug__:
-            self.log("wait(%d), async=%d" % (msgid, self.is_async()),
-                     level=TRACE)
-        if self.is_async():
-            self._pull_trigger()
+            self.log("wait(%d)" % msgid, level=TRACE)
+
+        self.trigger.pull_trigger()
 
         # Delay used when we call asyncore.poll() directly.
         # Start with a 1 msec delay, double until 1 sec.
@@ -778,7 +754,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                         self.log("wait(%d): reply=%s" %
                                  (msgid, short_repr(reply)), level=TRACE)
                     return reply
-                assert self.is_async() # XXX we're such cowards
                 self.replies_cond.wait()
         finally:
             self.replies_cond.release()
@@ -793,69 +768,18 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
         if __debug__:
-            self.log("poll(), async=%d" % self.is_async(), level=TRACE)
-        if self.is_async():
-            self._pull_trigger()
-        else:
-            asyncore.poll(0.0, self._singleton)
+            self.log("poll()", level=TRACE)
+        self.trigger.pull_trigger()
 
-    def _pending(self, timeout=0):
-        """Invoke mainloop until any pending messages are handled."""
-        if __debug__:
-            self.log("pending(), async=%d" % self.is_async(), level=TRACE)
-        if self.is_async():
-            return
-        # Inline the asyncore poll() function to know whether any input
-        # was actually read.  Repeat until no input is ready.
 
-        # Pending does reads and writes.  In the case of server
-        # startup, we may need to write out zeoVerify() messages.
-        # Always check for read status, but don't check for write status
-        # only there is output to do.  Only continue in this loop as
-        # long as there is data to read.
-        r = r_in = [self._fileno]
-        x_in = []
-        while r and not self.closed:
-            if self.writable():
-                w_in = [self._fileno]
-            else:
-                w_in = []
-            try:
-                r, w, x = select.select(r_in, w_in, x_in, timeout)
-            except select.error, err:
-                if err[0] == errno.EINTR:
-                    timeout = 0
-                    continue
-                else:
-                    raise
-            else:
-                # Make sure any subsequent select does not block.  The
-                # loop is only intended to make sure all incoming data is
-                # returned.
-
-                # Insecurity:  What if the server sends a lot of
-                # invalidations, such that pending never finishes?  Seems
-                # unlikely, but possible.
-                timeout = 0
-            if r:
-                try:
-                    self.handle_read_event()
-                except asyncore.ExitNow:
-                    raise
-                except:
-                    self.handle_error()
-            if w:
-                try:
-                    self.handle_write_event()
-                except asyncore.ExitNow:
-                    raise
-                except:
-                    self.handle_error()
-
+        
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
     __super_init = Connection.__init__
     __super_close = Connection.close
+
+    # Servers use a shared server trigger that uses the asyncore socket map
+    trigger = trigger()
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
@@ -868,7 +792,6 @@ class ManagedServerConnection(Connection):
 
     def close(self):
         self.obj.notifyDisconnected()
-        self.mgr.close_conn(self)
         self.__super_close()
 
 class ManagedClientConnection(Connection):
@@ -877,7 +800,9 @@ class ManagedClientConnection(Connection):
     __super_close = Connection.close
     base_message_output = Connection.message_output
 
-    def __init__(self, sock, addr, obj, mgr):
+    trigger = client_trigger
+
+    def __init__(self, sock, addr, mgr):
         self.mgr = mgr
 
         # We can't use the base smac's message_output directly because the
@@ -894,9 +819,7 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
-        self.__super_init(sock, addr, obj, tag='C', map=client_map)
-        self.thr_async = True
-        self.trigger = client_trigger
+        self.__super_init(sock, addr, None, tag='C', map=client_map)
         client_trigger.pull_trigger()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
@@ -940,27 +863,3 @@ class ManagedClientConnection(Connection):
             self.queue_output = False
         finally:
             self.output_lock.release()
-
-    # Defer the ThreadedAsync work to the manager.
-
-    def close_trigger(self):
-        # We are using a shared trigger for all client connections.
-        # We never want to close it.
-
-        # We do want to pull it to make sure the select loop detects that
-        # we're closed.
-        self.trigger.pull_trigger()
-
-    def set_async(self, map):
-        pass
-
-    def _prepare_async(self):
-        # Don't do the register_loop_callback that the superclass does
-        pass
-
-    def is_async(self):
-        return True
-
-    def close(self):
-        self.mgr.close_conn(self)
-        self.__super_close()

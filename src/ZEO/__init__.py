@@ -20,6 +20,3 @@ ZEO is now part of ZODB; ZODB's home on the web is
     http://www.zope.org/Wikis/ZODB
 
 """
-
-# The next line must use double quotes, so release.py recognizes it.
-version = "3.7.0b3"

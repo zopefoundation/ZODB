@@ -19,7 +19,6 @@ from ZODB import POSException
 from ZODB import DB
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
-from ZODB.tests import VersionStorage, TransactionalUndoVersionStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
 from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
 from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
@@ -44,8 +43,6 @@ class FileStorageTests(
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
     RevisionStorage.RevisionStorage,
-    VersionStorage.VersionStorage,
-    TransactionalUndoVersionStorage.TransactionalUndoVersionStorage,
     PackableStorage.PackableStorage,
     PackableStorage.PackableUndoStorage,
     Synchronization.SynchronizedStorage,
@@ -182,65 +179,6 @@ class FileStorageTests(
         self.open()
         self.assertEqual(self._storage._saved, 1)
 
-    def check_index_oid_ignored(self):
-        # Prior to ZODB 3.2.6, the 'oid' value stored in the .index file
-        # was believed.  But there were cases where adding larger oids
-        # didn't update the FileStorage ._oid attribute -- the restore()
-        # method in particular didn't update it, and that's about the only
-        # method copyTransactionsFrom() uses.  A database copy created that
-        # way then stored an 'oid' of z64 in the .index file.  This created
-        # torturous problems, as when that file was opened, "new" oids got
-        # generated starting over from 0 again.
-        # Now the cached 'oid' value is ignored:  verify that this is so.
-        import cPickle as pickle
-        from ZODB.utils import z64
-
-        # Create some data.
-        db = DB(self._storage)
-        conn = db.open()
-        conn.root()['xyz'] = 1
-        transaction.commit()
-        true_max_oid = self._storage._oid
-
-        # Save away the index, and poke in a bad 'oid' value by hand.
-        db.close()
-        f = open('FileStorageTests.fs.index', 'r+b')
-        p = pickle.Unpickler(f)
-        data = p.load()
-        saved_oid = data['oid']
-        self.assertEqual(true_max_oid, saved_oid)
-        data['oid'] = z64
-        f.seek(0)
-        f.truncate()
-        p = pickle.Pickler(f, 1)
-        p.dump(data)
-        f.close()
-
-        # Verify that we get the correct oid again when we reopen, despite
-        # that we stored nonsense in the .index file's 'oid'.
-        self.open()
-        self.assertEqual(self._storage._oid, true_max_oid)
-
-    # This would make the unit tests too slow
-    # check_save_after_load_that_worked_hard(self)
-
-    def check_periodic_save_index(self):
-
-        # Check the basic algorithm
-        oldsaved = self._storage._saved
-        self._storage._records_before_save = 10
-        for i in range(4):
-            self._dostore()
-        self.assertEqual(self._storage._saved, oldsaved)
-        self._dostore()
-        self.assertEqual(self._storage._saved, oldsaved+1)
-
-        # Now make sure the parameter changes as we get bigger
-        for i in range(20):
-            self._dostore()
-
-        self.failUnless(self._storage._records_before_save > 20)
-
     def checkStoreBumpsOid(self):
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
@@ -350,6 +288,7 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
+
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
     RecoveryStorage.RecoveryStorage,
@@ -367,6 +306,40 @@ class FileStorageRecoveryTest(
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
+
+
+class FileStorageNoRestore(ZODB.FileStorage.FileStorage):
+
+    @property
+    def restore(self):
+        raise Exception
+
+
+class FileStorageNoRestoreRecoveryTest(
+    StorageTestBase.StorageTestBase,
+    RecoveryStorage.RecoveryStorage,
+    ):
+    # This test actually verifies a code path of
+    # BaseStorage.copyTransactionsFrom. For simplicity of implementation, we
+    # use a FileStorage deprived of its restore method.
+
+    def setUp(self):
+        self._storage = FileStorageNoRestore("Source.fs", create=True)
+        self._dst = FileStorageNoRestore("Dest.fs", create=True)
+
+    def tearDown(self):
+        self._storage.close()
+        self._dst.close()
+        self._storage.cleanup()
+        self._dst.cleanup()
+
+    def new_dest(self):
+        return FileStorageNoRestore('Dest.fs')
+
+    def checkRestoreAcrossPack(self):
+        # Skip this check as it calls restore directly.
+        pass
+
 
 class SlowFileStorageTest(BaseFileStorageTests):
 
@@ -529,12 +502,67 @@ Of course, calling lastInvalidations on an empty storage refturns no data:
 
     """
 
+def deal_with_finish_failures():
+    r"""
+    
+    It's really bad to get errors in FileStorage's _finish method, as
+    that can cause the file storage to be in an inconsistent
+    state. The data file will be fine, but the internal data
+    structures might be hosed. For this reason, FileStorage will close
+    if there is an error after it has finished writing transaction
+    data.  It bothers to do very little after writing this data, so
+    this should rarely, if ever, happen.
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 1
+    >>> transaction.commit()
+
+    Now, we'll indentially break the file storage. It provides a hook
+    for this purpose. :)
+
+    >>> fs._finish_finish = lambda : None
+    >>> conn.root()[1] = 1
+
+    >>> import zope.testing.loggingsupport
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...     'ZODB.FileStorage')
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    TypeError: <lambda>() takes no arguments (1 given)
+
+    
+    >>> print handler
+    ZODB.FileStorage CRITICAL
+      Failure in _finish. Closing.
+
+    >>> handler.uninstall()
+
+    >>> fs.load('\0'*8, '')
+    Traceback (most recent call last):
+    ...
+    ValueError: I/O operation on closed file
+
+    >>> db.close()
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()
+    {1: 1}
+
+    >>> transaction.abort()
+    >>> db.close()
+    """
+
 def test_suite():
     from zope.testing import doctest
 
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
-                  FileStorageRecoveryTest, SlowFileStorageTest]:
+                  FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
+                  SlowFileStorageTest]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
                                        tearDown=ZODB.tests.util.tearDown))

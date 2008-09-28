@@ -37,6 +37,7 @@ class MappingStorageTests(StorageTestBase.StorageTestBase,
         # have this limit, so we inhibit this test here.
         pass
 
+
 def test_suite():
     suite = unittest.makeSuite(MappingStorageTests, 'check')
     return suite

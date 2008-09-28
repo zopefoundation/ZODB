@@ -138,6 +138,21 @@ Verify all the values are as expected:
     >>> db.close()
 """
 
+def testIsReadonly():
+    """\
+The connection isReadonly method relies on the _storage to have an isReadOnly.
+We simply rely on the underlying storage method.
+
+    >>> import ZODB.tests.util
+    >>> db = ZODB.tests.util.DB()
+    >>> connection = db.open()
+    >>> root = connection.root()
+    >>> root['a'] = 1
+    >>> sp = transaction.savepoint()
+    >>> connection.isReadOnly()
+    False
+"""
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('testConnectionSavepoint.txt'),
