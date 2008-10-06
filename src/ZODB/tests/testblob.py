@@ -144,6 +144,9 @@ class BlobCloneTests(BlobTests):
         # (even though it won't contain the original data)
         clone.open()
 
+        # tearDown
+        database.close()
+
 
 class BlobUndoTests(BlobTests):
 
