@@ -1,3 +1,15 @@
+What's new in ZODB3 3.4.5?
+==========================
+Release date: 09-Oct-2008 (internal release for Zope 2.8.10)
+
+Connection
+----------
+
+- (3.4.5) Reset ``_cache`` on a connection's ``_reader`` object when
+  resetting the cache, to prevent reads from the old cache object, e.g.
+  during Zope2's auto-refresh of products.
+  (https://bugs.launchpad.net/zodb/+bug/142667).
+
 What's new in ZODB3 3.4.4?
 ==========================
 Release date: 14-Jul-2006 (internal release for Zope 2.8.8)
@@ -6,8 +18,8 @@ DemoStorage
 -----------
 
 - (3.4.4b1) DemoStorage was unable to wrap base storages who did not have
-            an '_oid' attribute:  most notably, ZEO.ClientStorage
-            (http://www.zope.org/Collectors/Zope/2016).
+  an '_oid' attribute:  most notably, ZEO.ClientStorage
+  (http://www.zope.org/Collectors/Zope/2016).
 
 What's new in ZODB3 3.4.3?
 ==========================

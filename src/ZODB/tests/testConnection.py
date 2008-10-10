@@ -140,6 +140,14 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.tpc_finish(self.transaction)
         self.assert_(obj._p_oid not in self.datamgr._storage._stored)
 
+    def check__resetCacheResetsReader(self):
+        # https://bugs.launchpad.net/zodb/+bug/142667
+        old_cache = self.datamgr._cache
+        self.datamgr._resetCache()
+        new_cache = self.datamgr._cache
+        self.failIf(new_cache is old_cache)
+        self.failUnless(self.datamgr._reader._cache is new_cache)
+
 class UserMethodTests(unittest.TestCase):
 
     # add isn't tested here, because there are a bunch of traditional
