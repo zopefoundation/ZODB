@@ -1,5 +1,34 @@
+What's new on ZODB 3.7.3?
+=========================
+
+Release date:  DD-MMM-YYYY
+
+Connection
+----------
+
+- (3.7.3) Reset ``_cache`` on a connection's ``_reader`` object when
+  resetting the cache, to prevent reads from the old cache object, e.g.
+  during Zope2's auto-refresh of products.
+  (https://bugs.launchpad.net/zodb/+bug/142667).
+
+
+What's new on ZODB 3.7.2?
+=========================
+
+Release date:  27-Sep-2007
+
+ClientStorage
+-------------
+
+- (3.7.2) Fixed a serious bug that could cause client I/O to stop
+  (hang). This was accomonied by a critical log message along the
+  lines of: "RuntimeError: dictionary changed size during iteration".
+
+
 What's new on ZODB 3.7.1?
 =========================
+
+Release date:  03-Jul-2007
 
 Packaging
 ---------
@@ -18,10 +47,6 @@ Packaging
 
 ClientStorage
 -------------
-
-- (3.7.2) Fixed a serious bug that could cause client I/O to stop
-  (hang). This was accomonied by a critical log message along the
-  lines of: "RuntimeError: dictionary changed size during iteration".
 
 - (3.7b4) Added logic to avoid spurious errors from the logging system
   on exit.
