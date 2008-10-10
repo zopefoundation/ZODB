@@ -1044,6 +1044,8 @@ class Connection(ExportImport, object):
         cache_size = self._cache.cache_size
         cache_size_bytes = self._cache.cache_size_bytes
         self._cache = cache = PickleCache(self, cache_size, cache_size_bytes)
+        if getattr(self, '_reader', None) is not None:
+            self._reader._cache = cache
 
     ##########################################################################
     # Python protocol
