@@ -1,3 +1,10 @@
+What's new in ZODB3 3.4.6?
+==========================
+Release date: DD-MMM-YYYY 
+
+
+
+
 What's new in ZODB3 3.4.5?
 ==========================
 Release date: 09-Oct-2008 (internal release for Zope 2.8.10)
