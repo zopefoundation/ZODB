@@ -220,7 +220,7 @@ def alltests():
     here = os.path.abspath(os.path.dirname(sys.argv[0]))
     args = sys.argv[:]
     src = os.path.join(here, 'src')
-    defaults = ['--test-path', src]
+    defaults = ['--test-path', src, '--all']
     options = get_options(args, defaults)
     suites = list(find_suites(options))
     return TestSuite(suites)
