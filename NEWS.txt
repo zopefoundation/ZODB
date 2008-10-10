@@ -1,6 +1,6 @@
 What's new in ZODB3 3.6.4?
 ==========================
-Release date: DD-MMM-YYYY
+Release date: 09-Oct-2008 (Internal release to support Zope 2.9.10).
 
 Connection
 ----------
