@@ -1,7 +1,7 @@
 What's new on ZODB 3.7.3?
 =========================
 
-Release date:  DD-MMM-YYYY
+Release date:  09-Oct-2008 (internal release to support Zope 2.10.7)
 
 Connection
 ----------
