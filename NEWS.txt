@@ -40,7 +40,7 @@ TimeStamp
 _fsBTree
 --------
 
-- (3.5.2g1) Suppressed warnings about signedness of characters when
+- (3.5.2b1) Suppressed warnings about signedness of characters when
   compiling under GCC 4.0.x.  See http://www.zope.org/Collectors/Zope/2027.
 
 PersistentMapping
@@ -69,6 +69,11 @@ Tools
 
 Connection
 ----------
+
+- (3.52b1) Reset ``_cache`` on a connection's ``_reader`` object when
+  resetting the cache, to prevent reads from the old cache object, e.g.
+  during Zope2's auto-refresh of products.
+  (https://bugs.launchpad.net/zodb/+bug/142667).
 
 - (3.5.2b1) An optimization for loading non-current data (MVCC) was
   inadvertently disabled in ``_setstate()``; this has been repaired.
