@@ -1,8 +1,19 @@
+What's new in ZODB3 3.6.4?
+==========================
+Release date: DD-MMM-YYYY
+
+Connection
+----------
+
+- (3.6.4) Reset ``_cache`` on a connection's ``_reader`` object when
+  resetting the cache, to prevent reads from the old cache object, e.g.
+  during Zope2's auto-refresh of products.
+  (https://bugs.launchpad.net/zodb/+bug/142667).
+
+
 What's new in ZODB3 3.6.3?
 ==========================
 Release date: 03-Jul-2007
-
-
 
 Following is combined news from internal releases (to support ongoing
 Zope2 / Zope3 development).  These are the dates of the internal releases:

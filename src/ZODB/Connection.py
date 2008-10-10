@@ -961,6 +961,8 @@ class Connection(ExportImport, object):
         self._invalidated.clear()
         cache_size = self._cache.cache_size
         self._cache = cache = PickleCache(self, cache_size)
+        if getattr(self, '_reader', None) is not None:
+            self._reader._cache = cache
 
     ##########################################################################
     # Python protocol
