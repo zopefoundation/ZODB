@@ -1,3 +1,9 @@
+What's new on ZODB 3.7.4?
+=========================
+
+Release date:  DD-MMM-YYYY
+
+
 What's new on ZODB 3.7.3?
 =========================
 
