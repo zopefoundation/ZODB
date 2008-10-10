@@ -4,6 +4,11 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (3.8.1) Reset ``_cache`` on a connection's ``_reader`` object when
+  resetting the cache, to prevent reads from the old cache object, e.g.
+  during Zope2's auto-refresh of products.
+  (https://bugs.launchpad.net/zodb/+bug/142667).
+
 - (beta 9) An exception would be raised when an error occured attempting to
   lock a file and logging of said error was enabled.
 
