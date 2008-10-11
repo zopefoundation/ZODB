@@ -245,7 +245,8 @@ class MyDistribution(Distribution):
         self.cmdclass['build_py'] = MyPyBuilder
         self.cmdclass['install_lib'] = MyLibInstaller
 
-doclines = __doc__.split("\n")
+def read(*rnames):
+    return open(os.path.join(os.path.dirname(__file__), *rnames)).read()
 
 
 setup(name="ZODB3",
@@ -260,8 +261,13 @@ setup(name="ZODB3",
                  'src/persistent/ring.h'],
       license = "ZPL 2.1",
       platforms = ["any"],
-      description = doclines[0],
+      description = __doc__.split("\n")[0],
       classifiers = filter(None, classifiers.split("\n")),
-      long_description = "\n".join(doclines[2:]),
+      long_description = (
+            __doc__
+            + read('README.txt')
+            + '\n\n'
+            + read('NEWS.txt')
+            ),
       distclass = MyDistribution,
       **extra)

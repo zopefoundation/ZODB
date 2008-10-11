@@ -1,5 +1,9 @@
+
 ZODB 3.8
 ========
+
+.. contents::
+
 
 Introduction
 ------------
@@ -11,8 +15,8 @@ follows:
 - Core ZODB, including the persistence machinery
 - Standard storages such as FileStorage
 - The persistent BTrees modules
-- ZEO
-- documentation (poor)
+- ZEO, for scalability needs
+- documentation (needs more work)
 
 Our primary development platforms are Linux, Mac OS X, and Windows
 XP.  The test suite should pass without error on all of these
@@ -81,7 +85,7 @@ This should now make all of ZODB accessible to your Python programs.
 Testing for Developers
 ----------------------
 
-The ZODB check outs are `buldouts <http://www.python.org/pypi/zc.buildout>`_.
+The ZODB checkouts are `buildouts <http://www.python.org/pypi/zc.buildout>`_.
 When working from a ZODB checkout, first run the bootstrap.py script
 to initialize the buildout:
 
@@ -113,6 +117,15 @@ Running all the tests takes much longer.::
     Ran 1561 tests in 1461.557s
 
     OK
+
+
+Maintenance scripts
+-------------------
+
+Several scripts are provided with the ZODB and can help for analyzing,
+debugging, checking for consistency, summarizing content, reporting space used
+by objects, doing backups, artificial load testing, etc.
+Look at the ZODB/script directory for more informations.
 
 
 History
@@ -148,9 +161,7 @@ Why not call the current release StandaloneZODB?  The name
 StandaloneZODB is a bit of a mouthful.  The standalone part of the
 name suggests that the Zope version is the real version and that this
 is an afterthought, which isn't the case.  So we're calling this
-release "ZODB".
-
-To make matters worse, we worked on a ZODB4 package for a while and
+release "ZODB". We also worked on a ZODB4 package for a while and
 made a couple of alpha releases.  We've now abandoned that effort,
 because we didn't have the resources to pursue ot while also maintaining
 ZODB(3).
@@ -201,10 +212,9 @@ browser at the file Doc/guide/zodb/index.html
 Bugs and Patches
 ----------------
 
-Bug reports and patches should be added to the Zope Collector, with
-topic "Database":
+Bug reports and patches should be added to the Launchpad:
 
-    http://collector.zope.org/Zope
+    https://launchpad.net/zodb
 
 
 ..
