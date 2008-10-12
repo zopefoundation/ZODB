@@ -16,6 +16,8 @@
 $Id$
 """
 
+__docformat__ = "reStructuredText"
+
 from persistent import Persistent
 
 WeakRefMarker = object()
@@ -28,7 +30,7 @@ class WeakRef(object):
     object to be called when the object is removed from the database.
 
     Here's an example. We'll start by creating a persistent object and
-    a reference to it::
+    a reference to it:
 
         >>> import persistent, ZODB.tests.MinPO
         >>> import ZODB.tests.util
@@ -37,12 +39,12 @@ class WeakRef(object):
         >>> ref() is ob
         True
 
-    The hash of the ref if the same as the hash of the referenced object::
+    The hash of the ref if the same as the hash of the referenced object:
 
         >>> hash(ref) == hash(ob)
         True
 
-    Two refs to the same object are equal::
+    Two refs to the same object are equal:
 
         >>> WeakRef(ob) == ref
         True
@@ -51,7 +53,7 @@ class WeakRef(object):
         >>> WeakRef(ob2) == ref
         False
 
-    Lets save the reference and the referenced object in a database::
+    Lets save the reference and the referenced object in a database:
 
         >>> db = ZODB.tests.util.DB()
 
@@ -60,7 +62,7 @@ class WeakRef(object):
         >>> conn1.root()['ref'] = ref
         >>> ZODB.tests.util.commit()
 
-    If we open a new connection, we can use the reference::
+    If we open a new connection, we can use the reference:
 
         >>> conn2 = db.open()
         >>> conn2.root()['ref']() is conn2.root()['ob']
@@ -68,13 +70,13 @@ class WeakRef(object):
         >>> hash(conn2.root()['ref']) == hash(conn2.root()['ob'])
         True
 
-    But if we delete the referenced object and pack::
+    But if we delete the referenced object and pack:
 
         >>> del conn2.root()['ob']
         >>> ZODB.tests.util.commit()
         >>> ZODB.tests.util.pack(db)
 
-    And then look in a new connection::
+    And then look in a new connection:
 
         >>> conn3 = db.open()
         >>> conn3.root()['ob']
@@ -82,18 +84,18 @@ class WeakRef(object):
         ...
         KeyError: 'ob'
 
-    Trying to dereference the reference returns None::
+    Trying to dereference the reference returns None:
 
         >>> conn3.root()['ref']()
 
-    Trying to get a hash, raises a type error::
+    Trying to get a hash, raises a type error:
 
         >>> hash(conn3.root()['ref'])
         Traceback (most recent call last):
         ...
         TypeError: Weakly-referenced object has gone away
 
-    Always explicitly close databases :) ::
+    Always explicitly close databases :) :
 
         >>> db.close()
 
@@ -142,7 +144,7 @@ class PersistentWeakKeyDictionary(Persistent):
     of items is extremely lazy. See below.
 
     We'll start by creating a PersistentWeakKeyDictionary and adding
-    some persistent objects to it::
+    some persistent objects to it:
 
         >>> d = PersistentWeakKeyDictionary()
         >>> import ZODB.tests.util
@@ -153,23 +155,23 @@ class PersistentWeakKeyDictionary(Persistent):
         >>> d[p2] = 2
         >>> d[p3] = 3
 
-    We'll create an extra persistent object that's not in the dict::
+    We'll create an extra persistent object that's not in the dict:
 
         >>> p4 = ZODB.tests.util.P('p4')
 
-    Now we'll excercise iteration and item access::
+    Now we'll excercise iteration and item access:
 
         >>> l = [(str(k), d[k], d.get(k)) for k in d]
         >>> l.sort()
         >>> l
         [('P(p1)', 1, 1), ('P(p2)', 2, 2), ('P(p3)', 3, 3)]
 
-    And the containment operator::
+    And the containment operator:
 
         >>> [p in d for p in [p1, p2, p3, p4]]
         [True, True, True, False]
 
-    We can add the dict and the referenced objects to a database::
+    We can add the dict and the referenced objects to a database:
 
         >>> db = ZODB.tests.util.DB()
 
@@ -180,7 +182,7 @@ class PersistentWeakKeyDictionary(Persistent):
         >>> conn1.root()['p3'] = p3
         >>> ZODB.tests.util.commit()
 
-    And things still work, as before::
+    And things still work, as before:
 
         >>> l = [(str(k), d[k], d.get(k)) for k in d]
         >>> l.sort()
@@ -190,7 +192,7 @@ class PersistentWeakKeyDictionary(Persistent):
         [True, True, True, False]
 
     Likewise, we can read the objects from another connection and
-    things still work::
+    things still work:
 
         >>> conn2 = db.open()
         >>> d = conn2.root()['d']
@@ -205,18 +207,18 @@ class PersistentWeakKeyDictionary(Persistent):
         [True, True, True, False]
 
     Now, we'll delete one of the objects from the database, but *not*
-    from the dictionary::
+    from the dictionary:
 
         >>> del conn2.root()['p2']
         >>> ZODB.tests.util.commit()
 
     And pack the database, so that the no-longer referenced p2 is
-    actually removed from the database::
+    actually removed from the database:
 
         >>> ZODB.tests.util.pack(db)
 
     Now if we access the dictionary in a new connection, it no longer
-    has p2::
+    has p2:
 
         >>> conn3 = db.open()
         >>> d = conn3.root()['d']
@@ -229,7 +231,7 @@ class PersistentWeakKeyDictionary(Persistent):
     conn1 and conn2 still have p2, because p2 is still in the caches
     for those connections.
 
-    Always explicitly close databases :) ::
+    Always explicitly close databases :) :
 
         >>> db.close()
 
@@ -269,7 +271,7 @@ class PersistentWeakKeyDictionary(Persistent):
         del self.data[WeakRef(key)]
 
     def get(self, key, default=None):
-        """D.get(k[, d]) -> D[k] if k in D, else d. ::
+        """D.get(k[, d]) -> D[k] if k in D, else d. :
 
             >>> import ZODB.tests.util
             >>> key = ZODB.tests.util.P("key")
