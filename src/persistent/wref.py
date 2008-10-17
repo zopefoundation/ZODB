@@ -16,6 +16,8 @@
 $Id$
 """
 
+__docformat__ = "reStructuredText"
+
 from persistent import Persistent
 
 WeakRefMarker = object()
@@ -28,11 +30,11 @@ class WeakRef(object):
     object to be called when the object is removed from the database.
 
     Here's an example. We'll start by creating a persistent object and
-    a refernce to it:
+    a reference to it:
 
-    >>> import persistent.list
+    >>> import persistent, ZODB.tests.MinPO
     >>> import ZODB.tests.util
-    >>> ob = persistent.list.PersistentList()
+    >>> ob = ZODB.tests.MinPO.MinPO()
     >>> ref = WeakRef(ob)
     >>> ref() is ob
     True
@@ -47,7 +49,7 @@ class WeakRef(object):
     >>> WeakRef(ob) == ref
     True
 
-    >>> ob2 = persistent.list.PersistentList([1])
+    >>> ob2 = ZODB.tests.MinPO.MinPO(1)
     >>> WeakRef(ob2) == ref
     False
 

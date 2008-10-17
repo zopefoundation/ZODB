@@ -601,7 +601,8 @@ class CommonBlobTests:
 
     def checkTransactionBufferCleanup(self):
         oid = self._storage.new_oid()
-        handle, blob_file_name = tempfile.mkstemp() #XXX cleanup temp file
+        handle, blob_file_name = tempfile.mkstemp()
+        os.close(handle)
         open(blob_file_name, 'w').write('I am a happy blob.')
         t = transaction.Transaction()
         self._storage.tpc_begin(t)

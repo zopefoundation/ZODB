@@ -1036,7 +1036,8 @@ class Connection(ExportImport, object):
         self._invalidatedCache = False
         cache_size = self._cache.cache_size
         cache_size_bytes = self._cache.cache_size_bytes
-        self._cache = cache = PickleCache(self, cache_size, cache_size_bytes)
+        self._reader._cache = self._cache = PickleCache(self, cache_size,
+                                                        cache_size_bytes)
 
     ##########################################################################
     # Python protocol
