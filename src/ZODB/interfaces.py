@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2004 Zope Corporation and Contributors.
+# Copyright (c) Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -801,7 +801,8 @@ class IStorageTransactionInformation(Interface):
     status = Attribute("Transaction Status") # XXX what are valid values?
     user = Attribute("Transaction user")
     description = Attribute("Transaction Description")
-    extension = Attribute("A dictionary carrying the transaction's extension data")
+    extension = Attribute(
+        "A dictionary carrying the transaction's extension data")
 
     def __iter__():
         """Iterate over the transaction's records given as
@@ -974,6 +975,10 @@ class IBlob(Interface):
 
         The blob must not be opened for reading or writing when consuming a 
         file.
+
+        The blob will take over ownership of the file and will either
+        rename or copy and remove it.  The file must not be open.
+        
         """
 
 
@@ -981,7 +986,14 @@ class IBlobStorage(Interface):
     """A storage supporting BLOBs."""
 
     def storeBlob(oid, oldserial, data, blobfilename, version, transaction):
-        """Stores data that has a BLOB attached."""
+        """Stores data that has a BLOB attached.
+
+        The blobfilename argument names a file containing blob data.
+        The storage will take ownership of the file and will rename it
+        (or copy and remove it) immediately, or at transaction-commit
+        time.  The file must not be open.
+        
+        """
 
     def loadBlob(oid, serial):
         """Return the filename of the Blob data for this OID and serial.
