@@ -32,9 +32,9 @@ class WeakRef(object):
     Here's an example. We'll start by creating a persistent object and
     a reference to it:
 
-    >>> import persistent.list
+    >>> import persistent, ZODB.tests.MinPO
     >>> import ZODB.tests.util
-    >>> ob = persistent.list.PersistentList()
+    >>> ob = ZODB.tests.MinPO.MinPO()
     >>> ref = WeakRef(ob)
     >>> ref() is ob
     True
@@ -49,7 +49,7 @@ class WeakRef(object):
     >>> WeakRef(ob) == ref
     True
 
-    >>> ob2 = persistent.list.PersistentList([1])
+    >>> ob2 = ZODB.tests.MinPO.MinPO(1)
     >>> WeakRef(ob2) == ref
     False
 
