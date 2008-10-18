@@ -8,6 +8,23 @@
 New Features
 ------------
 
+- Added support for copying and recovery of blob storages:
+
+  - Added a helper function, ZODB.blob.is_blob_record for testing whether
+    a data record is for a blob.  This can be used when iterating over a
+    storage to detect blob records so that blob data can be copied.
+
+    In the future, we may want to build this into a blob-aware
+    iteration interface, so that records get blob file attributes
+    automatically.
+
+  - Added the IBlobStorageRestoreable interfaces for blob storages
+    that support recovery via a restoreBlob method.
+
+  - Updated ZODB.blob.BlobStorage to implement
+    IBlobStorageRestoreable and to have a copyTransactionsFrom method
+    that also copies blob data.
+
 - New `ClientStorage` configuration option `drop_cache_rather_verify`.
   If this option is true then the ZEO client cache is dropped instead of
   the long (unoptimized) verification. For large caches, setting this

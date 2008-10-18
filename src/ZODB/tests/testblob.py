@@ -12,10 +12,15 @@
 #
 ##############################################################################
 
-import base64, os, re, shutil, stat, sys, tempfile, unittest
+import base64, os, re, shutil, stat, sys, tempfile, unittest, random, struct
 import time
+
+import ZODB.tests.IteratorStorage
+
 from zope.testing import doctest, renormalizing
+import zope.testing.setupstack
 import ZODB.tests.util
+import ZODB.interfaces
 
 from StringIO import StringIO
 from pickle import Pickler
@@ -274,6 +279,49 @@ class BlobUndoTests(BlobTests):
         self.assertEqual(blob.open('r').read(), 'this is state 1')
 
         database.close()
+
+
+class RecoveryBlobStorage(unittest.TestCase,
+                          ZODB.tests.IteratorStorage.IteratorDeepCompare):
+
+    def setUp(self):
+        self.globs = {}
+        zope.testing.setupstack.setUpDirectory(self)
+        self._storage = BlobStorage(
+            'src_blobs', ZODB.FileStorage.FileStorage("Source.fs", create=True))
+        self._dst = BlobStorage(
+            'dest_blobs', ZODB.FileStorage.FileStorage("Dest.fs", create=True))
+
+    def tearDown(self):
+        self._storage.close()
+        self._dst.close()
+        zope.testing.setupstack.tearDown(self)
+
+    # Requires a setUp() that creates a self._dst destination storage
+    def testSimpleBlobRecovery(self):
+        self.assert_(
+            ZODB.interfaces.IBlobStorageRestoreable.providedBy(self._storage)
+            )
+        db = DB(self._storage)
+        conn = db.open()
+        conn.root()[1] = ZODB.blob.Blob()
+        transaction.commit()
+        conn.root()[2] = ZODB.blob.Blob()
+        conn.root()[2].open('w').write('some data')
+        transaction.commit()
+        conn.root()[3] = ZODB.blob.Blob()
+        conn.root()[3].open('w').write(
+            (''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
+                     for i in range(random.randint(10000,20000)))
+             )[:-random.randint(1,4)]
+            )
+        transaction.commit()
+        conn.root()[2] = ZODB.blob.Blob()
+        conn.root()[2].open('w').write('some other data')
+        transaction.commit()
+        self._dst.copyTransactionsFrom(self._storage)
+        self.compare(self._storage, self._dst)
+    
 
 def gc_blob_removes_uncommitted_data():
     """
@@ -540,6 +588,22 @@ def loadblob_tmpstore():
     >>> os.unlink(storagefile+".tmp")
 """
 
+def is_blob_record():
+    """
+    >>> fs = FileStorage('Data.fs')
+    >>> bs = ZODB.blob.BlobStorage('blobs', fs)
+    >>> db = DB(bs)
+    >>> conn = db.open()
+    >>> conn.root()['blob'] = ZODB.blob.Blob()
+    >>> transaction.commit()
+    >>> ZODB.blob.is_blob_record(fs.load(ZODB.utils.p64(0), '')[0])
+    False
+    >>> ZODB.blob.is_blob_record(fs.load(ZODB.utils.p64(1), '')[0])
+    True
+
+    >>> db.close()
+    """
+
 def setUp(test):
     ZODB.tests.util.setUp(test)
     def rmtree(path):
@@ -575,6 +639,7 @@ def test_suite():
         ))
     suite.addTest(unittest.makeSuite(BlobCloneTests))
     suite.addTest(unittest.makeSuite(BlobUndoTests))
+    suite.addTest(unittest.makeSuite(RecoveryBlobStorage))
 
     return suite
 

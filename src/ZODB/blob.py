@@ -14,6 +14,7 @@
 """Blobs
 """
 
+import cPickle
 import base64
 import logging
 import os
@@ -443,6 +444,10 @@ class BlobStorage(SpecificationDecoratorBase):
         self.__supportsUndo = supportsUndo
         self._blobs_pack_is_in_progress = False
 
+        if ZODB.interfaces.IStorageRestoreable.providedBy(storage):
+            zope.interface.alsoProvides(self,
+                                        ZODB.interfaces.IBlobStorageRestoreable)
+
     @non_overridable
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
@@ -452,14 +457,9 @@ class BlobStorage(SpecificationDecoratorBase):
         normal_storage = getProxiedObject(self)
         return '<BlobStorage proxy for %r at %s>' % (normal_storage,
                                                      hex(id(self)))
-    @non_overridable
-    def storeBlob(self, oid, oldserial, data, blobfilename, version,
-                  transaction):
-        """Stores data that has a BLOB attached."""
-        serial = self.store(oid, oldserial, data, version, transaction)
-        assert isinstance(serial, str) # XXX in theory serials could be 
-                                       # something else
 
+    @non_overridable
+    def _storeblob(self, oid, serial, blobfilename):
         self._lock_acquire()
         try:
             targetpath = self.fshelper.getPathForOID(oid)
@@ -474,7 +474,51 @@ class BlobStorage(SpecificationDecoratorBase):
             self.dirty_oids.append((oid, serial))
         finally:
             self._lock_release()
+            
+    @non_overridable
+    def storeBlob(self, oid, oldserial, data, blobfilename, version,
+                  transaction):
+        """Stores data that has a BLOB attached."""
+        assert not version, "Versions aren't supported."
+        serial = self.store(oid, oldserial, data, '', transaction)
+        self._storeblob(oid, serial, blobfilename)
+
         return self._tid
+
+    @non_overridable
+    def restoreBlob(self, oid, serial, data, blobfilename, prev_txn,
+                    transaction):
+        """Write blob data already committed in a separate database
+        """
+        self.restore(oid, serial, data, '', prev_txn, transaction)
+        self._storeblob(oid, serial, blobfilename)
+
+        return self._tid
+
+    @non_overridable
+    def copyTransactionsFrom(self, other):
+        for trans in other.iterator():
+            self.tpc_begin(trans, trans.tid, trans.status)
+            for record in trans:
+                blobfilename = None
+                if is_blob_record(record.data):
+                    try:
+                        blobfilename = other.loadBlob(record.oid, record.tid)
+                    except POSKeyError:
+                        pass
+                if blobfilename is not None:
+                    fd, name = tempfile.mkstemp(
+                        suffix='.tmp', dir=self.fshelper.temp_dir)
+                    os.close(fd)
+                    utils.cp(open(blobfilename), open(name, 'wb'))
+                    self.restoreBlob(record.oid, record.tid, record.data,
+                                     name, record.data_txn, trans)
+                else:
+                    self.restore(record.oid, record.tid, record.data,
+                                 '', record.data_txn, trans)
+
+            self.tpc_vote(trans)
+            self.tpc_finish(trans)
 
     @non_overridable
     def tpc_finish(self, *arg, **kw):
@@ -692,3 +736,13 @@ if sys.platform == 'win32':
 else:
     remove_committed = os.remove
     remove_committed_dir = shutil.rmtree
+
+
+def is_blob_record(record):
+    """Check whether a database record is a blob record.
+
+    This is primarily intended to be used when copying data from one
+    storage to another.
+    
+    """
+    return cPickle.loads(record) is ZODB.blob.Blob

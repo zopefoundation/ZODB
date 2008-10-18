@@ -25,7 +25,7 @@ from ZODB.utils import U64, p64
 from transaction import Transaction
 
 import itertools
-
+import ZODB.blob
 
 class IteratorCompare:
 
@@ -214,6 +214,18 @@ class IteratorDeepCompare:
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)
                 eq(rec1.data,    rec2.data)
+                if ZODB.blob.is_blob_record(rec1.data):
+                    try:
+                        fn1 = storage1.loadBlob(rec1.oid, rec1.tid)
+                    except ZODB.POSException.POSKeyError:
+                        self.assertRaises(
+                            ZODB.POSException.POSKeyError,
+                            storage2.loadBlob, rec1.oid, rec1.tid)
+                    else:
+                        fn2 = storage2.loadBlob(rec1.oid, rec1.tid)
+                        self.assert_(fn1 != fn2)
+                        eq(open(fn1).read(), open(fn2).read())
+                
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
             # Additionally, check that we're backwards compatible to the

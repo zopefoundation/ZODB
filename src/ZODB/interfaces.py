@@ -446,7 +446,7 @@ class IStorage(Interface):
         This is used soley for informational purposes.
         """
 
-    def history(oid, version='', size=1):
+    def history(oid, size=1):
         """Return a sequence of history information dictionaries.
 
         Up to size objects (including no objects) may be returned.
@@ -1007,6 +1007,14 @@ class IBlobStorage(Interface):
         """Return a directory that should be used for uncommitted blob data.
 
         If Blobs use this, then commits can be performed with a simple rename.
+        """
+
+class IBlobStorageRestoreable(IBlobStorage, IStorageRestoreable):
+
+    def storeBlob(oid, serial, data, blobfilename, prev_txn, transaction):
+        """Write blob data already committed in a separate database
+
+        See the restore and storeBlob methods.
         """
 
 
