@@ -379,9 +379,16 @@ class FileStorageTests(FullGenericTests):
         self.failUnless(ZODB.interfaces.IStorageIteration.providedBy(
             self._storage))
         # This is communicated using ClientStorage's _info object:
-        self.assertEquals((('ZODB.interfaces', 'IStorageIteration'),
-                           ('zope.interface', 'Interface')),
-                          self._storage._info['interfaces'])
+        self.assertEquals(
+            (('ZODB.interfaces', 'IStorageRestoreable'),
+             ('ZODB.interfaces', 'IStorageIteration'),
+             ('ZODB.interfaces', 'IStorageUndoable'),
+             ('ZODB.interfaces', 'IStorageCurrentRecordIteration'),
+             ('ZODB.interfaces', 'IStorage'),
+             ('zope.interface', 'Interface'),
+             ),
+            self._storage._info['interfaces']
+            )
 
 
 class MappingStorageTests(GenericTests):

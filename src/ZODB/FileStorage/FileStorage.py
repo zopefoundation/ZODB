@@ -90,7 +90,13 @@ class FileStorage(BaseStorage.BaseStorage,
                   ConflictResolution.ConflictResolvingStorage,
                   FileStorageFormatter):
 
-    zope.interface.implements(ZODB.interfaces.IStorageIteration)
+    zope.interface.implements(
+        ZODB.interfaces.IStorage,
+        ZODB.interfaces.IStorageRestoreable,
+        ZODB.interfaces.IStorageIteration,
+        ZODB.interfaces.IStorageUndoable,
+        ZODB.interfaces.IStorageCurrentRecordIteration,
+        )
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
@@ -933,8 +939,7 @@ class FileStorage(BaseStorage.BaseStorage,
 
         return tindex
 
-    def history(self, oid, version=None, size=1, filter=None):
-        assert not version
+    def history(self, oid, size=1, filter=None):
         self._lock_acquire()
         try:
             r = []
