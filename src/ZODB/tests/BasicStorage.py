@@ -25,6 +25,8 @@ from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 from ZODB.tests.StorageTestBase import handle_serials
 
 import transaction
+import zope.interface
+import zope.interface.verify
 
 ZERO = '\0'*8
 
@@ -188,3 +190,7 @@ class BasicStorage:
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
+
+    def checkInterfaces(self):
+        for iface in zope.interface.providedBy(self._storage):
+            zope.interface.verify.verifyObject(iface, self._storage)
