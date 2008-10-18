@@ -267,6 +267,7 @@ setup(name="ZODB3",
         'ZConfig',
         'zdaemon',
         'transaction',
+        'zc.lockfile',
         ],
       zip_safe = False,
       entry_points = """

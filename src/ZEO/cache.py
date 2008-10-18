@@ -34,7 +34,7 @@ import threading
 import time
 
 import ZODB.fsIndex
-import ZODB.lock_file
+import zc.lockfile
 from ZODB.utils import p64, u64, z64
 
 logger = logging.getLogger("ZEO.cache")
@@ -181,7 +181,7 @@ class ClientCache(object):
         # (and it sets self.f).
 
         if path:
-            self._lock_file = ZODB.lock_file.LockFile(path + '.lock')
+            self._lock_file = zc.lockfile.LockFile(path + '.lock')
         
         if path and os.path.exists(path):
             # Reuse an existing file.  scan() will open & read it.

@@ -71,6 +71,8 @@ New Features
 
 - Removed the ThreadedAsync module.
 
+- Now depend on zc.lockfile
+
 Bugs Fixed
 ----------
 

@@ -40,7 +40,7 @@ from ZEO.auth import get_module
 from ZEO.zrpc.client import ConnectionManager
 
 import ZODB.interfaces
-import ZODB.lock_file
+import zc.lockfile
 import ZODB.BaseStorage
 from ZODB import POSException
 from ZODB import utils
@@ -931,8 +931,8 @@ class ClientStorage(object):
 
         lockfilename = blob_filename+'.lock'
         try:
-            lock = ZODB.lock_file.LockFile(lockfilename)
-        except ZODB.lock_file.LockError:
+            lock = zc.lockfile.LockFile(lockfilename)
+        except zc.lockfile.LockError:
 
             # Someone is already downloading the Blob. Wait for the
             # lock to be freed.  How long should we be willing to wait?
@@ -941,8 +941,8 @@ class ClientStorage(object):
             while 1:
                 time.sleep(0.1)
                 try:
-                    lock = ZODB.lock_file.LockFile(lockfilename)
-                except ZODB.lock_file.LockError:
+                    lock = zc.lockfile.LockFile(lockfilename)
+                except zc.lockfile.LockError:
                     pass
                 else:
                     # We have the lock. We should be able to get the file now.

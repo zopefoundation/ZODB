@@ -34,7 +34,7 @@ import ZODB.interfaces
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from persistent.TimeStamp import TimeStamp
-from ZODB.lock_file import LockFile
+from zc.lockfile import LockFile
 from ZODB.utils import p64, u64, cp, z64
 from ZODB.FileStorage.fspack import FileStoragePacker
 from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
