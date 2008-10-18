@@ -685,10 +685,10 @@ class ClientStorage(object):
             raise POSException.StorageTransactionError(self._transaction,
                                                        trans)
 
-    def history(self, oid, length=1):
+    def history(self, oid, size=1):
         """Storage API: return a sequence of HistoryEntry objects.
         """
-        return self._server.history(oid, length)
+        return self._server.history(oid, size)
 
     def record_iternext(self, next=None):
         """Storage API: get the next database record.
