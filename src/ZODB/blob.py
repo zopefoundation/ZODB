@@ -510,7 +510,7 @@ class BlobStorage(SpecificationDecoratorBase):
                     fd, name = tempfile.mkstemp(
                         suffix='.tmp', dir=self.fshelper.temp_dir)
                     os.close(fd)
-                    utils.cp(open(blobfilename), open(name, 'wb'))
+                    utils.cp(open(blobfilename, 'rb'), open(name, 'wb'))
                     self.restoreBlob(record.oid, record.tid, record.data,
                                      name, record.data_txn, trans)
                 else:

@@ -224,7 +224,7 @@ class IteratorDeepCompare:
                     else:
                         fn2 = storage2.loadBlob(rec1.oid, rec1.tid)
                         self.assert_(fn1 != fn2)
-                        eq(open(fn1).read(), open(fn2).read())
+                        eq(open(fn1, 'rb').read(), open(fn2, 'rb').read())
                 
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
