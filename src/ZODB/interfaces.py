@@ -1011,7 +1011,7 @@ class IBlobStorage(Interface):
 
 class IBlobStorageRestoreable(IBlobStorage, IStorageRestoreable):
 
-    def storeBlob(oid, serial, data, blobfilename, prev_txn, transaction):
+    def restoreBlob(oid, serial, data, blobfilename, prev_txn, transaction):
         """Write blob data already committed in a separate database
 
         See the restore and storeBlob methods.
