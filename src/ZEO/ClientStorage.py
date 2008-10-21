@@ -559,14 +559,15 @@ class ClientStorage(object):
 
         self._handle_extensions()
 
-        # Decorate ClientStorage with all interfaces that the backend storage
-        # supports.
-        remote_interfaces = []
-        for module_name, interface_name in self._info['interfaces']:
-            module = __import__(module_name, globals(), locals(), [interface_name])
-            interface = getattr(module, interface_name)
-            remote_interfaces.append(interface)
-        zope.interface.directlyProvides(self, remote_interfaces)
+        for iface in (
+            ZODB.interfaces.IStorageRestoreable,
+            ZODB.interfaces.IStorageIteration,
+            ZODB.interfaces.IStorageUndoable,
+            ZODB.interfaces.IStorageCurrentRecordIteration,
+            ZODB.interfaces.IBlobStorage,
+            ):
+            if (iface.__module__, iface.__name__) in self._info.get('interfaces', ()):
+                zope.interface.alsoProvides(self, iface)
 
     def _handle_extensions(self):
         for name in self.getExtensionMethods().keys():
