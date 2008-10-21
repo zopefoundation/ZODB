@@ -745,4 +745,9 @@ def is_blob_record(record):
     storage to another.
     
     """
-    return cPickle.loads(record) is ZODB.blob.Blob
+    try:
+        return cPickle.loads(record) is ZODB.blob.Blob
+    except (MemoryError, KeyboardInterrupt, SystemExit):
+        raise
+    except Exception:
+        return False

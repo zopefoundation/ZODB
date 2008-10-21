@@ -589,7 +589,7 @@ def loadblob_tmpstore():
 """
 
 def is_blob_record():
-    """
+    r"""
     >>> fs = FileStorage('Data.fs')
     >>> bs = ZODB.blob.BlobStorage('blobs', fs)
     >>> db = DB(bs)
@@ -600,6 +600,15 @@ def is_blob_record():
     False
     >>> ZODB.blob.is_blob_record(fs.load(ZODB.utils.p64(1), '')[0])
     True
+
+    An invalid pickle yields a false value:
+
+    >>> ZODB.blob.is_blob_record("Hello world!")
+    False
+    >>> ZODB.blob.is_blob_record('c__main__\nC\nq\x01.')
+    False
+    >>> ZODB.blob.is_blob_record('cWaaaa\nC\nq\x01.')
+    False
 
     >>> db.close()
     """
