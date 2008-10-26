@@ -8,6 +8,9 @@
 New Features
 ------------
 
+- Wen calling ZODB.DB to create a database, you can now pass a file
+  name, rather than a storage to use a file storage.
+
 - Added support for copying and recovery of blob storages:
 
   - Added a helper function, ZODB.blob.is_blob_record for testing whether
