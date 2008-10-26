@@ -71,9 +71,6 @@ TID = "\000" * 8
 
 class SynchronizedStorage:
 
-##    def verifyCommitting(self, callable, *args):
-##        self.assertRaises(StorageTransactionError, callable *args)
-
     def verifyNotCommitting(self, callable, *args):
         self.assertRaises(StorageTransactionError, callable, *args)
 
@@ -90,13 +87,6 @@ class SynchronizedStorage:
     def checkStoreWrongTrans(self):
         self.verifyWrongTrans(self._storage.store,
                               OID, SERIALNO, "", "", Transaction())
-
-##    def checkNewOidNotCommitting(self):
-##        self.verifyNotCommitting(self._storage.new_oid)
-
-##    def checkNewOidWrongTrans(self):
-##        self.verifyWrongTrans(self._storage.new_oid)
-
 
     def checkAbortNotCommitting(self):
         self._storage.tpc_abort(Transaction())
