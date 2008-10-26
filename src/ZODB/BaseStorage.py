@@ -380,9 +380,11 @@ class DataRecord(object):
 
     zope.interface.implements(ZODB.interfaces.IStorageRecordInformation)
 
+    version = ''
+
     def __init__(self, oid, tid, data, version, prev):
+        assert not version, "versions are no-longer supported"
         self.oid = oid
         self.tid = tid
         self.data = data
-        self.version = version
         self.data_txn = prev
