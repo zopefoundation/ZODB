@@ -351,7 +351,7 @@ getSize function needs to ignore:
     >>> garbage_file = os.path.join(blob_dir, 'garbage')
     >>> open(garbage_file, 'w').write('garbage')
     >>> int(blob_storage.getSize())
-    881
+    2849
 
 
 Note: This is a counter measer against regression of bug #12991.
