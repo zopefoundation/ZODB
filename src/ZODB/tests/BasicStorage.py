@@ -44,12 +44,12 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 0, 0, 0, transaction.Transaction())
+            ZERO, ZERO, '', '', transaction.Transaction())
 
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 1, 2, '', transaction.Transaction())
+            ZERO, 1, 2, '', transaction.Transaction())
         self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):
@@ -152,17 +152,6 @@ class BasicStorage:
         # And another one
         revid2 = self._dostore(oid, revid=revid1, data=p42)
         eq(revid2, self._storage.getTid(oid))
-
-    def checkTwoArgBegin(self):
-        # Unsure: how standard is three-argument tpc_begin()?
-        t = transaction.Transaction()
-        tid = '\0\0\0\0\0psu'
-        self._storage.tpc_begin(t, tid)
-        oid = self._storage.new_oid()
-        data = zodb_pickle(MinPO(8))
-        self._storage.store(oid, None, data, '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
 
     def checkLen(self):
         # len(storage) reports the number of objects.
