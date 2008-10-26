@@ -543,7 +543,10 @@ class ZEOStorage:
         self.locked = 1
         self.timeout.begin(self)
         self.stats.lock_time = time.time()
-        self.storage.tpc_begin(txn, tid, status)
+        if (tid is not None) or (status != ' '):
+            self.storage.tpc_begin(txn, tid, status)
+        else:
+            self.storage.tpc_begin(txn)
 
     def _store(self, oid, serial, data):
         err = None
