@@ -19,6 +19,7 @@ $Id$
 __docformat__ = "reStructuredText"
 
 from persistent import Persistent
+import transaction
 
 WeakRefMarker = object()
 
@@ -60,7 +61,7 @@ class WeakRef(object):
     >>> conn1 = db.open()
     >>> conn1.root()['ob'] = ob
     >>> conn1.root()['ref'] = ref
-    >>> ZODB.tests.util.commit()
+    >>> transaction.commit()
 
     If we open a new connection, we can use the reference:
 
@@ -73,7 +74,7 @@ class WeakRef(object):
     But if we delete the referenced object and pack:
 
     >>> del conn2.root()['ob']
-    >>> ZODB.tests.util.commit()
+    >>> transaction.commit()
     >>> ZODB.tests.util.pack(db)
 
     And then look in a new connection:
@@ -180,7 +181,7 @@ class PersistentWeakKeyDictionary(Persistent):
     >>> conn1.root()['d'] = d
     >>> conn1.root()['p2'] = p2
     >>> conn1.root()['p3'] = p3
-    >>> ZODB.tests.util.commit()
+    >>> transaction.commit()
 
     And things still work, as before:
 
@@ -210,7 +211,7 @@ class PersistentWeakKeyDictionary(Persistent):
     from the dictionary:
 
     >>> del conn2.root()['p2']
-    >>> ZODB.tests.util.commit()
+    >>> transaction.commit()
 
     And pack the database, so that the no-longer referenced p2 is
     actually removed from the database.
