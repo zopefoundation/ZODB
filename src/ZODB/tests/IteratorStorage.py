@@ -138,8 +138,7 @@ class IteratorStorage(IteratorCompare):
         self._dostore()
         tinfo = self._storage.iterator().next()
         self.assertEquals(1, len(list(tinfo)))
-        # The iterator can only be consumed once:
-        self.assertEquals(0, len(list(tinfo)))
+        self.assertEquals(1, len(list(tinfo)))
 
     def checkIterateWhileWriting(self):
         self._dostore()
