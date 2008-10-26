@@ -125,9 +125,11 @@ class DemoStorage(BaseConfig):
             base = self.config.base.open()
         else:
             base = None
-        return DemoStorage(self.config.name,
-                           base=base,
-                           quota=self.config.quota)
+        if self.config.changes:
+            changes = self.config.changes.open()
+        else:
+            changes = None
+        return DemoStorage(self.config.name, base=base, changes=changes)
 
 class FileStorage(BaseConfig):
 

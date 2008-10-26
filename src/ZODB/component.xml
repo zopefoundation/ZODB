@@ -174,9 +174,9 @@
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
                implements="ZODB.storage">
-    <key name="name" default="Demo Storage"/>
-    <section type="ZODB.storage" name="*" attribute="base"/>
-    <key name="quota" datatype="integer"/>
+    <key name="name" />
+    <section type="ZODB.storage" name="*" attribute="base" />
+    <section type="ZODB.storage" name="changes" attribute="changes" />
   </sectiontype>
 
 
