@@ -34,6 +34,7 @@ from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 import persistent
 import transaction
+import zope.testing.setupstack
 
 # ZODB test mixin classes
 from ZODB.tests import StorageTestBase, BasicStorage,  \
@@ -424,6 +425,9 @@ class DemoStorageTests(
         # The test base class IteratorStorage assumes that we keep undo data
         # to construct our iterator, which we don't, so we disable this test.
         pass
+
+    def checkPackWithMultiDatabaseReferences(self):
+        pass # DemoStorage pack doesn't do gc
 
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm
@@ -1121,13 +1125,14 @@ test_classes = [FileStorageTests, FileStorageRecoveryTests,
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
-                                       tearDown=ZODB.tests.util.tearDown))
+    suite.addTest(doctest.DocTestSuite(
+        setUp=zope.testing.setupstack.setUpDirectory,
+        tearDown=zope.testing.setupstack.tearDown))
     suite.addTest(doctest.DocFileSuite('registerDB.test'))
     suite.addTest(
         doctest.DocFileSuite('zeo-fan-out.test',
-                             setUp=ZODB.tests.util.setUp,
-                             tearDown=ZODB.tests.util.tearDown,
+                             setUp=zope.testing.setupstack.setUpDirectory,
+                             tearDown=zope.testing.setupstack.tearDown,
                              ),
         )
     for klass in test_classes:
