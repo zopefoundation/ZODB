@@ -614,19 +614,8 @@ def is_blob_record():
     """
 
 def setUp(test):
-    ZODB.tests.util.setUp(test)
-    def rmtree(path):
-        for path, dirs, files in os.walk(path, False):
-            for fname in files:
-                fname = os.path.join(path, fname)
-                os.chmod(fname, stat.S_IWUSR)
-                os.remove(fname)
-            for dname in dirs:
-                dname = os.path.join(path, dname)
-                os.rmdir(dname)
-        os.rmdir(path)
-
-    test.globs['rmtree'] = rmtree
+    zope.testing.setupstack.setUpDirectory(test)
+    test.globs['rmtree'] = zope.testing.setupstack.rmtree
 
 def test_suite():
     suite = unittest.TestSuite()
@@ -636,11 +625,11 @@ def test_suite():
         "blob_packing.txt", "blob_importexport.txt", "blob_consume.txt",
         "blob_tempdir.txt",
         setUp=setUp,
-        tearDown=ZODB.tests.util.tearDown,
+        tearDown=zope.testing.setupstack.tearDown,
         ))
     suite.addTest(doctest.DocTestSuite(
         setUp=setUp,
-        tearDown=ZODB.tests.util.tearDown,
+        tearDown=zope.testing.setupstack.tearDown,
         checker = renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),

@@ -15,6 +15,7 @@ import os, unittest
 import transaction
 import ZODB.FileStorage
 import ZODB.tests.util
+import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
 
@@ -564,8 +565,9 @@ def test_suite():
                   FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
                   SlowFileStorageTest]:
         suite.addTest(unittest.makeSuite(klass, "check"))
-    suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
-                                       tearDown=ZODB.tests.util.tearDown))
+    suite.addTest(doctest.DocTestSuite(
+        setUp=zope.testing.setupstack.setUpDirectory,
+        tearDown=zope.testing.setupstack.tearDown))
     return suite
 
 if __name__=='__main__':
