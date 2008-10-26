@@ -1626,8 +1626,7 @@ class FileIterator(FileStorageFormatter):
         raise ZODB.interfaces.StorageStopIteration()
 
 
-class TransactionRecord(BaseStorage.TransactionRecord, FileStorageFormatter):
-    """Iterate over the transactions in a FileStorage file."""
+class TransactionRecord(BaseStorage.TransactionRecord):
 
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
         BaseStorage.TransactionRecord.__init__(
@@ -1636,6 +1635,18 @@ class TransactionRecord(BaseStorage.TransactionRecord, FileStorageFormatter):
         self._tend = tend
         self._file = file
         self._tpos = tpos
+
+    def __iter__(self):
+        return TransactionRecordIterator(self)
+
+class TransactionRecordIterator(FileStorageFormatter):
+    """Iterate over the transactions in a FileStorage file."""
+
+    def __init__(self, record):
+        self._file = record._file
+        self._pos = record._pos
+        self._tpos = record._tpos
+        self._tend = record._tend
 
     def __iter__(self):
         return self
