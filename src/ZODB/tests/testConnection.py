@@ -353,7 +353,7 @@ class UserMethodTests(unittest.TestCase):
 
         An expedient way to create a read-only storage:
 
-        >>> db._storage._is_read_only = True
+        >>> db._storage.isReadOnly = lambda: True
         >>> cn = db.open()
         >>> cn.isReadOnly()
         True
