@@ -28,7 +28,8 @@ from ZODB.broken import find_global
 from ZODB.utils import z64
 from ZODB.Connection import Connection
 import ZODB.serialize
-from ZODB.utils import WeakSet
+
+import transaction.weakset
 
 from zope.interface import implements
 from ZODB.interfaces import IDatabase
@@ -78,7 +79,7 @@ class AbstractConnectionPool(object):
         # A weak set of all connections we've seen.  A connection vanishes
         # from this set if pop() hands it out, it's not reregistered via
         # repush(), and it becomes unreachable.
-        self.all = WeakSet()
+        self.all = transaction.weakset.WeakSet()
 
     def setSize(self, size):
         """Change our belief about the expected maximum # of live connections.
@@ -424,6 +425,10 @@ class DB(object):
           - `historical_timeout`: minimum number of seconds that
             an unused historical connection will be kept, or None.
         """
+        if isinstance(storage, basestring):
+            from ZODB import FileStorage
+            storage = ZODB.FileStorage.FileStorage(storage)
+
         # Allocate lock.
         x = threading.RLock()
         self._a = x.acquire
@@ -439,7 +444,7 @@ class DB(object):
         self._historical_cache_size_bytes = historical_cache_size_bytes
 
         # Setup storage
-        self._storage=storage
+        self._storage = storage
         self.references = ZODB.serialize.referencesf
         try:
             storage.registerDB(self)
