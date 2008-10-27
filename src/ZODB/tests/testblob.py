@@ -620,6 +620,24 @@ def is_blob_record():
     >>> db.close()
     """
 
+def do_not_depend_on_cwd():
+    """
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> bs = ZODB.blob.BlobStorage('blobs', MappingStorage())
+    >>> here = os.getcwd()
+    >>> os.mkdir('evil')
+    >>> os.chdir('evil')
+    >>> db = DB(bs)
+    >>> conn = db.open()
+    >>> conn.root()['blob'] = ZODB.blob.Blob()
+    >>> conn.root()['blob'].open('w').write('data')
+    >>> transaction.commit()
+    >>> os.chdir(here)
+    >>> conn.root()['blob'].open().read()
+    'data'
+    
+    """
+
 def setUp(test):
     zope.testing.setupstack.setUpDirectory(test)
     test.globs['rmtree'] = zope.testing.setupstack.rmtree

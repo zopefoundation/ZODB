@@ -302,7 +302,7 @@ class FilesystemHelper:
     # want to perform blob storage differently.
 
     def __init__(self, base_dir, layout_name='automatic'):
-        self.base_dir = os.path.normpath(base_dir) + os.path.sep
+        self.base_dir = os.path.abspath(base_dir) + os.path.sep
         self.temp_dir = os.path.join(base_dir, 'tmp')
 
         if layout_name == 'automatic':
