@@ -83,7 +83,7 @@ class DisconnectedServerStub:
     This raises ClientDisconnected on all attribute accesses.
 
     This is a singleton class -- there should be only one instance,
-    the global disconnected_stub, os it can be tested by identity.
+    the global disconnected_stub, so it can be tested by identity.
 
     """
 
