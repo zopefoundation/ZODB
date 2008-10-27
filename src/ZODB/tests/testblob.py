@@ -12,29 +12,37 @@
 #
 ##############################################################################
 
-import base64, os, re, shutil, stat, sys, tempfile, unittest, random, struct
-import time
-
-import ZODB.tests.IteratorStorage
-
-from zope.testing import doctest, renormalizing
-import zope.testing.setupstack
-import ZODB.tests.util
-import ZODB.interfaces
-
-from StringIO import StringIO
 from pickle import Pickler
 from pickle import Unpickler
-
-from ZODB import utils
-from ZODB.FileStorage import FileStorage
-from ZODB.blob import Blob, BlobStorage
-import ZODB.blob
-from ZODB.DB import DB
-import transaction
-
-from ZODB.tests.testConfig import ConfigTestBase
+from StringIO import StringIO
 from ZConfig import ConfigurationSyntaxError
+from ZODB.blob import Blob, BlobStorage
+from ZODB.DB import DB
+from ZODB.FileStorage import FileStorage
+from ZODB import utils
+from ZODB.tests.testConfig import ConfigTestBase
+from zope.testing import doctest
+
+import base64
+import os
+import random
+import re
+import shutil
+import stat
+import struct
+import sys
+import sys
+import tempfile
+import time
+import transaction
+import unittest
+import ZConfig
+import ZODB.blob
+import ZODB.interfaces
+import ZODB.tests.IteratorStorage
+import ZODB.tests.util
+import zope.testing.renormalizing
+import zope.testing.setupstack
 
 
 def new_time():
@@ -96,7 +104,7 @@ class ZODBBlobConfigTest(BlobConfigTestBase):
         os.unlink(path+".tmp")
 
     def test_blob_dir_needed(self):
-        self.assertRaises(ConfigurationSyntaxError,
+        self.assertRaises(ZConfig.ConfigurationSyntaxError,
                           self._test,
                           """
                           <zodb>
@@ -114,7 +122,6 @@ class BlobTests(unittest.TestCase):
         self.here = os.getcwd()
         os.chdir(self.test_dir)
         self.storagefile = 'Data.fs'
-        os.mkdir('blobs')
         self.blob_dir = 'blobs'
 
     def tearDown(self):
@@ -575,7 +582,7 @@ def loadblob_tmpstore():
     We can access the blob correctly:
 
     >>> tmpstore.loadBlob(blob_oid, tid) # doctest: +ELLIPSIS
-    '.../0x01/0x...blob'
+    '.../0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x01/0x...blob'
 
     Clean up:
 
@@ -586,7 +593,7 @@ def loadblob_tmpstore():
     >>> os.unlink(storagefile)
     >>> os.unlink(storagefile+".index")
     >>> os.unlink(storagefile+".tmp")
-"""
+    """
 
 def is_blob_record():
     r"""
@@ -626,11 +633,22 @@ def test_suite():
         "blob_tempdir.txt",
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
+        optionflags=doctest.ELLIPSIS,
+        ))
+    suite.addTest(doctest.DocFileSuite(
+        "blob_layout.txt",
+        optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
+        setUp=zope.testing.setupstack.setUpDirectory,
+        tearDown=zope.testing.setupstack.tearDown,
+        checker = zope.testing.renormalizing.RENormalizing([
+            (re.compile(r'[%(sep)s]' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
+            ]),
         ))
     suite.addTest(doctest.DocTestSuite(
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
-        checker = renormalizing.RENormalizing([
+        checker = zope.testing.renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             ]),

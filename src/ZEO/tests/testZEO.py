@@ -661,8 +661,7 @@ class CommonBlobTests:
             self._storage.tpc_abort(t)
             raise
         self.assert_(not os.path.exists(tfname))
-        filename = os.path.join(self.blobdir, oid_repr(oid),
-                                tid_repr(revid) + BLOB_SUFFIX)
+        filename = self._storage.fshelper.getBlobFilename(oid, revid)
         self.assert_(os.path.exists(filename))
         self.assertEqual(somedata, open(filename).read())
 
@@ -709,7 +708,7 @@ class CommonBlobTests:
         self.assert_((os.stat(filename).st_mode & stat.S_IREAD))
 
     def checkTemporaryDirectory(self):
-        self.assertEquals(self.blob_cache_dir,
+        self.assertEquals(os.path.join(self.blob_cache_dir, 'tmp'),
                           self._storage.temporaryDirectory())
 
     def checkTransactionBufferCleanup(self):
@@ -777,17 +776,15 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
                 d1 = f.read(8096)
                 d2 = somedata.read(8096)
                 self.assertEqual(d1, d2)
-                
-        
-        # The file should have been copied to the server:
-        filename = os.path.join(self.blobdir, oid_repr(oid),
-                                tid_repr(revid) + BLOB_SUFFIX)
+
+        # The file should be in the cache ...
+        filename = self._storage.fshelper.getBlobFilename(oid, revid)
         check_data(filename)
 
-        # It should also be in the cache:
-        filename = os.path.join(self.blob_cache_dir, oid_repr(oid),
-                                tid_repr(revid) + BLOB_SUFFIX)
-        check_data(filename)
+        # ... and on the server
+        server_filename = filename.replace(self.blob_cache_dir, self.blobdir)
+        self.assert_(server_filename.startswith(self.blobdir))
+        check_data(server_filename)
 
         # If we remove it from the cache and call loadBlob, it should
         # come back. We can do this in many threads.  We'll instrument

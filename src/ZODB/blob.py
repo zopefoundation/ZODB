@@ -16,8 +16,10 @@
 
 import cPickle
 import base64
+import binascii
 import logging
 import os
+import re
 import shutil
 import stat
 import sys
@@ -43,6 +45,9 @@ logger = logging.getLogger('ZODB.blob')
 
 BLOB_SUFFIX = ".blob"
 SAVEPOINT_SUFFIX = ".spb"
+
+LAYOUT_MARKER = '.layout'
+LAYOUTS = {}
 
 valid_modes = 'r', 'w', 'r+', 'a'
 
@@ -296,21 +301,42 @@ class FilesystemHelper:
     # with blobs and storages needn't indirect through this if they
     # want to perform blob storage differently.
 
-    def __init__(self, base_dir):
-        self.base_dir = base_dir
+    def __init__(self, base_dir, layout_name='automatic'):
+        self.base_dir = os.path.normpath(base_dir) + os.path.sep
         self.temp_dir = os.path.join(base_dir, 'tmp')
+
+        if layout_name == 'automatic':
+            layout_name = auto_layout_select(base_dir)
+        if layout_name == 'lawn':
+            log('The `lawn` blob directory layout is deprecated due to '
+                'scalability issues on some file systems, please consider '
+                'migrating to the `bushy` layout.', level=logging.WARN)
+        self.layout_name = layout_name 
+        self.layout = LAYOUTS[layout_name]
 
     def create(self):
         if not os.path.exists(self.base_dir):
             os.makedirs(self.base_dir, 0700)
-            log("Blob cache directory '%s' does not exist. "
-                "Created new directory." % self.base_dir,
-                level=logging.INFO)
+            log("Blob directory '%s' does not exist. "
+                "Created new directory." % self.base_dir)
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir, 0700)
             log("Blob temporary directory '%s' does not exist. "
-                "Created new directory." % self.temp_dir,
-                level=logging.INFO)
+                "Created new directory." % self.temp_dir)
+
+        if not os.path.exists(os.path.join(self.base_dir, LAYOUT_MARKER)):
+            layout_marker = open(
+                os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
+            layout_marker.write(self.layout_name)
+        else:
+            layout_marker = open(
+                os.path.join(self.base_dir, LAYOUT_MARKER), 'rb')
+            layout = layout_marker.read().strip()
+            if layout != self.layout_name:
+                raise ValueError(
+                    "Directory layout `%s` selected for blob directory %s, but "
+                    "marker found for layout `%s`" %
+                    (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
         """Ensure that (POSIX) path mode bits are 0700."""
@@ -321,27 +347,46 @@ class FilesystemHelper:
             log('Blob dir %s has insecure mode setting' % self.base_dir,
                 level=logging.WARNING)
 
-    def getPathForOID(self, oid):
+    def getPathForOID(self, oid, create=False):
         """Given an OID, return the path on the filesystem where
         the blob data relating to that OID is stored.
 
+        If the create flag is given, the path is also created if it didn't
+        exist already.
+
         """
-        return os.path.join(self.base_dir, utils.oid_repr(oid))
+        # OIDs are numbers and sometimes passed around as integers. For our
+        # computations we rely on the 64-bit packed string representation.
+        if isinstance(oid, int):
+            oid = utils.p64(oid)
+
+        path = self.layout.oid_to_path(oid)
+        path = os.path.join(self.base_dir, path)
+
+        if create and not os.path.exists(path):
+            try:
+                os.makedirs(path, 0700)
+            except OSError:
+                # We might have lost a race.  If so, the directory
+                # must exist now
+                assert os.path.exists(targetpath)
+        return path
+
+    def getOIDForPath(self, path):
+        """Given a path, return an OID, if the path is a valid path for an
+        OID. The inverse function to `getPathForOID`.
+
+        Raises ValueError if the path is not valid for an OID.
+
+        """
+        path = path[len(self.base_dir):]
+        return self.layout.path_to_oid(path)
 
     def createPathForOID(self, oid):
         """Given an OID, creates a directory on the filesystem where
         the blob data relating to that OID is stored, if it doesn't exist.
-
         """
-        path = self.getPathForOID(oid)
-        if os.path.exists(path):
-            return
-        try:
-            os.makedirs(path, 0700)
-        except OSError:
-            # We might have lost a race.  If so, the directory
-            # must exist now
-            assert os.path.exists(path)
+        return self.getPathForOID(oid, create=True)
 
     def getBlobFilename(self, oid, tid):
         """Given an oid and a tid, return the full filename of the
@@ -349,6 +394,10 @@ class FilesystemHelper:
 
         """
         oid_path = self.getPathForOID(oid)
+        # TIDs are numbers and sometimes passed around as integers. For our
+        # computations we rely on the 64-bit packed string representation
+        if isinstance(tid, int):
+            tid = utils.p64(tid)
         filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
         return os.path.join(oid_path, filename)
 
@@ -378,10 +427,9 @@ class FilesystemHelper:
         if not filename.endswith(BLOB_SUFFIX):
             return None, None
         path, filename = os.path.split(filename)
-        oid = os.path.split(path)[1]
+        oid = self.getOIDForPath(path)
 
         serial = filename[:-len(BLOB_SUFFIX)]
-        oid = utils.repr_to_oid(oid)
         serial = utils.repr_to_oid(serial)
         return oid, serial 
 
@@ -391,29 +439,109 @@ class FilesystemHelper:
 
         """
         oids = []
-        base_dir = self.base_dir
-        for oidpath in os.listdir(base_dir):
-            for filename in os.listdir(os.path.join(base_dir, oidpath)):
-                blob_path = os.path.join(base_dir, oidpath, filename)
+        for oid, oidpath in self.listOIDs():
+            for filename in os.listdir(oidpath):
+                blob_path = os.path.join(oidpath, filename)
                 oid, serial = self.splitBlobFilename(blob_path)
                 if search_serial == serial:
                     oids.append(oid)
         return oids
 
     def listOIDs(self):
-        """Lists all OIDs and their paths.
-
+        """Iterates over all paths under the base directory that contain blob
+        files.
         """
-        for candidate in os.listdir(self.base_dir):
-            if candidate == 'tmp':
+        for path, dirs, files in os.walk(self.base_dir):
+            # Make sure we traverse in a stable order. This is mainly to make
+            # testing predictable.
+            dirs.sort()
+            files.sort()
+            try:
+                oid = self.getOIDForPath(path)
+            except ValueError:
                 continue
-            oid = utils.repr_to_oid(candidate)
-            yield oid, self.getPathForOID(oid)
+            yield oid, path
 
 
 class BlobStorageError(Exception):
     """The blob storage encountered an invalid state."""
 
+def auto_layout_select(path):
+    # A heuristic to look at a path and determine which directory layout to
+    # use.
+    layout_marker = os.path.join(path, LAYOUT_MARKER)
+    if not os.path.exists(path):
+        log('Blob directory %s does not exist. '
+            'Selected `bushy` layout. ' % path)
+        layout = 'bushy'
+    elif len(os.listdir(path)) == 0:
+        log('Blob directory `%s` is unused and has no layout marker set. '
+            'Selected `bushy` layout. ' % path)
+        layout = 'bushy'
+    elif LAYOUT_MARKER not in os.listdir(path):
+        log('Blob directory `%s` is used but has no layout marker set. '
+            'Selected `lawn` layout. ' % path)
+        layout = 'lawn'
+    else:
+        layout = open(layout_marker, 'rb').read()
+        layout = layout.strip()
+        log('Blob directory `%s` has layout marker set. '
+            'Selected `%s` layout. ' % (path, layout))
+    return layout
+
+
+class BushyLayout(object):
+    """A bushy directory layout for blob directories.
+
+    Creates an 8-level directory structure (one level per byte) in
+    big-endian order from the OID of an object.
+
+    """
+
+    blob_path_pattern = re.compile(
+        r'(0x[0-9a-f]{1,2}\%s){7,7}0x[0-9a-f]{1,2}$' % os.path.sep)
+
+    def oid_to_path(self, oid):
+        directories = []
+        # Create the bushy directory structure with the least significant byte
+        # first
+        for byte in str(oid):
+            directories.append('0x%s' % binascii.hexlify(byte))
+        return os.path.sep.join(directories)
+
+    def path_to_oid(self, path):
+        if self.blob_path_pattern.match(path) is None:
+            raise ValueError("Not a valid OID path: `%s`" % path)
+        path = path.split(os.path.sep)
+        # Each path segment stores a byte in hex representation. Turn it into
+        # an int and then get the character for our byte string.
+        oid = ''.join(binascii.unhexlify(byte[2:]) for byte in path)
+        return oid
+
+LAYOUTS['bushy'] = BushyLayout()
+
+
+class LawnLayout(object):
+    """A shallow directory layout for blob directories.
+
+    Creates a single level of directories (one for each oid).
+
+    """
+
+    def oid_to_path(self, oid):
+        return utils.oid_repr(oid)
+
+    def path_to_oid(self, path):
+        try:
+            if path == '':
+                # This is a special case where repr_to_oid converts '' to the
+                # OID z64.
+                raise TypeError()
+            return utils.repr_to_oid(path)
+        except TypeError:
+            raise ValueError('Not a valid OID path: `%s`' % path)
+
+LAYOUTS['lawn'] = LawnLayout()
 
 class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
@@ -425,13 +553,13 @@ class BlobStorage(SpecificationDecoratorBase):
     __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
                  '_blobs_pack_is_in_progress', )
 
-    def __new__(self, base_directory, storage):
+    def __new__(self, base_directory, storage, layout='automatic'):
         return SpecificationDecoratorBase.__new__(self, storage)
 
-    def __init__(self, base_directory, storage):
+    def __init__(self, base_directory, storage, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
         SpecificationDecoratorBase.__init__(self, storage)
-        self.fshelper = FilesystemHelper(base_directory)
+        self.fshelper = FilesystemHelper(base_directory, layout)
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
@@ -462,10 +590,7 @@ class BlobStorage(SpecificationDecoratorBase):
     def _storeblob(self, oid, serial, blobfilename):
         self._lock_acquire()
         try:
-            targetpath = self.fshelper.getPathForOID(oid)
-            if not os.path.exists(targetpath):
-                os.makedirs(targetpath, 0700)
-
+            self.fshelper.getPathForOID(oid, create=True)
             targetname = self.fshelper.getBlobFilename(oid, serial)
             rename_or_copy_blob(blobfilename, targetname)
 
@@ -555,14 +680,12 @@ class BlobStorage(SpecificationDecoratorBase):
         # if they are still needed by attempting to load the revision
         # of that object from the database.  This is maybe the slowest
         # possible way to do this, but it's safe.
-        base_dir = self.fshelper.base_dir
         for oid, oid_path in self.fshelper.listOIDs():
             files = os.listdir(oid_path)
             for filename in files:
                 filepath = os.path.join(oid_path, filename)
                 whatever, serial = self.fshelper.splitBlobFilename(filepath)
                 try:
-                    fn = self.fshelper.getBlobFilename(oid, serial)
                     self.loadSerial(oid, serial)
                 except POSKeyError:
                     remove_committed(filepath)
@@ -572,7 +695,6 @@ class BlobStorage(SpecificationDecoratorBase):
 
     @non_overridable
     def _packNonUndoing(self, packtime, referencesf):
-        base_dir = self.fshelper.base_dir
         for oid, oid_path in self.fshelper.listOIDs():
             exists = True
             try:
@@ -626,20 +748,9 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def getSize(self):
         """Return the size of the database in bytes."""
-        orig_size = getProxiedObject(self).getSize()
-        blob_size = 0
-        base_dir = self.fshelper.base_dir
-        for oid in os.listdir(base_dir):
-            sub_dir = os.path.join(base_dir, oid)
-            if not os.path.isdir(sub_dir):
-                continue
-            for serial in os.listdir(sub_dir):
-                if not serial.endswith(BLOB_SUFFIX):
-                    continue
-                file_path = os.path.join(base_dir, oid, serial)
-                blob_size += os.stat(file_path).st_size
-
-        return orig_size + blob_size
+        # XXX The old way of computing is way to resource hungry. We need to
+        # do some kind of estimation instead.
+        return getProxiedObject(self).getSize()
 
     @non_overridable
     def undo(self, serial_id, transaction):
@@ -659,7 +770,6 @@ class BlobStorage(SpecificationDecoratorBase):
             # we get all the blob oids on the filesystem related to the
             # transaction we want to undo.
             for oid in self.fshelper.getOIDsForSerial(serial_id):
-
                 # we want to find the serial id of the previous revision
                 # of this blob object.
                 load_result = self.loadBefore(oid, serial_id)

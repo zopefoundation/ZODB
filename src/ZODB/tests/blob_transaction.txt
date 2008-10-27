@@ -191,15 +191,15 @@ connections::
     >>> root4['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
 
-BlobStorages implementation of getSize() includes the blob data and adds it to
-the underlying storages result of getSize(). (We need to ensure the last
+BlobStorages implementation of getSize() does not include the blob data and
+only returns what the underlying storages do.  (We need to ensure the last
 number to be an int, otherwise it will be a long on 32-bit platforms and an
 int on 64-bit)::
 
     >>> underlying_size = base_storage.getSize()
     >>> blob_size = blob_storage.getSize()
     >>> int(blob_size - underlying_size)
-    91
+    0
 
 You can't commit a transaction while blob files are open:
 
@@ -243,9 +243,22 @@ We do support optimistic savepoints:
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing."
     >>> savepoint = transaction.savepoint(optimistic=True)
+
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing."
+
+Savepoints store the blobs in the `savepoints` directory in the temporary
+directory of the blob storage:
+
+    >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
+    ['0x03-0x....spb']
     >>> transaction.commit()
+
+After committing the transaction, the temporary savepoint files are moved to
+the committed location again:
+
+    >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
+    []
 
 We support non-optimistic savepoints too:
 
@@ -253,11 +266,29 @@ We support non-optimistic savepoints too:
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing. And I'm dancing."
     >>> savepoint = transaction.savepoint()
+
+Again, the savepoint creates a new file for the blob state in the savepoints
+directory:
+
+    >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
+    ['0x03-0x....spb']
+
     >>> root5['blob'].open("w").write(" And the weather is beautiful.")
     >>> savepoint.rollback()
+
+XXX Currently, savepoint state of blobs remains after a rollback:
+
+    >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
+    ['0x03-0x....spb']
+
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing. And I'm dancing."
     >>> transaction.abort()
+
+XXX Currently, savepoint state of blobs remains even after an abort:
+
+    >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
+    ['0x03-0x....spb']
 
 Reading Blobs outside of a transaction
 --------------------------------------
@@ -322,9 +353,9 @@ clean up dirty files:
     >>> base_storage = DummyBaseStorage()
     >>> blob_dir2 = mkdtemp()
     >>> blob_storage2 = BlobStorage(blob_dir2, base_storage)
-    >>> committed_blob_dir = os.path.join(blob_dir2, '0')
-    >>> committed_blob_file = os.path.join(committed_blob_dir, '0.blob')
-    >>> os.mkdir(committed_blob_dir)
+    >>> committed_blob_dir = blob_storage2.fshelper.getPathForOID(0)
+    >>> os.makedirs(committed_blob_dir)
+    >>> committed_blob_file = blob_storage2.fshelper.getBlobFilename(0, 0)
     >>> open(os.path.join(committed_blob_file), 'w').write('foo')
     >>> os.path.exists(committed_blob_file)
     True
@@ -341,9 +372,6 @@ set to dirty but doesn't actually have an existing file:
 
 Note: This is a counter measure against regression of bug #126007.
 
-getSize with garbage in the directory structure
------------------------------------------------
-
 `getSize` iterates over the existing blob files in the blob directory and adds
 up their size. The blob directory sometimes contains temporary files that the
 getSize function needs to ignore:
@@ -351,8 +379,7 @@ getSize function needs to ignore:
     >>> garbage_file = os.path.join(blob_dir, 'garbage')
     >>> open(garbage_file, 'w').write('garbage')
     >>> int(blob_storage.getSize())
-    2849
-
+    2673
 
 Note: This is a counter measer against regression of bug #12991.
 

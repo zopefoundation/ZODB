@@ -855,9 +855,7 @@ class ClientStorage(object):
 
     def _storeBlob_shared(self, oid, serial, data, filename, txn):
         # First, move the blob into the blob directory
-        dir = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(dir):
-            os.mkdir(dir)
+        self.fshelper.getPathForOID(oid, create=True)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
 
@@ -986,7 +984,7 @@ class ClientStorage(object):
                 pass
 
     def temporaryDirectory(self):
-        return self.blob_dir
+        return self.fshelper.temp_dir
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
@@ -1121,19 +1119,15 @@ class ClientStorage(object):
                     assert s == tid, (s, tid)
                     self._cache.store(oid, s, None, data)
 
-        
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
             while blobs:
                 oid, blobfilename = blobs.pop()
-                targetpath = self.fshelper.getPathForOID(oid)
-                if not os.path.exists(targetpath):
-                    os.makedirs(targetpath, 0700)
+                targetpath = self.fshelper.getPathForOID(oid, create=True)
                 rename_or_copy_blob(blobfilename,
                           self.fshelper.getBlobFilename(oid, tid),
                           )
 
-                    
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):
