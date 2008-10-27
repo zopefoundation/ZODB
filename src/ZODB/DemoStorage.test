@@ -1,5 +1,6 @@
+==========================
 DemoStorage demo (doctest)
---------------------------
+==========================
 
 Note that most people will configure the storage through ZConfig.  If
 you are one of those people, you may want to stop here. :)  The
@@ -120,3 +121,93 @@ Undo methods are simply copied from the changes storage:
     ...  for name in ('supportsUndo', 'undo', 'undoLog', 'undoInfo')
     ...  ]
     [True, True, True, True]
+
+    >>> db.close()
+
+Blob Support
+============
+
+DemoStorage supports Blobs if the changes database supports blobs.
+
+    >>> import ZODB.blob
+    >>> base = ZODB.blob.BlobStorage('base', FileStorage('base.fs'))
+    >>> db = DB(base)
+    >>> conn = db.open()
+    >>> conn.root()['blob'] = ZODB.blob.Blob()
+    >>> conn.root()['blob'].open('w').write('state 1')
+    >>> transaction.commit()
+    >>> db.close()
+
+    >>> base = ZODB.blob.BlobStorage('base',
+    ...                               FileStorage('base.fs', read_only=True))
+    >>> changes = ZODB.blob.BlobStorage('changes',
+    ...                                 FileStorage('changes.fs', create=True))
+    >>> storage = DemoStorage(base=base, changes=changes)
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['blob'].open().read()
+    'state 1'
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob'].open('w').write('state 2')
+    >>> transaction.commit()
+    >>> conn.root()['blob'].open().read()
+    'state 2'
+    
+    >>> storage.temporaryDirectory() == changes.temporaryDirectory()
+    True
+
+    >>> db.close()
+
+It isn't necessary for the base database to support blobs.
+
+    >>> base = FileStorage('base.fs', read_only=True)
+    >>> changes = ZODB.blob.BlobStorage('changes', FileStorage('changes.fs'))
+    >>> storage = DemoStorage(base=base, changes=changes)
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['blob'].open().read()
+    'state 2'
+
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob2'] = ZODB.blob.Blob()
+    >>> conn.root()['blob2'].open('w').write('state 1')
+    >>> conn.root()['blob2'].open().read()
+    'state 1'
+
+    >>> db.close()
+
+If the changes database is created implicitly, it will get a blob
+storage wrapped around it when necessary:
+
+    >>> base = ZODB.blob.BlobStorage('base',
+    ...                               FileStorage('base.fs', read_only=True))
+    >>> storage = DemoStorage(base=base)
+
+    >>> type(storage.changes).__name__
+    'MappingStorage'
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['blob'].open().read()
+    'state 1'
+
+    >>> type(storage.changes).__name__
+    'BlobStorage'
+
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob'].open('w').write('state 2')
+    >>> transaction.commit()
+    >>> conn.root()['blob'].open().read()
+    'state 2'
+    
+    >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
+    True
+
+    >>> db.close()
+
+.. Check that the temporary directory is gone
+
+   >>> import os
+   >>> os.path.exists(storage.temporaryDirectory())
+   False

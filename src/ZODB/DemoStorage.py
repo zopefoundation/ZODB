@@ -20,12 +20,21 @@ The base storage must not change.
 
 """
 import random
+import tempfile
 import threading
+import ZODB.blob
+import ZODB.interfaces
 import ZODB.MappingStorage
 import ZODB.POSException
 import ZODB.utils
+import zope.interface
 
-class DemoStorage:
+class DemoStorage(object):
+
+    zope.interface.implements(
+        ZODB.interfaces.IStorage,
+        ZODB.interfaces.IStorageIteration,
+        )
 
     def __init__(self, name=None, base=None, changes=None):
         if base is None:
@@ -34,28 +43,28 @@ class DemoStorage:
             
         if changes is None:
             changes = ZODB.MappingStorage.MappingStorage()
+            zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
+            self._temporary_changes = True
+            self._blob_dir = None
+        else:
+            if ZODB.interfaces.IBlobStorage.providedBy(changes):
+                zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
+            self._temporary_changes = False
+
         self.changes = changes
 
         if name is None:
             name = 'DemoStorage(%r, %r)' % (base.getName(), changes.getName())
         self.__name__ = name
 
-        supportsUndo = getattr(changes, 'supportsUndo', None)
-        if supportsUndo is not None and supportsUndo():
-            for meth in ('supportsUndo', 'undo', 'undoLog', 'undoInfo'):
-                setattr(self, meth, getattr(changes, meth))
-
-        for meth in (
-            '_lock_acquire', '_lock_release', 
-            'getSize', 'history', 'isReadOnly', 'registerDB',
-            'sortKey', 'tpc_begin', 'tpc_abort', 'tpc_finish',
-            'tpc_transaction', 'tpc_vote',
-            ):
-            setattr(self, meth, getattr(changes, meth))
-
-        lastInvalidations = getattr(changes, 'lastInvalidations', None)
-        if lastInvalidations is not None:
-            self.lastInvalidations = lastInvalidations
+        self._copy_methods_from_changes(changes)
+        
+    def _blobify(self):
+        if self._temporary_changes and self._blob_dir is None:
+            self._blob_dir = tempfile.mkdtemp('blobs')
+            self.changes = ZODB.blob.BlobStorage(self._blob_dir, self.changes)
+            self._copy_methods_from_changes(self.changes)
+            return True
     
     def cleanup(self):
         self.base.cleanup()
@@ -64,6 +73,27 @@ class DemoStorage:
     def close(self):
         self.base.close()
         self.changes.close()
+        if getattr(self, '_blob_dir', ''):
+            ZODB.blob.remove_committed_dir(self._blob_dir)
+
+    def _copy_methods_from_changes(self, changes):
+        for meth in (
+            '_lock_acquire', '_lock_release', 
+            'getSize', 'history', 'isReadOnly', 'registerDB',
+            'sortKey', 'tpc_begin', 'tpc_abort', 'tpc_finish',
+            'tpc_transaction', 'tpc_vote',
+            ):
+            setattr(self, meth, getattr(changes, meth))
+
+        supportsUndo = getattr(changes, 'supportsUndo', None)
+        if supportsUndo is not None and supportsUndo():
+            for meth in ('supportsUndo', 'undo', 'undoLog', 'undoInfo'):
+                setattr(self, meth, getattr(changes, meth))
+            zope.interface.alsoProvides(self, ZODB.interfaces.IStorageUndoable)
+
+        lastInvalidations = getattr(changes, 'lastInvalidations', None)
+        if lastInvalidations is not None:
+            self.lastInvalidations = lastInvalidations
 
     def getName(self):
         return self.__name__
@@ -113,7 +143,23 @@ class DemoStorage:
                 pass
 
         return result
-            
+
+    def loadBlob(self, oid, serial):
+        try:
+            return self.changes.loadBlob(oid, serial)
+        except ZODB.POSException.POSKeyError:
+            try:
+                return self.base.loadBlob(oid, serial)
+            except AttributeError:
+                if not zope.interface.IBlobStorage.providBy(self.base):
+                    raise ZODB.POSException.POSKeyError(oid, serial)
+                raise
+        except AttributeError:
+            if self._blobify():
+                return self.loadBlob(oid, serial)
+            raise
+                
+
     def loadSerial(self, oid, serial):
         try:
             return self.changes.loadSerial(oid, serial)
@@ -163,3 +209,22 @@ class DemoStorage:
                 oid=oid, serials=(old, serial)) # XXX untested branch
 
         return self.changes.store(oid, serial, data, '', transaction)
+
+    def storeBlob(self, oid, oldserial, data, blobfilename, version,
+                  transaction):
+        try:
+            return self.changes.storeBlob(
+                oid, oldserial, data, blobfilename, version, transaction)
+        except AttributeError:
+            if self._blobify():
+                return self.changes.storeBlob(
+                    oid, oldserial, data, blobfilename, version, transaction)
+            raise
+
+    def temporaryDirectory(self):
+        try:
+            return self.changes.temporaryDirectory()
+        except AttributeError:
+            if self._blobify():
+                return self.changes.temporaryDirectory()
+            raise
