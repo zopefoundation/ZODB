@@ -656,10 +656,11 @@ def test_suite():
     suite.addTest(doctest.DocFileSuite(
         "blob_layout.txt",
         optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
-        setUp=zope.testing.setupstack.setUpDirectory,
+        setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
         checker = zope.testing.renormalizing.RENormalizing([
-            (re.compile(r'[%(sep)s]' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
+            (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
             ]),
         ))
