@@ -94,7 +94,7 @@ You can't put blobs into a database that has uses a Non-Blob-Storage, though:
     >>> transaction2.commit()        # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    Unsupported: Storing Blobs in <ZODB.MappingStorage.MappingStorage instance at ...> is not supported.
+    Unsupported: Storing Blobs in <ZODB.MappingStorage.MappingStorage object at ...> is not supported.
 
     >>> transaction2.abort()
     >>> connection2.close()

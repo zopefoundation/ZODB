@@ -27,7 +27,7 @@ import ZODB.TimeStamp
 import ZODB.utils
 import zope.interface
 
-class MappingStorage:
+class MappingStorage(object):
     
     zope.interface.implements(
         ZODB.interfaces.IStorage,
