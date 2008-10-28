@@ -16,19 +16,21 @@ $Id$
 """
 import unittest
 from zope.testing import doctest, module
+import ZODB.tests.util
 
 def setUp(test):
+    ZODB.tests.util.setUp(test)
     module.setUp(test, 'historical_connections_txt')
 
 def tearDown(test):
     test.globs['db'].close()
     test.globs['db2'].close()
     test.globs['storage'].close()
-    test.globs['storage'].cleanup()
     # the DB class masks the module because of __init__ shenanigans
     DB_module = __import__('ZODB.DB', globals(), locals(), ['chicken'])
     DB_module.time = test.globs['original_time']
     module.tearDown(test)
+    ZODB.tests.util.tearDown(test)
 
 def test_suite():
     return unittest.TestSuite((

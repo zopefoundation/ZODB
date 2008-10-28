@@ -20,6 +20,7 @@ import ZODB.MappingStorage
 from ZODB.POSException import ReadConflictError, ConflictError
 from ZODB.POSException import TransactionFailedError
 from ZODB.tests.warnhook import WarningsHook
+import ZODB.tests.util
 
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
@@ -38,12 +39,17 @@ class DecoyIndependent(Persistent):
     def _p_independent(self):
         return 0
 
-class ZODBTests(unittest.TestCase):
+class ZODBTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
         self._storage = ZODB.FileStorage.FileStorage(
             'ZODBTests.fs', create=1)
         self._db = ZODB.DB(self._storage)
+
+    def tearDown(self):
+        self._db.close()
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def populate(self):
         transaction.begin()
@@ -55,10 +61,6 @@ class ZODBTests(unittest.TestCase):
         transaction.get().note('created test data')
         transaction.commit()
         conn.close()
-
-    def tearDown(self):
-        self._db.close()
-        self._storage.cleanup()
 
     def checkExportImport(self, abort_it=False):
         self.populate()
@@ -431,9 +433,10 @@ class ZODBTests(unittest.TestCase):
             transaction.abort()
             conn.close()
 
-class ReadConflictTests(unittest.TestCase):
+class ReadConflictTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
+        ZODB.tests.utils.TestCase.setUp(self)
         self._storage = ZODB.MappingStorage.MappingStorage()
 
     def readConflict(self, shouldFail=True):

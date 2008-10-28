@@ -16,7 +16,6 @@
 import os
 import random
 import stat
-import tempfile
 
 import ZODB, ZODB.FileStorage
 from StorageTestBase import StorageTestBase
@@ -24,12 +23,8 @@ from StorageTestBase import StorageTestBase
 class FileStorageCorruptTests(StorageTestBase):
 
     def setUp(self):
-        self.path = tempfile.mktemp()
-        self._storage = ZODB.FileStorage.FileStorage(self.path, create=1)
-
-    def tearDown(self):
-        self._storage.close()
-        self._storage.cleanup()
+        StorageTestBase.setUp(self)
+        self._storage = ZODB.FileStorage.FileStorage('Data.fs', create=1)
 
     def _do_stores(self):
         oids = []
@@ -49,16 +44,15 @@ class FileStorageCorruptTests(StorageTestBase):
         self._close()
 
         # truncation the index file
-        path = self.path + '.index'
-        self.failUnless(os.path.exists(path))
-        f = open(path, 'r+')
+        self.failUnless(os.path.exists('Data.fs.index'))
+        f = open('Data.fs.index', 'r+')
         f.seek(0, 2)
         size = f.tell()
         f.seek(size / 2)
         f.truncate()
         f.close()
 
-        self._storage = ZODB.FileStorage.FileStorage(self.path)
+        self._storage = ZODB.FileStorage.FileStorage('Data.fs')
         self._check_stores(oids)
 
     def checkCorruptedIndex(self):
@@ -66,14 +60,13 @@ class FileStorageCorruptTests(StorageTestBase):
         self._close()
 
         # truncation the index file
-        path = self.path + '.index'
-        self.failUnless(os.path.exists(path))
-        size = os.stat(path)[stat.ST_SIZE]
-        f = open(path, 'r+')
+        self.failUnless(os.path.exists('Data.fs.index'))
+        size = os.stat('Data.fs.index')[stat.ST_SIZE]
+        f = open('Data.fs.index', 'r+')
         while f.tell() < size:
             f.seek(random.randrange(1, size / 10), 1)
             f.write('\000')
         f.close()
 
-        self._storage = ZODB.FileStorage.FileStorage(self.path)
+        self._storage = ZODB.FileStorage.FileStorage('Data.fs')
         self._check_stores(oids)

@@ -12,21 +12,17 @@
 #
 ##############################################################################
 
-import tempfile
-import unittest
-
 import transaction
+import unittest
 import ZODB.config
-from ZODB.POSException import ReadOnlyError
+import ZODB.POSException
+import ZODB.tests.util
 
 
-class ConfigTestBase(unittest.TestCase):
+class ConfigTestBase(ZODB.tests.util.TestCase):
+        
     def _opendb(self, s):
         return ZODB.config.databaseFromString(s)
-
-    def tearDown(self):
-        if getattr(self, "storage", None) is not None:
-            self.storage.cleanup()
 
     def _test(self, s):
         db = self._opendb(s)
@@ -58,28 +54,26 @@ class ZODBConfigTest(ConfigTestBase):
             """)
 
     def test_file_config1(self):
-        path = tempfile.mktemp()
         self._test(
             """
             <zodb>
               <filestorage>
-                path %s
+                path Data.fs
               </filestorage>
             </zodb>
-            """ % path)
+            """)
 
     def test_file_config2(self):
-        path = tempfile.mktemp()
         cfg = """
         <zodb>
           <filestorage>
-            path %s
+            path Data.fs
             create false
             read-only true
           </filestorage>
         </zodb>
-        """ % path
-        self.assertRaises(ReadOnlyError, self._test, cfg)
+        """
+        self.assertRaises(ZODB.POSException.ReadOnlyError, self._test, cfg)
 
     def test_demo_config(self):
         cfg = """

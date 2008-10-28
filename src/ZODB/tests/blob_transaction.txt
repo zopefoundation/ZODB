@@ -21,10 +21,8 @@ We need a database with a blob supporting storage::
     >>> from ZODB.blob import Blob, BlobStorage
     >>> from ZODB.DB import DB
     >>> import transaction
-    >>> import tempfile
-    >>> from tempfile import mkdtemp
     >>> base_storage = MappingStorage("test")
-    >>> blob_dir = mkdtemp()
+    >>> blob_dir = 'blobs'
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
     >>> connection1 = database.open()
@@ -351,7 +349,7 @@ clean up dirty files:
     ...     def tpc_abort(self):
     ...         pass
     >>> base_storage = DummyBaseStorage()
-    >>> blob_dir2 = mkdtemp()
+    >>> blob_dir2 = 'blobs2'
     >>> blob_storage2 = BlobStorage(blob_dir2, base_storage)
     >>> committed_blob_dir = blob_storage2.fshelper.getPathForOID(0)
     >>> os.makedirs(committed_blob_dir)

@@ -30,7 +30,9 @@ class AuthTest(CommonSetupTearDown):
     realm = None
 
     def setUp(self):
-        self.pwfile = tempfile.mktemp()
+        fd, self.pwfile = tempfile.mkstemp('pwfile')
+        os.close(fd)
+        
         if self.realm:
             self.pwdb = self.dbclass(self.pwfile, self.realm)
         else:
@@ -38,6 +40,7 @@ class AuthTest(CommonSetupTearDown):
         self.pwdb.add_user("foo", "bar")
         self.pwdb.save()
         self._checkZEOpasswd()
+        
         self.__super_setUp()
 
     def _checkZEOpasswd(self):
@@ -51,8 +54,8 @@ class AuthTest(CommonSetupTearDown):
             zeopasswd.main(args + ["foo", "bar"])
 
     def tearDown(self):
-        self.__super_tearDown()
         os.remove(self.pwfile)
+        self.__super_tearDown()
 
     def getConfig(self, path, create, read_only):
         return "<mappingstorage 1/>"

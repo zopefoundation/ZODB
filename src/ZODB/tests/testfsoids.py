@@ -16,12 +16,9 @@ r"""
 fsoids test, of the workhorse fsoids.Trace class
 ================================================
 
-Let's get a temp file path to work with first.
+Let's get a path to work with first.
 
->>> import tempfile
->>> path = tempfile.mktemp('.fs', 'Data')
->>> print 'path:', path #doctest: +ELLIPSIS
-path: ...Data...fs
+>>> path = 'Data.fs'
 
 More imports.
 

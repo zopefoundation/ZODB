@@ -33,11 +33,8 @@ class BaseFileStorageTests(StorageTestBase.StorageTestBase):
                                                      **kwargs)
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self.open(create=1)
-
-    def tearDown(self):
-        self._storage.close()
-        self._storage.cleanup()
 
 class FileStorageTests(
     BaseFileStorageTests,
@@ -296,14 +293,14 @@ class FileStorageRecoveryTest(
     ):
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
         self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
 
     def tearDown(self):
-        self._storage.close()
         self._dst.close()
-        self._storage.cleanup()
-        self._dst.cleanup()
+        StorageTestBase.StorageTestBase.tearDown(self)
+        
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
@@ -316,23 +313,15 @@ class FileStorageNoRestore(ZODB.FileStorage.FileStorage):
         raise Exception
 
 
-class FileStorageNoRestoreRecoveryTest(
-    StorageTestBase.StorageTestBase,
-    RecoveryStorage.RecoveryStorage,
-    ):
+class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
     # This test actually verifies a code path of
     # BaseStorage.copyTransactionsFrom. For simplicity of implementation, we
     # use a FileStorage deprived of its restore method.
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = FileStorageNoRestore("Source.fs", create=True)
         self._dst = FileStorageNoRestore("Dest.fs", create=True)
-
-    def tearDown(self):
-        self._storage.close()
-        self._dst.close()
-        self._storage.cleanup()
-        self._dst.cleanup()
 
     def new_dest(self):
         return FileStorageNoRestore('Dest.fs')

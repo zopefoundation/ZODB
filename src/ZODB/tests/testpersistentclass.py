@@ -52,14 +52,15 @@ class FakeModule:
 
 
 def setUp(test):
+    ZODB.tests.util.setUp(test)
     test.globs['some_database'] = ZODB.tests.util.DB()
     module = FakeModule('ZODB.persistentclass_txt', test.globs)
     sys.modules[module.__name__] = module
 
 def tearDown(test):
-    transaction.abort()
     test.globs['some_database'].close()
     del sys.modules['ZODB.persistentclass_txt']
+    ZODB.tests.util.tearDown(test)
 
 def test_suite():
     return unittest.TestSuite((

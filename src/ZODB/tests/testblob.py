@@ -32,7 +32,6 @@ import stat
 import struct
 import sys
 import sys
-import tempfile
 import time
 import transaction
 import unittest
@@ -42,7 +41,6 @@ import ZODB.interfaces
 import ZODB.tests.IteratorStorage
 import ZODB.tests.util
 import zope.testing.renormalizing
-import zope.testing.setupstack
 
 
 def new_time():
@@ -60,48 +58,31 @@ def new_time():
     return new_time
 
 
-class BlobConfigTestBase(ConfigTestBase):
-
-    def setUp(self):
-        super(BlobConfigTestBase, self).setUp()
-
-        self.blob_dir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        super(BlobConfigTestBase, self).tearDown()
-
-        shutil.rmtree(self.blob_dir)
-
-
-class ZODBBlobConfigTest(BlobConfigTestBase):
+class ZODBBlobConfigTest(ConfigTestBase):
 
     def test_map_config1(self):
         self._test(
             """
             <zodb>
               <blobstorage>
-                blob-dir %s
+                blob-dir blobs
                 <mappingstorage/>
               </blobstorage>
             </zodb>
-            """ % self.blob_dir)
+            """)
 
     def test_file_config1(self):
-        path = tempfile.mktemp()
         self._test(
             """
             <zodb>
               <blobstorage>
-                blob-dir %s
+                blob-dir blobs
                 <filestorage>
-                  path %s
+                  path Data.fs
                 </filestorage>
               </blobstorage>
             </zodb>
-            """ %(self.blob_dir, path))
-        os.unlink(path)
-        os.unlink(path+".index")
-        os.unlink(path+".tmp")
+            """)
 
     def test_blob_dir_needed(self):
         self.assertRaises(ZConfig.ConfigurationSyntaxError,
@@ -115,20 +96,7 @@ class ZODBBlobConfigTest(BlobConfigTestBase):
                           """)
 
 
-class BlobTests(unittest.TestCase):
-
-    def setUp(self):
-        self.test_dir = tempfile.mkdtemp()
-        self.here = os.getcwd()
-        os.chdir(self.test_dir)
-        self.storagefile = 'Data.fs'
-        self.blob_dir = 'blobs'
-
-    def tearDown(self):
-        os.chdir(self.here)
-        ZODB.blob.remove_committed_dir(self.test_dir)
-
-class BlobCloneTests(BlobTests):
+class BlobCloneTests(ZODB.tests.util.TestCase):
 
     def testDeepCopyCanInvalidate(self):
         """
@@ -136,8 +104,8 @@ class BlobCloneTests(BlobTests):
         readers and writers values in cloned objects (see
         http://mail.zope.org/pipermail/zodb-dev/2008-August/012054.html)
         """
-        base_storage = FileStorage(self.storagefile)
-        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        base_storage = FileStorage('Data.fs')
+        blob_storage = BlobStorage('blobs', base_storage)
         database = DB(blob_storage)
         connection = database.open()
         root = connection.root()
@@ -161,11 +129,11 @@ class BlobCloneTests(BlobTests):
         database.close()
 
 
-class BlobUndoTests(BlobTests):
+class BlobUndoTests(ZODB.tests.util.TestCase):
 
     def testUndoWithoutPreviousVersion(self):
-        base_storage = FileStorage(self.storagefile)
-        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        base_storage = FileStorage('Data.fs')
+        blob_storage = BlobStorage('blobs', base_storage)
         database = DB(blob_storage)
         connection = database.open()
         root = connection.root()
@@ -181,8 +149,8 @@ class BlobUndoTests(BlobTests):
         database.close()
         
     def testUndo(self):
-        base_storage = FileStorage(self.storagefile)
-        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        base_storage = FileStorage('Data.fs')
+        blob_storage = BlobStorage('blobs', base_storage)
         database = DB(blob_storage)
         connection = database.open()
         root = connection.root()
@@ -205,8 +173,8 @@ class BlobUndoTests(BlobTests):
         database.close()
 
     def testUndoAfterConsumption(self):
-        base_storage = FileStorage(self.storagefile)
-        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        base_storage = FileStorage('Data.fs')
+        blob_storage = BlobStorage('blobs', base_storage)
         database = DB(blob_storage)
         connection = database.open()
         root = connection.root()
@@ -231,8 +199,8 @@ class BlobUndoTests(BlobTests):
         database.close()
 
     def testRedo(self):
-        base_storage = FileStorage(self.storagefile)
-        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        base_storage = FileStorage('Data.fs')
+        blob_storage = BlobStorage('bobs', base_storage)
         database = DB(blob_storage)
         connection = database.open()
         root = connection.root()
@@ -263,8 +231,8 @@ class BlobUndoTests(BlobTests):
         database.close()
 
     def testRedoOfCreation(self):
-        base_storage = FileStorage(self.storagefile)
-        blob_storage = BlobStorage(self.blob_dir, base_storage)
+        base_storage = FileStorage('Data.fs')
+        blob_storage = BlobStorage('blobs', base_storage)
         database = DB(blob_storage)
         connection = database.open()
         root = connection.root()
@@ -288,12 +256,11 @@ class BlobUndoTests(BlobTests):
         database.close()
 
 
-class RecoveryBlobStorage(unittest.TestCase,
+class RecoveryBlobStorage(ZODB.tests.util.TestCase,
                           ZODB.tests.IteratorStorage.IteratorDeepCompare):
 
     def setUp(self):
-        self.globs = {}
-        zope.testing.setupstack.setUpDirectory(self)
+        ZODB.tests.util.TestCase.setUp(self)
         self._storage = BlobStorage(
             'src_blobs', ZODB.FileStorage.FileStorage("Source.fs", create=True))
         self._dst = BlobStorage(
@@ -302,7 +269,7 @@ class RecoveryBlobStorage(unittest.TestCase,
     def tearDown(self):
         self._storage.close()
         self._dst.close()
-        zope.testing.setupstack.tearDown(self)
+        ZODB.tests.util.TestCase.tearDown(self)
 
     # Requires a setUp() that creates a self._dst destination storage
     def testSimpleBlobRecovery(self):
@@ -367,10 +334,8 @@ def commit_from_wrong_partition():
     >>> from ZODB.MappingStorage import MappingStorage
     >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
-    >>> from tempfile import mkdtemp
     >>> base_storage = MappingStorage("test")
-    >>> blob_dir = mkdtemp()
-    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> blob_storage = BlobStorage('blobs', base_storage)
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -417,11 +382,9 @@ def packing_with_uncommitted_data_non_undoing():
     >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
     >>> from ZODB.serialize import referencesf
-    >>> from tempfile import mkdtemp
 
     >>> base_storage = MappingStorage("test")
-    >>> blob_dir = mkdtemp()
-    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> blob_storage = BlobStorage('blobs', base_storage)
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -435,8 +398,6 @@ def packing_with_uncommitted_data_non_undoing():
     Clean up:
 
     >>> database.close()
-    >>> import shutil
-    >>> shutil.rmtree(blob_dir)
 
     """
 
@@ -453,12 +414,9 @@ def packing_with_uncommitted_data_undoing():
     >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
     >>> from ZODB.serialize import referencesf
-    >>> from tempfile import mkdtemp, mktemp
 
-    >>> storagefile = mktemp()
-    >>> base_storage = FileStorage(storagefile)
-    >>> blob_dir = mkdtemp()
-    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> base_storage = FileStorage('Data.fs')
+    >>> blob_storage = BlobStorage('blobs', base_storage)
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -472,14 +430,6 @@ def packing_with_uncommitted_data_undoing():
     Clean up:
 
     >>> database.close()
-    >>> import shutil
-    >>> shutil.rmtree(blob_dir)
-
-    >>> os.unlink(storagefile)
-    >>> os.unlink(storagefile+".index")
-    >>> os.unlink(storagefile+".tmp")
-
-
     """
 
 
@@ -490,33 +440,29 @@ def secure_blob_directory():
 
     >>> from ZODB.FileStorage.FileStorage import FileStorage
     >>> from ZODB.blob import BlobStorage
-    >>> from tempfile import mkdtemp
     >>> import os.path
 
-    >>> working_directory = mkdtemp()
-    >>> base_storage = FileStorage(os.path.join(working_directory, 'Data.fs'))
-    >>> blob_storage = BlobStorage(os.path.join(working_directory, 'blobs'),
-    ...                            base_storage)
+    >>> base_storage = FileStorage('Data.fs')
+    >>> blob_storage = BlobStorage('blobs', base_storage)
 
     Two directories are created:
 
-    >>> blob_dir = os.path.join(working_directory, 'blobs')
-    >>> os.path.isdir(blob_dir)
+    >>> os.path.isdir('blobs')
     True
-    >>> tmp_dir = os.path.join(blob_dir, 'tmp')
+    >>> tmp_dir = os.path.join('blobs', 'tmp')
     >>> os.path.isdir(tmp_dir)
     True
 
     They are only accessible by the owner:
 
-    >>> oct(os.stat(blob_dir).st_mode)
+    >>> oct(os.stat('blobs').st_mode)
     '040700'
     >>> oct(os.stat(tmp_dir).st_mode)
     '040700'
 
     These settings are recognized as secure:
 
-    >>> blob_storage.fshelper.isSecure(blob_dir)
+    >>> blob_storage.fshelper.isSecure('blobs')
     True
     >>> blob_storage.fshelper.isSecure(tmp_dir)
     True
@@ -531,8 +477,6 @@ def secure_blob_directory():
     Clean up:
 
     >>> blob_storage.close()
-    >>> import shutil
-    >>> shutil.rmtree(working_directory)
 
     """
 
@@ -554,12 +498,9 @@ def loadblob_tmpstore():
     >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
     >>> from ZODB.serialize import referencesf
-    >>> from tempfile import mkdtemp, mktemp
 
-    >>> storagefile = mktemp()
-    >>> base_storage = FileStorage(storagefile)
-    >>> blob_dir = mkdtemp()
-    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> base_storage = FileStorage('Data.fs')
+    >>> blob_storage = BlobStorage('blobs', base_storage)
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -587,12 +528,6 @@ def loadblob_tmpstore():
     Clean up:
 
     >>> database.close()
-    >>> import shutil
-    >>> rmtree(blob_dir)
-
-    >>> os.unlink(storagefile)
-    >>> os.unlink(storagefile+".index")
-    >>> os.unlink(storagefile+".tmp")
     """
 
 def is_blob_record():
@@ -639,7 +574,7 @@ def do_not_depend_on_cwd():
     """
 
 def setUp(test):
-    zope.testing.setupstack.setUpDirectory(test)
+    ZODB.tests.util.setUp(test)
     test.globs['rmtree'] = zope.testing.setupstack.rmtree
 
 def test_suite():

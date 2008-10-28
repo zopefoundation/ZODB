@@ -11,17 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
 r"""
 fsdump test
 ===========
 
-Let's get a temp file path to work with first.
+Let's get a path to work with first.
 
->>> import tempfile
->>> path = tempfile.mktemp('.fs', 'Data')
->>> print 'path:', path #doctest: +ELLIPSIS
-path: ...Data...fs
+>>> path = 'Data.fs'
 
 More imports.
 
@@ -69,10 +65,12 @@ Now we see two transactions and two changed objects.
 Clean up.
 
 >>> st.close()
->>> st.cleanup() # remove .fs, .index, etc
 """
 
 from zope.testing import doctest
+import zope.testing.setupstack
 
 def test_suite():
-    return doctest.DocTestSuite()
+    return doctest.DocTestSuite(
+        setUp=zope.testing.setupstack.setUpDirectory,
+        tearDown=zope.testing.setupstack.tearDown)

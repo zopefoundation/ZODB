@@ -43,7 +43,8 @@ def hexprint(file):
         printable = ""
         hex = ""
         for character in line:
-            if character in string.printable and not ord(character) in [12,13,9]:
+            if (character in string.printable
+                and not ord(character) in [12,13,9]):
                 printable += character
             else:
                 printable += '.'

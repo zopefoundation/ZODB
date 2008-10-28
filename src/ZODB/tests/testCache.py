@@ -29,22 +29,23 @@ import transaction
 import ZODB
 import ZODB.MappingStorage
 from ZODB.tests.MinPO import MinPO
+import ZODB.tests.util
 from ZODB.utils import p64
 
 from persistent import Persistent
 
-class CacheTestBase(unittest.TestCase):
+class CacheTestBase(ZODB.tests.util.TestCase):
 
     def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
         store = ZODB.MappingStorage.MappingStorage()
         self.db = ZODB.DB(store,
                           cache_size = self.CACHE_SIZE)
         self.conns = []
 
     def tearDown(self):
-        for conn in self.conns:
-            conn.close()
         self.db.close()
+        ZODB.tests.util.TestCase.tearDown(self)
 
     CACHE_SIZE = 20
 
@@ -89,10 +90,8 @@ class CantGetRidOfMe(MinPO):
 
 class DBMethods(CacheTestBase):
 
-    __super_setUp = CacheTestBase.setUp
-
     def setUp(self):
-        self.__super_setUp()
+        CacheTestBase.setUp(self)
         for i in range(4):
             self.noodle_new_connection()
 

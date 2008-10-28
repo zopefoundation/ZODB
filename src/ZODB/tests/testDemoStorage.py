@@ -16,7 +16,7 @@ import random
 import transaction
 from ZODB.DB import DB
 from zope.testing import doctest
-import zope.testing.setupstack
+import ZODB.tests.util
 import ZODB.utils
 import ZODB.DemoStorage
 from ZODB.tests import (
@@ -44,10 +44,8 @@ class DemoStorageTests(
     ):
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.DemoStorage.DemoStorage()
-
-    def tearDown(self):
-        self._storage.close()
 
     def checkOversizeNote(self):
         # This base class test checks for the common case where a storage
@@ -85,13 +83,13 @@ class DemoStorageTests(
 class DemoStorageWrappedBase(DemoStorageTests):
 
     def setUp(self):
-        import ZODB.DemoStorage
+        StorageTestBase.StorageTestBase.setUp(self)
         self._base = self._makeBaseStorage()
         self._storage = ZODB.DemoStorage.DemoStorage(base=self._base)
 
     def tearDown(self):
-        self._storage.close()
         self._base.close()
+        StorageTestBase.StorageTestBase.tearDown(self)
 
     def _makeBaseStorage(self):
         raise NotImplementedError
@@ -112,8 +110,7 @@ class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
 
 def setUp(test):
     random.seed(0)
-    zope.testing.setupstack.setUpDirectory(test)
-    zope.testing.setupstack.register(test, transaction.abort)
+    ZODB.tests.util.setUp(test)
 
 def testSomeDelegation():
     r"""
@@ -158,11 +155,11 @@ def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('synchronized.txt'),
         doctest.DocTestSuite(
-            setUp=setUp, tearDown=zope.testing.setupstack.tearDown,
+            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
             ),
         doctest.DocFileSuite(
             'README.txt',
-            setUp=setUp, tearDown=zope.testing.setupstack.tearDown,
+            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
             ),
         ))
 
@@ -172,11 +169,11 @@ def test_suite():
 def test_suite():
     suite = unittest.TestSuite((
         doctest.DocTestSuite(
-            setUp=setUp, tearDown=zope.testing.setupstack.tearDown,
+            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
             ),
         doctest.DocFileSuite(
             '../DemoStorage.test',
-            setUp=setUp, tearDown=zope.testing.setupstack.tearDown,
+            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
             ),
         ))
     suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))

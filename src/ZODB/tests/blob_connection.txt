@@ -33,10 +33,9 @@ for one of our examples.)
     >>> import ZODB.FileStorage
     >>> from ZODB.blob import BlobStorage
     >>> from ZODB.DB import DB
-    >>> from tempfile import mkdtemp
     >>> base_storage = ZODB.FileStorage.FileStorage(
     ...     'BlobTests.fs', create=True)
-    >>> blob_dir = mkdtemp()
+    >>> blob_dir = 'blobs'
     >>> blob_storage = BlobStorage(blob_dir, base_storage)
     >>> database = DB(blob_storage)
 
@@ -106,4 +105,3 @@ After testing this, we don't need the storage directory and databases anymore:
     >>> database.close()
     >>> database2.close()
     >>> blob_storage.close()
-    >>> base_storage.cleanup()

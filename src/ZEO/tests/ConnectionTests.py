@@ -17,7 +17,6 @@ import sys
 import time
 import random
 import asyncore
-import tempfile
 import threading
 import logging
 
@@ -33,6 +32,7 @@ from ZODB.tests.StorageTestBase import StorageTestBase
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase \
      import zodb_pickle, zodb_unpickle, handle_all_serials, handle_serials
+import ZODB.tests.util
 
 import transaction
 from transaction import Transaction
@@ -93,7 +93,7 @@ class CommonSetupTearDown(StorageTestBase):
     monitor = 0
     db_class = DummyDB
 
-    def setUp(self):
+    def setUp(self, before=None):
         """Test setup for connection tests.
 
         This starts only one server; a test may start more servers by
@@ -102,8 +102,7 @@ class CommonSetupTearDown(StorageTestBase):
         """
         self.__super_setUp()
         logging.info("setUp() %s", self.id())
-        fd, self.file = tempfile.mkstemp()
-        os.close(fd)
+        self.file = 'storage_conf'
         self.addr = []
         self._pids = []
         self._servers = []
@@ -141,8 +140,7 @@ class CommonSetupTearDown(StorageTestBase):
         for c in self.caches:
             for i in 0, 1:
                 for ext in "", ".trace", ".lock":
-                    base = "%s-%s.zec%s" % (c, "1", ext)
-                    path = os.path.join(tempfile.tempdir, base)
+                    path = "%s-%s.zec%s" % (c, "1", ext)
                     # On Windows before 2.3, we don't have a way to wait for
                     # the spawned server(s) to close, and they inherited
                     # file descriptors for our open files.  So long as those
@@ -183,7 +181,7 @@ class CommonSetupTearDown(StorageTestBase):
         self.caches.append(cache)
         storage = TestClientStorage(self.addr,
                                     client=cache,
-                                    var=tempfile.tempdir,
+                                    var='.',
                                     cache_size=cache_size,
                                     wait=wait,
                                     min_disconnect_poll=0.1,

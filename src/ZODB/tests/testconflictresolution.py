@@ -15,18 +15,19 @@
 $Id$
 """
 import unittest
-from zope.testing import doctest, module, setupstack
+from zope.testing import doctest, module
+import ZODB.tests.util
 
 def setUp(test):
+    ZODB.tests.util.setUp(test)
     module.setUp(test, 'ConflictResolution_txt')
-    setupstack.setUpDirectory(test)
 
 def tearDown(test):
     test.globs['db'].close()
     test.globs['db1'].close()
     test.globs['db2'].close()
     module.tearDown(test)
-    setupstack.tearDown(test)
+    ZODB.tests.util.tearDown(test)
 
 def test_suite():
     return unittest.TestSuite((

@@ -21,8 +21,6 @@ single object revision.
 
 import sys
 import time
-import types
-import unittest
 from cPickle import Pickler, Unpickler
 from cStringIO import StringIO
 
@@ -30,6 +28,7 @@ import transaction
 
 from ZODB.utils import u64
 from ZODB.tests.MinPO import MinPO
+import ZODB.tests.util
 
 ZERO = '\0'*8
 
@@ -78,7 +77,7 @@ def zodb_unpickle(data):
     u = Unpickler(f)
     u.persistent_load = persistent_load
     klass_info = u.load()
-    if isinstance(klass_info, types.TupleType):
+    if isinstance(klass_info, tuple):
         if isinstance(klass_info[0], type):
             # Unclear:  what is the second part of klass_info?
             klass, xxx = klass_info
@@ -119,13 +118,13 @@ def handle_all_serials(oid, *args):
     """
     d = {}
     for arg in args:
-        if isinstance(arg, types.StringType):
+        if isinstance(arg, str):
             d[oid] = arg
         elif arg is None:
             pass
         else:
             for oid, serial in arg:
-                if not isinstance(serial, types.StringType):
+                if not isinstance(serial, str):
                     raise serial # error from ZEO server
                 d[oid] = serial
     return d
@@ -142,14 +141,12 @@ def import_helper(name):
     return sys.modules[name]
 
 
-class StorageTestBase(unittest.TestCase):
+class StorageTestBase(ZODB.tests.util.TestCase):
 
     # It would be simpler if concrete tests didn't need to extend
     # setUp() and tearDown().
 
-    def setUp(self):
-        # You need to override this with a setUp that creates self._storage
-        self._storage = None
+    _storage = None
 
     def _close(self):
         # You should override this if closing your storage requires additional
@@ -159,6 +156,7 @@ class StorageTestBase(unittest.TestCase):
 
     def tearDown(self):
         self._close()
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def _dostore(self, oid=None, revid=None, data=None,
                  already_pickled=0, user=None, description=None):
@@ -176,7 +174,7 @@ class StorageTestBase(unittest.TestCase):
             revid = ZERO
         if data is None:
             data = MinPO(7)
-        if type(data) == types.IntType:
+        if type(data) == int:
             data = MinPO(data)
         if not already_pickled:
             data = zodb_pickle(data)

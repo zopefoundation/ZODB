@@ -22,11 +22,12 @@ import unittest
 class PackerTests(StorageTestBase):
 
     def setUp(self):
+        StorageTestBase.setUp(self)
         self.started = 0
 
     def start(self):
         self.started =1
-        self.path = tempfile.mktemp(suffix=".fs")
+        self.path = 'Data.fs'
         self._storage = FileStorage(self.path)
         self.db = ZODB.DB(self._storage)
         self.do_updates()
@@ -37,26 +38,19 @@ class PackerTests(StorageTestBase):
             self._dostore()
 
     def tearDown(self):
-        if not self.started:
-            return
-        self.db.close()
-        self._storage.close()
-        self.exit.close()
-        try:
-            os.kill(self.pid, 9)
-        except os.error:
-            pass
-        try:
-            os.waitpid(self.pid, 0)
-        except os.error, err:
-            ##print "waitpid failed", err
-            pass
-        for ext in '', '.old', '.lock', '.index', '.tmp':
-            path = self.path + ext
+        if self.started:
+            self.db.close()
+            self.exit.close()
             try:
-                os.remove(path)
+                os.kill(self.pid, 9)
             except os.error:
                 pass
+            try:
+                os.waitpid(self.pid, 0)
+            except os.error, err:
+                ##print "waitpid failed", err
+                pass
+        StorageTestBase.tearDown(self)
 
     def set_inet_addr(self):
         self.host = socket.gethostname()

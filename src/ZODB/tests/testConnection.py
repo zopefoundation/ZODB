@@ -23,18 +23,17 @@ from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
 from zope.interface.verify import verifyObject
+import ZODB.tests.util
 
-class ConnectionDotAdd(unittest.TestCase):
+class ConnectionDotAdd(ZODB.tests.util.TestCase):
 
     def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
         from ZODB.Connection import Connection
         self.db = StubDatabase()
         self.datamgr = Connection(self.db)
         self.datamgr.open()
         self.transaction = StubTransaction()
-
-    def tearDown(self):
-        transaction.abort()
 
     def check_add(self):
         from ZODB.POSException import InvalidObjectReference
@@ -524,10 +523,11 @@ class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
 
-class EstimatedSizeTests(unittest.TestCase):
+class EstimatedSizeTests(ZODB.tests.util.TestCase):
     """check that size estimations are handled correctly."""
 
     def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
         self.db = db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         self.conn = c = db.open()
         self.obj = obj = _PlayPersistent()
@@ -545,7 +545,8 @@ class EstimatedSizeTests(unittest.TestCase):
         transaction.commit()
         new_size = obj._p_estimated_size
         self.assert_(new_size > size)
-        self.assertEqual(cache.total_estimated_size, cache_size + new_size - size)
+        self.assertEqual(cache.total_estimated_size,
+                         cache_size + new_size - size)
 
     def test_size_set_on_write_savepoint(self):
         obj, cache = self.obj, self.conn._cache

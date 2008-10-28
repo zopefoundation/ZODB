@@ -222,6 +222,7 @@ class GenericTests(
     blob_cache_dir = None
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         logger.info("setUp() %s", self.id())
         port = get_port()
         zconf = forker.ZEOConfig(('', port))
@@ -232,7 +233,9 @@ class GenericTests(
         self._conf_path = path
         if not self.blob_cache_dir:
             # This is the blob cache for ClientStorage
-            self.blob_cache_dir = tempfile.mkdtemp()
+            self.blob_cache_dir = tempfile.mkdtemp(
+                'blob_cache',
+                dir=os.path.abspath(os.getcwd()))
         self._storage = ClientStorage(
             zport, '1', cache_size=20000000,
             min_disconnect_poll=0.5, wait=1,
@@ -242,14 +245,13 @@ class GenericTests(
 
     def tearDown(self):
         self._storage.close()
-        os.remove(self._conf_path)
-        ZODB.blob.remove_committed_dir(self.blob_cache_dir)
         for server in self._servers:
             forker.shutdown_zeo_server(server)
         if hasattr(os, 'waitpid'):
             # Not in Windows Python until 2.3
             for pid in self._pids:
                 os.waitpid(pid, 0)
+        StorageTestBase.StorageTestBase.tearDown(self)
 
     def runTest(self):
         try:
@@ -300,29 +302,22 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
 
     level = 2
 
-    def setUp(self):
-        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
-        self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
-
     def getConfig(self):
-        filename = self.__fs_base = tempfile.mktemp()
         return """\
         <filestorage 1>
         path %s
         </filestorage>
-        """ % filename
+        """ % tempfile.mktemp(dir='.')
 
     def _new_storage(self):
         port = get_port()
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
-        blob_cache_dir = tempfile.mkdtemp()
-
         self._pids.append(pid)
         self._servers.append(adminaddr)
-        self._conf_paths.append(path)
-        self.blob_cache_dirs.append(blob_cache_dir)
+
+        blob_cache_dir = tempfile.mkdtemp(dir='.')
 
         storage = ClientStorage(
             zport, '1', cache_size=20000000,
@@ -332,10 +327,9 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
         return storage
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._pids = []
         self._servers = []
-        self._conf_paths = []
-        self.blob_cache_dirs = []
 
         self._storage = self._new_storage()
         self._dst = self._new_storage()
@@ -344,16 +338,13 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
         self._storage.close()
         self._dst.close()
 
-        for p in self._conf_paths:
-            os.remove(p)
-        for p in self.blob_cache_dirs:
-            ZODB.blob.remove_committed_dir(p)
         for server in self._servers:
             forker.shutdown_zeo_server(server)
         if hasattr(os, 'waitpid'):
             # Not in Windows Python until 2.3
             for pid in self._pids:
                 os.waitpid(pid, 0)
+        StorageTestBase.StorageTestBase.tearDown(self)
 
     def new_dest(self):
         return self._new_storage()
@@ -364,12 +355,11 @@ class FileStorageTests(FullGenericTests):
     level = 2
 
     def getConfig(self):
-        filename = self.__fs_base = tempfile.mktemp()
         return """\
         <filestorage 1>
-        path %s
+        path Data.fs
         </filestorage>
-        """ % filename
+        """
 
     def checkInterfaceFromRemoteStorage(self):
         # ClientStorage itself doesn't implement IStorageIteration, but the
@@ -416,10 +406,10 @@ class DemoStorageTests(
         return """
         <demostorage 1>
           <filestorage 1>
-             path %s
+             path Data.fs
           </filestorage>
         </demostorage>
-        """ % tempfile.mktemp()
+        """
 
     def checkUndoZombie(self):
         # The test base class IteratorStorage assumes that we keep undo data
@@ -615,22 +605,18 @@ test_classes = [OneTimeTests,
 
 class CommonBlobTests:
 
-    def tearDown(self):
-        super(BlobAdaptedFileStorageTests, self).tearDown()
-        if os.path.exists(self.blobdir):
-            # Might be gone already if the super() method deleted
-            # the shared directory. Don't worry.
-            shutil.rmtree(self.blobdir)
-
     def getConfig(self):
         return """
         <blobstorage 1>
-          blob-dir %s
+          blob-dir blobs
           <filestorage 2>
-            path %s
+            path Data.fs
           </filestorage>
         </blobstorage>
-        """ % (self.blobdir, self.filestorage)
+        """
+
+    blobdir = 'blobs'
+    blob_cache_dir = 'blob_cache'
 
     def checkStoreBlob(self):
         from ZODB.utils import oid_repr, tid_repr
@@ -713,23 +699,16 @@ class CommonBlobTests:
 
     def checkTransactionBufferCleanup(self):
         oid = self._storage.new_oid()
-        handle, blob_file_name = tempfile.mkstemp()
-        os.close(handle)
-        open(blob_file_name, 'w').write('I am a happy blob.')
+        open('blob_file', 'w').write('I am a happy blob.')
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.storeBlob(
-          oid, ZODB.utils.z64, 'foo', blob_file_name, '', t)
+          oid, ZODB.utils.z64, 'foo', 'blob_file', '', t)
         self._storage.close()
 
 
 class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
-
-    def setUp(self):
-        self.blobdir = tempfile.mkdtemp()  # blob directory on ZEO server
-        self.filestorage = tempfile.mktemp()
-        super(BlobAdaptedFileStorageTests, self).setUp()
 
     def checkStoreAndLoadBlob(self):
         from ZODB.utils import oid_repr, tid_repr
@@ -814,12 +793,8 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
 
 class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
 
-    def setUp(self):
-        self.blobdir = self.blob_cache_dir = tempfile.mkdtemp()
-        self.filestorage = tempfile.mktemp()
-        self.shared_blob_dir = True
-        super(BlobWritableCacheTests, self).setUp()
-
+    blob_cache_dir = 'blobs'
+    shared_blob_dir = True
 
 class StorageServerClientWrapper:
 

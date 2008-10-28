@@ -40,10 +40,8 @@ class MappingStorageTests(
     ):
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self, )
         self._storage = ZODB.MappingStorage.MappingStorage()
-
-    def tearDown(self):
-        self._storage.close()
 
     def checkOversizeNote(self):
         # This base class test checks for the common case where a storage
