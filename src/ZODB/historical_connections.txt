@@ -41,7 +41,15 @@ We'll begin our example with a fairly standard set up.  We
     
     >>> import transaction
     >>> transaction.commit()
+
+We wait for some ttime to pass, and then make some other changes.
     
+    >>> import time
+    >>> t = time.time()
+    >>> while time.time <= t:
+    ...     time.sleep(.001)    
+
+
     >>> import datetime
     >>> now = datetime.datetime.utcnow()
     
