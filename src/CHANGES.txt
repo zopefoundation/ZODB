@@ -2,11 +2,40 @@
  Change History
 ================
 
-3.9.0a1 (2008-??-??)
+3.9.0a2 (2008-??-??)
+====================
+
+- The connection now estimates the object size based on its pickle size
+  and informs the cache about size changes.
+
+  The database got additional configurations options (`cache-size-bytes`
+  and `historical-cache-size-bytes`) to limit the
+  cache size based on the estimated total size of cached objects.
+  The default values are 0 which has the interpretation "do not limit
+  based on the total estimated size".
+  There are corresponding methods to read and set the new configuration
+  parameters.
+
+  XXX There are known issues with this implementation that need to be
+  sorted out before it is "released".
+
+3.9.0a1 (2008-10-29)
 ====================
 
 New Features
 ------------
+
+- MappingStorage now supports multi-version concurrency control and
+  iteration and provides a better storage implementation example.
+
+- DemoStorage has a number of new features:
+
+  - The ability to use a separate storage, such as a file storage to
+    store changes
+
+  - Blob support
+
+  - Multi-version concurrency control and iteration
 
 - Wen calling ZODB.DB to create a database, you can now pass a file
   name, rather than a storage to use a file storage.
@@ -33,17 +62,6 @@ New Features
   the long (unoptimized) verification. For large caches, setting this
   option can avoid effective downtimes in the order of hours when
   the connection to the ZEO server was interrupted for a longer time.
-
-- The connection now estimates the object size based on its pickle size
-  and informs the cache about size changes.
-
-  The database got additional configurations options (`cache-size-bytes`
-  and `historical-cache-size-bytes`) to limit the
-  cache size based on the estimated total size of cached objects.
-  The default values are 0 which has the interpretation "do not limit
-  based on the total estimated size".
-  There are corresponding methods to read and set the new configuration
-  parameters.
 
 - Cleaned-up the storage iteration API and provided an iterator implementation
   for ZEO.
