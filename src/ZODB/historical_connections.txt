@@ -46,7 +46,7 @@ We wait for some ttime to pass, and then make some other changes.
     
     >>> import time
     >>> t = time.time()
-    >>> while time.time <= t:
+    >>> while time.time() <= t:
     ...     time.sleep(.001)    
 
 
