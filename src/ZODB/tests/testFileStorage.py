@@ -485,11 +485,12 @@ there are:
 
 Of course, calling lastInvalidations on an empty storage refturns no data:
 
-    >>> fs.close()
+    >>> db.close()
     >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
     >>> list(fs.lastInvalidations(10))
     []
 
+    >>> fs.close()
     """
 
 def deal_with_finish_failures():

@@ -527,6 +527,7 @@ def loadblob_tmpstore():
 
     Clean up:
 
+    >>> tmpstore.close()
     >>> database.close()
     """
 

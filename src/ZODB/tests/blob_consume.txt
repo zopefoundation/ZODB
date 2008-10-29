@@ -57,6 +57,7 @@ Now, after closing all readers and writers we can consume files again::
     >>> blob_read.read()
     'I am another blob.'
 
+    >>> blob_read.close()
 
 Edge cases
 ==========

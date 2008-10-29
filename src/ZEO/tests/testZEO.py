@@ -988,6 +988,7 @@ transaction, we'll get a result:
     >>> sorted([int(u64(oid)) for (oid, _) in oids])
     [0, 101, 102, 103, 104]
 
+    >>> fs.close()
     """
 
 def tpc_finish_error():

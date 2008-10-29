@@ -21,6 +21,8 @@ The created file is in the default temporary directory::
   >>> w.name.startswith(tempfile.gettempdir())
   True
 
+  >>> w.close()
+
 Case 2: Blobs that are in a database
 ====================================
 
@@ -45,3 +47,5 @@ writing and expect the file to be in the blob temporary directory::
   >>> w = blob.open('w')
   >>> w.name.startswith(os.path.join(blob_dir, 'tmp'))
   True
+
+  >>> w.close()
