@@ -419,6 +419,8 @@ class ClientStorage(object):
         if self._cache is not None:
             self._cache.close()
             self._cache = None
+        if self._tfile is not None:
+            self._tfile.close()
 
     def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
