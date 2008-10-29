@@ -36,7 +36,9 @@ class DemoStorage(object):
         ZODB.interfaces.IStorageIteration,
         )
 
-    def __init__(self, name=None, base=None, changes=None):
+    def __init__(self, name=None, base=None, changes=None,
+                 keep_base_open=False):
+        self._keep_base_open = keep_base_open
         if base is None:
             base = ZODB.MappingStorage.MappingStorage()
         self.base = base
@@ -71,7 +73,8 @@ class DemoStorage(object):
         self.changes.cleanup()
 
     def close(self):
-        self.base.close()
+        if not self._keep_base_open:
+            self.base.close()
         self.changes.close()
         if getattr(self, '_blob_dir', ''):
             ZODB.blob.remove_committed_dir(self._blob_dir)
