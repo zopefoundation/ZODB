@@ -120,37 +120,66 @@ Undo methods are simply copied from the changes storage:
     ...  ]
     [True, True, True, True]
 
-
-Normally, when we close a demo storage, the changes and base storages
-are closed:
-
     >>> db.close()
-    >>> base._file.closed
+
+Storage Stacking
+================
+
+A common use case is to stack demo storages.  DemoStorage provides
+some helper functions to help with this.  The push method, just
+creates a new demo storage who's base is the original demo storage:
+
+    >>> demo = DemoStorage()
+    >>> demo2 = demo.push()
+    >>> demo2.base is demo
     True
-    >>> changes._file.closed
+
+We can also supply an explicit changes storage, if we wish:
+
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> changes = MappingStorage()
+    >>> demo3 = demo2.push(changes)
+    >>> demo3.changes is changes, demo3.base is demo2
+    (True, True)
+
+The pop method closes the changes storage and returns the base
+*without* closing it:
+
+    >>> demo3.pop() is demo2
     True
 
-A common use case is to stack multiple DemoStorages, returning to a
-previous state by popping a DemoStorage off the stack.  In this case,
-we want to leave the base storage open:
-
-    >>> base = FileStorage('base.fs', read_only=True)
-    >>> storage = DemoStorage(base=base, keep_base_open=True)
-
-Here, we didn't specify a changes storage.  A MappingStorage was
-automatically created:
-
-    >>> type(storage.changes).__name__
-    'MappingStorage'
-
-Because we specified the keep_base_open option, the base storage is
-left open when we close the DemoStorage:
-
-    >>> storage.close()
-    >>> base._file.closed
+    >>> changes.opened()
     False
-    >>> storage.changes.opened()
-    False
+
+Special backward compatibility support
+--------------------------------------
+
+Normally, when a demo storage is closed, it's base and changes
+storage are closed:
+
+    >>> demo = DemoStorage(base=MappingStorage(), changes=MappingStorage())
+    >>> demo.close()
+    >>> demo.base.opened(), demo.changes.opened()
+    (False, False)
+
+Older versions of DemoStorage didn't have a separate changes storage
+and didn't close or discard their changes when they were closed.  When
+a stack was built solely of demo storages, the close method
+effectively did nothing.  To maintain backward compatibility, when no
+base or changes storage is supplied in the constructor, the underlying
+storage created by the demo storage isn't closed by the demo storage.
+This backward-compatibility is deprecated.
+
+    >>> demo = DemoStorage()
+    >>> demo.close()
+    >>> demo.changes.opened(), demo.base.opened()
+    (True, True)
+
+    >>> demo = DemoStorage(base=MappingStorage())
+    >>> demo2 = demo.push()
+    >>> demo2.close()
+    >>> demo2.changes.opened(), demo2.base.base.opened()
+    (True, False)
 
 Blob Support
 ============
@@ -236,6 +265,16 @@ storage wrapped around it when necessary:
 
 .. Check that the temporary directory is gone
 
+   For now, it won't go until the storage does.
+
+   >>> transaction.abort()
+   >>> conn.close()
+   >>> blobdir = storage.temporaryDirectory()
+   >>> del db, conn, storage, _
+   
+   >>> import gc
+   >>> _ = gc.collect()
+
    >>> import os
-   >>> os.path.exists(storage.temporaryDirectory())
+   >>> os.path.exists(blobdir)
    False

@@ -19,7 +19,9 @@ to be layered over a base database.
 The base storage must not change.
 
 """
+import os
 import random
+import weakref
 import tempfile
 import threading
 import ZODB.blob
@@ -36,35 +38,41 @@ class DemoStorage(object):
         ZODB.interfaces.IStorageIteration,
         )
 
-    def __init__(self, name=None, base=None, changes=None,
-                 keep_base_open=False):
-        self._keep_base_open = keep_base_open
+    def __init__(self, name=None, base=None, changes=None):
         if base is None:
             base = ZODB.MappingStorage.MappingStorage()
+            self._temporary_base = True
+        else:
+            self._temporary_base = False
         self.base = base
             
         if changes is None:
             changes = ZODB.MappingStorage.MappingStorage()
             zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
             self._temporary_changes = True
-            self._blob_dir = None
         else:
             if ZODB.interfaces.IBlobStorage.providedBy(changes):
                 zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
             self._temporary_changes = False
 
         self.changes = changes
-
+        
         if name is None:
             name = 'DemoStorage(%r, %r)' % (base.getName(), changes.getName())
         self.__name__ = name
 
         self._copy_methods_from_changes(changes)
         
+
     def _blobify(self):
-        if self._temporary_changes and self._blob_dir is None:
-            self._blob_dir = tempfile.mkdtemp('blobs')
-            self.changes = ZODB.blob.BlobStorage(self._blob_dir, self.changes)
+        if (self._temporary_changes and
+            isinstance(self.changes, ZODB.MappingStorage.MappingStorage)
+            ):
+            blob_dir = tempfile.mkdtemp('.demoblobs')
+            _temporary_blobdirs[
+                weakref.ref(self, cleanup_temporary_blobdir)
+                ] = blob_dir
+            self.changes = ZODB.blob.BlobStorage(blob_dir, self.changes)
             self._copy_methods_from_changes(self.changes)
             return True
     
@@ -73,11 +81,10 @@ class DemoStorage(object):
         self.changes.cleanup()
 
     def close(self):
-        if not self._keep_base_open:
+        if not self._temporary_base:
             self.base.close()
-        self.changes.close()
-        if getattr(self, '_blob_dir', ''):
-            ZODB.blob.remove_committed_dir(self._blob_dir)
+        if not self._temporary_changes:
+            self.changes.close()
 
     def _copy_methods_from_changes(self, changes):
         for meth in (
@@ -195,6 +202,13 @@ class DemoStorage(object):
                 pass # The gc arg isn't supported. Don't pack
             raise
 
+    def pop(self):
+        self.changes.close()
+        return self.base
+
+    def push(self, changes=None):
+        return self.__class__(base=self, changes=changes)
+
     def store(self, oid, serial, data, version, transaction):
         assert version=='', "versions aren't supported"
 
@@ -231,3 +245,12 @@ class DemoStorage(object):
             if self._blobify():
                 return self.changes.temporaryDirectory()
             raise
+
+_temporary_blobdirs = {}
+def cleanup_temporary_blobdir(
+    ref,
+    _temporary_blobdirs=_temporary_blobdirs, # Make sure it stays around 
+    ):
+    blob_dir = _temporary_blobdirs.pop(ref, None)
+    if blob_dir and os.path.exists(blob_dir):
+        ZODB.blob.remove_committed_dir(blob_dir)
