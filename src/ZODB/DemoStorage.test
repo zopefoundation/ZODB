@@ -278,3 +278,52 @@ storage wrapped around it when necessary:
    >>> import os
    >>> os.path.exists(blobdir)
    False
+
+ZConfig support
+===============
+
+You can configure demo storages using ZConfig, using name, changes,
+and base options:
+
+    >>> import ZODB.config
+    >>> storage = ZODB.config.storageFromString("""
+    ... <demostorage>
+    ... </demostorage>
+    ... """)
+    >>> storage.getName()
+    "DemoStorage('MappingStorage', 'MappingStorage')"
+
+    >>> storage = ZODB.config.storageFromString("""
+    ... <demostorage>
+    ...    <filestorage base>
+    ...       path base.fs
+    ...    </filestorage>
+    ...
+    ...    <filestorage changes>
+    ...       path changes.fs
+    ...    </filestorage>
+    ... </demostorage>
+    ... """)
+    >>> storage.getName()
+    "DemoStorage('base.fs', 'changes.fs')"
+
+    >>> storage.close()
+
+    >>> storage = ZODB.config.storageFromString("""
+    ... <demostorage>
+    ...    name bob
+    ...    <filestorage>
+    ...       path base.fs
+    ...    </filestorage>
+    ...
+    ...    <filestorage changes>
+    ...       path changes.fs
+    ...    </filestorage>
+    ... </demostorage>
+    ... """)
+    >>> storage.getName()
+    'bob'
+    >>> storage.base.getName()
+    'base.fs'
+
+    >>> storage.close()
