@@ -37,6 +37,8 @@ New Features
 
   - Multi-version concurrency control and iteration
 
+  - Explicit support dfor demo-storage stacking via push and pop methods.
+
 - Wen calling ZODB.DB to create a database, you can now pass a file
   name, rather than a storage to use a file storage.
 

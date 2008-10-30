@@ -120,15 +120,17 @@ class MappingStorage(BaseConfig):
 class DemoStorage(BaseConfig):
 
     def open(self):
+        base = changes = None
+        for factory in self.config.factories:
+            if factory.name == 'changes':
+                changes = factory.open()
+            else:
+                if base is None:
+                    base = factory.open()
+                else:
+                    raise ValueError("Too many base storages defined!")
+        
         from ZODB.DemoStorage import DemoStorage
-        if self.config.base:
-            base = self.config.base.open()
-        else:
-            base = None
-        if self.config.changes:
-            changes = self.config.changes.open()
-        else:
-            changes = None
         return DemoStorage(self.config.name, base=base, changes=changes)
 
 class FileStorage(BaseConfig):

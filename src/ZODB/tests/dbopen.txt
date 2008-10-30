@@ -239,12 +239,12 @@ Closing connections adds them to the stack:
 Closing another one will purge the one with MARKER 0 from the stack
 (since it was the first added to the stack):
 
-    >>> [c.MARKER for c in pool.available.values()]
+    >>> [c.MARKER for (t, c) in pool.available]
     [0, 1, 2]
     >>> conns[0].close()  # MARKER 3
     >>> len(pool.available), len(pool.all)
     (3, 5)
-    >>> [c.MARKER for c in pool.available.values()]
+    >>> [c.MARKER for (t, c) in pool.available]
     [1, 2, 3]
 
 Similarly for the other two:
@@ -252,7 +252,7 @@ Similarly for the other two:
     >>> conns[1].close(); conns[2].close()
     >>> len(pool.available), len(pool.all)
     (3, 3)
-    >>> [c.MARKER for c in pool.available.values()]
+    >>> [c.MARKER for (t, c) in pool.available]
     [3, 4, 5]
 
 Reducing the pool size may also purge the oldest closed connections:
@@ -260,7 +260,7 @@ Reducing the pool size may also purge the oldest closed connections:
     >>> db.setPoolSize(2)  # gets rid of MARKER 3
     >>> len(pool.available), len(pool.all)
     (2, 2)
-    >>> [c.MARKER for c in pool.available.values()]
+    >>> [c.MARKER for (t, c) in pool.available]
     [4, 5]
 
 Since MARKER 5 is still the last one added to the stack, it will be the

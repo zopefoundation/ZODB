@@ -175,8 +175,7 @@
   <sectiontype name="demostorage" datatype=".DemoStorage"
                implements="ZODB.storage">
     <key name="name" />
-    <section type="ZODB.storage" name="*" attribute="base" />
-    <section type="ZODB.storage" name="changes" attribute="changes" />
+    <multisection type="ZODB.storage" name="*" attribute="factories" />
   </sectiontype>
 
 
