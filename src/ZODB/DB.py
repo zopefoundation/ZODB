@@ -103,22 +103,21 @@ class AbstractConnectionPool(object):
     def getTimeout(self):
         return self._timeout
 
-    timeout = property(getTimeout, setTimeout)
+    timeout = property(getTimeout, lambda self, v: self.setTimeout(v))
 
-    size = property(getSize, setSize)
+    size = property(getSize, lambda self, v: self.setSize(v))
 
 class ConnectionPool(AbstractConnectionPool):
 
-    def __init__(self, size, timeout=None):
+    def __init__(self, size, timeout=time()):
         super(ConnectionPool, self).__init__(size, timeout)
 
         # A stack of connections available to hand out.  This is a subset
         # of self.all.  push() and repush() add to this, and may remove
         # the oldest available connections if the pool is too large.
         # pop() pops this stack.  There are never more than size entries
-        # in this stack.  The keys are time.time() values of the push or
-        # repush calls.
-        self.available = BTrees.OOBTree.Bucket()
+        # in this stack.
+        self.available = []
 
     def push(self, c):
         """Register a new available connection.
@@ -127,10 +126,10 @@ class ConnectionPool(AbstractConnectionPool):
         stack even if we're over the pool size limit.
         """
         assert c not in self.all
-        assert c not in self.available.values()
+        assert c not in self.available
         self._reduce_size(strictly_less=True)
         self.all.add(c)
-        self.available[time()] = c
+        self.available.append((time(), c))
         n = len(self.all)
         limit = self.size
         if n > limit:
@@ -147,43 +146,42 @@ class ConnectionPool(AbstractConnectionPool):
         older available connections.
         """
         assert c in self.all
-        assert c not in self.available.values()
+        assert c not in self.available
         self._reduce_size(strictly_less=True)
-        self.available[time()] = c
+        self.available.append((time(), c))
 
     def _reduce_size(self, strictly_less=False):
         """Throw away the oldest available connections until we're under our
         target size (strictly_less=False, the default) or no more than that
         (strictly_less=True).
         """
-        if self.timeout is None:
-            threshhold = None
-        else:
-            threshhold = time() - self.timeout
+        threshhold = time() - self.timeout
         target = self.size
         if strictly_less:
             target -= 1
-        for t, c in list(self.available.items()):
-            if (len(self.available) > target or
-                threshhold is not None and t < threshhold):
-                del self.available[t]
-                self.all.remove(c)
-                # While application code may still hold a reference to `c`,
-                # there's little useful that can be done with this Connection
-                # anymore. Its cache may be holding on to limited resources,
-                # and we replace the cache with an empty one now so that we
-                # don't have to wait for gc to reclaim it. Note that it's not
-                # possible for DB.open() to return `c` again: `c` can never be
-                # in an open state again.
-                # TODO: Perhaps it would be better to break the reference
-                # cycles between `c` and `c._cache`, so that refcounting
-                # reclaims both right now. But if user code _does_ have a
-                # strong reference to `c` now, breaking the cycle would not
-                # reclaim `c` now, and `c` would be left in a user-visible
-                # crazy state.
-                c._resetCache()
-            else:
-                break
+
+        available = self.available
+        while (
+            (len(available) > target)
+            or
+            (available and available[0][0] < threshhold)
+            ):
+            t, c = available.pop(0)
+            self.all.remove(c)
+            # While application code may still hold a reference to `c`,
+            # there's little useful that can be done with this Connection
+            # anymore. Its cache may be holding on to limited resources,
+            # and we replace the cache with an empty one now so that we
+            # don't have to wait for gc to reclaim it. Note that it's not
+            # possible for DB.open() to return `c` again: `c` can never be
+            # in an open state again.
+            # TODO: Perhaps it would be better to break the reference
+            # cycles between `c` and `c._cache`, so that refcounting
+            # reclaims both right now. But if user code _does_ have a
+            # strong reference to `c` now, breaking the cycle would not
+            # reclaim `c` now, and `c` would be left in a user-visible
+            # crazy state.
+            c._resetCache()
 
     def reduce_size(self):
         self._reduce_size()
@@ -197,7 +195,7 @@ class ConnectionPool(AbstractConnectionPool):
         """
         result = None
         if self.available:
-            result = self.available.pop(self.available.maxKey())
+            _, result = self.available.pop()
             # Leave it in self.all, so we can still get at it for statistics
             # while it's alive.
             assert result in self.all
@@ -212,18 +210,14 @@ class ConnectionPool(AbstractConnectionPool):
         
         If a connection is no longer viable because it has timed out, it is
         garbage collected."""
-        if self.timeout is None:
-            threshhold = None
-        else:
-            threshhold = time() - self.timeout
-        for t, c in tuple(self.available.items()):
-            if threshhold is not None and t < threshhold:
+        threshhold = time() - self.timeout
+        for t, c in list(self.available):
+            if t < threshhold:
                 del self.available[t]
                 self.all.remove(c)
                 c._resetCache()
             else:
                 c.cacheGC()
-
 
 class KeyedConnectionPool(AbstractConnectionPool):
     # this pool keeps track of keyed connections all together.  It makes
@@ -233,99 +227,68 @@ class KeyedConnectionPool(AbstractConnectionPool):
 
     # see the comments in ConnectionPool for method descriptions.
 
-    def __init__(self, size, timeout=None):
+    def __init__(self, size, timeout=time()):
         super(KeyedConnectionPool, self).__init__(size, timeout)
-        # key: {time.time: connection}
-        self.available = BTrees.family32.OO.Bucket()
-        # time.time: key
-        self.closed = BTrees.family32.OO.Bucket()
+        self.pools = {}
+
+    def setSize(self, v):
+        self._size = v
+        for pool in self.pools.values():
+            pool.setSize(v)
+
+    def setTimeout(self, v):
+        self._timeout = v
+        for pool in self.pools.values():
+            pool.setTimeout(v)
 
     def push(self, c, key):
-        assert c not in self.all
-        available = self.available.get(key)
-        if available is None:
-            available = self.available[key] = BTrees.family32.OO.Bucket()
-        else:
-            assert c not in available.values()
-        self._reduce_size(strictly_less=True)
-        self.all.add(c)
-        t = time()
-        available[t] = c
-        self.closed[t] = key
-        n = len(self.all)
-        limit = self.size
-        if n > limit:
-            reporter = logger.warn
-            if n > 2 * limit:
-                reporter = logger.critical
-            reporter("DB.open() has %s open connections with a size "
-                     "of %s", n, limit)
+        pool = self.pools.get(key)
+        if pool is None:
+            pool = self.pools[key] = ConnectionPool(self.size, self.timeout)
+        pool.push(c)
 
     def repush(self, c, key):
-        assert c in self.all
-        self._reduce_size(strictly_less=True)
-        available = self.available.get(key)
-        if available is None:
-            available = self.available[key] = BTrees.family32.OO.Bucket()
-        else:
-            assert c not in available.values()
-        t = time()
-        available[t] = c
-        self.closed[t] = key
+        self.pools[key].repush(c)
 
     def _reduce_size(self, strictly_less=False):
-        if self.timeout is None:
-            threshhold = None
-        else:
-            threshhold = time() - self.timeout
-        target = self.size
-        if strictly_less:
-            target -= 1
-        for t, key in tuple(self.closed.items()):
-            if (len(self.available) > target or
-                threshhold is not None and t < threshhold):
-                del self.closed[t]
-                c = self.available[key].pop(t)
-                if not self.available[key]:
-                    del self.available[key]
-                self.all.remove(c)
-                c._resetCache()
-            else:
-                break
+        for key, pool in list(self.pools.items()):
+            pool._reduce_size(strictly_less)
+            if not pool.all:
+                del self.pools[key]
 
     def reduce_size(self):
         self._reduce_size()
 
     def pop(self, key):
-        result = None
-        available = self.available.get(key)
-        if available:
-            t = available.maxKey()
-            result = available.pop(t)
-            del self.closed[t]
-            if not available:
-                del self.available[key]
-            assert result in self.all
-        return result
+        pool = self.pools.get(key)
+        if pool is not None:
+            return pool.pop()
 
     def map(self, f):
-        self.all.map(f)
+        for pool in self.pools.itervalues():
+            pool.map(f)
 
     def availableGC(self):
-        if self.timeout is None:
-            threshhold = None
-        else:
-            threshhold = time() - self.timeout
-        for t, key in tuple(self.closed.items()):
-            if threshhold is not None and t < threshhold:
-                del self.closed[t]
-                c = self.available[key].pop(t)
-                if not self.available[key]:
-                    del self.available[key]
-                self.all.remove(c)
-                c._resetCache()
-            else:
-                self.available[key][t].cacheGC()
+        for key, pool in self.pools.items():
+            pool.availableGC()
+            if not pool.all:
+                del self.pools[key]
+
+    @property
+    def test_all(self):
+        result = set()
+        for pool in self.pools.itervalues():
+            result.update(pool.all)
+        return frozenset(result)
+
+    @property
+    def test_available(self):
+        result = []
+        for pool in self.pools.itervalues():
+            result.extend(pool.available)
+        return tuple(result)
+        
+        
 
 def toTimeStamp(dt):
     utc_struct = dt.utctimetuple()

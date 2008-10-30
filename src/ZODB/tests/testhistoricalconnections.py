@@ -25,10 +25,7 @@ def setUp(test):
 def tearDown(test):
     test.globs['db'].close()
     test.globs['db2'].close()
-    test.globs['storage'].close()
     # the DB class masks the module because of __init__ shenanigans
-    DB_module = __import__('ZODB.DB', globals(), locals(), ['chicken'])
-    DB_module.time = test.globs['original_time']
     module.tearDown(test)
     ZODB.tests.util.tearDown(test)
 
