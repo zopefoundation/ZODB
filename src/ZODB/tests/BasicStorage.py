@@ -183,3 +183,19 @@ class BasicStorage:
     def checkInterfaces(self):
         for iface in zope.interface.providedBy(self._storage):
             zope.interface.verify.verifyObject(iface, self._storage)
+
+    def checkMultipleEmptyTransactions(self):
+        # There was a bug in handling empty transactions in mapping
+        # storage that caused the commit lock not to be released. :(
+        transaction.begin()
+        t = transaction.get()
+        self._storage.tpc_begin(t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        t.commit()
+        transaction.begin()
+        t = transaction.get()
+        self._storage.tpc_begin(t)      # Hung here before
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        t.commit()

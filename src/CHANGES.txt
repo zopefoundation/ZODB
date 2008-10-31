@@ -5,6 +5,9 @@
 3.9.0a2 (2008-??-??)
 ====================
 
+New Features
+------------
+
 - The connection now estimates the object size based on its pickle size
   and informs the cache about size changes.
 
@@ -18,6 +21,12 @@
 
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
+
+Bug Fixes
+---------
+
+- MappingStorage hung when committing a transaction *after* committing
+  an empty transaction.
 
 3.9.0a1 (2008-10-29)
 ====================

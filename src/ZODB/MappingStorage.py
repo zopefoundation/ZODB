@@ -286,7 +286,7 @@ class MappingStorage(object):
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def tpc_finish(self, transaction, func = lambda tid: None):
-        if (transaction is not self._transaction) or not self._tdata:
+        if (transaction is not self._transaction):
             return
 
         tid = self._tid
