@@ -2,7 +2,7 @@
  Change History
 ================
 
-3.9.0a2 (2008-??-??)
+3.9.0 (2008-??-??)
 ====================
 
 New Features
@@ -21,6 +21,9 @@ New Features
 
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
+
+3.9.0a2 (2008-10-31)
+====================
 
 Bug Fixes
 ---------
