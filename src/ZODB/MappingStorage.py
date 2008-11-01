@@ -176,7 +176,7 @@ class MappingStorage(object):
             except KeyError:
                 pass
 
-        raise ZODB.POSException.POSBeforeKeyError(oid)
+        raise ZODB.POSException.POSKeyError(oid, serial)
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
