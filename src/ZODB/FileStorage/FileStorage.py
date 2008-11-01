@@ -102,7 +102,7 @@ class FileStorage(BaseStorage.BaseStorage,
     _pack_is_in_progress = False
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
-                 quota=None):
+                 quota=None, pack_gc=True, packer=None):
 
         if read_only:
             self._is_read_only = True
@@ -124,6 +124,10 @@ class FileStorage(BaseStorage.BaseStorage,
             self._tfile = None
 
         self._file_name = file_name
+
+        self._pack_gc = pack_gc
+        if packer is not None:
+            self.packer = packer
 
         BaseStorage.BaseStorage.__init__(self, file_name)
 
@@ -979,7 +983,26 @@ class FileStorage(BaseStorage.BaseStorage,
         file.seek(pos - p + 8)
         return file.read(1) not in ' u'
 
-    def pack(self, t, referencesf):
+    @staticmethod
+    def packer(storage, referencesf, stop, gc):
+        # Our default packer is built around the original packer.  We
+        # simply adapt the old interface to the new.  We don't really
+        # want to invest much in the old packer, at least for now.
+        p = FileStoragePacker(
+            storage._file.name,
+            stop,
+            storage._lock_acquire,
+            storage._lock_release,
+            storage._commit_lock_acquire,
+            storage._commit_lock_release,
+            storage.getSize(),
+            gc)
+        opos = p.pack()
+        if opos is None:
+            return None
+        return opos, p.index
+
+    def pack(self, t, referencesf, gc=None):
         """Copy data from the current database file to a packed file
 
         Non-current records from transactions with time-stamp strings less
@@ -1003,23 +1026,23 @@ class FileStorage(BaseStorage.BaseStorage,
             if self._pack_is_in_progress:
                 raise FileStorageError('Already packing')
             self._pack_is_in_progress = True
-            current_size = self.getSize()
         finally:
             self._lock_release()
 
-        p = FileStoragePacker(self._file_name, stop,
-                              self._lock_acquire, self._lock_release,
-                              self._commit_lock_acquire,
-                              self._commit_lock_release,
-                              current_size)
+        if gc is None:
+            gc = self._pack_gc
+
+        have_commit_lock = False
         try:
-            opos = None
+            pack_result = None
             try:
-                opos = p.pack()
+                pack_result = self.packer(self, referencesf, stop, gc)
             except RedundantPackWarning, detail:
                 logger.info(str(detail))
-            if opos is None:
+            if pack_result is None:
                 return
+            have_commit_lock = True
+            opos, index = pack_result
             oldpath = self._file_name + ".old"
             self._lock_acquire()
             try:
@@ -1035,13 +1058,13 @@ class FileStorage(BaseStorage.BaseStorage,
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
                 self._file = open(self._file_name, 'r+b')
-                self._initIndex(p.index, p.tindex)
+                self._initIndex(index, self._tindex)
                 self._pos = opos
                 self._save_index()
             finally:
                 self._lock_release()
         finally:
-            if p.locked:
+            if have_commit_lock:
                 self._commit_lock_release()
             self._lock_acquire()
             self._pack_is_in_progress = False

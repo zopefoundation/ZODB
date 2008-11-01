@@ -137,10 +137,17 @@ class FileStorage(BaseConfig):
 
     def open(self):
         from ZODB.FileStorage import FileStorage
+        options = {}
+        if self.config.packer:
+            m, name = self.config.packer.rsplit('.', 1)
+            options['packer'] = getattr(__import__(m, {}, {}, ['*']), name)
+            
         return FileStorage(self.config.path,
                            create=self.config.create,
                            read_only=self.config.read_only,
-                           quota=self.config.quota)
+                           quota=self.config.quota,
+                           pack_gc=self.config.pack_gc,
+                           **options)
 
 class BlobStorage(BaseConfig):
 

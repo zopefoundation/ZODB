@@ -139,11 +139,12 @@ class PackCopier(FileStorageFormatter):
 
 class GC(FileStorageFormatter):
 
-    def __init__(self, file, eof, packtime):
+    def __init__(self, file, eof, packtime, gc):
         self._file = file
         self._name = file.name
         self.eof = eof
         self.packtime = packtime
+        self.gc = gc
         # packpos: position of first txn header after pack time
         self.packpos = None
         self.oid2curpos = fsIndex() # maps oid to current data record position
@@ -157,7 +158,6 @@ class GC(FileStorageFormatter):
         # second is a dictionary mapping objects to lists of
         # positions; it is used to handle the same number of objects
         # for which we must keep multiple revisions.
-
         self.reachable = fsIndex()
         self.reach_ex = {}
 
@@ -176,11 +176,14 @@ class GC(FileStorageFormatter):
 
     def findReachable(self):
         self.buildPackIndex()
-        self.findReachableAtPacktime([z64])
-        self.findReachableFromFuture()
-        # These mappings are no longer needed and may consume a lot
-        # of space.
-        del self.oid2curpos
+        if self.gc:
+            self.findReachableAtPacktime([z64])
+            self.findReachableFromFuture()
+            # These mappings are no longer needed and may consume a lot of
+            # space.
+            del self.oid2curpos
+        else:
+            self.reachable = self.oid2curpos
 
     def buildPackIndex(self):
         pos = 4L
@@ -320,7 +323,7 @@ class FileStoragePacker(FileStorageFormatter):
     # current_size is the storage's _pos.  All valid data at the start
     # lives before that offset (there may be a checkpoint transaction in
     # progress after it).
-    def __init__(self, path, stop, la, lr, cla, clr, current_size):
+    def __init__(self, path, stop, la, lr, cla, clr, current_size, gc=True):
         self._name = path
         # We open our own handle on the storage so that much of pack can
         # proceed in parallel.  It's important to close this file at every
@@ -329,10 +332,10 @@ class FileStoragePacker(FileStorageFormatter):
         self._file = open(path, "rb")
         self._path = path
         self._stop = stop
-        self.locked = 0
+        self.locked = False
         self.file_end = current_size
 
-        self.gc = GC(self._file, self.file_end, self._stop)
+        self.gc = GC(self._file, self.file_end, self._stop, gc)
 
         # The packer needs to acquire the parent's commit lock
         # during the copying stage, so the two sets of lock acquire
@@ -386,37 +389,44 @@ class FileStoragePacker(FileStorageFormatter):
             os.remove(self._name + ".pack")
             return None
         self._commit_lock_acquire()
-        self.locked = 1
-        self._lock_acquire()
+        self.locked = True
         try:
-            # Re-open the file in unbuffered mode.
+            self._lock_acquire()
+            try:
+                # Re-open the file in unbuffered mode.
 
-            # The main thread may write new transactions to the file,
-            # which creates the possibility that we will read a status
-            # 'c' transaction into the pack thread's stdio buffer even
-            # though we're acquiring the commit lock.  Transactions
-            # can still be in progress throughout much of packing, and
-            # are written to the same physical file but via a distinct
-            # Python file object.  The code used to leave off the
-            # trailing 0 argument, and then on every platform except
-            # native Windows it was observed that we could read stale
-            # data from the tail end of the file.
-            self._file.close()  # else self.gc keeps the original alive & open
-            self._file = open(self._path, "rb", 0)
-            self._file.seek(0, 2)
-            self.file_end = self._file.tell()
-        finally:
-            self._lock_release()
-        if ipos < self.file_end:
-            self.copyRest(ipos)
+                # The main thread may write new transactions to the
+                # file, which creates the possibility that we will
+                # read a status 'c' transaction into the pack thread's
+                # stdio buffer even though we're acquiring the commit
+                # lock.  Transactions can still be in progress
+                # throughout much of packing, and are written to the
+                # same physical file but via a distinct Python file
+                # object.  The code used to leave off the trailing 0
+                # argument, and then on every platform except native
+                # Windows it was observed that we could read stale
+                # data from the tail end of the file.
+                self._file.close() # else self.gc keeps the original
+                                   # alive & open
+                self._file = open(self._path, "rb", 0)
+                self._file.seek(0, 2)
+                self.file_end = self._file.tell()
+            finally:
+                self._lock_release()
+            if ipos < self.file_end:
+                self.copyRest(ipos)
 
-        # OK, we've copied everything. Now we need to wrap things up.
-        pos = self._tfile.tell()
-        self._tfile.flush()
-        self._tfile.close()
-        self._file.close()
+            # OK, we've copied everything. Now we need to wrap things up.
+            pos = self._tfile.tell()
+            self._tfile.flush()
+            self._tfile.close()
+            self._file.close()
 
-        return pos
+            return pos
+        except:
+            if self.locked:
+                self._commit_lock_release()
+            raise
 
     def copyToPacktime(self):
         offset = 0L  # the amount of space freed by packing
@@ -524,9 +534,6 @@ class FileStoragePacker(FileStorageFormatter):
         # After the pack time, all data records are copied.
         # Copy one txn at a time, using copy() for data.
 
-        # Release the commit lock every 20 copies
-        self._lock_counter = 0
-
         try:
             while 1:
                 ipos = self.copyOne(ipos)
@@ -543,9 +550,9 @@ class FileStoragePacker(FileStorageFormatter):
     def copyOne(self, ipos):
         # The call below will raise CorruptedDataError at EOF.
         th = self._read_txn_header(ipos)
-        self._lock_counter += 1
-        if self._lock_counter % 20 == 0:
-            self._commit_lock_release()
+        # Release commit lock while writing to pack file
+        self._commit_lock_release()
+        self.locked = False
         pos = self._tfile.tell()
         self._copier.setTxnPos(pos)
         self._tfile.write(th.asString())
@@ -573,6 +580,6 @@ class FileStoragePacker(FileStorageFormatter):
 
         self.index.update(self.tindex)
         self.tindex.clear()
-        if self._lock_counter % 20 == 0:
-            self._commit_lock_acquire()
+        self._commit_lock_acquire()
+        self.locked = True
         return ipos

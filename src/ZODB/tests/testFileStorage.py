@@ -41,7 +41,7 @@ class FileStorageTests(
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
     RevisionStorage.RevisionStorage,
-    PackableStorage.PackableStorage,
+    PackableStorage.PackableStorageWithOptionalGC,
     PackableStorage.PackableUndoStorage,
     Synchronization.SynchronizedStorage,
     ConflictResolution.ConflictResolvingStorage,

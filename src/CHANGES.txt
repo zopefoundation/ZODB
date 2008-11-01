@@ -22,6 +22,27 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+New Features
+------------
+
+- FileStorage now provides optional garbage collection.  A 'gc'
+  keyword option can be passed to the pack method.  A false value
+  prevents garbage collection.
+
+- The FileStorage constructor now provides a boolean pack_gc option,
+  which defaults to True, to control whether garbage collection is
+  performed when packing by default. This can be overridden with the
+  gc option to the pack method.
+
+  The ZConfig configuration for FileStorage now includes a pack-gc
+  option, corresponding to the pack_gc constructor argument.
+
+- The FileStorage constructor now has a packer keyword argument that
+  allows an alternative packer to be supplied.
+
+  The ZConfig configuration for FileStorage now includes a packer
+  option, corresponding to the packer constructor argument.
+
 3.9.0a2 (2008-10-31)
 ====================
 
