@@ -364,7 +364,7 @@ class FilesystemHelper:
             except OSError:
                 # We might have lost a race.  If so, the directory
                 # must exist now
-                assert os.path.exists(targetpath)
+                assert os.path.exists(path)
         return path
 
     def getOIDForPath(self, path):
