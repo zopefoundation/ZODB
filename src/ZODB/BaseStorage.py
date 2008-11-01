@@ -32,6 +32,8 @@ from ZODB.UndoLogCompatible import UndoLogCompatible
 
 log = logging.getLogger("ZODB.BaseStorage")
 
+import sys
+
 
 class BaseStorage(UndoLogCompatible):
     """Base class that supports storage implementations.
@@ -81,12 +83,14 @@ class BaseStorage(UndoLogCompatible):
         log.debug("create storage %s", self.__name__)
 
         # Allocate locks:
-        l = threading.RLock()
-        self._lock_acquire = l.acquire
-        self._lock_release = l.release
-        l = threading.Lock()
-        self._commit_lock_acquire = l.acquire
-        self._commit_lock_release = l.release
+        self.__lock = threading.RLock()
+        self.__commit_lock = threading.Lock()
+
+        # Comment out the following 4 lines to debug locking:
+        self._lock_acquire = self.__lock.acquire
+        self._lock_release = self.__lock.release
+        self._commit_lock_acquire = self.__commit_lock.acquire
+        self._commit_lock_release = self.__commit_lock.release
 
         t = time.time()
         t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t%60,)))
@@ -101,6 +105,45 @@ class BaseStorage(UndoLogCompatible):
             self._oid = z64
         else:
             self._oid = oid
+
+    ########################################################################
+    # The following methods are normally overridden on instances,
+    # except when debugging:
+    
+    def _lock_acquire(self, *args):
+        f = sys._getframe(1)
+        sys.stdout.write("[la(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+        self.__lock.acquire(*args)
+        sys.stdout.write("la(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+
+    def _lock_release(self, *args):
+        f = sys._getframe(1)
+        sys.stdout.write("[lr(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+        self.__lock.release(*args)
+        sys.stdout.write("lr(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+
+    def _commit_lock_acquire(self, *args):
+        f = sys._getframe(1)
+        sys.stdout.write("[ca(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+        self.__commit_lock.acquire(*args)
+        sys.stdout.write("ca(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+
+    def _commit_lock_release(self, *args):
+        f = sys._getframe(1)
+        sys.stdout.write("[cr(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+        self.__commit_lock.release(*args)
+        sys.stdout.write("cr(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
+        sys.stdout.flush()
+
+    #
+    ########################################################################
 
     def sortKey(self):
         """Return a string that can be used to sort storage instances.
