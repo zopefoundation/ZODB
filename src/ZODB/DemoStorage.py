@@ -194,7 +194,17 @@ class DemoStorage(object):
             
             return oid
 
-    def pack(self, t, referencesf, gc=False):
+    def pack(self, t, referencesf, gc=None):
+        if gc is None:
+            if self._temporary_base:
+                return self.changes.pack(t, referencesf)
+        elif self._temporary_base:
+            return self.changes.pack(t, referencesf, gc=gc)
+        elif gc:
+            raise TypeError(
+                "Garbage collection isn't supported"
+                " when there is a base storage.")
+        
         try:
             self.changes.pack(t, referencesf, gc=False)
         except TypeError, v:
