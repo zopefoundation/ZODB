@@ -86,7 +86,7 @@ def dumps(obj):
             return obj.getoid()
         return None
     s = StringIO()
-    p = pickle.Pickler(s)
+    p = pickle.Pickler(s, 1)
     p.persistent_id = getpersid
     p.dump(obj)
     p.dump(None)
@@ -322,11 +322,6 @@ class PackableStorage(PackableStorageBase):
         transaction.commit()
         db.pack(time.time()+1)
         self.assertEqual(len(self._storage), 1)
-                
-        
-        
-
-class PackableUndoStorage(PackableStorageBase):
 
     def checkPackAllRevisions(self):
         self._initroot()
@@ -443,11 +438,9 @@ class PackableUndoStorage(PackableStorageBase):
         # Create a persistent object, with some initial state
         obj1 = self._newobj()
         oid1 = obj1.getoid()
-        # Create another persistent object, with some initial state.  Make
-        # sure it's oid is greater than the first object's oid.
+        # Create another persistent object, with some initial state.
         obj2 = self._newobj()
         oid2 = obj2.getoid()
-        self.failUnless(oid2 > oid1)
         # Link the root object to the persistent objects, in order to keep
         # them alive.  Store the root object.
         root.obj1 = obj1
@@ -516,6 +509,50 @@ class PackableUndoStorage(PackableStorageBase):
         pobj = pickle.loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
+
+class PackableStorageWithOptionalGC(PackableStorage):
+
+    def checkPackAllRevisionsNoGC(self):
+        self._initroot()
+        eq = self.assertEqual
+        raises = self.assertRaises
+        # Create a `persistent' object
+        obj = self._newobj()
+        oid = obj.getoid()
+        obj.value = 1
+        # Commit three different revisions
+        revid1 = self._dostoreNP(oid, data=pdumps(obj))
+        obj.value = 2
+        revid2 = self._dostoreNP(oid, revid=revid1, data=pdumps(obj))
+        obj.value = 3
+        revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
+        # Now make sure all three revisions can be extracted
+        data = self._storage.loadSerial(oid, revid1)
+        pobj = pickle.loads(data)
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 1)
+        data = self._storage.loadSerial(oid, revid2)
+        pobj = pickle.loads(data)
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 2)
+        data = self._storage.loadSerial(oid, revid3)
+        pobj = pickle.loads(data)
+        eq(pobj.getoid(), oid)
+        eq(pobj.value, 3)
+        # Now pack all transactions; need to sleep a second to make
+        # sure that the pack time is greater than the last commit time.
+        now = packtime = time.time()
+        while packtime <= now:
+            packtime = time.time()
+        self._storage.pack(packtime, referencesf, gc=False)
+        # Only old revisions of the object should be gone. We don't gc
+        raises(KeyError, self._storage.loadSerial, oid, revid1)
+        raises(KeyError, self._storage.loadSerial, oid, revid2)
+        self._storage.loadSerial(oid, revid3)
+        
+        
+
+class PackableUndoStorage(PackableStorageBase):
 
     def checkPackUnlinkedFromRoot(self):
         eq = self.assertEqual

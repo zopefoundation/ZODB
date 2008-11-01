@@ -77,8 +77,6 @@ class DemoStorageTests(
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
-    def checkPackWithMultiDatabaseReferences(self):
-        pass # we never do gc
         
 class DemoStorageWrappedBase(DemoStorageTests):
 
@@ -93,6 +91,13 @@ class DemoStorageWrappedBase(DemoStorageTests):
 
     def _makeBaseStorage(self):
         raise NotImplementedError
+
+    def checkPackOnlyOneObject(self):
+        pass # Wrapping demo storages don't do gc 
+
+    def checkPackWithMultiDatabaseReferences(self):
+        pass # we never do gc
+    checkPackAllRevisions = checkPackWithMultiDatabaseReferences
 
 class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
 

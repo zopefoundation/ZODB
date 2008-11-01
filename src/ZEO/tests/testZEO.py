@@ -418,6 +418,7 @@ class DemoStorageTests(
 
     def checkPackWithMultiDatabaseReferences(self):
         pass # DemoStorage pack doesn't do gc
+    checkPackAllRevisions = checkPackWithMultiDatabaseReferences
 
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm

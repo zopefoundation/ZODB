@@ -34,7 +34,7 @@ class MappingStorageTests(
     IteratorStorage.ExtendedIteratorStorage,
     IteratorStorage.IteratorStorage,
     MTStorage.MTStorage,
-    PackableStorage.PackableStorage,
+    PackableStorage.PackableStorageWithOptionalGC,
     RevisionStorage.RevisionStorage,
     Synchronization.SynchronizedStorage,
     ):
