@@ -24,8 +24,6 @@ import shutil
 import stat
 import sys
 import tempfile
-import threading
-import time
 import weakref
 
 import zope.interface
@@ -34,8 +32,6 @@ import ZODB.interfaces
 from ZODB.interfaces import BlobError
 from ZODB import utils
 from ZODB.POSException import POSKeyError
-import transaction
-import transaction.interfaces
 import persistent
 
 from zope.proxy import getProxiedObject, non_overridable
