@@ -38,12 +38,11 @@ We'll begin our example with a fairly standard set up.  We
 We wait for some time to pass, record he time, and then make some other changes.
     
     >>> import time
-    >>> t = time.time()
-    >>> while time.time() <= t:
-    ...     time.sleep(.001)    
+    >>> time.sleep(.01)
 
     >>> import datetime
     >>> now = datetime.datetime.utcnow()
+    >>> time.sleep(.01)
     
     >>> root = conn.root()
     >>> root['second'] = persistent.mapping.PersistentMapping()
@@ -258,7 +257,8 @@ test.
 Note that if you try to open an historical connection to a time in the future,
 you will get an error.
 
-    >>> historical_conn = db.open(at=datetime.datetime.utcnow())
+    >>> historical_conn = db.open(
+    ...     at=datetime.datetime.utcnow()+datetime.timedelta(1))
     Traceback (most recent call last):
     ...
     ValueError: cannot open an historical connection in the future.
