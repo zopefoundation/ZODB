@@ -56,7 +56,9 @@ class DemoStorage(object):
             self._temporary_changes = False
 
         self.changes = changes
-        
+
+        self._issued_oids = set()
+
         if name is None:
             name = 'DemoStorage(%r, %r)' % (base.getName(), changes.getName())
         self.__name__ = name
@@ -176,8 +178,7 @@ class DemoStorage(object):
         except ZODB.POSException.POSKeyError:
             return self.base.loadSerial(oid, serial)
 
-    _issued_oids = {}
-
+    @ZODB.utils.locked
     def new_oid(self):
         while 1:
             oid = ZODB.utils.p64(random.randint(1, 9223372036854775807))
@@ -198,7 +199,7 @@ class DemoStorage(object):
             else:
                 continue
             
-            self._issued_oids[oid] = None
+            self._issued_oids.add(oid)
             return oid
 
     def pack(self, t, referencesf, gc=None):
@@ -231,8 +232,7 @@ class DemoStorage(object):
 
         # Since the OID is being used, we don't have to keep up with it any
         # more.
-        if oid in self._issued_oids:
-            del self._issued_oids[oid]
+        self._issued_oids.discard(oid)
 
         # See if we already have changes for this oid
         try:
@@ -254,8 +254,7 @@ class DemoStorage(object):
 
         # Since the OID is being used, we don't have to keep up with it any
         # more.
-        if oid in self._issued_oids:
-            del self._issued_oids[oid]
+        self._issued_oids.discard(oid)
 
         try:
             return self.changes.storeBlob(
