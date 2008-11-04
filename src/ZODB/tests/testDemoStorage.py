@@ -156,20 +156,6 @@ def testSomeDelegation():
 
     """
 
-def test_suite():
-    return unittest.TestSuite((
-        doctest.DocFileSuite('synchronized.txt'),
-        doctest.DocTestSuite(
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
-        doctest.DocFileSuite(
-            'README.txt',
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
-        ))
-
-
-
 
 def test_suite():
     suite = unittest.TestSuite((

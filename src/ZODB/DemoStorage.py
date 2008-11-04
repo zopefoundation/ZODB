@@ -176,9 +176,15 @@ class DemoStorage(object):
         except ZODB.POSException.POSKeyError:
             return self.base.loadSerial(oid, serial)
 
+    _issued_oids = {}
+
     def new_oid(self):
         while 1:
             oid = ZODB.utils.p64(random.randint(1, 9223372036854775807))
+
+            if oid in self._issued_oids:
+                continue
+
             try:
                 self.changes.load(oid, '')
             except ZODB.POSException.POSKeyError:
@@ -192,6 +198,7 @@ class DemoStorage(object):
             else:
                 continue
             
+            self._issued_oids[oid] = None
             return oid
 
     def pack(self, t, referencesf, gc=None):
@@ -222,6 +229,11 @@ class DemoStorage(object):
     def store(self, oid, serial, data, version, transaction):
         assert version=='', "versions aren't supported"
 
+        # Since the OID is being used, we don't have to keep up with it any
+        # more.
+        if oid in self._issued_oids:
+            del self._issued_oids[oid]
+
         # See if we already have changes for this oid
         try:
             old = self.changes.load(oid, '')[1]
@@ -239,6 +251,12 @@ class DemoStorage(object):
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
+
+        # Since the OID is being used, we don't have to keep up with it any
+        # more.
+        if oid in self._issued_oids:
+            del self._issued_oids[oid]
+
         try:
             return self.changes.storeBlob(
                 oid, oldserial, data, blobfilename, version, transaction)

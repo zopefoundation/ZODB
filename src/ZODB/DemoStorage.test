@@ -327,3 +327,50 @@ and base options:
     'base.fs'
 
     >>> storage.close()
+
+
+Generating OIDs
+===============
+
+When asked for a new OID DemoStorage randomly chooses a value and then verifies
+that neither the base or changes storages already contain that OID.
+
+Under rare circumstances an OID can be chosen that has already been handed out,
+but which hasn't yet been comitted.  Lets verify that if the same OID is chosen
+twice during a transaction that everything will still work.
+
+First we'll get a single OID.
+
+    >>> import random
+    >>> storage = DemoStorage.push(storage)
+    >>> random.seed(47)
+    >>> storage.new_oid()
+    '\x10\x01\xa6bZ\x12\x98\xa2'
+
+Then we'll force the random number generator to use the same seed for the
+subsequent call to "new_oid" and show that we get a different OID.
+
+    >>> random.seed(47)
+    >>> oid = storage.new_oid()
+    >>> oid
+    'A\xe6\xcb\x06W\xed\xa2\x15'
+
+DemoStorage keeps up with the issued OIDs to know when not to reissue them...
+
+    >>> oid in storage._issued_oids
+    True
+
+...but once data is stored with a given OID...
+
+    >>> t = transaction.begin()
+    >>> storage.tpc_begin(t)
+    >>> tid = storage.store(oid, 0, 'data', '', t)
+
+...there's no need to remember it any longer:
+
+    >>> oid in storage._issued_oids
+    False
+
+We're done with the storage, so "unwrap" the underlying storage.
+
+    >>> storage = storage.pop()
