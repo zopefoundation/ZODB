@@ -58,13 +58,16 @@ class DemoStorage(object):
         self.changes = changes
 
         self._issued_oids = set()
+        self._stored_oids = set()
+
+        self._commit_lock = threading.Lock()
+        self._transaction = None
 
         if name is None:
             name = 'DemoStorage(%r, %r)' % (base.getName(), changes.getName())
         self.__name__ = name
 
         self._copy_methods_from_changes(changes)
-        
 
     def _blobify(self):
         if (self._temporary_changes and
@@ -92,8 +95,7 @@ class DemoStorage(object):
         for meth in (
             '_lock_acquire', '_lock_release', 
             'getSize', 'history', 'isReadOnly', 'registerDB',
-            'sortKey', 'tpc_begin', 'tpc_abort', 'tpc_finish',
-            'tpc_transaction', 'tpc_vote',
+            'sortKey', 'tpc_transaction', 'tpc_vote',
             ):
             setattr(self, meth, getattr(changes, meth))
 
@@ -229,10 +231,12 @@ class DemoStorage(object):
 
     def store(self, oid, serial, data, version, transaction):
         assert version=='', "versions aren't supported"
+        if transaction is not self._transaction:
+            raise ZODB.POSException.StorageTransactionError(self, transaction)
 
         # Since the OID is being used, we don't have to keep up with it any
-        # more.
-        self._issued_oids.discard(oid)
+        # more. Save it now so we can forget it later. :)
+        self._stored_oids.add(oid)
 
         # See if we already have changes for this oid
         try:
@@ -251,18 +255,21 @@ class DemoStorage(object):
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
+        assert version=='', "versions aren't supported"
+        if transaction is not self._transaction:
+            raise ZODB.POSException.StorageTransactionError(self, transaction)
 
         # Since the OID is being used, we don't have to keep up with it any
-        # more.
-        self._issued_oids.discard(oid)
+        # more. Save it now so we can forget it later. :)
+        self._stored_oids.add(oid)
 
         try:
             return self.changes.storeBlob(
-                oid, oldserial, data, blobfilename, version, transaction)
+                oid, oldserial, data, blobfilename, '', transaction)
         except AttributeError:
             if self._blobify():
                 return self.changes.storeBlob(
-                    oid, oldserial, data, blobfilename, version, transaction)
+                    oid, oldserial, data, blobfilename, '', transaction)
             raise
 
     def temporaryDirectory(self):
@@ -272,6 +279,37 @@ class DemoStorage(object):
             if self._blobify():
                 return self.changes.temporaryDirectory()
             raise
+
+    @ZODB.utils.locked
+    def tpc_abort(self, transaction):
+        if transaction is not self._transaction:
+            return
+        self._stored_oids = set()
+        self._transaction = None
+        self.changes.tpc_abort(transaction)
+        self._commit_lock.release()
+
+    @ZODB.utils.locked
+    def tpc_begin(self, transaction, *a, **k):
+        # The tid argument exists to support testing.
+        if transaction is self._transaction:
+            return
+        self._lock_release()
+        self._commit_lock.acquire()
+        self._lock_acquire()
+        self.changes.tpc_begin(transaction, *a, **k)
+        self._transaction = transaction
+        self._stored_oids = set()
+
+    @ZODB.utils.locked
+    def tpc_finish(self, transaction, func = lambda tid: None):
+        if (transaction is not self._transaction):
+            return
+        self._issued_oids.difference_update(self._stored_oids)
+        self._stored_oids = set()
+        self._transaction = None
+        self.changes.tpc_finish(transaction, func)
+        self._commit_lock.release()
 
 _temporary_blobdirs = {}
 def cleanup_temporary_blobdir(

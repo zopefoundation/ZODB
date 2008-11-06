@@ -22,6 +22,15 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+3.9.0a4 (2008-11-04)
+====================
+
+Bug Fixes
+---------
+
+- DemoStorage could sometimes hand out the same new object id more
+  than once.
+
 3.9.0a3 (2008-11-04)
 ====================
 

@@ -128,7 +128,7 @@ def testSomeDelegation():
     ...         print self.name, 'closed'
     ...     sortKey = getSize = __len__ = history = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
-    ...     _lock_acquire = _lock_release = lambda: None
+    ...     _lock_acquire = _lock_release = lambda self: None
     ...     getName = lambda self: 'S'
     ...     isReadOnly = tpc_transaction = None
     ...     supportsUndo = undo = undoLog = undoInfo = None

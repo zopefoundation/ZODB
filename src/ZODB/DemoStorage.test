@@ -365,6 +365,10 @@ DemoStorage keeps up with the issued OIDs to know when not to reissue them...
     >>> t = transaction.begin()
     >>> storage.tpc_begin(t)
     >>> tid = storage.store(oid, 0, 'data', '', t)
+    >>> storage.tpc_vote(t)
+    >>> oid in storage._issued_oids
+    True
+    >>> storage.tpc_finish(t)
 
 ...there's no need to remember it any longer:
 
