@@ -22,6 +22,14 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+3.9.0a5 (2008-11-??)
+====================
+
+New Features
+------------
+
+- Object saves are a little faster
+
 3.9.0a4 (2008-11-06)
 ====================
 

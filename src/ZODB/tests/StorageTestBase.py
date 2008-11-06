@@ -52,7 +52,7 @@ def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
     f = StringIO()
     p = Pickler(f, 1)
-    p.persistent_id = _persistent_id
+    p.inst_persistent_id = _persistent_id
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
     args = None

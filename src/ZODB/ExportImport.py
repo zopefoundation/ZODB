@@ -170,7 +170,7 @@ class ExportImport:
 
             newp = StringIO()
             pickler = Pickler(newp, 1)
-            pickler.persistent_id = persistent_id
+            pickler.inst_persistent_id = persistent_id
 
             pickler.dump(unpickler.load())
             pickler.dump(unpickler.load())

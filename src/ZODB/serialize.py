@@ -173,7 +173,7 @@ class ObjectWriter:
     def __init__(self, obj=None):
         self._file = cStringIO.StringIO()
         self._p = cPickle.Pickler(self._file, 1)
-        self._p.persistent_id = self.persistent_id
+        self._p.inst_persistent_id = self.persistent_id
         self._stack = []
         if obj is not None:
             self._stack.append(obj)
