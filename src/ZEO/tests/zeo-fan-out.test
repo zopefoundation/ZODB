@@ -34,23 +34,16 @@ Then we'll start 2 others that use this one:
 
 Now, let's create some client storages that connect to these:
 
-    >>> import ZEO.ClientStorage
-    >>> cs1 = ZEO.ClientStorage.ClientStorage(('localhost', port1), '1')
-    >>> cs2 = ZEO.ClientStorage.ClientStorage(('localhost', port2), '1')
+    >>> import ZEO, transaction
 
-And some databases and connections around these:
-
-    >>> from ZODB.DB import DB
-    >>> import transaction
-
-    >>> db1 = DB(cs1)
+    >>> db1 = ZEO.DB(('localhost', port1), '1')
     >>> tm1 = transaction.TransactionManager()
     >>> c1 = db1.open(transaction_manager=tm1)
     >>> r1 = c1.root()
     >>> r1
     {}
 
-    >>> db2 = DB(cs2)
+    >>> db2 = ZEO.DB(('localhost', port2), '1')
     >>> tm2 = transaction.TransactionManager()
     >>> c2 = db2.open(transaction_manager=tm2)
     >>> r2 = c2.root()

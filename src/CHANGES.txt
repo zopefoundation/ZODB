@@ -28,6 +28,13 @@ New Features
 New Features
 ------------
 
+- There's a new convenience function, ZEO.DB, for creating databases
+  using ZEO Client Storages.  Just call ZEO.DB with the same arguments
+  you would otherwise pass to ZEO.ClientStorage.ClientStorage::
+
+    import ZEO
+    db = ZEO.DB(('some_host', 8200)) 
+
 - Object saves are a little faster
 
 3.9.0a4 (2008-11-06)
