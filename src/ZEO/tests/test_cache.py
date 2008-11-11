@@ -121,7 +121,7 @@ class CacheTests(unittest.TestCase):
 
     def testEviction(self):
         # Manually override the current maxsize
-        cache = ZEO.cache.ClientCache(None, 3295)
+        cache = ZEO.cache.ClientCache(None, 3395)
 
         # Trivial test of eviction code.  Doesn't test non-current
         # eviction.

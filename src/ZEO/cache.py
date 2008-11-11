@@ -79,7 +79,7 @@ logger = logging.getLogger("ZEO.cache")
 # file's magic number - ZEC3 - indicating zeo cache version 4.  The
 # next eight bytes are the last transaction id.
 
-magic = "ZEC4"
+magic = "ZEC3"
 ZEC_HEADER_SIZE = 12
 
 # After the header, the file contains a contiguous sequence of blocks.  All
@@ -90,7 +90,7 @@ ZEC_HEADER_SIZE = 12
 #       format total block size.
 #
 # 'f'
-#       Free.  The block is free; the next 8 bytes are >Q format total
+#       Free.  The block is free; the next 4 bytes are >I format total
 #       block size.
 #
 # '1', '2', '3', '4'
@@ -107,6 +107,7 @@ ZEC_HEADER_SIZE = 12
 #     8 byte oid
 #     8 byte start_tid
 #     8 byte end_tid
+#     2 byte version length must be 0
 #     4 byte data size
 #     data
 
@@ -203,7 +204,7 @@ class ClientCache(object):
             self.f.write(magic)
             self.f.write(z64)
             # and one free block.
-            self.f.write('f' + pack(">Q", self.maxsize - ZEC_HEADER_SIZE))
+            self.f.write('f' + pack(">I", self.maxsize - ZEC_HEADER_SIZE))
             sync(self.f)
 
         # Statistics:  _n_adds, _n_added_bytes,
@@ -260,18 +261,19 @@ class ClientCache(object):
             seek(ofs)
             status = read(1)
             if status == 'a':
-                size, oid, start_tid, end_tid = unpack(">I8s8s8s", read(28))
-
+                size, oid, start_tid, end_tid, lver = unpack(
+                    ">I8s8s8sH", read(30))
                 if end_tid == z64:
                     assert oid not in current, (ofs, self.f.tell())
                     current[oid] = ofs
                 else:
                     assert start_tid < end_tid, (ofs, self.f.tell())
                     self._set_noncurrent(oid, start_tid, ofs)
+                assert lver == 0, "Versions aren't supported"
                 l += 1
             elif status == 'f':
-                size, = unpack(">Q", read(8))
-            elif status in '12345678':
+                size, = unpack(">I", read(4))
+            elif status in '1234':
                 size = int(status)
             else:
                 raise ValueError("unknown status byte value %s in client "
@@ -362,9 +364,9 @@ class ClientCache(object):
                 self._len -= 1
             else:
                 if status == 'f':
-                    size = unpack(">Q", read(8))[0]
+                    size = unpack(">I", read(4))[0]
                 else:
-                    assert status in '12345678'
+                    assert status in '1234'
                     size = int(status)
             ofs += size
             nbytes -= size
@@ -414,9 +416,10 @@ class ClientCache(object):
         self.f.seek(ofs)
         read = self.f.read
         assert read(1) == 'a', (ofs, self.f.tell(), oid)
-        size, saved_oid, tid, end_tid, ldata = unpack(
-            ">I8s8s8sI", read(32))
+        size, saved_oid, tid, end_tid, lver, ldata = unpack(
+            ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+        assert lver == 0, "Versions aren't supported"
 
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell(), oid, len(data), ldata)
@@ -449,11 +452,12 @@ class ClientCache(object):
         self.f.seek(ofs)
         read = self.f.read
         assert read(1) == 'a', (ofs, self.f.tell(), oid, before_tid)
-        size, saved_oid, saved_tid, end_tid, ldata = unpack(
-            ">I8s8s8sI", read(32))
+        size, saved_oid, saved_tid, end_tid, lver, ldata = unpack(
+            ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
         assert saved_tid == p64(tid), (ofs, self.f.tell(), oid, saved_tid, tid)
         assert end_tid != z64, (ofs, self.f.tell(), oid)
+        assert lver == 0, "Versions aren't supported"
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell())
         assert read(8) == oid, (ofs, self.f.tell(), oid)
@@ -496,7 +500,7 @@ class ClientCache(object):
             if noncurrent_for_oid and (u64(start_tid) in noncurrent_for_oid):
                 return
 
-        size = 41 + len(data)
+        size = 43 + len(data)
 
         # A number of cache simulation experiments all concluded that the
         # 2nd-level ZEO cache got a much higher hit rate if "very large"
@@ -517,10 +521,10 @@ class ClientCache(object):
         # expensive -- it's all a contiguous write.
         if excess == 0:
             extra = ''
-        elif excess < 9:
-            extra = "012345678"[excess]
+        elif excess < 5:
+            extra = "01234"[excess]
         else:
-            extra = 'f' + pack(">Q", excess)
+            extra = 'f' + pack(">I", excess)
 
         ofs = self.currentofs
         seek(ofs)
@@ -529,10 +533,10 @@ class ClientCache(object):
         # Before writing data, we'll write a free block for the space freed.
         # We'll come back with a last atomic write to rewrite the start of the
         # allocated-block header.
-        write('f'+pack(">Q", nfreebytes)+'xxxx')
+        write('f'+pack(">I", nfreebytes))
 
         # Now write the rest of the allocation block header and object data.
-        write(pack(">8s8sI", start_tid, end_tid or z64, len(data)))
+        write(pack(">8s8s8sHI", oid, start_tid, end_tid or z64, 0, len(data)))
         write(data)
         write(oid)
         write(extra)
@@ -540,7 +544,7 @@ class ClientCache(object):
         # Now, we'll go back and rewrite the beginning of the
         # allocated block header.
         seek(ofs)
-        write('a'+pack(">I8s", size, oid))
+        write('a'+pack(">I", size))
 
         if end_tid:
             self._set_noncurrent(oid, start_tid, ofs)
@@ -597,7 +601,7 @@ class ClientCache(object):
         del self.current[oid]
         if tid is None:
             self.f.seek(ofs)
-            self.f.write('f'+pack(">Q", size))
+            self.f.write('f'+pack(">I", size))
             # 0x1E = invalidate (hit, discarding current or non-current)
             self._trace(0x1E, oid, tid)
             self._len -= 1
