@@ -37,6 +37,10 @@ New Features
 
 - Object saves are a little faster
 
+- The previous (ZODB 3.8) ZEO clien-cache format is supported.
+  The newer cache format introduced in ZODB 3.9.0a1 is no-longer
+  supported and cache files are limited to 4G.
+
 3.9.0a4 (2008-11-06)
 ====================
 
