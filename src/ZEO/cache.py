@@ -82,6 +82,12 @@ logger = logging.getLogger("ZEO.cache")
 magic = "ZEC3"
 ZEC_HEADER_SIZE = 12
 
+# Maximum block size. Note that while we are doing a store, we may
+# need to write a free block that is almost twice as big.  If we die
+# in the middle of a store, then we need to split the large free records
+# while opening.
+max_block_size = (1<<31) - 1
+
 # After the header, the file contains a contiguous sequence of blocks.  All
 # blocks begin with a one-byte status indicator:
 #
@@ -203,8 +209,12 @@ class ClientCache(object):
             self.f.seek(0)
             self.f.write(magic)
             self.f.write(z64)
-            # and one free block.
-            self.f.write('f' + pack(">I", self.maxsize - ZEC_HEADER_SIZE))
+            # add as many free blocks as are needed to fill the space
+            nfree = self.maxsize - ZEC_HEADER_SIZE
+            for i in range(0, nfree, max_block_size):
+                block_size = min(max_block_size, nfree-i)
+                self.f.write('f' + pack(">I", block_size))
+                self.f.seek(block_size-5, 1)
             sync(self.f)
 
         # Statistics:  _n_adds, _n_added_bytes,
@@ -273,6 +283,14 @@ class ClientCache(object):
                 l += 1
             elif status == 'f':
                 size, = unpack(">I", read(4))
+                if size > max_block_size:
+                    # Oops, we either have an old cache, or a we
+                    # crashed while storing. Split this block into two.
+                    assert size <= max_block_size*2
+                    seek(ofs+max_block_size)
+                    self.f.write('f'+pack(">I", size-max_block_size))
+                    seek(ofs)
+                    self.f.write('f'+pack(">I", max_block_size))
             elif status in '1234':
                 size = int(status)
             else:
@@ -506,7 +524,7 @@ class ClientCache(object):
         # 2nd-level ZEO cache got a much higher hit rate if "very large"
         # objects simply weren't cached.  For now, we ignore the request
         # only if the entire cache file is too small to hold the object.
-        if size > self.maxsize - ZEC_HEADER_SIZE:
+        if size > min(max_block_size, self.maxsize - ZEC_HEADER_SIZE):
             return
 
         self._n_adds += 1

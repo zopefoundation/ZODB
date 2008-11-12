@@ -18,10 +18,12 @@ from zope.testing import doctest
 import os
 import random
 import string
+import struct
 import sys
 import tempfile
 import unittest
 import ZEO.cache
+import ZODB.tests.util
 import zope.testing.setupstack
 
 import ZEO.cache
@@ -61,17 +63,19 @@ def oid(o):
     return repr_to_oid(repr)
 tid = oid
 
-class CacheTests(unittest.TestCase):
+class CacheTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
         # The default cache size is much larger than we need here.  Since
         # testSerialization reads the entire file into a string, it's not
         # good to leave it that big.
+        ZODB.tests.util.TestCase.setUp(self)
         self.cache = ZEO.cache.ClientCache(size=1024**2)
 
     def tearDown(self):
         if self.cache.path:
             os.remove(self.cache.path)
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def testLastTid(self):
         self.assertEqual(self.cache.getLastTid(), None)
@@ -191,6 +195,35 @@ class CacheTests(unittest.TestCase):
         # If an object cannot be stored in the cache, it must not be
         # recorded as non-current.
         self.assert_(1 not in cache.noncurrent)
+
+    def testVeryLargeCaches(self):
+        cache = ZEO.cache.ClientCache('cache', size=(1<<33))
+        cache.store(n1, n2, None, "x")
+        cache.close()
+        cache = ZEO.cache.ClientCache('cache', size=(1<<33))
+        self.assertEquals(cache.load(n1), ('x', n2))
+        cache.close()
+
+    def testConversionOfLargeFreeBlocks(self):
+        f = open('cache', 'wb')
+        f.write(ZEO.cache.magic+
+                '\0'*8 +
+                'f'+struct.pack(">I", (1<<32)-12)
+                )
+        f.seek((1<<32)-1)
+        f.write('x')
+        f.close()
+        cache = ZEO.cache.ClientCache('cache', size=1<<32)
+        cache.close()
+        cache = ZEO.cache.ClientCache('cache', size=1<<32)
+        cache.close()
+        f = open('cache', 'rb')
+        f.seek(12)
+        self.assertEquals(f.read(1), 'f')
+        self.assertEquals(struct.unpack(">I", f.read(4))[0],
+                          ZEO.cache.max_block_size)
+        f.close()
+        
 
 __test__ = dict(
     kill_does_not_cause_cache_corruption =
