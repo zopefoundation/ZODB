@@ -1417,7 +1417,8 @@ class TransactionIterator(object):
             self._storage._forget_iterator(self._iid)
             raise ZODB.interfaces.StorageStopIteration()
 
-        return ClientStorageTransactionInformation(self._storage, self, *tx_data)
+        return ClientStorageTransactionInformation(
+            self._storage, self, *tx_data)
 
 
 class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):
