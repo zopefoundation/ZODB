@@ -159,9 +159,9 @@ class ClientCache(object):
         #   a temp file will be created)
         self.path = path
 
-        # - `maxsize`:  total size of the cache file, in bytes; this is
-        #   ignored path names an existing file; perhaps we should attempt
-        #   to change the cache size in that case
+        # - `maxsize`:  total size of the cache file
+        #               We set to the minimum size of less than the minimum.
+        size = max(size, ZEC_HEADER_SIZE)
         self.maxsize = size
 
         # The number of records in the cache.
@@ -249,9 +249,10 @@ class ClientCache(object):
         self.current = ZODB.fsIndex.fsIndex()
         self.noncurrent = BTrees.LOBTree.LOBTree()
         l = 0
-        ofs = ZEC_HEADER_SIZE
+        last = ofs = ZEC_HEADER_SIZE
         first_free_offset = 0
         current = self.current
+        status = ' '
         while ofs < fsize:
             seek(ofs)
             status = read(1)
@@ -288,22 +289,23 @@ class ClientCache(object):
                     raise ValueError("unknown status byte value %s in client "
                                      "cache file" % 0, hex(ord(status)))
 
-            if ofs + size >= maxsize:
+            last = ofs
+            ofs += size
+
+            if ofs >= maxsize:
                 # Oops, the file was bigger before.
-                if ofs+size > maxsize:
+                if ofs > maxsize:
                     # The last record is too big. Replace it with a smaller
                     # free record
-                    size = maxsize-ofs
-                    seek(ofs)
+                    size = maxsize-last
+                    seek(last)
                     if size > 4:
                         write('f'+pack(">I", size))
                     else:
                         write("012345"[size])
                     sync(f)
-                ofs += size
+                    ofs = maxsize
                 break
-
-            ofs += size
 
         if fsize < maxsize:
             assert ofs==fsize
@@ -319,7 +321,10 @@ class ClientCache(object):
                 write('f' + pack(">I", block_size))
                 seek(block_size-5, 1)
             sync(self.f)
-            first_free_offset = ofs
+
+            # There is always data to read and 
+            assert last and status in ' f1234'
+            first_free_offset = last
         else:
             assert ofs==maxsize
             if maxsize < fsize:
@@ -551,14 +556,19 @@ class ClientCache(object):
         # 2nd-level ZEO cache got a much higher hit rate if "very large"
         # objects simply weren't cached.  For now, we ignore the request
         # only if the entire cache file is too small to hold the object.
-        if size > min(max_block_size, self.maxsize - ZEC_HEADER_SIZE):
+        if size >= min(max_block_size, self.maxsize - ZEC_HEADER_SIZE):
             return
 
         self._n_adds += 1
         self._n_added_bytes += size
         self._len += 1
 
-        nfreebytes = self._makeroom(size)
+        # In the next line, we ask for an extra to make sure we always
+        # have a free block after the new alocated block.  This free
+        # block acts as a ring pointer, so that on restart, we start
+        # where we left off.
+        nfreebytes = self._makeroom(size+1)
+
         assert size <= nfreebytes, (size, nfreebytes)
         excess = nfreebytes - size
         # If there's any excess (which is likely), we need to record a
