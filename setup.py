@@ -149,7 +149,6 @@ packages = ["BTrees", "BTrees.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
                     "ZODB.scripts",
             "persistent", "persistent.tests",
-            "ZopeUndo", "ZopeUndo.tests",
             ]
 
 def copy_other_files(cmd, outputbase):
