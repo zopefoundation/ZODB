@@ -39,7 +39,8 @@ New Features
 
 - The previous (ZODB 3.8) ZEO client-cache format is supported.
   The newer cache format introduced in ZODB 3.9.0a1 is no-longer
-  supported. Cache files can still be larger than 4G.
+  supported. Cache files can still be larger than 4G.  Cache file
+  sizes can now be changed.
 
 3.9.0a4 (2008-11-06)
 ====================

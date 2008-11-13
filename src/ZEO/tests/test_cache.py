@@ -134,7 +134,7 @@ class CacheTests(ZODB.tests.util.TestCase):
             n = p64(i)
             cache.store(n, n, None, data[i])
             self.assertEquals(len(cache), i + 1)
-        # The cache now uses 3287 bytes.  The next insert
+        # The cache is now almost full.  The next insert
         # should delete some objects.
         n = p64(50)
         cache.store(n, n, None, data[51])
@@ -197,10 +197,10 @@ class CacheTests(ZODB.tests.util.TestCase):
         self.assert_(1 not in cache.noncurrent)
 
     def testVeryLargeCaches(self):
-        cache = ZEO.cache.ClientCache('cache', size=(1<<33))
+        cache = ZEO.cache.ClientCache('cache', size=(1<<32)+(1<<20))
         cache.store(n1, n2, None, "x")
         cache.close()
-        cache = ZEO.cache.ClientCache('cache', size=(1<<33))
+        cache = ZEO.cache.ClientCache('cache', size=(1<<33)+(1<<20))
         self.assertEquals(cache.load(n1), ('x', n2))
         cache.close()
 
@@ -223,6 +223,77 @@ class CacheTests(ZODB.tests.util.TestCase):
         self.assertEquals(struct.unpack(">I", f.read(4))[0],
                           ZEO.cache.max_block_size)
         f.close()
+        
+    def testChangingCacheSize(self):
+        # start with a small cache
+        data = 'x'
+        recsize = ZEO.cache.allocated_record_overhead+len(data)
+
+        for extra in (0, 2, recsize-2):
+
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+100*recsize+extra)
+            for i in range(100):
+                cache.store(p64(i), n1, None, data)
+            self.assertEquals(len(cache), 100)
+            self.assertEquals(os.path.getsize(
+                'cache'), ZEO.cache.ZEC_HEADER_SIZE+100*recsize+extra)
+
+            # Now make it smaller
+            cache.close()
+            small = 50
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+small*recsize+extra)
+            self.assertEquals(len(cache), small)
+            self.assertEquals(os.path.getsize(
+                'cache'), ZEO.cache.ZEC_HEADER_SIZE+small*recsize+extra)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              set(range(small)))
+            for i in range(100, 110):
+                cache.store(p64(i), n1, None, data)
+            self.assertEquals(len(cache), small)
+            expected_oids = set(range(10, 50)+range(100, 110))
+            self.assertEquals(
+                set(u64(oid) for (oid, tid) in cache.contents()),
+                expected_oids)
+
+            # Make sure we can reopen with same size
+            cache.close()
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+small*recsize+extra)
+            self.assertEquals(len(cache), small)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            # Now make it bigger
+            cache.close()
+            large = 150
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+large*recsize+extra)
+            self.assertEquals(len(cache), small)
+            self.assertEquals(os.path.getsize(
+                'cache'), ZEO.cache.ZEC_HEADER_SIZE+large*recsize+extra)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            for i in range(200, 305):
+                cache.store(p64(i), n1, None, data)
+            self.assertEquals(len(cache), large)
+            expected_oids = set(range(10, 50)+range(105, 110)+range(200, 305))
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            # Make sure we can reopen with same size
+            cache.close()
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+large*recsize+extra)
+            self.assertEquals(len(cache), large)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            # Cleanup
+            cache.close()
+            os.remove('cache')
         
 
 __test__ = dict(
