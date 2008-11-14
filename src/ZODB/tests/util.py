@@ -61,3 +61,33 @@ class P(persistent.Persistent):
 
     def __repr__(self):
         return 'P(%s)' % self.name
+
+class MininalTestLayer:
+
+    __bases__ = ()
+    __module__ = ''
+    def __init__(self, name):
+        self.__name__ = name
+
+    def setUp(self):
+        self.here = os.getcwd()
+        self.tmp = tempfile.mkdtemp(self.__name__, dir=os.getcwd())
+        os.chdir(self.tmp)
+
+    def tearDown(self):
+        os.chdir(self.here)
+        zope.testing.setupstack.rmtree(self.tmp)
+
+    testSetUp = testTearDown = lambda self: None
+
+class AAAA_Test_Runner_Hack(unittest.TestCase):
+    """Hack to work around a bug in the test runner.
+
+    The first later (lex sorted) is run first in the foreground
+    """
+
+    layer = MininalTestLayer('!no tests here!')
+
+    def testNothing(self):
+        pass
+

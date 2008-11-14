@@ -1099,10 +1099,13 @@ test_classes = [FileStorageTests, FileStorageRecoveryTests,
 
 def test_suite():
     suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
         tearDown=zope.testing.setupstack.tearDown))
-    suite.addTest(doctest.DocFileSuite('registerDB.test'))
+    suite.addTest(doctest.DocFileSuite(
+        'registerDB.test'
+        ))
     suite.addTest(
         doctest.DocFileSuite('zeo-fan-out.test',
                              setUp=zope.testing.setupstack.setUpDirectory,
@@ -1111,6 +1114,7 @@ def test_suite():
         )
     for klass in test_classes:
         sub = unittest.makeSuite(klass, "check")
+        sub.layer = ZODB.tests.util.MininalTestLayer(klass.__name__)
         suite.addTest(sub)
     return suite
 
