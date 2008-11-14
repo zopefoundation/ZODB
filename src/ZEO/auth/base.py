@@ -18,26 +18,8 @@ Client -- abstract base class for authentication client
 """
 
 import os
-import sys
 
-# In Python 2.6 and onward, the "sha" and "md5" modules have been deprecated
-# in favor of "hashlib".
-if sys.version_info[:2] >= (2,6):
-    def hash(s):
-        import hashlib
-        if not s:
-            return hashlib.sha1()
-        else:
-            return hashlib.sha1(s)
-else:
-    def hash(s):
-        import sha
-        if not s:
-            hash = sha.new()
-            return hash
-        else:
-            hash = sha.new(s)
-            return hash
+import ZEO.hash
 
 class Client:
     # Subclass should override to list the names of methods that
@@ -63,8 +45,7 @@ class Database:
 
     The password file is a simple, colon-separated text file mapping
     usernames to password hashes. The hashes are SHA hex digests
-    produced from the password string. Beyond Python 2.5, the sha
-    module is retrieved from hashlib.
+    produced from the password string.
     """
     realm = None
     def __init__(self, filename, realm=None):

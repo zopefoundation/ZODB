@@ -38,31 +38,12 @@ TODO: I'm not sure if this is a sound approach; SRP would be preferred.
 import os
 import random
 import struct
-import sys
 import time
 
-from ZEO.auth.base import Database, Client
-from ZEO.StorageServer import ZEOStorage
 from ZEO.Exceptions import AuthError
-
-# In Python 2.6 and onward, the "sha" and "md5" modules have been deprecated
-# in favor of "hashlib".
-if sys.version_info[:2] >= (2,6):
-    def hash(s):
-        import hashlib
-        if not s:
-            return hashlib.sha1()
-        else:
-            return hashlib.sha1(s)
-else:
-    def hash(s):
-        import sha
-        if not s:
-            hash = sha.new()
-            return hash
-        else:
-            hash = sha.new(s)
-            return hash
+from ZEO.StorageServer import ZEOStorage
+from ZEO.auth.base import Database, Client
+import ZEO.hash
 
 def get_random_bytes(n=8):
     if os.path.exists("/dev/urandom"):
@@ -76,7 +57,6 @@ def get_random_bytes(n=8):
 
 def hexdigest(s):
     return hash(s).hexdigest()
-
 
 class DigestDatabase(Database):
     def __init__(self, filename, realm=None):
@@ -112,7 +92,7 @@ class StorageClass(ZEOStorage):
     def _get_nonce(self):
         # RFC 2069 recommends a nonce of the form
         # H(client-IP ":" time-stamp ":" private-key)
-        dig = hash
+        dig = hash()
         dig.update(str(self.connection.addr))
         dig.update(self._get_time())
         dig.update(self.noncekey)

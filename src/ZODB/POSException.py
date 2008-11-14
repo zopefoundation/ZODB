@@ -31,9 +31,11 @@ def _recon(class_, state):
     return err
 _recon.__no_side_effects__ = True
 
-class DepError(object):
-    """Allows us to use 'message' property, deprecated by Python 2.6."""
+class POSError(StandardError):
+    """Persistent object system error."""
 
+    # The 'message' attribute was deprecated for BaseException with
+    # Python 2.6; here we create descriptor properties to continue using it
     def __set_message(self, v):
         self.__dict__['message'] = v
 
@@ -44,9 +46,6 @@ class DepError(object):
         del self.__dict__['message']
 
     message = property(__get_message, __set_message, __del_message)
-
-class POSError(DepError, StandardError):
-    """Persistent object system error."""
 
     def __reduce__(self):
         # Cope extra data from internal structures
@@ -63,7 +62,7 @@ class POSKeyError(POSError, KeyError):
         return oid_repr(self.args[0])
 
 
-class ConflictError(DepError, TransactionError):
+class ConflictError(POSError, TransactionError):
     """Two transactions tried to modify the same object at once.
 
     This transaction should be resubmitted.
@@ -227,7 +226,7 @@ class BTreesConflictError(ConflictError):
         return "BTrees conflict error at %d/%d/%d: %s" % (
             self.p1, self.p2, self.p3, self.msgs[self.reason])
 
-class DanglingReferenceError(DepError, TransactionError):
+class DanglingReferenceError(POSError, TransactionError):
     """An object has a persistent reference to a missing object.
 
     If an object is stored and it has a reference to another object
