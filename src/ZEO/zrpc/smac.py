@@ -147,8 +147,8 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # and thus iterator, because it contains a yield statement.
 
         def hack():
-            self.__hmac_send = hmac.HMAC(sesskey, digestmod=hash)
-            self.__hmac_recv = hmac.HMAC(sesskey, digestmod=hash)
+            self.__hmac_send = hmac.HMAC(sesskey, digestmod=sha1)
+            self.__hmac_recv = hmac.HMAC(sesskey, digestmod=sha1)
             if False:
                 yield ''
 

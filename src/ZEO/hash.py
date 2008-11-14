@@ -1,14 +1,12 @@
 ##############################################################################
 #
-# Copyright (c) 2003 Zope Corporation and Contributors.
-# All Rights Reserved.
+# This software is Copyright (c) Zope Corporation (tm) and
+# Contributors. All rights reserved.
 #
-# This software is subject to the provisions of the Zope Public License,
-# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
-# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
-# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE
+# This software consists of contributions made by Zope
+# Corporation and many individuals on behalf of Zope
+# Corporation.  Specific attributions are listed in the
+# accompanying credits file.
 #
 ##############################################################################
 """In Python 2.6, the "sha" and "md5" modules have been deprecated
@@ -19,7 +17,7 @@ import sys
 
 if sys.version_info[:2] >= (2, 6):
     import hashlib
-    hash = hashlib.sha1
+    sha1 = hashlib.sha1
 else:
     import sha
-    hash = sha.new
+    sha1 = sha.new
