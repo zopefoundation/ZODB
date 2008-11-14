@@ -118,7 +118,7 @@ def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
     """
 
     # Store the config info in a temp file.
-    tmpfile = tempfile.mktemp(".conf")
+    tmpfile = tempfile.mktemp(".conf", dir=os.getcwd())
     fp = open(tmpfile, 'w')
     zeo_conf.dump(fp)
     fp.write(storage_conf)
