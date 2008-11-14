@@ -14,10 +14,10 @@
 
 import transaction
 import unittest
+import ZEO.ClientStorage
 import ZODB.config
 import ZODB.POSException
 import ZODB.tests.util
-
 
 class ConfigTestBase(ZODB.tests.util.TestCase):
         
