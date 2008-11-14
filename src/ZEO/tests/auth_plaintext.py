@@ -19,23 +19,33 @@ This mechanism offers *no network security at all*; the only security
 is provided by not storing plaintext passwords on disk.
 """
 
+import sys
+
 # In Python 2.6 and onward, the "sha" and "md5" modules have been deprecated
 # in favor of "hashlib".
-
-import sys
 if sys.version_info[:2] >= (2,6):
-    import hashlib
-    hash = hashlib.sha1
+    def hash(s):
+        import hashlib
+        if not s:
+            return hashlib.sha1()
+        else:
+            return hashlib.sha1(s)
 else:
-    import sha
-    hash = sha
+    def hash(s):
+        import sha
+        if not s:
+            hash = sha.new()
+            return hash
+        else:
+            hash = sha.new()
+            return hash
 
 from ZEO.StorageServer import ZEOStorage
 from ZEO.auth import register_module
 from ZEO.auth.base import Client, Database
 
 def session_key(username, realm, password):
-    return hash.new("%s:%s:%s" % (username, realm, password)).hexdigest()
+    return hash("%s:%s:%s" % (username, realm, password)).hexdigest()
 
 class StorageClass(ZEOStorage):
 
@@ -45,7 +55,7 @@ class StorageClass(ZEOStorage):
         except LookupError:
             return 0
 
-        password_dig = hash.new(password).hexdigest()
+        password_dig = hash(password).hexdigest()
         if dbpw == password_dig:
             self.connection.setSessionKey(session_key(username,
                                                       self.database.realm,

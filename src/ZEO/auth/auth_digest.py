@@ -38,6 +38,7 @@ TODO: I'm not sure if this is a sound approach; SRP would be preferred.
 import os
 import random
 import struct
+import sys
 import time
 
 from ZEO.auth.base import Database, Client
@@ -46,15 +47,22 @@ from ZEO.Exceptions import AuthError
 
 # In Python 2.6 and onward, the "sha" and "md5" modules have been deprecated
 # in favor of "hashlib".
-
-import sys
 if sys.version_info[:2] >= (2,6):
-    import hashlib
-    hash = hashlib.sha1
+    def hash(s):
+        import hashlib
+        if not s:
+            return hashlib.sha1()
+        else:
+            return hashlib.sha1(s)
 else:
-    import sha
-    hash = sha
-
+    def hash(s):
+        import sha
+        if not s:
+            hash = sha.new()
+            return hash
+        else:
+            hash = sha.new(s)
+            return hash
 
 def get_random_bytes(n=8):
     if os.path.exists("/dev/urandom"):
@@ -88,7 +96,7 @@ def session_key(h_up, nonce):
     # HMAC wants a 64-byte key.  We don't want to use h_up
     # directly because it would never change over time.  Instead
     # use the hash plus part of h_up.
-    return hash.new("%s:%s" % (h_up, nonce)).digest() + h_up[:44]
+    return hash("%s:%s" % (h_up, nonce)).digest() + h_up[:44]
 
 class StorageClass(ZEOStorage):
     def set_database(self, database):
@@ -104,7 +112,7 @@ class StorageClass(ZEOStorage):
     def _get_nonce(self):
         # RFC 2069 recommends a nonce of the form
         # H(client-IP ":" time-stamp ":" private-key)
-        dig = hash.sha()
+        dig = hash
         dig.update(str(self.connection.addr))
         dig.update(self._get_time())
         dig.update(self.noncekey)
