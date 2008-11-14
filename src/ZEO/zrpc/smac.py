@@ -31,9 +31,9 @@ try:
     import hmac
 except ImportError:
     import _hmac as hmac
-import sha
 import socket
 import struct
+import sys
 import threading
 import logging
 from types import StringType
@@ -43,6 +43,15 @@ from ZODB.loglevels import TRACE
 from ZEO.zrpc.log import log, short_repr
 from ZEO.zrpc.error import DisconnectedError
 
+# In Python 2.6 and onward, the "sha" and "md5" modules have been deprecated
+# in favor of "hashlib".
+
+if sys.version_info[:2] >= (2,6):
+    import hashlib
+    hash = hashlib.sha1
+else:
+    import sha
+    hash = sha
 
 # Use the dictionary to make sure we get the minimum number of errno
 # entries.   We expect that EWOULDBLOCK == EAGAIN on most systems --
@@ -147,8 +156,8 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # and thus iterator, because it contains a yield statement.
 
         def hack():
-            self.__hmac_send = hmac.HMAC(sesskey, digestmod=sha)
-            self.__hmac_recv = hmac.HMAC(sesskey, digestmod=sha)
+            self.__hmac_send = hmac.HMAC(sesskey, digestmod=hash)
+            self.__hmac_recv = hmac.HMAC(sesskey, digestmod=hash)
             if False:
                 yield ''
 
