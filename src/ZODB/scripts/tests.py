@@ -18,6 +18,7 @@ $Id$
 import unittest
 import re
 from zope.testing import doctest, renormalizing
+import ZODB.tests.util
 
 checker = renormalizing.RENormalizing([
     (re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+'),
@@ -27,5 +28,8 @@ checker = renormalizing.RENormalizing([
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('referrers.txt', 'fstail.txt', checker=checker),
+        doctest.DocFileSuite(
+            'referrers.txt', 'fstail.txt',
+            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            checker=checker),
         ))

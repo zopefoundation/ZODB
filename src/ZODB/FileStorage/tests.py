@@ -13,9 +13,13 @@
 ##############################################################################
 import unittest
 from zope.testing import doctest
+import ZODB.tests.util
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('zconfig.txt'),
+        doctest.DocFileSuite(
+            'zconfig.txt',
+            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            ),
         ))
 
