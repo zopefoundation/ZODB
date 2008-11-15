@@ -18,6 +18,7 @@ $Id$
 
 from ZODB.MappingStorage import DB
 
+import atexit
 import os
 import tempfile
 import time
@@ -74,11 +75,18 @@ class MininalTestLayer:
         self.tmp = tempfile.mkdtemp(self.__name__, dir=os.getcwd())
         os.chdir(self.tmp)
 
+        # sigh. tearDown isn't called when a layer is run in a sub-process.
+        atexit.register(clean, self.tmp)
+
     def tearDown(self):
         os.chdir(self.here)
         zope.testing.setupstack.rmtree(self.tmp)
 
     testSetUp = testTearDown = lambda self: None
+
+def clean(tmp):
+    if os.path.isdir(tmp):
+        zope.testing.setupstack.rmtree(tmp)
 
 class AAAA_Test_Runner_Hack(unittest.TestCase):
     """Hack to work around a bug in the test runner.
