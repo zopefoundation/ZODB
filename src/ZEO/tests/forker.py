@@ -220,10 +220,20 @@ def get_port():
         try:
             try:
                 s.connect(('localhost', port))
+            except socket.error:
+                pass  # Perhaps we should check value of error too.
+            else:
+                continue
+
+            try:
                 s1.connect(('localhost', port+1))
             except socket.error:
-                # Perhaps we should check value of error too.
-                return port
+                pass  # Perhaps we should check value of error too.
+            else:
+                continue
+
+            return port
+
         finally:
             s.close()
             s1.close()
