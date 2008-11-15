@@ -223,6 +223,13 @@ class CacheTests(ZODB.tests.util.TestCase):
         self.assertEquals(struct.unpack(">I", f.read(4))[0],
                           ZEO.cache.max_block_size)
         f.close()
+
+    if not sys.platform.startswith('linux'):
+        # On platforms without sparse files, these tests are just way
+        # too hard on the disk and take too long (especially in a windows
+        # VM).
+        del testVeryLargeCaches
+        del testConversionOfLargeFreeBlocks
         
     def testChangingCacheSize(self):
         # start with a small cache
