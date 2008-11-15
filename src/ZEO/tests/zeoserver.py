@@ -195,7 +195,8 @@ def main():
         log(label, 'creating the test server, keep: %s', keep)
         t = ZEOTestServer(test_addr, server, keep)
     except socket.error, e:
-        if e[0] <> errno.EADDRINUSE: raise
+        if e[0] != errno.EADDRINUSE:
+            raise
         log(label, 'addr in use, closing and exiting')
         storage.close()
         cleanup(storage)

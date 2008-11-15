@@ -224,7 +224,7 @@ class GenericTests(
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
         logger.info("setUp() %s", self.id())
-        port = get_port()
+        port = get_port(self)
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
@@ -310,7 +310,7 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
         """ % tempfile.mktemp(dir='.')
 
     def _new_storage(self):
-        port = get_port()
+        port = get_port(self)
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
@@ -571,7 +571,7 @@ class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         logger.info("setUp() %s", self.id())
-        port = get_port()
+        port = get_port(self)
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
@@ -1091,28 +1091,40 @@ def tpc_finish_error():
     connection closed
     """
 
-test_classes = [FileStorageTests, FileStorageRecoveryTests,
-                MappingStorageTests, DemoStorageTests,
-                BlobAdaptedFileStorageTests, BlobWritableCacheTests,
-                ConfigurationTests,
-                ]
+slow_test_classes = [
+    BlobAdaptedFileStorageTests, BlobWritableCacheTests,
+    DemoStorageTests, FileStorageTests, MappingStorageTests,
+    ]
+    
+quick_test_classes = [FileStorageRecoveryTests, ConfigurationTests]
+
+def setUp(test):
+    ZODB.tests.util.setUp(test)
+    test.globs['get_port'] = lambda : get_port(test)
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
-    suite.addTest(doctest.DocTestSuite(
-        setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown))
-    suite.addTest(doctest.DocFileSuite(
-        'registerDB.test'
-        ))
-    suite.addTest(
-        doctest.DocFileSuite('zeo-fan-out.test',
-                             setUp=zope.testing.setupstack.setUpDirectory,
-                             tearDown=zope.testing.setupstack.tearDown,
-                             ),
+
+    # Collect misc tests into their own layer to educe size of
+    # unit test layer
+    zeo = unittest.TestSuite()
+    zeo.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
+    zeo.addTest(doctest.DocTestSuite(
+        setUp=setUp, tearDown=zope.testing.setupstack.tearDown))
+    zeo.addTest(doctest.DocFileSuite('registerDB.test'))
+    zeo.addTest(
+        doctest.DocFileSuite(
+            'zeo-fan-out.test',
+            setUp=setUp, tearDown=zope.testing.setupstack.tearDown,
+            ),
         )
-    for klass in test_classes:
+    for klass in quick_test_classes:
+        zeo.addTest(unittest.makeSuite(klass, "check"))
+    zeo.layer = ZODB.tests.util.MininalTestLayer('testZeo-misc')
+    suite.addTest(zeo)
+
+    # Put the heavyweights in their own layers
+    for klass in slow_test_classes:
         sub = unittest.makeSuite(klass, "check")
         sub.layer = ZODB.tests.util.MininalTestLayer(klass.__name__)
         suite.addTest(sub)

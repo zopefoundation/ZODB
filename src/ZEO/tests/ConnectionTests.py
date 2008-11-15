@@ -165,7 +165,7 @@ class CommonSetupTearDown(StorageTestBase):
         self.addr.append(self._getAddr())
 
     def _getAddr(self):
-        return 'localhost', forker.get_port()
+        return 'localhost', forker.get_port(self)
 
     def getConfig(self, path, create, read_only):
         raise NotImplementedError

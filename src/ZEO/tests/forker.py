@@ -23,6 +23,7 @@ import logging
 import StringIO
 import tempfile
 import logging
+import zope.testing.setupstack
 
 logger = logging.getLogger('ZEO.tests.forker')
 
@@ -203,7 +204,7 @@ def shutdown_zeo_server(adminaddr):
         logger.debug('shutdown_zeo_server(): acked: %s' % ack)
         s.close()
 
-def get_port():
+def get_port(test=None):
     """Return a port that is not in use.
 
     Checks if a port is in use by trying to connect to it.  Assumes it
@@ -213,6 +214,10 @@ def get_port():
 
     Raises RuntimeError after 10 tries.
     """
+
+    if test is not None:
+        return get_port2(test)
+    
     for i in range(10):
         port = random.randrange(20000, 30000)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -238,3 +243,37 @@ def get_port():
             s.close()
             s1.close()
     raise RuntimeError("Can't find port")
+
+def get_port2(test):
+    for i in range(10):
+        while 1:
+            port = random.randrange(20000, 30000)
+            if port%3 == 0:
+                break
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(('localhost', port+2))
+        except socket.error, e:
+            if e[0] != errno.EADDRINUSE:
+                raise
+            continue
+
+        if not (can_connect(port) or can_connect(port+1)):
+            zope.testing.setupstack.register(test, s.close)
+            return port
+
+        s.close()
+
+    raise RuntimeError("Can't find port")
+
+def can_connect(port):
+    c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        c.connect(('localhost', port))
+    except socket.error:
+        return False  # Perhaps we should check value of error too.
+    else:
+        c.close()
+        return True
+    
