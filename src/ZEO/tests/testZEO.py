@@ -1014,6 +1014,8 @@ def tpc_finish_error():
     ...         self.client = client
     ...     def connect(self, sync=1):
     ...         self.client.notifyConnected(Connection(self.client))
+    ...     def close(self):
+    ...         pass
 
     >>> class StorageServer:
     ...     should_fail = True
@@ -1088,6 +1090,9 @@ def tpc_finish_error():
     ... except: pass
     ... else: print "Should have failed"
     finish
+    connection closed
+
+    >>> cs.close()
     connection closed
     """
 

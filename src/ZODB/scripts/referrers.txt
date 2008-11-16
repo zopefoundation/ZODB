@@ -38,3 +38,6 @@ Now we'll get the storage and compute the referrers:
     >>> referrers[boid] == [(roid, s1), (aoid, s2)]
     True
 
+.. Cleanup
+
+    >>> db.close()

@@ -73,6 +73,7 @@ class CacheTests(ZODB.tests.util.TestCase):
         self.cache = ZEO.cache.ClientCache(size=1024**2)
 
     def tearDown(self):
+        self.cache.close()
         if self.cache.path:
             os.remove(self.cache.path)
         ZODB.tests.util.TestCase.tearDown(self)
