@@ -99,3 +99,53 @@ class IterationTests:
         self.assertEquals(txn_info1.tid, txn_info2.tid)
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
+
+def iterator_sane_after_reconnect():
+    r"""Make sure that iterators are invalidated on disconnect.
+
+Start a server:
+
+    >>> addr, adminaddr = start_server(
+    ...     '<filestorage>\npath fs\n</filestorage>', keep=1)
+
+Open a client storage to it and commit a some transactions:
+
+    >>> import ZEO, transaction
+    >>> db = ZEO.DB(addr)
+    >>> conn = db.open()
+    >>> for i in range(10):
+    ...     conn.root().i = i
+    ...     transaction.commit()
+
+Create an iterator:
+
+    >>> it = conn._storage.iterator()
+    >>> tid1 = it.next().tid
+
+Restart the storage:
+
+    >>> stop_server(adminaddr)
+    >>> wait_disconnected(conn._storage)
+    >>> _ = start_server('<filestorage>\npath fs\n</filestorage>', addr=addr)
+    >>> wait_connected(conn._storage)
+
+Now, we'll create a second iterator:
+
+    >>> it2 = conn._storage.iterator()
+
+If we try to advance the first iterator, we should get an error:
+
+    >>> it.next().tid > tid1
+    Traceback (most recent call last):
+    ...
+    ClientDisconnected: Disconnected iterator
+
+The second iterator should be peachy:
+
+    >>> it2.next().tid == tid1
+    True
+
+Cleanup:
+
+    >>> db.close()
+    """

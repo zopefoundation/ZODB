@@ -624,7 +624,7 @@ class ClientStorage(object):
         self._ready.clear()
         self._server = disconnected_stub
         self._midtxn_disconnect = 1
-        self._iterator_gc()
+        self._iterator_gc(True)
 
     def __len__(self):
         """Return the size of the storage."""
@@ -1380,19 +1380,26 @@ class ClientStorage(object):
         self._iterators.pop(iid, None)
         self._iterator_ids.remove(iid)
 
-    def _iterator_gc(self):
+    def _iterator_gc(self, disconnected=False):
+        if not self._iterator_ids:
+            return
+
+        if disconnected:
+            for i in self._iterators.values():
+                i._iid = -1
+            self._iterators.clear()
+            self._iterator_ids.clear()
+            return
+
         iids = self._iterator_ids - set(self._iterators)
-        try:
-            self._server.iterator_gc(list(iids))
-        except ClientDisconnected:
-            # We could not successfully garbage-collect iterators.
-            # The server might have been restarted, so the IIDs might mean
-            # something different now. We simply forget our unused IIDs to
-            # avoid gc'ing foreign iterators.
-            # In the case that the server was not restarted, we accept the
-            # risk of leaking resources on the ZEO server.
-            pass
-        self._iterator_ids -= iids
+        if iids:
+            try:
+                self._server.iterator_gc(list(iids))
+            except ClientDisconnected:
+                # If we get disconnected, all of the iterators on the
+                # server are thrown away.  We should clear ours too:
+                return self._iterator_gc(True)
+            self._iterator_ids -= iids
 
 
 class TransactionIterator(object):
@@ -1408,6 +1415,9 @@ class TransactionIterator(object):
     def next(self):
         if self._ended:
             raise ZODB.interfaces.StorageStopIteration()
+
+        if self._iid < 0:
+            raise ClientDisconnected("Disconnected iterator")
 
         tx_data = self._storage._server.iterator_next(self._iid)
         if tx_data is None:

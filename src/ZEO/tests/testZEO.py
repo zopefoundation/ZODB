@@ -1103,10 +1103,6 @@ slow_test_classes = [
     
 quick_test_classes = [FileStorageRecoveryTests, ConfigurationTests]
 
-def setUp(test):
-    ZODB.tests.util.setUp(test)
-    test.globs['get_port'] = lambda : get_port(test)
-
 def test_suite():
     suite = unittest.TestSuite()
 
@@ -1115,12 +1111,14 @@ def test_suite():
     zeo = unittest.TestSuite()
     zeo.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
     zeo.addTest(doctest.DocTestSuite(
-        setUp=setUp, tearDown=zope.testing.setupstack.tearDown))
+        setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
+    zeo.addTest(doctest.DocTestSuite(ZEO.tests.IterationTests,
+        setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
     zeo.addTest(doctest.DocFileSuite('registerDB.test'))
     zeo.addTest(
         doctest.DocFileSuite(
-            'zeo-fan-out.test',
-            setUp=setUp, tearDown=zope.testing.setupstack.tearDown,
+            'zeo-fan-out.test', 'zdoptions.test',
+            setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )
     for klass in quick_test_classes:
