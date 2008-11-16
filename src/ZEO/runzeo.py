@@ -124,6 +124,20 @@ class ZEOOptions(ZDOptions, ZEOOptionsMixin):
         self.add("storages", "storages",
                  required="no storages specified; use -f or -C")
 
+    def realize(self, *a, **k):
+        ZDOptions.realize(self, *a, **k)
+        nunnamed = [s for s in self.storages if s.name is None]
+        if nunnamed:
+            if len(nunnamed) > 1:
+                return self.usage("No more than one storage may be unnamed.")
+            if [s for s in self.storages if s.name == '1']:
+                return self.usage(
+                    "Can't have an unnamed storage and a storage named 1.")
+            for s in self.storages:
+                if s.name is None:
+                    s.name = '1'
+                    break
+                
 
 class ZEOServer:
 

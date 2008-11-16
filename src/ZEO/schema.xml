@@ -24,7 +24,7 @@
 
   <section type="runner" name="*" required="no" attribute="runner" />
 
-  <multisection name="+" type="ZODB.storage"
+  <multisection name="*" type="ZODB.storage"
                 attribute="storages"
                 required="yes">
     <description>
