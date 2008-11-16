@@ -23,6 +23,7 @@ import logging
 import StringIO
 import tempfile
 import logging
+import ZODB.tests.util
 import zope.testing.setupstack
 
 logger = logging.getLogger('ZEO.tests.forker')
@@ -108,15 +109,24 @@ def encode_format(fmt):
     return fmt
 
 
-def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
+def start_zeo_server(storage_conf, zeo_conf=None, port=None, keep=False):
     """Start a ZEO server in a separate process.
 
     Takes two positional arguments a string containing the storage conf
     and a ZEOConfig object.
 
-    Returns the ZEO port, the test server port, the pid, and the path
+    Returns the ZEO address, the test server address, the pid, and the path
     to the config file.
     """
+
+    if port is None:
+        raise AssertionError("The port wasn't specified")
+
+    if zeo_conf is None or isinstance(zeo_conf, dict):
+        z = ZEOConfig(('localhost', port))
+        if zeo_conf:
+            z.__dict__.update(zeo_conf)
+        zeo_conf = z
 
     # Store the config info in a temp file.
     tmpfile = tempfile.mktemp(".conf", dir=os.getcwd())
@@ -277,3 +287,67 @@ def can_connect(port):
         c.close()
         return True
     
+def setUp(test):
+    ZODB.tests.util.setUp(test)
+
+    servers = []
+
+    def start_server(storage_conf, zeo_conf=None, port=None, keep=False,
+                     addr=None):
+        """Start a ZEO server.
+
+        Return the server and admin addresses.
+        """
+        if port is None:
+            if addr is None:
+                port = get_port2(test)
+            else:
+                port = addr[1]
+        elif addr is not None:
+            raise TypeError("Can't specify port and addr")
+        addr, adminaddr, _, config_path = start_zeo_server(
+            storage_conf, zeo_conf, port, keep)
+        os.remove(config_path)
+        servers.append(adminaddr)
+        return addr, adminaddr
+
+    test.globs['start_server'] = start_server
+
+    def get_port():
+        return get_port2(test)
+
+    test.globs['get_port'] = get_port
+
+    def stop_server(adminaddr):
+        servers.remove(adminaddr)
+        return shutdown_zeo_server(adminaddr)
+
+    test.globs['stop_server'] = stop_server
+
+    def cleanup_servers():
+        while servers:
+            adminaddr = servers.pop()
+            shutdown_zeo_server(adminaddr)
+
+    zope.testing.setupstack.register(test, cleanup_servers)
+
+    test.globs['wait_connected'] = wait_connected
+    test.globs['wait_disconnected'] = wait_disconnected
+
+def wait_connected(storage):
+    now = time.time()
+    giveup = now + 30
+    while not storage.is_connected():
+        now = time.time()
+        if time.time() > giveup:
+            raise AssertionError("timed out waiting for storage to connect")
+        time.sleep(0.1)
+
+def wait_disconnected(storage):
+    now = time.time()
+    giveup = now + 30
+    while storage.is_connected():
+        now = time.time()
+        if time.time() > giveup:
+            raise AssertionError("timed out waiting for storage to connect")
+        time.sleep(0.1)
