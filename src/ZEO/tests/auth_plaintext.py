@@ -22,7 +22,7 @@ is provided by not storing plaintext passwords on disk.
 from ZEO.StorageServer import ZEOStorage
 from ZEO.auth import register_module
 from ZEO.auth.base import Client, Database
-import ZEO.hash
+from ZEO.hash import sha1
 
 def session_key(username, realm, password):
     return sha1("%s:%s:%s" % (username, realm, password)).hexdigest()

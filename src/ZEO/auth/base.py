@@ -19,7 +19,7 @@ Client -- abstract base class for authentication client
 
 import os
 
-import ZEO.hash
+from ZEO.hash import sha1
 
 class Client:
     # Subclass should override to list the names of methods that

@@ -43,7 +43,7 @@ import time
 from ZEO.Exceptions import AuthError
 from ZEO.StorageServer import ZEOStorage
 from ZEO.auth.base import Database, Client
-import ZEO.hash
+from ZEO.hash import sha1
 
 def get_random_bytes(n=8):
     if os.path.exists("/dev/urandom"):
