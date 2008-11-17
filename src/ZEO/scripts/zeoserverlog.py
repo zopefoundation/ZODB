@@ -372,7 +372,7 @@ def minute(f, slice=16, detail=1, summary=1):
     rs = []
     ss = []
     cs = []
-    aborts = []
+    as = []
     ts = []
     cls = []
 
@@ -392,7 +392,7 @@ def minute(f, slice=16, detail=1, summary=1):
                     rs.append(r)
                     ss.append(s)
                     cs.append(c)
-                    aborts.append(a)
+                    as.append(a)
                     ts.append(c+a)
                 mlast = m
                 r = s = c = a = 0
@@ -417,7 +417,7 @@ def minute(f, slice=16, detail=1, summary=1):
         rs.append(r)
         ss.append(s)
         cs.append(c)
-        aborts.append(a)
+        as.append(a)
         ts.append(c+a)
 
     if summary:
@@ -429,7 +429,7 @@ def minute(f, slice=16, detail=1, summary=1):
         print 'Reads:   \t', '\t'.join(map(str,stats( rs)))
         print 'Stores:  \t', '\t'.join(map(str,stats( ss)))
         print 'Commits: \t', '\t'.join(map(str,stats( cs)))
-        print 'Aborts:  \t', '\t'.join(map(str,stats( aborts)))
+        print 'Aborts:  \t', '\t'.join(map(str,stats( as)))
         print 'Trans:   \t', '\t'.join(map(str,stats( ts)))
 
 def stats(s):
