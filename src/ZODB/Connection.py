@@ -93,8 +93,8 @@ class Connection(ExportImport, object):
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
-        self._normal_storage = self._storage = db._storage
-        self.new_oid = db._storage.new_oid
+        self._normal_storage = self._storage = db.storage
+        self.new_oid = db.storage.new_oid
         self._savepoint_storage = None
 
         # Do we need to join a txn manager?

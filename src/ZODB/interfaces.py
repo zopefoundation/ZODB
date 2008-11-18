@@ -355,6 +355,15 @@ class IDatabase(IStorageDB):
         entry.
         """)
 
+    storage = Attribute(
+        """The object that provides storage for the database
+
+        This attribute is useful primarily for tests.  Normal
+        application code should rarely, if ever, have a need to use
+        this attribute.
+        """)
+    
+
     def open(transaction_manager=None, serial=''):
         """Return an IConnection object for use by application code.
 

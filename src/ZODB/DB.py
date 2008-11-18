@@ -407,7 +407,7 @@ class DB(object):
         self._historical_cache_size_bytes = historical_cache_size_bytes
 
         # Setup storage
-        self._storage = storage
+        self.storage = storage
         self.references = ZODB.serialize.referencesf
         try:
             storage.registerDB(self)
@@ -455,7 +455,7 @@ class DB(object):
         self.history = storage.history
 
     def _setupUndoMethods(self):
-        storage = self._storage
+        storage = self.storage
         try:
             self.supportsUndo = storage.supportsUndo
         except AttributeError:
@@ -470,6 +470,10 @@ class DB(object):
             def undo(*a, **k):
                 raise NotImplementedError
             self.undo = undo
+
+    @property
+    def _storage(self):      # Backward compatibility
+        return self.storage
 
     # This is called by Connection.close().
     def _returnToPool(self, connection):
@@ -614,7 +618,7 @@ class DB(object):
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
         """
-        self._storage.close()
+        self.storage.close()
 
     def getCacheSize(self):
         return self._cache_size
@@ -623,16 +627,16 @@ class DB(object):
         return self._cache_size_bytes
 
     def lastTransaction(self):
-        return self._storage.lastTransaction()
+        return self.storage.lastTransaction()
 
     def getName(self):
-        return self._storage.getName()
+        return self.storage.getName()
 
     def getPoolSize(self):
         return self.pool.size
 
     def getSize(self):
-        return self._storage.getSize()
+        return self.storage.getSize()
 
     def getHistoricalCacheSize(self):
         return self._historical_cache_size
@@ -668,7 +672,7 @@ class DB(object):
         self._connectionMap(lambda c: c.invalidateCache())
 
     def objectCount(self):
-        return len(self._storage)
+        return len(self.storage)
 
     def open(self, transaction_manager=None, at=None, before=None):
         """Return a database Connection for use by application code.
@@ -782,7 +786,7 @@ class DB(object):
             t = time()
         t -= days * 86400
         try:
-            self._storage.pack(t, self.references)
+            self.storage.pack(t, self.references)
         except:
             logger.error("packing", exc_info=True)
             raise
@@ -891,9 +895,9 @@ class ResourceManager(object):
     def __init__(self, db):
         self._db = db
         # Delegate the actual 2PC methods to the storage
-        self.tpc_vote = self._db._storage.tpc_vote
-        self.tpc_finish = self._db._storage.tpc_finish
-        self.tpc_abort = self._db._storage.tpc_abort
+        self.tpc_vote = self._db.storage.tpc_vote
+        self.tpc_finish = self._db.storage.tpc_finish
+        self.tpc_abort = self._db.storage.tpc_abort
 
         # Get a number from a simple thread-safe counter, then
         # increment it, for the purpose of sorting ResourceManagers by
@@ -908,12 +912,12 @@ class ResourceManager(object):
             resource_counter_lock.release()
 
     def sortKey(self):
-        return "%s:%016x" % (self._db._storage.sortKey(), self._count)
+        return "%s:%016x" % (self._db.storage.sortKey(), self._count)
 
     def tpc_begin(self, txn, sub=False):
         if sub:
             raise ValueError("doesn't support sub-transactions")
-        self._db._storage.tpc_begin(txn)
+        self._db.storage.tpc_begin(txn)
 
     # The object registers itself with the txn manager, so the ob
     # argument to the methods below is self.
@@ -932,5 +936,5 @@ class TransactionalUndo(ResourceManager):
 
     def commit(self, ob, t):
         # XXX see XXX in ResourceManager
-        tid, oids = self._db._storage.undo(self._tid, t)
+        tid, oids = self._db.storage.undo(self._tid, t)
         self._db.invalidate(tid, dict.fromkeys(oids, 1))

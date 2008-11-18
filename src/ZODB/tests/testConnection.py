@@ -96,7 +96,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
-        self.assertEquals(self.db._storage._stored, [oid])
+        self.assertEquals(self.db.storage._stored, [oid])
 
     def checkCommit(self):
         obj = StubObject()
@@ -111,8 +111,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         # This next assert_ is covered by an assert in tpc_finish.
         ##self.assert_(not self.datamgr._added)
 
-        self.assertEquals(self.db._storage._stored, [oid])
-        self.assertEquals(self.db._storage._finished, [oid])
+        self.assertEquals(self.db.storage._stored, [oid])
+        self.assertEquals(self.db.storage._finished, [oid])
 
     def checkModifyOnGetstate(self):
         member = StubObject()
@@ -123,7 +123,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.commit(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
-        storage = self.db._storage
+        storage = self.db.storage
         self.assert_(obj._p_oid in storage._stored, "object was not stored")
         self.assert_(subobj._p_oid in storage._stored,
                 "subobject was not stored")
@@ -352,7 +352,7 @@ class UserMethodTests(unittest.TestCase):
 
         An expedient way to create a read-only storage:
 
-        >>> db._storage.isReadOnly = lambda: True
+        >>> db.storage.isReadOnly = lambda: True
         >>> cn = db.open()
         >>> cn.isReadOnly()
         True
@@ -753,7 +753,7 @@ class TestConnectionInterface(unittest.TestCase):
 class StubDatabase:
 
     def __init__(self):
-        self._storage = StubStorage()
+        self.storage = StubStorage()
 
     classFactory = None
     database_name = 'stubdatabase'

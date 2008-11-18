@@ -135,7 +135,7 @@ True
 We can confirm that we have a non-current revision by asking the
 storage.
 
->>> db._storage.isCurrent(r2["a"]._p_oid, r2["a"]._p_serial)
+>>> db.storage.isCurrent(r2["a"]._p_oid, r2["a"]._p_serial)
 False
 
 It's possible to modify "a", but we get a conflict error when we

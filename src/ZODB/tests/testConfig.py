@@ -26,7 +26,7 @@ class ConfigTestBase(ZODB.tests.util.TestCase):
 
     def _test(self, s):
         db = self._opendb(s)
-        self.storage = db._storage
+        self.storage = db.storage
         # Do something with the database to make sure it works
         cn = db.open()
         rt = cn.root()
