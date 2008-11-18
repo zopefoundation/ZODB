@@ -37,13 +37,13 @@ TODO: I'm not sure if this is a sound approach; SRP would be preferred.
 
 import os
 import random
-import sha
 import struct
 import time
 
-from ZEO.auth.base import Database, Client
-from ZEO.StorageServer import ZEOStorage
 from ZEO.Exceptions import AuthError
+from ZEO.StorageServer import ZEOStorage
+from ZEO.auth.base import Database, Client
+from ZEO.hash import sha1
 
 def get_random_bytes(n=8):
     if os.path.exists("/dev/urandom"):
@@ -56,7 +56,7 @@ def get_random_bytes(n=8):
     return s
 
 def hexdigest(s):
-    return sha.new(s).hexdigest()
+    return sha1(s).hexdigest()
 
 class DigestDatabase(Database):
     def __init__(self, filename, realm=None):
@@ -76,7 +76,7 @@ def session_key(h_up, nonce):
     # HMAC wants a 64-byte key.  We don't want to use h_up
     # directly because it would never change over time.  Instead
     # use the hash plus part of h_up.
-    return sha.new("%s:%s" % (h_up, nonce)).digest() + h_up[:44]
+    return sha1("%s:%s" % (h_up, nonce)).digest() + h_up[:44]
 
 class StorageClass(ZEOStorage):
     def set_database(self, database):
@@ -92,7 +92,7 @@ class StorageClass(ZEOStorage):
     def _get_nonce(self):
         # RFC 2069 recommends a nonce of the form
         # H(client-IP ":" time-stamp ":" private-key)
-        dig = sha.sha()
+        dig = sha1()
         dig.update(str(self.connection.addr))
         dig.update(self._get_time())
         dig.update(self.noncekey)

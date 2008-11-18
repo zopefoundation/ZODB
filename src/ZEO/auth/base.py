@@ -18,7 +18,8 @@ Client -- abstract base class for authentication client
 """
 
 import os
-import sha
+
+from ZEO.hash import sha1
 
 class Client:
     # Subclass should override to list the names of methods that
@@ -97,11 +98,11 @@ class Database:
             self.realm = line[len("realm "):]
 
         for line in L:
-            username, hash = line.strip().split(":", 1)
-            self._users[username] = hash.strip()
+            username, hashvar = line.strip().split(":", 1)
+            self._users[username] = hashvar.strip()
 
     def _store_password(self, username, password):
-        self._users[username] = self.hash(password)
+        self._users[username] = self.hash_func(password)
 
     def get_password(self, username):
         """Returns password hash for specified username.
@@ -112,8 +113,8 @@ class Database:
             raise LookupError("No such user: %s" % username)
         return self._users[username]
 
-    def hash(self, s):
-        return sha.new(s).hexdigest()
+    def hash_func(self, s):
+        return sha1(s).hexdigest()
 
     def add_user(self, username, password):
         if self._users.has_key(username):

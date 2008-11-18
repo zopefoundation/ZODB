@@ -17,9 +17,10 @@
 
 from ZODB.fstools import prev_txn
 
+from ZEO.hash import sha1
+
 import binascii
 import getopt
-import sha
 import sys
 
 def main(path, ntxn):
@@ -28,7 +29,7 @@ def main(path, ntxn):
     th = prev_txn(f)
     i = ntxn
     while th and i > 0:
-        hash = sha.sha(th.get_raw_data()).digest()
+        hash = sha1(th.get_raw_data()).digest()
         l = len(str(th.get_timestamp())) + 1
         th.read_meta()
         print "%s: hash=%s" % (th.get_timestamp(),
