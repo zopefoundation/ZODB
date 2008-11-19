@@ -49,7 +49,7 @@ class POSError(StandardError):
 
     message = property(__get_message, __set_message, __del_message)
 
-    if sys.version_info[:2] == (2, 5):
+    if sys.version_info[:2] <= (2, 5):
         def __reduce__(self):
             # Copy extra data from internal structures
             state = self.__dict__.copy()
