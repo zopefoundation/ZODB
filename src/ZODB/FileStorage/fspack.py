@@ -32,6 +32,13 @@ from ZODB.utils import p64, u64, z64
 from ZODB.fsIndex import fsIndex
 from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
+import ZODB.POSException
+import logging
+
+logger = logging.getLogger(__name__)
+
+class PackError(ZODB.POSException.POSError):
+    pass
 
 class PackCopier(FileStorageFormatter):
 
@@ -55,7 +62,7 @@ class PackCopier(FileStorageFormatter):
             if stop_at_pack:
                 if h[16] == 'p':
                     break
-        raise UndoError(None, "Invalid transaction id")
+        raise PackError("Invalid backpointer transaction id")
 
     def _data_find(self, tpos, oid, data):
         # Return backpointer for oid.  Must call with the lock held.
@@ -84,7 +91,8 @@ class PackCopier(FileStorageFormatter):
                 if h.plen != len(data):
                     # The expected data doesn't match what's in the
                     # backpointer.  Something is wrong.
-                    error("Mismatch between data and backpointer at %d", pos)
+                    logger.error("Mismatch between data and backpointer at %d",
+                                 pos)
                     return 0
                 _data = self._file.read(h.plen)
                 if data != _data:

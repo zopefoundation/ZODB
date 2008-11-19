@@ -272,6 +272,9 @@ class InvalidationTests:
         # the actual database state.
 
         expected_keys = []
+        errormsgs = []
+        err = errormsgs.append
+
         for t in threads:
             if not t.added_keys:
                 err("thread %d didn't add any keys" % t.threadnum)
@@ -285,8 +288,6 @@ class InvalidationTests:
                 break
             time.sleep(.1)
         else:
-            errormsgs = []
-            err = errormsgs.append
             err("expected keys != actual keys")
             for k in expected_keys:
                 if k not in actual_keys:

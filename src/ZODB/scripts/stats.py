@@ -101,7 +101,7 @@ def main():
         elif o == '-X':
             heuristic = True
         else:
-            assert False, (o, opt)
+            assert False, (o, opts)
 
     if len(args) != 1:
         usage("exactly one file argument required")

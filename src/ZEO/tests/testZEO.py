@@ -46,6 +46,8 @@ from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
 
 from ZEO.ClientStorage import ClientStorage
 
+from ZEO.zrpc.error import DisconnectedError
+
 import ZEO.zrpc.connection
 
 from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests, \

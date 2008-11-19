@@ -356,7 +356,7 @@ def checkIncreasingTids(fs):
     lasttid = '\0' * 8
     for txn in fs.iterator():
         if lasttid >= txn.tid:
-            raise ValueError("tids out of order %r >= %r" % (lasttid, tid))
+            raise ValueError("tids out of order %r >= %r" % (lasttid, txn.tid))
         lasttid = txn.tid
 
 # Return a TimeStamp object 'minutes' minutes in the future.
