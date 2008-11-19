@@ -1254,6 +1254,8 @@ class ClientStorage(object):
         elif ltid and ltid != utils.z64:
             self._cache.setLastTid(ltid)
 
+        zope.event.notify(ZEO.interfaces.StaleCache(self))
+
         # From this point on, we do not have complete information about
         # the missed transactions.  The reason is that cache
         # verification only checks objects in the client cache and
@@ -1265,7 +1267,6 @@ class ClientStorage(object):
 
         if self._cache and self._drop_cache_rather_verify:
             logger.critical("%s dropping stale cache", self.__name__)
-            zope.event.notify(ZEO.interfaces.CacheDroppedEvent())
             self._cache.clear()
             if ltid:
                 self._cache.setLastTid(ltid)

@@ -14,9 +14,12 @@
 
 import zope.interface
 
-class CacheDroppedEvent(object):
-    """A ZEO Cache file was dropped to avoid verification 
+class StaleCache(object):
+    """A ZEO cache is stale and requires verification. 
     """
+
+    def __init__(self, storage):
+        self.storage = storage
 
 class IServeable(zope.interface.Interface):
     """Interface provided by storages that can be served by ZEO
