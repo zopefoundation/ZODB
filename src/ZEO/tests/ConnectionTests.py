@@ -104,7 +104,6 @@ class CommonSetupTearDown(StorageTestBase):
         logging.info("setUp() %s", self.id())
         self.file = 'storage_conf'
         self.addr = []
-        self._pids = []
         self._servers = []
         self.conf_paths = []
         self.caches = []
@@ -133,10 +132,6 @@ class CommonSetupTearDown(StorageTestBase):
         for adminaddr in self._servers:
             if adminaddr is not None:
                 forker.shutdown_zeo_server(adminaddr)
-        if hasattr(os, 'waitpid'):
-            # Not in Windows Python until 2.3
-            for pid in self._pids:
-                os.waitpid(pid, 0)
         for c in self.caches:
             for i in 0, 1:
                 for ext in "", ".trace", ".lock":
@@ -219,7 +214,6 @@ class CommonSetupTearDown(StorageTestBase):
         zeoport, adminaddr, pid, path = forker.start_zeo_server(
             sconf, zconf, addr[1], keep)
         self.conf_paths.append(path)
-        self._pids.append(pid)
         self._servers.append(adminaddr)
 
     def shutdownServer(self, index=0):
