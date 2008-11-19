@@ -242,7 +242,8 @@ class ClientCache(object):
         write = f.write
         seek(0)
         if read(4) != magic:
-            raise ValueError("unexpected magic number: %r" % magic)
+            seek(0)
+            raise ValueError("unexpected magic number: %r" % read(4))
         self.tid = read(8)
         if len(self.tid) != 8:
             raise ValueError("cache file too small -- no tid at start")

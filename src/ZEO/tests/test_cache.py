@@ -481,6 +481,14 @@ __test__ = dict(
     >>> logger.removeHandler(handler)
 
     >>> cache.close()
+    """,
+    bad_magic_number =
+    r"""
+    >>> open('cache', 'w').write("Hi world!")
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    Traceback (most recent call last):
+    ...
+    ValueError: unexpected magic number: 'Hi w'
     """
     )
 
