@@ -19,6 +19,7 @@ import sys
 import time
 import errno
 import socket
+import subprocess
 import logging
 import StringIO
 import tempfile
@@ -60,39 +61,14 @@ class ZEOConfig:
             print >> f, "authentication-realm", self.authentication_realm
         print >> f, "</zeo>"
 
-        logger = logging.getLogger()
-        print >> f
-        print >> f, "<eventlog>"
-        print >> f, "level", logger.level
-        for handler in logger.handlers:
-            if isinstance(handler, logging.FileHandler):
-                path = handler.baseFilename
-            elif isinstance(handler, logging.StreamHandler):
-                stream = handler.stream
-                if stream.name == "<stdout>":
-                    path = "STDOUT"
-                elif stream.name == "<stderr>":
-                    path = "STDERR"
-                else:
-                    # just drop it on the floor; unlikely an issue when testing
-                    continue
-            else:
-                # just drop it on the floor; unlikely an issue when testing
-                continue
-            # This doesn't convert the level values to names, so the
-            # generated configuration isn't as nice as it could be,
-            # but it doesn't really need to be.
-            print >> f, "<logfile>"
-            print >> f, "level", handler.level
-            print >> f, "path ", path
-            if handler.formatter:
-                formatter = handler.formatter
-                if formatter._fmt:
-                    print >> f, "format", encode_format(formatter._fmt)
-                if formatter.datefmt:
-                    print >> f, "dateformat", encode_format(formatter.datefmt)
-            print >> f, "</logfile>"
-        print >> f, "</eventlog>"
+        print >> f, """
+        <eventlog>
+          level INFO
+          <logfile>
+             path server-%s.log
+          </logfile>
+        </eventlog>
+        """ % self.address[1]
 
     def __str__(self):
         f = StringIO.StringIO()
@@ -109,7 +85,8 @@ def encode_format(fmt):
     return fmt
 
 
-def start_zeo_server(storage_conf, zeo_conf=None, port=None, keep=False):
+def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
+                     path='Data.fs'):
     """Start a ZEO server in a separate process.
 
     Takes two positional arguments a string containing the storage conf
@@ -118,6 +95,9 @@ def start_zeo_server(storage_conf, zeo_conf=None, port=None, keep=False):
     Returns the ZEO address, the test server address, the pid, and the path
     to the config file.
     """
+
+    if not storage_conf:
+        storage_conf = '<filestorage>\npath %s\n</filestorage>' % path
 
     if port is None:
         raise AssertionError("The port wasn't specified")
@@ -148,7 +128,9 @@ def start_zeo_server(storage_conf, zeo_conf=None, port=None, keep=False):
         args.append("-k")
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
-    pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
+
+    pid = subprocess.Popen(args, env=d, close_fds=True).pid
+
     adminaddr = ('localhost', port + 1)
     # We need to wait until the server starts, but not forever.
     # 30 seconds is a somewhat arbitrary upper bound.  A BDBStorage
@@ -292,7 +274,7 @@ def setUp(test):
 
     servers = []
 
-    def start_server(storage_conf, zeo_conf=None, port=None, keep=False,
+    def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
                      addr=None):
         """Start a ZEO server.
 
