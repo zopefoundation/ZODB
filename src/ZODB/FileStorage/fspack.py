@@ -24,6 +24,7 @@ from the revision of the root at that time or if it is reachable from
 a backpointer after that time.
 """
 
+import logging
 import os
 
 from ZODB.serialize import referencesf
@@ -32,6 +33,10 @@ from ZODB.utils import p64, u64, z64
 from ZODB.fsIndex import fsIndex
 from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
+
+from ZODB.POSException import UndoError
+
+logger = logging.getLogger('ZODB.FileStorage.fspack')
 
 class PackCopier(FileStorageFormatter):
 
@@ -84,7 +89,8 @@ class PackCopier(FileStorageFormatter):
                 if h.plen != len(data):
                     # The expected data doesn't match what's in the
                     # backpointer.  Something is wrong.
-                    error("Mismatch between data and backpointer at %d", pos)
+                    logger.error(
+                        "Mismatch between data and backpointer at %d", pos)
                     return 0
                 _data = self._file.read(h.plen)
                 if data != _data:

@@ -235,7 +235,8 @@ class ClientCache(object):
         seek = f.seek
         write = f.write
         seek(0)
-        if read(4) != magic:
+        _magic = read(4)
+        if _magic != magic:
             raise ValueError("unexpected magic number: %r" % _magic)
         self.tid = read(8)
         if len(self.tid) != 8:

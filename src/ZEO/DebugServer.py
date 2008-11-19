@@ -13,6 +13,7 @@
 ##############################################################################
 """A debugging version of the server that records network activity."""
 
+from errno import ECONNRESET, ENOTCONN, ESHUTDOWN
 import struct
 import time
 import socket

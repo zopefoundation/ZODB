@@ -134,6 +134,7 @@ def main(path=None):
     classes = {} # class -> list of oids
 
     MAX = 0
+    objects = 0
     tid = None
 
     f = open(path, "rb")
