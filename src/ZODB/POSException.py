@@ -15,6 +15,8 @@
 
 $Id$"""
 
+import sys
+
 from ZODB.utils import oid_repr, readable_tid_repr
 
 # BBB: We moved the two transactions to the transaction package
@@ -47,14 +49,14 @@ class POSError(StandardError):
 
     message = property(__get_message, __set_message, __del_message)
 
-    if sys.version_info[:2] <= (2, 5):
+    if sys.version_info[:2] == (2, 5):
         def __reduce__(self):
             # Copy extra data from internal structures
             state = self.__dict__.copy()
             state['message'] = self.message
             state['args'] = self.args
 
-        return (_recon, (self.__class__, state))
+            return (_recon, (self.__class__, state))
 
 class POSKeyError(POSError, KeyError):
     """Key not found in database."""
