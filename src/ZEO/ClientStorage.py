@@ -19,7 +19,19 @@ ClientStorage -- the main class, implementing the Storage API
 
 """
 
+from persistent.TimeStamp import TimeStamp
+from ZEO.auth import get_module
+from ZEO.cache import ClientCache
+from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
+from ZEO import ServerStub
+from ZEO.TransactionBuffer import TransactionBuffer
+from ZEO.zrpc.client import ConnectionManager
+from ZODB.blob import rename_or_copy_blob
+from ZODB import POSException
+from ZODB import utils
+from ZODB.loglevels import BLATHER
 import cPickle
+import logging
 import os
 import socket
 import stat
@@ -28,24 +40,13 @@ import tempfile
 import threading
 import time
 import types
-import logging
 import weakref
-
-import zope.interface
-from ZEO import ServerStub
-from ZEO.cache import ClientCache
-from ZEO.TransactionBuffer import TransactionBuffer
-from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
-from ZEO.auth import get_module
-from ZEO.zrpc.client import ConnectionManager
-
-import ZODB.interfaces
 import zc.lockfile
+import ZEO.interfaces
 import ZODB.BaseStorage
-from ZODB import POSException
-from ZODB import utils
-from ZODB.blob import rename_or_copy_blob
-from persistent.TimeStamp import TimeStamp
+import ZODB.interfaces
+import zope.event
+import zope.interface
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class ClientStorage(object):
 
     def __init__(self, addr, storage='1', cache_size=20 * MB,
                  name='', client=None, debug=0, var=None,
-                 min_disconnect_poll=5, max_disconnect_poll=300,
+                 min_disconnect_poll=1, max_disconnect_poll=30,
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
@@ -223,12 +224,6 @@ class ClientStorage(object):
             logger.warning(
                 "%s ClientStorage(): debug argument is no longer used",
                 self.__name__)
-            
-        # Remember some parameters for "_setupCache"
-        self._var_ = var
-        self._storage_ = storage
-        self._client_ = client
-        self._cache_size_ = cache_size
 
         self._drop_cache_rather_verify = drop_cache_rather_verify
 
@@ -357,7 +352,13 @@ class ClientStorage(object):
         else:
             self.fshelper = None
 
-        self._setupCache()
+        if client is not None:
+            dir = var or os.getcwd()
+            cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
+        else:
+            cache_path = None
+
+        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,
@@ -371,19 +372,6 @@ class ClientStorage(object):
             # doesn't succeed, call connect() to start a thread.
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
-
-    def _setupCache(self):
-        '''create and open the cache.'''
-        # Decide whether to use non-temporary files
-        storage = self._storage_
-        client = self._client_
-        cache_size = self._cache_size_
-        if client is not None:
-            dir = self._var_ or os.getcwd()
-            cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
-        else:
-            cache_path = None
-        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
 
     def _wait(self, timeout=None):
         if timeout is not None:
@@ -1276,11 +1264,12 @@ class ClientStorage(object):
             self._db.invalidateCache()
 
         if self._cache and self._drop_cache_rather_verify:
-            logger.info("%s dropping cache", self.__name__)
-            self._cache.close()
-            self._setupCache() # creates a new cache
-            self._server = server
-            self._ready.set()
+            logger.critical("%s dropping stale cache", self.__name__)
+            zope.event.notify(ZEO.interfaces.CacheDroppedEvent())
+            self._cache.clear()
+            if ltid:
+                self._cache.setLastTid(ltid)
+            self.finish_verification()
             return "cache dropped"
 
         logger.info("%s Verifying cache", self.__name__)

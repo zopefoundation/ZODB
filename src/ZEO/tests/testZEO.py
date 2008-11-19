@@ -148,35 +148,8 @@ class MiscZEOTests:
         self.assertNotEquals(ZODB.utils.z64, storage3.lastTransaction())
         storage3.close()
 
-    def checkDropCacheRatherVerifyImplementation(self):
-        # As it is quite difficult to set things up such that the verification
-        # optimizations do not step in, we emulate both the cache
-        # as well as the server.
-        from ZODB.TimeStamp import TimeStamp
-        class CacheEmulator(object):
-            # the settings below would be inconsitent for a normal cache
-            # but they are sufficient for our test setup
-            def __len__(self): return 1 # claim not to be empty
-            def contents(self): return () # do not invalidate anything
-            def getLastTid(self): return
-            def close(self): pass
-        class ServerEmulator(object):
-            def verify(*unused): pass
-            def endZeoVerify(*unused): pass
-            def lastTransaction(*unused): pass
-        storage = self._storage
-        storage._cache = cache = CacheEmulator()
-        server = ServerEmulator()
-        # test the standard behaviour
-        self.assertEqual(storage.verify_cache(server), "full verification")
-        # test the "drop cache rather verify" behaviour
-        storage._drop_cache_rather_verify = True
-        self.assertEqual(storage.verify_cache(server), "cache dropped")
-        # verify that we got a new cache
-        self.assert_(cache != storage._cache)
-
-
 class ConfigurationTests(unittest.TestCase):
+
     def checkDropCacheRatherVerifyConfiguration(self):
         from ZODB.config import storageFromString
         # the default is to do verification and not drop the cache
@@ -1118,6 +1091,7 @@ def test_suite():
     zeo.addTest(
         doctest.DocFileSuite(
             'zeo-fan-out.test', 'zdoptions.test',
+            'drop_cache_rather_than_verify.txt',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )
