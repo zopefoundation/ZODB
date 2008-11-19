@@ -231,6 +231,20 @@ class CacheTests(ZODB.tests.util.TestCase):
         # VM).
         del testVeryLargeCaches
         del testConversionOfLargeFreeBlocks
+
+    def test_clear_zeo_cache(self):
+        cache = self.cache
+        for i in range(10):
+            cache.store(p64(i), n2, None, str(i))
+            cache.store(p64(i), n1, n2, str(i)+'old')
+        self.assertEqual(len(cache), 20)
+        self.assertEqual(cache.load(n3), ('3', n2))
+        self.assertEqual(cache.loadBefore(n3, n2), ('3old', n1, n2))
+
+        cache.clear()
+        self.assertEqual(len(cache), 0)
+        self.assertEqual(cache.load(n3), None)
+        self.assertEqual(cache.loadBefore(n3, n2), None)
         
     def testChangingCacheSize(self):
         # start with a small cache

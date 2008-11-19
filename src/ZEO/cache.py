@@ -208,7 +208,7 @@ class ClientCache(object):
             self.f.write(magic+z64)
             logger.info("created temporary cache file %r", self.f.name)
             
-        self._initfile(self.f, fsize)
+        self._initfile(fsize)
 
         # Statistics:  _n_adds, _n_added_bytes,
         #              _n_evicts, _n_evicted_bytes,
@@ -225,18 +225,24 @@ class ClientCache(object):
     def fc(self):
         return self
 
+    def clear(self):
+        self.f.seek(ZEC_HEADER_SIZE)
+        self.f.truncate()
+        self._initfile(ZEC_HEADER_SIZE)
+
     ##
     # Scan the current contents of the cache file, calling `install`
     # for each object found in the cache.  This method should only
     # be called once to initialize the cache from disk.
-    def _initfile(self, f, fsize):
+    def _initfile(self, fsize):
         maxsize = self.maxsize
+        f = self.f
         read = f.read
         seek = f.seek
         write = f.write
         seek(0)
         if read(4) != magic:
-            raise ValueError("unexpected magic number: %r" % _magic)
+            raise ValueError("unexpected magic number: %r" % magic)
         self.tid = read(8)
         if len(self.tid) != 8:
             raise ValueError("cache file too small -- no tid at start")
