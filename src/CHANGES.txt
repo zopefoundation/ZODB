@@ -28,6 +28,11 @@ New Features
 New Features
 ------------
 
+- When a ZEO cache is stale and would need verification, a
+  ZEO.interfaces.StaleCache event is published (to zope.event).
+  Applications may handle this event and take action such as exiting
+  the application without verifying the cache or starting cold.
+
 - There's a new convenience function, ZEO.DB, for creating databases
   using ZEO Client Storages.  Just call ZEO.DB with the same arguments
   you would otherwise pass to ZEO.ClientStorage.ClientStorage::
@@ -51,6 +56,9 @@ Bug Fixes
 
 - ZEO client transaction iterators weren't properly handled after on
   disconnects.
+
+- The code to drop a ZEO client cache rather than verifying didn't
+  drop it and didn't leave the client storage in a valid state.
 
 3.9.0a4 (2008-11-06)
 ====================
