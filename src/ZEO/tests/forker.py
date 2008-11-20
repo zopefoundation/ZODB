@@ -190,8 +190,6 @@ def shutdown_zeo_server(adminaddr):
         try:
             ack = s.recv(1024)
         except socket.error, e:
-            if e[0] == errno.ECONNRESET:
-                raise
             ack = 'no ack received'
         logger.debug('shutdown_zeo_server(): acked: %s' % ack)
         s.close()
