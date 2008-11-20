@@ -36,20 +36,21 @@ _recon.__no_side_effects__ = True
 class POSError(StandardError):
     """Persistent object system error."""
 
-    # The 'message' attribute was deprecated for BaseException with
-    # Python 2.6; here we create descriptor properties to continue using it
-    def __set_message(self, v):
-        self.__dict__['message'] = v
+    if sys.version_info[:2] == (2, 6):
+        # The 'message' attribute was deprecated for BaseException with
+        # Python 2.6; here we create descriptor properties to continue using it
+        def __set_message(self, v):
+            self.__dict__['message'] = v
 
-    def __get_message(self):
-        return self.__dict__['message']
+        def __get_message(self):
+            return self.__dict__['message']
 
-    def __del_message(self):
-        del self.__dict__['message']
+        def __del_message(self):
+            del self.__dict__['message']
 
-    message = property(__get_message, __set_message, __del_message)
+        message = property(__get_message, __set_message, __del_message)
 
-    if sys.version_info[:2] <= (2, 5):
+    if sys.version_info[:2] == (2, 5):
         def __reduce__(self):
             # Copy extra data from internal structures
             state = self.__dict__.copy()
