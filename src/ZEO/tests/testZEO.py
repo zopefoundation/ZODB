@@ -1071,6 +1071,62 @@ def tpc_finish_error():
     connection closed
     """
 
+def client_has_newer_data_than_server():
+    """It is bad if a client has newer data than the server.
+
+    >>> db = ZODB.DB('Data.fs')
+    >>> db.close()
+    >>> shutil.copyfile('Data.fs', 'Data.save')
+    >>> addr, admin = start_server(keep=1)
+    >>> db = ZEO.DB(addr, name='client', max_disconnect_poll=.01)
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x = 1
+    >>> transaction.commit()
+
+    OK, we've added some data to the storage and the client cache has
+    the new data. Now, we'll stop the server, put back the old data, and
+    see what happens. :)
+
+    >>> stop_server(admin)
+    >>> shutil.copyfile('Data.save', 'Data.fs')
+
+    >>> import zope.testing.loggingsupport
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...     'ZEO', level=logging.ERROR)
+    >>> formatter = logging.Formatter('%(name)s %(levelname)s %(message)s')
+
+    >>> _, admin = start_server(addr=addr)
+
+    >>> for i in range(1000):
+    ...     while len(handler.records) < 5:
+    ...           time.sleep(.01)
+
+    >>> db.close()
+    >>> for record in handler.records[:5]:
+    ...     print formatter.format(record)
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    ZEO.ClientStorage CRITICAL client
+    Client has seen newer transactions than server!
+    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('localhost', ...))
+    Traceback (most recent call last):
+    ...
+    ClientStorageError: client Client has seen newer transactions than server!
+    ZEO.ClientStorage CRITICAL client
+    Client has seen newer transactions than server!
+    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('localhost', ...))
+    Traceback (most recent call last):
+    ...
+    ClientStorageError: client Client has seen newer transactions than server!
+    ...
+
+    Note that the errors repeat because the client keeps on trying to connect.
+
+    >>> handler.uninstall()
+    >>> stop_server(admin)
+    
+    """
+
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     DemoStorageTests, FileStorageTests, MappingStorageTests,

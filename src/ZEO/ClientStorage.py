@@ -1233,9 +1233,9 @@ class ClientStorage(object):
                 self.finish_verification()
                 return "no verification"
             elif ltid < last_inval_tid:
-                logger.critical(
-                    "%s Client has seen newer transactions than server!",
-                    self.__name__)
+                message = ("%s Client has seen newer transactions than server!"
+                           % self.__name__)
+                logger.critical(message)
                 raise ClientStorageError(message)
 
             # log some hints about last transaction
