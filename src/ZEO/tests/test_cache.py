@@ -485,10 +485,9 @@ __test__ = dict(
     bad_magic_number =
     r"""
     >>> open('cache', 'w').write("Hi world!")
-    >>> cache = ZEO.cache.ClientCache('cache', 1000)
-    Traceback (most recent call last):
-    ...
-    ValueError: unexpected magic number: 'Hi w'
+    >>> try: cache = ZEO.cache.ClientCache('cache', 1000)
+    ... except Exception, v: print v
+    unexpected magic number: 'Hi w'
     """
     )
 
