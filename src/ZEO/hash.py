@@ -24,3 +24,4 @@ if sys.version_info[:2] >= (2, 6):
 else:
     import sha
     sha1 = sha.new
+    new = sha1
