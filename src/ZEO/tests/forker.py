@@ -129,7 +129,10 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
 
-    pid = subprocess.Popen(args, env=d, close_fds=True).pid
+    if sys.platform.startswith('win'):
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
+    else:
+        pid = subprocess.Popen(args, env=d, close_fds=True).pid
 
     adminaddr = ('localhost', port + 1)
     # We need to wait until the server starts, but not forever.
@@ -270,7 +273,7 @@ def can_connect(port):
 def setUp(test):
     ZODB.tests.util.setUp(test)
 
-    servers = []
+    servers = {}
 
     def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
                      addr=None):
@@ -285,10 +288,10 @@ def setUp(test):
                 port = addr[1]
         elif addr is not None:
             raise TypeError("Can't specify port and addr")
-        addr, adminaddr, _, config_path = start_zeo_server(
+        addr, adminaddr, pid, config_path = start_zeo_server(
             storage_conf, zeo_conf, port, keep)
         os.remove(config_path)
-        servers.append(adminaddr)
+        servers[adminaddr] = pid
         return addr, adminaddr
 
     test.globs['start_server'] = start_server
@@ -299,15 +302,15 @@ def setUp(test):
     test.globs['get_port'] = get_port
 
     def stop_server(adminaddr):
-        servers.remove(adminaddr)
-        return shutdown_zeo_server(adminaddr)
+        pid = servers.pop(adminaddr)
+        shutdown_zeo_server(adminaddr)
+        os.waitpid(pid, 0)
 
     test.globs['stop_server'] = stop_server
 
     def cleanup_servers():
-        while servers:
-            adminaddr = servers.pop()
-            shutdown_zeo_server(adminaddr)
+        for adminaddr in list(servers):
+            stop_server(adminaddr)
 
     zope.testing.setupstack.register(test, cleanup_servers)
 
