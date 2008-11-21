@@ -26,3 +26,4 @@ else:
     import sha
     sha1 = sha.new
     new = sha1
+    digest_size = sha.digest_size
