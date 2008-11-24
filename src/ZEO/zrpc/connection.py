@@ -346,15 +346,15 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z308"
+    current_protocol = "Z309"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
-    servers_we_can_talk_to = [current_protocol]
+    servers_we_can_talk_to = ["Z308", current_protocol]
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", "Z303", current_protocol]
+    clients_we_can_talk_to = ["Z200", "Z201", "Z303", "Z308", current_protocol]
 
     # This is pretty excruciating.  Details:
     #
