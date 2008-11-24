@@ -35,6 +35,21 @@
         raised.
       </description>
     </key>
+    <key name="packer" datatype="dotted-name">
+      <description>
+        The dotten name (dotten module name and object name) of a
+        packer object.  This is used to provide an alternative pack
+        implementation.
+      </description>
+    </key>
+    <key name="pack-gc" datatype="boolean" default="true">
+      <description>
+         If false, then no garbage collection will be performed when
+         packing.  This can make packing go much faster and can avoid
+         problems when objects are referenced only from other
+         databases.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
@@ -174,9 +189,8 @@
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
                implements="ZODB.storage">
-    <key name="name" default="Demo Storage"/>
-    <section type="ZODB.storage" name="*" attribute="base"/>
-    <key name="quota" datatype="integer"/>
+    <key name="name" />
+    <multisection type="ZODB.storage" name="*" attribute="factories" />
   </sectiontype>
 
 

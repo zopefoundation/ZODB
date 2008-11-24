@@ -23,11 +23,10 @@ Set up:
     >>> from persistent.mapping import PersistentMapping
     >>> import shutil
     >>> import transaction
-    >>> from tempfile import mkdtemp, mktemp
-    >>> storagefile1 = mktemp()
-    >>> blob_dir1 = mkdtemp()
-    >>> storagefile2 = mktemp()
-    >>> blob_dir2 = mkdtemp()
+    >>> storagefile1 = 'Data.fs.1'
+    >>> blob_dir1 = 'blobs1'
+    >>> storagefile2 = 'Data.fs.2'
+    >>> blob_dir2 = 'blobs2'
 
 We need an database with an undoing blob supporting storage:
 
@@ -62,7 +61,7 @@ Export our blobs from a database1 connection:
 
     >>> conn = root1['blobdata']._p_jar
     >>> oid = root1['blobdata']._p_oid
-    >>> exportfile = mktemp()
+    >>> exportfile = 'export'
     >>> nothing = connection1.exportFile(oid, exportfile)
 
 Import our exported data into database2:

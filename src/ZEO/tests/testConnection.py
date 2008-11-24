@@ -22,6 +22,7 @@ import unittest
 # Import the actual test class
 from ZEO.tests import ConnectionTests, InvalidationTests
 from zope.testing import doctest, setupstack
+import ZODB.tests.util
 
 class FileStorageConfig:
     def getConfig(self, path, create, read_only):
@@ -139,6 +140,7 @@ def test_suite():
         'invalidations_while_connecting.test',
         setUp=setupstack.setUpDirectory, tearDown=setupstack.tearDown,
         ))
+    suite.layer = ZODB.tests.util.MininalTestLayer('ZEO Connection Tests')
     return suite
 
 

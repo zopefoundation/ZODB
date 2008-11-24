@@ -17,38 +17,38 @@ import base64
 import os
 import random
 import sys
-import tempfile
 import unittest
 import StringIO
 
 import ZODB
+import ZODB.tests.util
 from ZODB.FileStorage import FileStorage
 import ZODB.fsrecover
 
 from persistent.mapping import PersistentMapping
 import transaction
 
-class RecoverTest(unittest.TestCase):
+class RecoverTest(ZODB.tests.util.TestCase):
 
     level = 2
 
     path = None
 
     def setUp(self):
-        self.path = tempfile.mktemp(suffix=".fs")
+        ZODB.tests.util.TestCase.setUp(self)
+        self.path = 'source.fs'
         self.storage = FileStorage(self.path)
         self.populate()
-        self.dest = tempfile.mktemp(suffix=".fs")
+        self.dest = 'dest.fs'
         self.recovered = None
 
     def tearDown(self):
         self.storage.close()
         if self.recovered is not None:
             self.recovered.close()
-        self.storage.cleanup()
         temp = FileStorage(self.dest)
         temp.close()
-        temp.cleanup()
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def populate(self):
         db = ZODB.DB(self.storage)

@@ -24,6 +24,7 @@ import time
 
 
 class RecoveryStorage(IteratorDeepCompare):
+
     # Requires a setUp() that creates a self._dst destination storage
     def checkSimpleRecovery(self):
         oid = self._storage.new_oid()

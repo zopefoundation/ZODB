@@ -93,8 +93,8 @@ class Connection(ExportImport, object):
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
-        self._normal_storage = self._storage = db._storage
-        self.new_oid = db._storage.new_oid
+        self._normal_storage = self._storage = db.storage
+        self.new_oid = db.storage.new_oid
         self._savepoint_storage = None
 
         # Do we need to join a txn manager?
@@ -1044,6 +1044,8 @@ class Connection(ExportImport, object):
         cache_size = self._cache.cache_size
         cache_size_bytes = self._cache.cache_size_bytes
         self._cache = cache = PickleCache(self, cache_size, cache_size_bytes)
+        if getattr(self, '_reader', None) is not None:
+            self._reader._cache = cache
 
     ##########################################################################
     # Python protocol
@@ -1250,7 +1252,7 @@ class TmpStore:
         assert version == ''
         serial = self.store(oid, serial, data, '', transaction)
 
-        targetpath = self._getBlobPath(oid)
+        targetpath = self._getBlobPath()
         if not os.path.exists(targetpath):
             os.makedirs(targetpath, 0700)
 
@@ -1269,14 +1271,12 @@ class TmpStore:
             return self._storage.loadBlob(oid, serial)
         return filename
 
-    def _getBlobPath(self, oid):
-        return os.path.join(self.temporaryDirectory(),
-                            utils.oid_repr(oid)
-                            )
+    def _getBlobPath(self):
+        return os.path.join(self.temporaryDirectory(), 'savepoints')
 
     def _getCleanFilename(self, oid, tid):
-        return os.path.join(self._getBlobPath(oid),
-                            "%s%s" % (utils.tid_repr(tid), SAVEPOINT_SUFFIX,)
+        return os.path.join(self._getBlobPath(),
+                            "%s-%s%s" % (utils.oid_repr(oid), utils.tid_repr(tid), SAVEPOINT_SUFFIX,)
                             )
 
     def temporaryDirectory(self):

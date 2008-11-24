@@ -19,10 +19,13 @@ import sys
 import time
 import errno
 import socket
+import subprocess
 import logging
 import StringIO
 import tempfile
 import logging
+import ZODB.tests.util
+import zope.testing.setupstack
 
 logger = logging.getLogger('ZEO.tests.forker')
 
@@ -58,39 +61,14 @@ class ZEOConfig:
             print >> f, "authentication-realm", self.authentication_realm
         print >> f, "</zeo>"
 
-        logger = logging.getLogger()
-        print >> f
-        print >> f, "<eventlog>"
-        print >> f, "level", logger.level
-        for handler in logger.handlers:
-            if isinstance(handler, logging.FileHandler):
-                path = handler.baseFilename
-            elif isinstance(handler, logging.StreamHandler):
-                stream = handler.stream
-                if stream.name == "<stdout>":
-                    path = "STDOUT"
-                elif stream.name == "<stderr>":
-                    path = "STDERR"
-                else:
-                    # just drop it on the floor; unlikely an issue when testing
-                    continue
-            else:
-                # just drop it on the floor; unlikely an issue when testing
-                continue
-            # This doesn't convert the level values to names, so the
-            # generated configuration isn't as nice as it could be,
-            # but it doesn't really need to be.
-            print >> f, "<logfile>"
-            print >> f, "level", handler.level
-            print >> f, "path ", path
-            if handler.formatter:
-                formatter = handler.formatter
-                if formatter._fmt:
-                    print >> f, "format", encode_format(formatter._fmt)
-                if formatter.datefmt:
-                    print >> f, "dateformat", encode_format(formatter.datefmt)
-            print >> f, "</logfile>"
-        print >> f, "</eventlog>"
+        print >> f, """
+        <eventlog>
+          level INFO
+          <logfile>
+             path server-%s.log
+          </logfile>
+        </eventlog>
+        """ % self.address[1]
 
     def __str__(self):
         f = StringIO.StringIO()
@@ -107,18 +85,31 @@ def encode_format(fmt):
     return fmt
 
 
-def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
+def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
+                     path='Data.fs'):
     """Start a ZEO server in a separate process.
 
     Takes two positional arguments a string containing the storage conf
     and a ZEOConfig object.
 
-    Returns the ZEO port, the test server port, the pid, and the path
+    Returns the ZEO address, the test server address, the pid, and the path
     to the config file.
     """
 
+    if not storage_conf:
+        storage_conf = '<filestorage>\npath %s\n</filestorage>' % path
+
+    if port is None:
+        raise AssertionError("The port wasn't specified")
+
+    if zeo_conf is None or isinstance(zeo_conf, dict):
+        z = ZEOConfig(('localhost', port))
+        if zeo_conf:
+            z.__dict__.update(zeo_conf)
+        zeo_conf = z
+
     # Store the config info in a temp file.
-    tmpfile = tempfile.mktemp(".conf")
+    tmpfile = tempfile.mktemp(".conf", dir=os.getcwd())
     fp = open(tmpfile, 'w')
     zeo_conf.dump(fp)
     fp.write(storage_conf)
@@ -137,7 +128,12 @@ def start_zeo_server(storage_conf, zeo_conf, port, keep=0):
         args.append("-k")
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
-    pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
+
+    if sys.platform.startswith('win'):
+        pid = os.spawnve(os.P_NOWAIT, sys.executable, tuple(args), d)
+    else:
+        pid = subprocess.Popen(args, env=d, close_fds=True).pid
+
     adminaddr = ('localhost', port + 1)
     # We need to wait until the server starts, but not forever.
     # 30 seconds is a somewhat arbitrary upper bound.  A BDBStorage
@@ -197,13 +193,11 @@ def shutdown_zeo_server(adminaddr):
         try:
             ack = s.recv(1024)
         except socket.error, e:
-            if e[0] == errno.ECONNRESET:
-                raise
             ack = 'no ack received'
         logger.debug('shutdown_zeo_server(): acked: %s' % ack)
         s.close()
 
-def get_port():
+def get_port(test=None):
     """Return a port that is not in use.
 
     Checks if a port is in use by trying to connect to it.  Assumes it
@@ -213,6 +207,10 @@ def get_port():
 
     Raises RuntimeError after 10 tries.
     """
+
+    if test is not None:
+        return get_port2(test)
+    
     for i in range(10):
         port = random.randrange(20000, 30000)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -220,11 +218,119 @@ def get_port():
         try:
             try:
                 s.connect(('localhost', port))
+            except socket.error:
+                pass  # Perhaps we should check value of error too.
+            else:
+                continue
+
+            try:
                 s1.connect(('localhost', port+1))
             except socket.error:
-                # Perhaps we should check value of error too.
-                return port
+                pass  # Perhaps we should check value of error too.
+            else:
+                continue
+
+            return port
+
         finally:
             s.close()
             s1.close()
     raise RuntimeError("Can't find port")
+
+def get_port2(test):
+    for i in range(10):
+        while 1:
+            port = random.randrange(20000, 30000)
+            if port%3 == 0:
+                break
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            s.bind(('localhost', port+2))
+        except socket.error, e:
+            if e[0] != errno.EADDRINUSE:
+                raise
+            continue
+
+        if not (can_connect(port) or can_connect(port+1)):
+            zope.testing.setupstack.register(test, s.close)
+            return port
+
+        s.close()
+
+    raise RuntimeError("Can't find port")
+
+def can_connect(port):
+    c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        c.connect(('localhost', port))
+    except socket.error:
+        return False  # Perhaps we should check value of error too.
+    else:
+        c.close()
+        return True
+    
+def setUp(test):
+    ZODB.tests.util.setUp(test)
+
+    servers = {}
+
+    def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
+                     addr=None):
+        """Start a ZEO server.
+
+        Return the server and admin addresses.
+        """
+        if port is None:
+            if addr is None:
+                port = get_port2(test)
+            else:
+                port = addr[1]
+        elif addr is not None:
+            raise TypeError("Can't specify port and addr")
+        addr, adminaddr, pid, config_path = start_zeo_server(
+            storage_conf, zeo_conf, port, keep)
+        os.remove(config_path)
+        servers[adminaddr] = pid
+        return addr, adminaddr
+
+    test.globs['start_server'] = start_server
+
+    def get_port():
+        return get_port2(test)
+
+    test.globs['get_port'] = get_port
+
+    def stop_server(adminaddr):
+        pid = servers.pop(adminaddr)
+        shutdown_zeo_server(adminaddr)
+        os.waitpid(pid, 0)
+
+    test.globs['stop_server'] = stop_server
+
+    def cleanup_servers():
+        for adminaddr in list(servers):
+            stop_server(adminaddr)
+
+    zope.testing.setupstack.register(test, cleanup_servers)
+
+    test.globs['wait_connected'] = wait_connected
+    test.globs['wait_disconnected'] = wait_disconnected
+
+def wait_connected(storage):
+    now = time.time()
+    giveup = now + 30
+    while not storage.is_connected():
+        now = time.time()
+        if time.time() > giveup:
+            raise AssertionError("timed out waiting for storage to connect")
+        time.sleep(0.1)
+
+def wait_disconnected(storage):
+    now = time.time()
+    giveup = now + 30
+    while storage.is_connected():
+        now = time.time()
+        if time.time() > giveup:
+            raise AssertionError("timed out waiting for storage to connect")
+        time.sleep(0.1)

@@ -15,6 +15,7 @@ import os, unittest
 import transaction
 import ZODB.FileStorage
 import ZODB.tests.util
+import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
 
@@ -32,18 +33,15 @@ class BaseFileStorageTests(StorageTestBase.StorageTestBase):
                                                      **kwargs)
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self.open(create=1)
-
-    def tearDown(self):
-        self._storage.close()
-        self._storage.cleanup()
 
 class FileStorageTests(
     BaseFileStorageTests,
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
     RevisionStorage.RevisionStorage,
-    PackableStorage.PackableStorage,
+    PackableStorage.PackableStorageWithOptionalGC,
     PackableStorage.PackableUndoStorage,
     Synchronization.SynchronizedStorage,
     ConflictResolution.ConflictResolvingStorage,
@@ -295,14 +293,14 @@ class FileStorageRecoveryTest(
     ):
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
         self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
 
     def tearDown(self):
-        self._storage.close()
         self._dst.close()
-        self._storage.cleanup()
-        self._dst.cleanup()
+        StorageTestBase.StorageTestBase.tearDown(self)
+        
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
@@ -315,23 +313,15 @@ class FileStorageNoRestore(ZODB.FileStorage.FileStorage):
         raise Exception
 
 
-class FileStorageNoRestoreRecoveryTest(
-    StorageTestBase.StorageTestBase,
-    RecoveryStorage.RecoveryStorage,
-    ):
+class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
     # This test actually verifies a code path of
     # BaseStorage.copyTransactionsFrom. For simplicity of implementation, we
     # use a FileStorage deprived of its restore method.
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = FileStorageNoRestore("Source.fs", create=True)
         self._dst = FileStorageNoRestore("Dest.fs", create=True)
-
-    def tearDown(self):
-        self._storage.close()
-        self._dst.close()
-        self._storage.cleanup()
-        self._dst.cleanup()
 
     def new_dest(self):
         return FileStorageNoRestore('Dest.fs')
@@ -366,7 +356,7 @@ def checkIncreasingTids(fs):
     lasttid = '\0' * 8
     for txn in fs.iterator():
         if lasttid >= txn.tid:
-            raise ValueError("tids out of order %r >= %r" % (lasttid, tid))
+            raise ValueError("tids out of order %r >= %r" % (lasttid, txn.tid))
         lasttid = txn.tid
 
 # Return a TimeStamp object 'minutes' minutes in the future.
@@ -495,11 +485,12 @@ there are:
 
 Of course, calling lastInvalidations on an empty storage refturns no data:
 
-    >>> fs.close()
+    >>> db.close()
     >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
     >>> list(fs.lastInvalidations(10))
     []
 
+    >>> fs.close()
     """
 
 def deal_with_finish_failures():
@@ -564,8 +555,9 @@ def test_suite():
                   FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
                   SlowFileStorageTest]:
         suite.addTest(unittest.makeSuite(klass, "check"))
-    suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
-                                       tearDown=ZODB.tests.util.tearDown))
+    suite.addTest(doctest.DocTestSuite(
+        setUp=zope.testing.setupstack.setUpDirectory,
+        tearDown=zope.testing.setupstack.tearDown))
     return suite
 
 if __name__=='__main__':

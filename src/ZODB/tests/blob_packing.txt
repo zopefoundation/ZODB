@@ -23,11 +23,9 @@ Set up:
     >>> from ZODB.blob import Blob, BlobStorage
     >>> from ZODB import utils
     >>> from ZODB.DB import DB
-    >>> import shutil
     >>> import transaction
-    >>> from tempfile import mkdtemp, mktemp
-    >>> storagefile = mktemp()
-    >>> blob_dir = mkdtemp()
+    >>> storagefile = 'Data.fs'
+    >>> blob_dir = 'blobs'
 
 A helper method to assure a unique timestamp across multiple platforms:
 
@@ -261,7 +259,8 @@ We can also see, that the flag is set during the pack, by leveraging the
 knowledge that the underlying storage's pack method is also called:
 
     >>> def dummy_pack(time, ref):
-    ...     print "_blobs_pack_is_in_progress =", blob_storage._blobs_pack_is_in_progress
+    ...     print "_blobs_pack_is_in_progress =",
+    ...     print blob_storage._blobs_pack_is_in_progress
     ...     return base_pack(time, ref)
     >>> base_pack = base_storage.pack
     >>> base_storage.pack = dummy_pack
@@ -270,7 +269,3 @@ knowledge that the underlying storage's pack method is also called:
     >>> blob_storage._blobs_pack_is_in_progress
     False
     >>> base_storage.pack = base_pack
-
-Clean up our blob directory:
-
-    >>> rmtree(blob_dir)

@@ -34,7 +34,7 @@ import threading
 import time
 
 import ZODB.fsIndex
-import ZODB.lock_file
+import zc.lockfile
 from ZODB.utils import p64, u64, z64
 
 logger = logging.getLogger("ZEO.cache")
@@ -79,8 +79,15 @@ logger = logging.getLogger("ZEO.cache")
 # file's magic number - ZEC3 - indicating zeo cache version 4.  The
 # next eight bytes are the last transaction id.
 
-magic = "ZEC4"
+magic = "ZEC3"
 ZEC_HEADER_SIZE = 12
+
+# Maximum block size. Note that while we are doing a store, we may
+# need to write a free block that is almost twice as big.  If we die
+# in the middle of a store, then we need to split the large free records
+# while opening.
+max_block_size = (1<<31) - 1
+
 
 # After the header, the file contains a contiguous sequence of blocks.  All
 # blocks begin with a one-byte status indicator:
@@ -90,7 +97,7 @@ ZEC_HEADER_SIZE = 12
 #       format total block size.
 #
 # 'f'
-#       Free.  The block is free; the next 8 bytes are >Q format total
+#       Free.  The block is free; the next 4 bytes are >I format total
 #       block size.
 #
 # '1', '2', '3', '4'
@@ -107,8 +114,11 @@ ZEC_HEADER_SIZE = 12
 #     8 byte oid
 #     8 byte start_tid
 #     8 byte end_tid
+#     2 byte version length must be 0
 #     4 byte data size
 #     data
+#     8 byte redundant oid for error detection.
+allocated_record_overhead = 43
 
 # The cache's currentofs goes around the file, circularly, forever.
 # It's always the starting offset of some block.
@@ -149,9 +159,9 @@ class ClientCache(object):
         #   a temp file will be created)
         self.path = path
 
-        # - `maxsize`:  total size of the cache file, in bytes; this is
-        #   ignored path names an existing file; perhaps we should attempt
-        #   to change the cache size in that case
+        # - `maxsize`:  total size of the cache file
+        #               We set to the minimum size of less than the minimum.
+        size = max(size, ZEC_HEADER_SIZE)
         self.maxsize = size
 
         # The number of records in the cache.
@@ -180,31 +190,25 @@ class ClientCache(object):
         # here -- the scan() method must be called then to open the file
         # (and it sets self.f).
 
+        fsize = ZEC_HEADER_SIZE
         if path:
-            self._lock_file = ZODB.lock_file.LockFile(path + '.lock')
-        
-        if path and os.path.exists(path):
-            # Reuse an existing file.  scan() will open & read it.
-            self.f = None
-            logger.info("reusing persistent cache file %r", path)
-        else:
-            if path:
+            self._lock_file = zc.lockfile.LockFile(path + '.lock')
+            if not os.path.exists(path):
+                # Create a small empty file.  We'll make it bigger in _initfile.
                 self.f = open(path, 'wb+')
+                self.f.write(magic+z64)
                 logger.info("created persistent cache file %r", path)
             else:
-                self.f = tempfile.TemporaryFile()
-                logger.info("created temporary cache file %r", self.f.name)
-            # Make sure the OS really saves enough bytes for the file.
-            self.f.seek(self.maxsize - 1)
-            self.f.write('x')
-            self.f.truncate()
-            # Start with one magic header block
-            self.f.seek(0)
-            self.f.write(magic)
-            self.f.write(z64)
-            # and one free block.
-            self.f.write('f' + pack(">Q", self.maxsize - ZEC_HEADER_SIZE))
-            sync(self.f)
+                fsize = os.path.getsize(self.path)
+                self.f = open(path, 'rb+')
+                logger.info("reusing persistent cache file %r", path)
+        else:
+            # Create a small empty file.  We'll make it bigger in _initfile.
+            self.f = tempfile.TemporaryFile()
+            self.f.write(magic+z64)
+            logger.info("created temporary cache file %r", self.f.name)
+            
+        self._initfile(fsize)
 
         # Statistics:  _n_adds, _n_added_bytes,
         #              _n_evicts, _n_evicted_bytes,
@@ -212,8 +216,6 @@ class ClientCache(object):
         self.clearStats()
 
         self._setup_trace(path)
-
-        self.open()
 
         self._lock = threading.RLock()
 
@@ -223,25 +225,25 @@ class ClientCache(object):
     def fc(self):
         return self
 
+    def clear(self):
+        self.f.seek(ZEC_HEADER_SIZE)
+        self.f.truncate()
+        self._initfile(ZEC_HEADER_SIZE)
+
     ##
     # Scan the current contents of the cache file, calling `install`
     # for each object found in the cache.  This method should only
     # be called once to initialize the cache from disk.
-    def open(self):
-        if self.f is not None:  # we're not (re)using a pre-existing file
-            return
-        fsize = os.path.getsize(self.path)
-        if fsize != self.maxsize:
-            logger.warning("existing cache file %r has size %d; "
-                           "requested size %d ignored", self.path,
-                           fsize, self.maxsize)
-            self.maxsize = fsize
-        self.f = open(self.path, 'rb+')
-        read = self.f.read
-        seek = self.f.seek
-        _magic = read(4)
-        if _magic != magic:
-            raise ValueError("unexpected magic number: %r" % _magic)
+    def _initfile(self, fsize):
+        maxsize = self.maxsize
+        f = self.f
+        read = f.read
+        seek = f.seek
+        write = f.write
+        seek(0)
+        if read(4) != magic:
+            seek(0)
+            raise ValueError("unexpected magic number: %r" % read(4))
         self.tid = read(8)
         if len(self.tid) != 8:
             raise ValueError("cache file too small -- no tid at start")
@@ -253,35 +255,92 @@ class ClientCache(object):
 
         self.current = ZODB.fsIndex.fsIndex()
         self.noncurrent = BTrees.LOBTree.LOBTree()
-        max_free_size = l = 0
-        ofs = max_free_offset = ZEC_HEADER_SIZE
+        l = 0
+        last = ofs = ZEC_HEADER_SIZE
+        first_free_offset = 0
         current = self.current
+        status = ' '
         while ofs < fsize:
             seek(ofs)
             status = read(1)
             if status == 'a':
-                size, oid, start_tid, end_tid = unpack(">I8s8s8s", read(28))
-
-                if end_tid == z64:
-                    assert oid not in current, (ofs, self.f.tell())
-                    current[oid] = ofs
-                else:
-                    assert start_tid < end_tid, (ofs, self.f.tell())
-                    self._set_noncurrent(oid, start_tid, ofs)
-                l += 1
-            elif status == 'f':
-                size, = unpack(">Q", read(8))
-            elif status in '12345678':
-                size = int(status)
+                size, oid, start_tid, end_tid, lver = unpack(
+                    ">I8s8s8sH", read(30))
+                if ofs+size <= maxsize:
+                    if end_tid == z64:
+                        assert oid not in current, (ofs, f.tell())
+                        current[oid] = ofs
+                    else:
+                        assert start_tid < end_tid, (ofs, f.tell())
+                        self._set_noncurrent(oid, start_tid, ofs)
+                    assert lver == 0, "Versions aren't supported"
+                    l += 1
             else:
-                raise ValueError("unknown status byte value %s in client "
-                                 "cache file" % 0, hex(ord(status)))
+                # free block
+                if first_free_offset == 0:
+                    first_free_offset = ofs
+                if status == 'f':
+                    size, = unpack(">I", read(4))
+                    if size > max_block_size:
+                        # Oops, we either have an old cache, or a we
+                        # crashed while storing. Split this block into two.
+                        assert size <= max_block_size*2
+                        seek(ofs+max_block_size)
+                        write('f'+pack(">I", size-max_block_size))
+                        seek(ofs)
+                        write('f'+pack(">I", max_block_size))
+                        sync(f)
+                elif status in '1234':
+                    size = int(status)
+                else:
+                    raise ValueError("unknown status byte value %s in client "
+                                     "cache file" % 0, hex(ord(status)))
+
+            last = ofs
             ofs += size
 
-        if ofs != fsize:
-            raise ValueError("final offset %s != file size %s in client "
-                             "cache file" % (ofs, fsize))
-        self.currentofs = max_free_offset
+            if ofs >= maxsize:
+                # Oops, the file was bigger before.
+                if ofs > maxsize:
+                    # The last record is too big. Replace it with a smaller
+                    # free record
+                    size = maxsize-last
+                    seek(last)
+                    if size > 4:
+                        write('f'+pack(">I", size))
+                    else:
+                        write("012345"[size])
+                    sync(f)
+                    ofs = maxsize
+                break
+
+        if fsize < maxsize:
+            assert ofs==fsize
+            # Make sure the OS really saves enough bytes for the file.
+            seek(self.maxsize - 1)
+            write('x')
+
+            # add as many free blocks as are needed to fill the space
+            seek(ofs)
+            nfree = maxsize - ZEC_HEADER_SIZE
+            for i in range(0, nfree, max_block_size):
+                block_size = min(max_block_size, nfree-i)
+                write('f' + pack(">I", block_size))
+                seek(block_size-5, 1)
+            sync(self.f)
+
+            # There is always data to read and 
+            assert last and status in ' f1234'
+            first_free_offset = last
+        else:
+            assert ofs==maxsize
+            if maxsize < fsize:
+                seek(maxsize)
+                f.truncate()
+
+        # We use the first_free_offset because it is most likelyt the
+        # place where we last wrote.
+        self.currentofs = first_free_offset or ZEC_HEADER_SIZE
         self._len = l
 
     def _set_noncurrent(self, oid, tid, ofs):
@@ -362,9 +421,9 @@ class ClientCache(object):
                 self._len -= 1
             else:
                 if status == 'f':
-                    size = unpack(">Q", read(8))[0]
+                    size = unpack(">I", read(4))[0]
                 else:
-                    assert status in '12345678'
+                    assert status in '1234'
                     size = int(status)
             ofs += size
             nbytes -= size
@@ -414,9 +473,10 @@ class ClientCache(object):
         self.f.seek(ofs)
         read = self.f.read
         assert read(1) == 'a', (ofs, self.f.tell(), oid)
-        size, saved_oid, tid, end_tid, ldata = unpack(
-            ">I8s8s8sI", read(32))
+        size, saved_oid, tid, end_tid, lver, ldata = unpack(
+            ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+        assert lver == 0, "Versions aren't supported"
 
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell(), oid, len(data), ldata)
@@ -449,11 +509,12 @@ class ClientCache(object):
         self.f.seek(ofs)
         read = self.f.read
         assert read(1) == 'a', (ofs, self.f.tell(), oid, before_tid)
-        size, saved_oid, saved_tid, end_tid, ldata = unpack(
-            ">I8s8s8sI", read(32))
+        size, saved_oid, saved_tid, end_tid, lver, ldata = unpack(
+            ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
         assert saved_tid == p64(tid), (ofs, self.f.tell(), oid, saved_tid, tid)
         assert end_tid != z64, (ofs, self.f.tell(), oid)
+        assert lver == 0, "Versions aren't supported"
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell())
         assert read(8) == oid, (ofs, self.f.tell(), oid)
@@ -496,20 +557,25 @@ class ClientCache(object):
             if noncurrent_for_oid and (u64(start_tid) in noncurrent_for_oid):
                 return
 
-        size = 41 + len(data)
+        size = allocated_record_overhead + len(data)
 
         # A number of cache simulation experiments all concluded that the
         # 2nd-level ZEO cache got a much higher hit rate if "very large"
         # objects simply weren't cached.  For now, we ignore the request
         # only if the entire cache file is too small to hold the object.
-        if size > self.maxsize - ZEC_HEADER_SIZE:
+        if size >= min(max_block_size, self.maxsize - ZEC_HEADER_SIZE):
             return
 
         self._n_adds += 1
         self._n_added_bytes += size
         self._len += 1
 
-        nfreebytes = self._makeroom(size)
+        # In the next line, we ask for an extra to make sure we always
+        # have a free block after the new alocated block.  This free
+        # block acts as a ring pointer, so that on restart, we start
+        # where we left off.
+        nfreebytes = self._makeroom(size+1)
+
         assert size <= nfreebytes, (size, nfreebytes)
         excess = nfreebytes - size
         # If there's any excess (which is likely), we need to record a
@@ -517,10 +583,10 @@ class ClientCache(object):
         # expensive -- it's all a contiguous write.
         if excess == 0:
             extra = ''
-        elif excess < 9:
-            extra = "012345678"[excess]
+        elif excess < 5:
+            extra = "01234"[excess]
         else:
-            extra = 'f' + pack(">Q", excess)
+            extra = 'f' + pack(">I", excess)
 
         ofs = self.currentofs
         seek(ofs)
@@ -529,10 +595,10 @@ class ClientCache(object):
         # Before writing data, we'll write a free block for the space freed.
         # We'll come back with a last atomic write to rewrite the start of the
         # allocated-block header.
-        write('f'+pack(">Q", nfreebytes)+'xxxx')
+        write('f'+pack(">I", nfreebytes))
 
         # Now write the rest of the allocation block header and object data.
-        write(pack(">8s8sI", start_tid, end_tid or z64, len(data)))
+        write(pack(">8s8s8sHI", oid, start_tid, end_tid or z64, 0, len(data)))
         write(data)
         write(oid)
         write(extra)
@@ -540,7 +606,7 @@ class ClientCache(object):
         # Now, we'll go back and rewrite the beginning of the
         # allocated block header.
         seek(ofs)
-        write('a'+pack(">I8s", size, oid))
+        write('a'+pack(">I", size))
 
         if end_tid:
             self._set_noncurrent(oid, start_tid, ofs)
@@ -597,7 +663,7 @@ class ClientCache(object):
         del self.current[oid]
         if tid is None:
             self.f.seek(ofs)
-            self.f.write('f'+pack(">Q", size))
+            self.f.write('f'+pack(">I", size))
             # 0x1E = invalidate (hit, discarding current or non-current)
             self._trace(0x1E, oid, tid)
             self._len -= 1

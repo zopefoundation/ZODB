@@ -19,7 +19,19 @@ ClientStorage -- the main class, implementing the Storage API
 
 """
 
+from persistent.TimeStamp import TimeStamp
+from ZEO.auth import get_module
+from ZEO.cache import ClientCache
+from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
+from ZEO import ServerStub
+from ZEO.TransactionBuffer import TransactionBuffer
+from ZEO.zrpc.client import ConnectionManager
+from ZODB.blob import rename_or_copy_blob
+from ZODB import POSException
+from ZODB import utils
+from ZODB.loglevels import BLATHER
 import cPickle
+import logging
 import os
 import socket
 import stat
@@ -28,32 +40,15 @@ import tempfile
 import threading
 import time
 import types
-import logging
 import weakref
-
-import zope.interface
-from ZEO import ServerStub
-from ZEO.cache import ClientCache
-from ZEO.TransactionBuffer import TransactionBuffer
-from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
-from ZEO.auth import get_module
-from ZEO.zrpc.client import ConnectionManager
-
-import ZODB.interfaces
-import ZODB.lock_file
+import zc.lockfile
+import ZEO.interfaces
 import ZODB.BaseStorage
-from ZODB import POSException
-from ZODB import utils
-from ZODB.loglevels import BLATHER
-from ZODB.blob import rename_or_copy_blob
-from persistent.TimeStamp import TimeStamp
+import ZODB.interfaces
+import zope.event
+import zope.interface
 
-logger = logging.getLogger('ZEO.ClientStorage')
-_pid = str(os.getpid())
-
-def log2(msg, level=logging.INFO, subsys=_pid, exc_info=False):
-    message = "(%s) %s" % (subsys, msg)
-    logger.log(level, message, exc_info=exc_info)
+logger = logging.getLogger(__name__)
 
 try:
     from ZODB.ConflictResolution import ResolvedSerial
@@ -83,7 +78,7 @@ class DisconnectedServerStub:
     This raises ClientDisconnected on all attribute accesses.
 
     This is a singleton class -- there should be only one instance,
-    the global disconnected_stub, os it can be tested by identity.
+    the global disconnected_stub, so it can be tested by identity.
 
     """
 
@@ -118,7 +113,7 @@ class ClientStorage(object):
 
     def __init__(self, addr, storage='1', cache_size=20 * MB,
                  name='', client=None, debug=0, var=None,
-                 min_disconnect_poll=5, max_disconnect_poll=300,
+                 min_disconnect_poll=1, max_disconnect_poll=30,
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
@@ -212,21 +207,23 @@ class ClientStorage(object):
         testConnection() and doAuth() for details).
 
         """
-        log2("%s (pid=%d) created %s/%s for storage: %r" %
-             (self.__class__.__name__,
-              os.getpid(),
-              read_only and "RO" or "RW",
-              read_only_fallback and "fallback" or "normal",
-              storage))
 
+        self.__name__ = name or str(addr) # Standard convention for storages
+        
+        logger.info(
+            "%s %s (pid=%d) created %s/%s for storage: %r",
+            self.__name__,
+            self.__class__.__name__,
+            os.getpid(),
+            read_only and "RO" or "RW",
+            read_only_fallback and "fallback" or "normal",
+            storage,
+            )
+        
         if debug:
-            log2("ClientStorage(): debug argument is no longer used")
-
-        # Remember some parameters for "_setupCache"
-        self._var_ = var
-        self._storage_ = storage
-        self._client_ = client
-        self._cache_size_ = cache_size
+            logger.warning(
+                "%s ClientStorage(): debug argument is no longer used",
+                self.__name__)
 
         self._drop_cache_rather_verify = drop_cache_rather_verify
 
@@ -234,12 +231,15 @@ class ClientStorage(object):
         # if not None
         if wait_for_server_on_startup is not None:
             if wait is not None and wait != wait_for_server_on_startup:
-                log2("ClientStorage(): conflicting values for wait and "
-                     "wait_for_server_on_startup; wait prevails",
-                     level=logging.WARNING)
+                logger.warning(
+                    "%s ClientStorage(): conflicting values for wait and "
+                    "wait_for_server_on_startup; wait prevails",
+                    self.__name__)
             else:
-                log2("ClientStorage(): wait_for_server_on_startup "
-                     "is deprecated; please use wait instead")
+                logger.info(
+                     "%s ClientStorage(): wait_for_server_on_startup "
+                     "is deprecated; please use wait instead",
+                    self.__name__)
                 wait = wait_for_server_on_startup
         elif wait is None:
             wait = 1
@@ -308,8 +308,6 @@ class ClientStorage(object):
         self._serials = []
         self._seriald = {}
 
-        self.__name__ = name or str(addr) # Standard convention for storages
-
         # A ClientStorage only allows one thread to commit at a time.
         # Mutual exclusion is achieved using _tpc_cond, which
         # protects _transaction.  A thread that wants to assign to
@@ -354,7 +352,13 @@ class ClientStorage(object):
         else:
             self.fshelper = None
 
-        self._setupCache()
+        if client is not None:
+            dir = var or os.getcwd()
+            cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
+        else:
+            cache_path = None
+
+        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,
@@ -369,23 +373,10 @@ class ClientStorage(object):
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
 
-    def _setupCache(self):
-        '''create and open the cache.'''
-        # Decide whether to use non-temporary files
-        storage = self._storage_
-        client = self._client_
-        cache_size = self._cache_size_
-        if client is not None:
-            dir = self._var_ or os.getcwd()
-            cache_path = os.path.join(dir, "%s-%s.zec" % (client, storage))
-        else:
-            cache_path = None
-        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
-
     def _wait(self, timeout=None):
         if timeout is not None:
             deadline = time.time() + timeout
-            log2("Setting deadline to %f" % deadline, level=BLATHER)
+            logger.debug("%s Setting deadline to %f", self.__name__, deadline)
         else:
             deadline = None
         # Wait for a connection to be established.
@@ -400,10 +391,11 @@ class ClientStorage(object):
             if self._ready.isSet():
                 break
             if timeout and time.time() > deadline:
-                log2("Timed out waiting for connection",
-                     level=logging.WARNING)
+                logger.warning("%s Timed out waiting for connection",
+                               self.__name__)
                 break
-            log2("Waiting for cache verification to finish")
+            logger.info("%s Waiting for cache verification to finish",
+                        self.__name__)
 
     def close(self):
         """Storage API: finalize the storage, releasing external resources."""
@@ -419,6 +411,8 @@ class ClientStorage(object):
         if self._cache is not None:
             self._cache.close()
             self._cache = None
+        if self._tfile is not None:
+            self._tfile.close()
 
     def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
@@ -445,15 +439,16 @@ class ClientStorage(object):
 
         module = get_module(protocol)
         if not module:
-            log2("%s: no such an auth protocol: %s" %
-                 (self.__class__.__name__, protocol), level=logging.WARNING)
+            logger.error("%s %s: no such an auth protocol: %s",
+                         self.__name__, self.__class__.__name__, protocol)
             return
 
         storage_class, client, db_class = module
 
         if not client:
-            log2("%s: %s isn't a valid protocol, must have a Client class" %
-                 (self.__class__.__name__, protocol), level=logging.WARNING)
+            logger.error(
+                "%s %s: %s isn't a valid protocol, must have a Client class",
+                self.__name__, self.__class__.__name__, protocol)
             raise AuthError("invalid protocol")
 
         c = client(stub)
@@ -483,20 +478,22 @@ class ClientStorage(object):
         exception raised by register() is passed through.
 
         """
-        log2("Testing connection %r" % conn)
+        logger.info("%s Testing connection %r", self.__name__, conn)
         # TODO:  Should we check the protocol version here?
         conn._is_read_only = self._is_read_only
         stub = self.StorageServerStubClass(conn)
 
         auth = stub.getAuthProtocol()
-        log2("Server authentication protocol %r" % auth)
+        logger.info("%s Server authentication protocol %r", self.__name__, auth)
         if auth:
             skey = self.doAuth(auth, stub)
             if skey:
-                log2("Client authentication successful")
+                logger.info("%s Client authentication successful",
+                            self.__name__)
                 conn.setSessionKey(skey)
             else:
-                log2("Authentication failed")
+                logger.info("%s Authentication failed",
+                            self.__name__)
                 raise AuthError("Authentication failed")
 
         try:
@@ -505,7 +502,8 @@ class ClientStorage(object):
         except POSException.ReadOnlyError:
             if not self._read_only_fallback:
                 raise
-            log2("Got ReadOnlyError; trying again with read_only=1")
+            logger.info("%s Got ReadOnlyError; trying again with read_only=1",
+                        self.__name__)
             stub.register(str(self._storage), read_only=1)
             conn._is_read_only = True
             return 0
@@ -542,9 +540,11 @@ class ClientStorage(object):
             self._db.invalidateCache()
 
         if reconnect:
-            log2("Reconnected to storage: %s" % self._server_addr)
+            logger.info("%s Reconnected to storage: %s",
+                        self.__name__, self._server_addr)
         else:
-            log2("Connected to storage: %s" % self._server_addr)
+            logger.info("%s Connected to storage: %s",
+                        self.__name__, self._server_addr)
 
         stub = self.StorageServerStubClass(conn)
         self._oids = []
@@ -559,14 +559,15 @@ class ClientStorage(object):
 
         self._handle_extensions()
 
-        # Decorate ClientStorage with all interfaces that the backend storage
-        # supports.
-        remote_interfaces = []
-        for module_name, interface_name in self._info['interfaces']:
-            module = __import__(module_name, globals(), locals(), [interface_name])
-            interface = getattr(module, interface_name)
-            remote_interfaces.append(interface)
-        zope.interface.directlyProvides(self, remote_interfaces)
+        for iface in (
+            ZODB.interfaces.IStorageRestoreable,
+            ZODB.interfaces.IStorageIteration,
+            ZODB.interfaces.IStorageUndoable,
+            ZODB.interfaces.IStorageCurrentRecordIteration,
+            ZODB.interfaces.IBlobStorage,
+            ):
+            if (iface.__module__, iface.__name__) in self._info.get('interfaces', ()):
+                zope.interface.alsoProvides(self, iface)
 
     def _handle_extensions(self):
         for name in self.getExtensionMethods().keys():
@@ -588,8 +589,8 @@ class ClientStorage(object):
             try:
                 canonical, aliases, addrs = socket.gethostbyaddr(host)
             except socket.error, err:
-                log2("Error resolving host: %s (%s)" % (host, err),
-                     level=BLATHER)
+                logger.debug("%s Error resolving host: %s (%s)",
+                             self.__name__, host, err)
                 canonical = host
             self._server_addr = str((canonical, addr[1]))
 
@@ -616,12 +617,13 @@ class ClientStorage(object):
         closed or when certain problems with the connection occur.
 
         """
-        log2("Disconnected from storage: %s" % repr(self._server_addr))
+        logger.info("%s Disconnected from storage: %r",
+                    self.__name__, self._server_addr)
         self._connection = None
         self._ready.clear()
         self._server = disconnected_stub
         self._midtxn_disconnect = 1
-        self._iterator_gc()
+        self._iterator_gc(True)
 
     def __len__(self):
         """Return the size of the storage."""
@@ -685,10 +687,10 @@ class ClientStorage(object):
             raise POSException.StorageTransactionError(self._transaction,
                                                        trans)
 
-    def history(self, oid, length=1):
+    def history(self, oid, size=1):
         """Storage API: return a sequence of HistoryEntry objects.
         """
-        return self._server.history(oid, length)
+        return self._server.history(oid, size)
 
     def record_iternext(self, next=None):
         """Storage API: get the next database record.
@@ -854,9 +856,7 @@ class ClientStorage(object):
 
     def _storeBlob_shared(self, oid, serial, data, filename, txn):
         # First, move the blob into the blob directory
-        dir = self.fshelper.getPathForOID(oid)
-        if not os.path.exists(dir):
-            os.mkdir(dir)
+        self.fshelper.getPathForOID(oid, create=True)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
 
@@ -876,8 +876,8 @@ class ClientStorage(object):
 
     def _have_blob(self, blob_filename, oid, serial):
         if os.path.exists(blob_filename):
-            log2("Found blob %s/%s in cache." % (utils.oid_repr(oid),
-                utils.tid_repr(serial)), level=BLATHER)
+            logger.debug("%s Found blob %r/%r in cache.",
+                         self.__name__, oid, serial)
             return True
         return False
 
@@ -931,8 +931,8 @@ class ClientStorage(object):
 
         lockfilename = blob_filename+'.lock'
         try:
-            lock = ZODB.lock_file.LockFile(lockfilename)
-        except ZODB.lock_file.LockError:
+            lock = zc.lockfile.LockFile(lockfilename)
+        except zc.lockfile.LockError:
 
             # Someone is already downloading the Blob. Wait for the
             # lock to be freed.  How long should we be willing to wait?
@@ -941,8 +941,8 @@ class ClientStorage(object):
             while 1:
                 time.sleep(0.1)
                 try:
-                    lock = ZODB.lock_file.LockFile(lockfilename)
-                except ZODB.lock_file.LockError:
+                    lock = zc.lockfile.LockFile(lockfilename)
+                except zc.lockfile.LockError:
                     pass
                 else:
                     # We have the lock. We should be able to get the file now.
@@ -985,7 +985,7 @@ class ClientStorage(object):
                 pass
 
     def temporaryDirectory(self):
-        return self.blob_dir
+        return self.fshelper.temp_dir
 
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
@@ -1051,8 +1051,8 @@ class ClientStorage(object):
             try:
                 self._server.tpc_abort(id(txn))
             except ClientDisconnected:
-                log2("ClientDisconnected in tpc_abort() ignored",
-                     level=BLATHER)
+                logger.debug("%s ClientDisconnected in tpc_abort() ignored",
+                             self.__name__)
         finally:
             self._tbuf.clear()
             self._seriald.clear()
@@ -1120,19 +1120,15 @@ class ClientStorage(object):
                     assert s == tid, (s, tid)
                     self._cache.store(oid, s, None, data)
 
-        
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
             while blobs:
                 oid, blobfilename = blobs.pop()
-                targetpath = self.fshelper.getPathForOID(oid)
-                if not os.path.exists(targetpath):
-                    os.makedirs(targetpath, 0700)
+                targetpath = self.fshelper.getPathForOID(oid, create=True)
                 rename_or_copy_blob(blobfilename,
                           self.fshelper.getBlobFilename(oid, tid),
                           )
 
-                    
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):
@@ -1204,11 +1200,6 @@ class ClientStorage(object):
         the test suite.
         """
 
-        print 'verify'
-
-        def log2(*args):
-            print args
-
         self._pending_server = server
 
         # setup tempfile to hold zeoVerify results and interim
@@ -1226,7 +1217,8 @@ class ClientStorage(object):
 
         ltid = server.lastTransaction()
         if not self._cache:
-            log2("No verification necessary -- empty cache")
+            logger.info("%s No verification necessary -- empty cache",
+                        self.__name__)
             if ltid and ltid != utils.z64:
                 self._cache.setLastTid(ltid)
             self.finish_verification()
@@ -1235,27 +1227,34 @@ class ClientStorage(object):
         last_inval_tid = self._cache.getLastTid()
         if last_inval_tid is not None:
             if ltid == last_inval_tid:
-                log2("No verification necessary (last_inval_tid up-to-date)")
+                logger.info(
+                    "%s No verification necessary (last_inval_tid up-to-date)",
+                    self.__name__)
                 self.finish_verification()
                 return "no verification"
             elif ltid < last_inval_tid:
-                message = "Client has seen newer transactions than server!"
-                log2(message, level=logging.CRITICAL)
+                message = ("%s Client has seen newer transactions than server!"
+                           % self.__name__)
+                logger.critical(message)
                 raise ClientStorageError(message)
 
             # log some hints about last transaction
-            log2("last inval tid: %r %s\n"
-                 % (last_inval_tid, tid2time(last_inval_tid)))
-            log2("last transaction: %r %s" %
-                 (ltid, ltid and tid2time(ltid)))
+            logger.info("%s last inval tid: %r %s\n",
+                        self.__name__, last_inval_tid,
+                        tid2time(last_inval_tid))
+            logger.info("%s last transaction: %r %s",
+                        self.__name__, ltid, ltid and tid2time(ltid))
 
             pair = server.getInvalidations(last_inval_tid)
             if pair is not None:
-                log2("Recovering %d invalidations" % len(pair[1]))
+                logger.info("%s Recovering %d invalidations",
+                            self.__name__, len(pair[1]))
                 self.finish_verification(pair)
                 return "quick verification"
         elif ltid and ltid != utils.z64:
             self._cache.setLastTid(ltid)
+
+        zope.event.notify(ZEO.interfaces.StaleCache(self))
 
         # From this point on, we do not have complete information about
         # the missed transactions.  The reason is that cache
@@ -1263,21 +1262,18 @@ class ClientStorage(object):
         # there may be objects in the object caches that aren't in the
         # client cach that would need verification too. We avoid that
         # problem by just invalidating the objects in the object caches.
-#         if self._db is not None:
-#             self._db.invalidateCache()
-
-
-        print 'VERIFY'
+        if self._db is not None:
+            self._db.invalidateCache()
 
         if self._cache and self._drop_cache_rather_verify:
-            log2("dropping cache")
-            self._cache.close()
-            self._setupCache() # creates a new cache
-            self._server = server
-            self._ready.set()
+            logger.critical("%s dropping stale cache", self.__name__)
+            self._cache.clear()
+            if ltid:
+                self._cache.setLastTid(ltid)
+            self.finish_verification()
             return "cache dropped"
 
-        log2("Verifying cache")
+        logger.info("%s Verifying cache", self.__name__)
         for oid, tid in self._cache.contents():
             server.verify(oid, tid)
         server.endZeoVerify()
@@ -1292,16 +1288,16 @@ class ClientStorage(object):
         # Queue an invalidate for the end the verification procedure.
         if self._pickler is None:
             # This should never happen.
-            log2("invalidateVerify with no _pickler", level = logging.ERROR)
+            logger.error("%s invalidateVerify with no _pickler", self.__name__)
             return
         self._pickler.dump((None, [args[0]]))
 
     def endVerify(self):
         """Server callback to signal end of cache validation."""
 
-        log2("endVerify finishing")
+        logger.info("%s endVerify finishing", self.__name__)
         self.finish_verification()
-        log2("endVerify finished")
+        logger.info("%s endVerify finished", self.__name__)
 
     def finish_verification(self, catch_up=None):
         self._lock.acquire()
@@ -1346,8 +1342,9 @@ class ClientStorage(object):
         self._lock.acquire()
         try:
             if self._pickler is not None:
-                log2("Transactional invalidation during cache verification",
-                     level=BLATHER)
+                logger.debug(
+                    "%s Transactional invalidation during cache verification",
+                    self.__name__)
                 self._pickler.dump((tid, [arg[0] for arg in args]))
             else:
                 self._process_invalidations(tid, (arg[0] for arg in args))
@@ -1391,19 +1388,26 @@ class ClientStorage(object):
         self._iterators.pop(iid, None)
         self._iterator_ids.remove(iid)
 
-    def _iterator_gc(self):
+    def _iterator_gc(self, disconnected=False):
+        if not self._iterator_ids:
+            return
+
+        if disconnected:
+            for i in self._iterators.values():
+                i._iid = -1
+            self._iterators.clear()
+            self._iterator_ids.clear()
+            return
+
         iids = self._iterator_ids - set(self._iterators)
-        try:
-            self._server.iterator_gc(list(iids))
-        except ClientDisconnected:
-            # We could not successfully garbage-collect iterators.
-            # The server might have been restarted, so the IIDs might mean
-            # something different now. We simply forget our unused IIDs to
-            # avoid gc'ing foreign iterators.
-            # In the case that the server was not restarted, we accept the
-            # risk of leaking resources on the ZEO server.
-            pass
-        self._iterator_ids -= iids
+        if iids:
+            try:
+                self._server.iterator_gc(list(iids))
+            except ClientDisconnected:
+                # If we get disconnected, all of the iterators on the
+                # server are thrown away.  We should clear ours too:
+                return self._iterator_gc(True)
+            self._iterator_ids -= iids
 
 
 class TransactionIterator(object):
@@ -1420,6 +1424,9 @@ class TransactionIterator(object):
         if self._ended:
             raise ZODB.interfaces.StorageStopIteration()
 
+        if self._iid < 0:
+            raise ClientDisconnected("Disconnected iterator")
+
         tx_data = self._storage._server.iterator_next(self._iid)
         if tx_data is None:
             # The iterator is exhausted, and the server has already
@@ -1428,7 +1435,8 @@ class TransactionIterator(object):
             self._storage._forget_iterator(self._iid)
             raise ZODB.interfaces.StorageStopIteration()
 
-        return ClientStorageTransactionInformation(self._storage, self, *tx_data)
+        return ClientStorageTransactionInformation(
+            self._storage, self, *tx_data)
 
 
 class ClientStorageTransactionInformation(ZODB.BaseStorage.TransactionRecord):

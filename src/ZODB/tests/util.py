@@ -16,72 +16,41 @@
 $Id$
 """
 
+from ZODB.MappingStorage import DB
+
+import atexit
 import os
-import shutil
-import sys
 import tempfile
 import time
-
+import unittest
 import persistent
 import transaction
-from ZODB.MappingStorage import MappingStorage
-from ZODB.ConflictResolution import ConflictResolvingStorage
-from ZODB.DB import DB as _DB
-from ZODB import POSException
+import zope.testing.setupstack
 
-def DB(name='Test', **dbargs):
-    return _DB(MappingStorage(name), **dbargs)
+def setUp(test, name='test'):
+    transaction.abort()
+    d = tempfile.mkdtemp(prefix=name)
+    zope.testing.setupstack.register(test, zope.testing.setupstack.rmtree, d)
+    zope.testing.setupstack.register(
+        test, setattr, tempfile, 'tempdir', tempfile.tempdir)
+    tempfile.tempdir = d
+    zope.testing.setupstack.register(test, os.chdir, os.getcwd())
+    os.chdir(d)
+    zope.testing.setupstack.register(test, transaction.abort)
 
-class ConflictResolvingMappingStorage(
-    MappingStorage, ConflictResolvingStorage):
+tearDown = zope.testing.setupstack.tearDown
 
-    def __init__(self, name='ConflictResolvingMappingStorage'):
-        MappingStorage.__init__(self, name)
-        self._old = {}
+class TestCase(unittest.TestCase):
 
-    def loadSerial(self, oid, serial):
-        self._lock_acquire()
-        try:
-            old_info = self._old[oid]
-            try:
-                return old_info[serial]
-            except KeyError:
-                raise POSException.POSKeyError(oid)
-        finally:
-            self._lock_release()
+    def setUp(self):
+        self.globs = {}
+        name = self.__class__.__name__
+        mname = getattr(self, '_TestCase__testMethodName', '')
+        if mname:
+            name += '-' + mname
+        setUp(self, name)
 
-    def store(self, oid, serial, data, version, transaction):
-        if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
-
-        if version:
-            raise POSException.Unsupported("Versions aren't supported")
-
-        self._lock_acquire()
-        try:
-            if oid in self._index:
-                oserial = self._index[oid][:8]
-                if serial != oserial:
-                    rdata = self.tryToResolveConflict(
-                        oid, oserial, serial, data)
-                    if rdata is None:
-                        raise POSException.ConflictError(
-                            oid=oid, serials=(oserial, serial), data=data)
-                    else:
-                        data = rdata
-            self._tindex[oid] = self._tid + data
-        finally:
-            self._lock_release()
-        return self._tid
-
-    def _finish(self, tid, user, desc, ext):
-        self._index.update(self._tindex)
-        self._ltid = self._tid
-        for oid, record in self._tindex.items():
-            self._old.setdefault(oid, {})[self._tid] = record[8:]
-
-def commit():
-    transaction.commit()
+    tearDown = tearDown
 
 def pack(db):
     db.pack(time.time()+1)
@@ -94,32 +63,39 @@ class P(persistent.Persistent):
     def __repr__(self):
         return 'P(%s)' % self.name
 
-def setUp(test):
-    test.globs['__teardown_stack__'] = []
-    tmp = tempfile.mkdtemp('test')
-    registerTearDown(test, lambda : rmtree(tmp))
-    here = os.getcwd()
-    registerTearDown(test, lambda : os.chdir(here))
-    os.chdir(tmp)
+class MininalTestLayer:
 
-if sys.platform == 'win32':    
-    # On windows, we can't remove a directory of there are files upen.
-    # We may need to wait a while for processes to exit.
-    def rmtree(path):
-        for i in range(1000):
-            try:
-                shutil.rmtree(path)
-            except OSError:
-                time.sleep(0.01)
-            else:
-                break
+    __bases__ = ()
+    __module__ = ''
+    def __init__(self, name):
+        self.__name__ = name
 
-else:
-    rmtree = shutil.rmtree
-            
-def registerTearDown(test, func):
-    test.globs['__teardown_stack__'].append(func)    
-    
-def tearDown(test):
-    for f in test.globs['__teardown_stack__']:
-        f()
+    def setUp(self):
+        self.here = os.getcwd()
+        self.tmp = tempfile.mkdtemp(self.__name__, dir=os.getcwd())
+        os.chdir(self.tmp)
+
+        # sigh. tearDown isn't called when a layer is run in a sub-process.
+        atexit.register(clean, self.tmp)
+
+    def tearDown(self):
+        os.chdir(self.here)
+        zope.testing.setupstack.rmtree(self.tmp)
+
+    testSetUp = testTearDown = lambda self: None
+
+def clean(tmp):
+    if os.path.isdir(tmp):
+        zope.testing.setupstack.rmtree(tmp)
+
+class AAAA_Test_Runner_Hack(unittest.TestCase):
+    """Hack to work around a bug in the test runner.
+
+    The first later (lex sorted) is run first in the foreground
+    """
+
+    layer = MininalTestLayer('!no tests here!')
+
+    def testNothing(self):
+        pass
+

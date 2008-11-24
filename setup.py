@@ -149,7 +149,6 @@ packages = ["BTrees", "BTrees.tests",
             "ZODB", "ZODB.FileStorage", "ZODB.tests",
                     "ZODB.scripts",
             "persistent", "persistent.tests",
-            "ZopeUndo", "ZopeUndo.tests",
             ]
 
 def copy_other_files(cmd, outputbase):
@@ -220,7 +219,7 @@ def alltests():
     here = os.path.abspath(os.path.dirname(sys.argv[0]))
     args = sys.argv[:]
     src = os.path.join(here, 'src')
-    defaults = ['--test-path', src]
+    defaults = ['--test-path', src, '--all']
     options = get_options(args, defaults)
     suites = list(find_suites(options))
     return TestSuite(suites)
@@ -236,7 +235,7 @@ setup(name="ZODB3",
       version=VERSION,
       maintainer="Zope Corporation",
       maintainer_email="zodb-dev@zope.org",
-      url = "http://www.zope.org/Products/ZODB3",
+      url = "http://wiki.zope.org/ZODB",
       packages = packages,
       package_dir = {'': 'src'},
       ext_modules = exts,
@@ -261,12 +260,14 @@ setup(name="ZODB3",
         'zdaemon',
         ],
       install_requires = [
+        'transaction',
+        'zc.lockfile',
+        'ZConfig',
+        'zdaemon',
+        'zope.event',
         'zope.interface',
         'zope.proxy',
         'zope.testing',
-        'ZConfig',
-        'zdaemon',
-        'transaction',
         ],
       zip_safe = False,
       entry_points = """

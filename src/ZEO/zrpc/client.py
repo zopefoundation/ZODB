@@ -34,7 +34,7 @@ class ConnectionManager(object):
     def __init__(self, addrs, client, tmin=1, tmax=180):
         self.addrlist = self._parse_addrs(addrs)
         self.client = client
-        self.tmin = tmin
+        self.tmin = min(tmin, tmax)
         self.tmax = tmax
         self.cond = threading.Condition(threading.Lock())
         self.connection = None # Protected by self.cond

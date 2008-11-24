@@ -11,36 +11,30 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import os
-import time
-import unittest
-import datetime
-
-import transaction
-
-from zope.testing import doctest
-
-import ZODB
-import ZODB.FileStorage
 
 from ZODB.tests.MinPO import MinPO
+from zope.testing import doctest
+import datetime
+import os
+import time
+import transaction
+import unittest
+import ZODB
+import ZODB.tests.util
 
 # Return total number of connections across all pools in a db._pools.
 def nconn(pools):
     return sum([len(pool.all) for pool in pools.values()])
 
-class DBTests(unittest.TestCase):
+class DBTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
-        self.__path = os.path.abspath('test.fs')
-        store = ZODB.FileStorage.FileStorage(self.__path)
-        self.db = ZODB.DB(store)
+        ZODB.tests.util.TestCase.setUp(self)
+        self.db = ZODB.DB('test.fs')
 
     def tearDown(self):
         self.db.close()
-        for s in ('', '.index', '.lock', '.tmp'):
-            if os.path.exists(self.__path+s):
-                os.remove(self.__path+s)
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def dowork(self):
         c = self.db.open()

@@ -73,10 +73,10 @@ This tests tries to provoke this bug by:
     ...    _ = lock.acquire()
     ...    try:
     ...      time.sleep(.1)
-    ...      assert (db._storage.lastTransaction()
-    ...              == db._storage._server.lastTransaction()), (
-    ...                  db._storage.lastTransaction(),
-    ...                  db._storage._server.lastTransactiion())
+    ...      assert (db.storage.lastTransaction()
+    ...              == db.storage._server.lastTransaction()), (
+    ...                  db.storage.lastTransaction(),
+    ...                  db.storage._server.lastTransactiion())
     ...      conn = db.open()
     ...      for i in range(1000):
     ...        if conn.root()[i].value != conn2.root()[i].value:

@@ -208,7 +208,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
 
         file = StringIO()
         pickler = Pickler(file,1)
-        pickler.persistent_id = persistent_id
+        pickler.inst_persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)
         return file.getvalue(1)

@@ -85,9 +85,8 @@ story.
 
 First we create a storage and a database, and put a PCounter in the database.
 
-    >>> from ZODB.DB import DB
-    >>> from ZODB.tests.util import ConflictResolvingMappingStorage
-    >>> db = DB(ConflictResolvingMappingStorage())
+    >>> import ZODB
+    >>> db = ZODB.DB('Data.fs')
     >>> import transaction
     >>> tm_A = transaction.TransactionManager()
     >>> conn_A = db.open(transaction_manager=tm_A)
@@ -420,10 +419,8 @@ integrity issues.
     what is going on here.
 
     >>> databases = {}
-    >>> db1 = DB(ConflictResolvingMappingStorage(),
-    ...          databases=databases, database_name='1')
-    >>> db2 = DB(ConflictResolvingMappingStorage(),
-    ...          databases=databases, database_name='2')
+    >>> db1 = ZODB.DB('1', databases=databases, database_name='1')
+    >>> db2 = ZODB.DB('2', databases=databases, database_name='2')
     >>> tm_multi_A = transaction.TransactionManager()
     >>> conn_1A = db1.open(transaction_manager=tm_multi_A)
     >>> conn_2A = conn_1A.get_connection('2')

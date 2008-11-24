@@ -23,18 +23,17 @@ from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
 from zope.interface.verify import verifyObject
+import ZODB.tests.util
 
-class ConnectionDotAdd(unittest.TestCase):
+class ConnectionDotAdd(ZODB.tests.util.TestCase):
 
     def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
         from ZODB.Connection import Connection
         self.db = StubDatabase()
         self.datamgr = Connection(self.db)
         self.datamgr.open()
         self.transaction = StubTransaction()
-
-    def tearDown(self):
-        transaction.abort()
 
     def check_add(self):
         from ZODB.POSException import InvalidObjectReference
@@ -97,7 +96,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
-        self.assertEquals(self.db._storage._stored, [oid])
+        self.assertEquals(self.db.storage._stored, [oid])
 
     def checkCommit(self):
         obj = StubObject()
@@ -112,8 +111,8 @@ class ConnectionDotAdd(unittest.TestCase):
         # This next assert_ is covered by an assert in tpc_finish.
         ##self.assert_(not self.datamgr._added)
 
-        self.assertEquals(self.db._storage._stored, [oid])
-        self.assertEquals(self.db._storage._finished, [oid])
+        self.assertEquals(self.db.storage._stored, [oid])
+        self.assertEquals(self.db.storage._finished, [oid])
 
     def checkModifyOnGetstate(self):
         member = StubObject()
@@ -124,7 +123,7 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.commit(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
-        storage = self.db._storage
+        storage = self.db.storage
         self.assert_(obj._p_oid in storage._stored, "object was not stored")
         self.assert_(subobj._p_oid in storage._stored,
                 "subobject was not stored")
@@ -139,6 +138,14 @@ class ConnectionDotAdd(unittest.TestCase):
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
         self.assert_(obj._p_oid not in self.datamgr._storage._stored)
+
+    def check__resetCacheResetsReader(self):
+        # https://bugs.launchpad.net/zodb/+bug/142667
+        old_cache = self.datamgr._cache
+        self.datamgr._resetCache()
+        new_cache = self.datamgr._cache
+        self.failIf(new_cache is old_cache)
+        self.failUnless(self.datamgr._reader._cache is new_cache)
 
 class UserMethodTests(unittest.TestCase):
 
@@ -345,7 +352,7 @@ class UserMethodTests(unittest.TestCase):
 
         An expedient way to create a read-only storage:
 
-        >>> db._storage._is_read_only = True
+        >>> db.storage.isReadOnly = lambda: True
         >>> cn = db.open()
         >>> cn.isReadOnly()
         True
@@ -516,10 +523,11 @@ class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
 
-class EstimatedSizeTests(unittest.TestCase):
+class EstimatedSizeTests(ZODB.tests.util.TestCase):
     """check that size estimations are handled correctly."""
 
     def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
         self.db = db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         self.conn = c = db.open()
         self.obj = obj = _PlayPersistent()
@@ -537,7 +545,8 @@ class EstimatedSizeTests(unittest.TestCase):
         transaction.commit()
         new_size = obj._p_estimated_size
         self.assert_(new_size > size)
-        self.assertEqual(cache.total_estimated_size, cache_size + new_size - size)
+        self.assertEqual(cache.total_estimated_size,
+                         cache_size + new_size - size)
 
     def test_size_set_on_write_savepoint(self):
         obj, cache = self.obj, self.conn._cache
@@ -744,7 +753,7 @@ class TestConnectionInterface(unittest.TestCase):
 class StubDatabase:
 
     def __init__(self):
-        self._storage = StubStorage()
+        self.storage = StubStorage()
 
     classFactory = None
     database_name = 'stubdatabase'

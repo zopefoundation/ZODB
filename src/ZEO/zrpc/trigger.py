@@ -152,6 +152,9 @@ else:
     # Windows version; uses just sockets, because a pipe isn't select'able
     # on Windows.
 
+    class BindError(Exception):
+        pass
+
     class trigger(_triggerbase, asyncore.dispatcher):
         kind = "loopback"
 

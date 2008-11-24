@@ -31,17 +31,17 @@ __all__ = ['z64',
            'u64',
            'U64',
            'cp',
-           'newTimeStamp',
+           'newTid',
            'oid_repr',
            'serial_repr',
            'tid_repr',
            'positive_id',
            'readable_tid_repr',
-           'WeakSet',
            'DEPRECATED_ARGUMENT',
            'deprecated37',
            'deprecated38',
            'get_pickle_metadata',
+           'locked',
           ]
 
 # A unique marker to give as the default value for a deprecated argument.
@@ -113,14 +113,12 @@ def cp(f1, f2, length=None):
         write(data)
         length -= len(data)
 
-def newTimeStamp(old=None,
-                 TimeStamp=TimeStamp,
-                 time=time.time, gmtime=time.gmtime):
-    t = time()
-    ts = TimeStamp(gmtime(t)[:5]+(t%60,))
+def newTid(old):
+    t = time.time()
+    ts = TimeStamp(*time.gmtime(t)[:5]+(t%60,))
     if old is not None:
-        return ts.laterThan(old)
-    return ts
+        ts = ts.laterThan(TimeStamp(old))
+    return `ts`
 
 
 def oid_repr(oid):
@@ -223,75 +221,52 @@ def get_pickle_metadata(data):
         classname = ''
     return modname, classname
 
-# A simple implementation of weak sets, supplying just enough of Python's
-# sets.Set interface for our needs.
-
-class WeakSet(object):
-    """A set of objects that doesn't keep its elements alive.
-
-    The objects in the set must be weakly referencable.
-    The objects need not be hashable, and need not support comparison.
-    Two objects are considered to be the same iff their id()s are equal.
-
-    When the only references to an object are weak references (including
-    those from WeakSets), the object can be garbage-collected, and
-    will vanish from any WeakSets it may be a member of at that time.
-    """
-
-    def __init__(self):
-        # Map id(obj) to obj.  By using ids as keys, we avoid requiring
-        # that the elements be hashable or comparable.
-        self.data = weakref.WeakValueDictionary()
-
-    def __len__(self):
-        return len(self.data)
-
-    def __contains__(self, obj):
-        return id(obj) in self.data
-
-    # Same as a Set, add obj to the collection.
-    def add(self, obj):
-        self.data[id(obj)] = obj
-
-    # Same as a Set, remove obj from the collection, and raise
-    # KeyError if obj not in the collection.
-    def remove(self, obj):
-        del self.data[id(obj)]
-
-    # f is a one-argument function.  Execute f(elt) for each elt in the
-    # set.  f's return value is ignored.
-    def map(self, f):
-        for wr in self.as_weakref_list():
-            elt = wr()
-            if elt is not None:
-                f(elt)
-
-    # Return a list of weakrefs to all the objects in the collection.
-    # Because a weak dict is used internally, iteration is dicey (the
-    # underlying dict may change size during iteration, due to gc or
-    # activity from other threads).  as_weakef_list() is safe.
-    #
-    # Something like this should really be a method of Python's weak dicts.
-    # If we invoke self.data.values() instead, we get back a list of live
-    # objects instead of weakrefs.  If gc occurs while this list is alive,
-    # all the objects move to an older generation (because they're strongly
-    # referenced by the list!).  They can't get collected then, until a
-    # less frequent collection of the older generation.  Before then, if we
-    # invoke self.data.values() again, they're still alive, and if gc occurs
-    # while that list is alive they're all moved to yet an older generation.
-    # And so on.  Stress tests showed that it was easy to get into a state
-    # where a WeakSet grows without bounds, despite that almost all its
-    # elements are actually trash.  By returning a list of weakrefs instead,
-    # we avoid that, although the decision to use weakrefs is now# very
-    # visible to our clients.
-    def as_weakref_list(self):
-        # We're cheating by breaking into the internals of Python's
-        # WeakValueDictionary here (accessing its .data attribute).
-        return self.data.data.values()
-
-
 def mktemp(dir=None):
     """Create a temp file, known by name, in a semi-secure manner."""
     handle, filename = mkstemp(dir=dir)
     os.close(handle)
     return filename
+
+class Locked(object):
+
+    def __init__(self, func, inst=None, class_=None, preconditions=()):
+        self.im_func = func
+        self.im_self = inst
+        self.im_class = class_
+        self.preconditions = preconditions
+
+    def __get__(self, inst, class_):
+        return self.__class__(self.im_func, inst, class_, self.preconditions)
+
+    def __call__(self, *args, **kw):
+        inst = self.im_self
+        if inst is None:
+            inst = args[0]
+        func = self.im_func.__get__(self.im_self, self.im_class)
+
+        inst._lock_acquire()
+        try:
+            for precondition in self.preconditions:
+                if not precondition(inst):
+                    raise AssertionError(
+                        "Failed precondition: ",
+                        precondition.__doc__.strip())
+            
+            return func(*args, **kw)
+        finally:
+            inst._lock_release()
+
+class locked(object):
+
+    def __init__(self, *preconditions):
+        self.preconditions = preconditions
+
+    def __get__(self, inst, class_):
+        # We didn't get any preconditions, so we have a single "precondition",
+        # which is actually the function to call.
+        func, = self.preconditions
+        return Locked(func, inst, class_)
+
+    def __call__(self, func):
+        return Locked(func, preconditions=self.preconditions)
+        

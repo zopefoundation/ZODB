@@ -17,7 +17,8 @@ $Id$
 """
 import unittest
 from zope.testing import doctest
-import persistent.dict, transaction
+import persistent.dict
+import transaction
 
 def testAddingThenModifyThenAbort():
     """\
@@ -153,10 +154,13 @@ We simply rely on the underlying storage method.
     False
 """
 
+def tearDown(test):
+    transaction.abort()
+
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('testConnectionSavepoint.txt'),
-        doctest.DocTestSuite(),
+        doctest.DocFileSuite('testConnectionSavepoint.txt', tearDown=tearDown),
+        doctest.DocTestSuite(tearDown=tearDown),
         ))
 
 if __name__ == '__main__':

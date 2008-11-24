@@ -14,29 +14,44 @@
 import ZODB.MappingStorage
 import unittest
 
-from ZODB.tests import StorageTestBase
-from ZODB.tests import BasicStorage, MTStorage, Synchronization
-from ZODB.tests import PackableStorage
 
-class MappingStorageTests(StorageTestBase.StorageTestBase,
-                          BasicStorage.BasicStorage,
-                          MTStorage.MTStorage,
-                          PackableStorage.PackableStorage,
-                          Synchronization.SynchronizedStorage,
-                          ):
+from ZODB.tests import (
+    BasicStorage,
+    HistoryStorage,
+    IteratorStorage,
+    MTStorage,
+    PackableStorage,
+    RevisionStorage,
+    StorageTestBase,
+    Synchronization,
+    )
+
+class MappingStorageTests(
+    StorageTestBase.StorageTestBase,
+    BasicStorage.BasicStorage,
+
+    HistoryStorage.HistoryStorage,
+    IteratorStorage.ExtendedIteratorStorage,
+    IteratorStorage.IteratorStorage,
+    MTStorage.MTStorage,
+    PackableStorage.PackableStorageWithOptionalGC,
+    RevisionStorage.RevisionStorage,
+    Synchronization.SynchronizedStorage,
+    ):
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self, )
         self._storage = ZODB.MappingStorage.MappingStorage()
-
-    def tearDown(self):
-        self._storage.close()
 
     def checkOversizeNote(self):
         # This base class test checks for the common case where a storage
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
         pass
-
+        
+    def checkLoadBeforeUndo(self):
+        pass # we don't support undo yet
+    checkUndoZombie = checkLoadBeforeUndo
 
 def test_suite():
     suite = unittest.makeSuite(MappingStorageTests, 'check')

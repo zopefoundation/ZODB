@@ -273,6 +273,7 @@ share the same class:
     >>> file = connection.exportFile(p._p_oid)
     >>> file.seek(0)
     >>> cp = connection.importFile(file)
+    >>> file.close()
     >>> cp.color
     'blue'
 
@@ -282,6 +283,7 @@ share the same class:
     >>> cp.__class__ is p.__class__
     True
 
-
+    >>> tm.abort()
+    
 
 XXX test abort of import

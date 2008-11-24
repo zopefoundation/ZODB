@@ -34,6 +34,7 @@ from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 import persistent
 import transaction
+import zope.testing.setupstack
 
 # ZODB test mixin classes
 from ZODB.tests import StorageTestBase, BasicStorage,  \
@@ -44,6 +45,8 @@ from ZODB.tests import StorageTestBase, BasicStorage,  \
 from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
 
 from ZEO.ClientStorage import ClientStorage
+
+from ZEO.zrpc.error import DisconnectedError
 
 import ZEO.zrpc.connection
 
@@ -147,35 +150,8 @@ class MiscZEOTests:
         self.assertNotEquals(ZODB.utils.z64, storage3.lastTransaction())
         storage3.close()
 
-    def checkDropCacheRatherVerifyImplementation(self):
-        # As it is quite difficult to set things up such that the verification
-        # optimizations do not step in, we emulate both the cache
-        # as well as the server.
-        from ZODB.TimeStamp import TimeStamp
-        class CacheEmulator(object):
-            # the settings below would be inconsitent for a normal cache
-            # but they are sufficient for our test setup
-            def __len__(self): return 1 # claim not to be empty
-            def contents(self): return () # do not invalidate anything
-            def getLastTid(self): return
-            def close(self): pass
-        class ServerEmulator(object):
-            def verify(*unused): pass
-            def endZeoVerify(*unused): pass
-            def lastTransaction(*unused): pass
-        storage = self._storage
-        storage._cache = cache = CacheEmulator()
-        server = ServerEmulator()
-        # test the standard behaviour
-        self.assertEqual(storage.verify_cache(server), "full verification")
-        # test the "drop cache rather verify" behaviour
-        storage._drop_cache_rather_verify = True
-        self.assertEqual(storage.verify_cache(server), "cache dropped")
-        # verify that we got a new cache
-        self.assert_(cache != storage._cache)
-
-
 class ConfigurationTests(unittest.TestCase):
+
     def checkDropCacheRatherVerifyConfiguration(self):
         from ZODB.config import storageFromString
         # the default is to do verification and not drop the cache
@@ -221,8 +197,9 @@ class GenericTests(
     blob_cache_dir = None
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         logger.info("setUp() %s", self.id())
-        port = get_port()
+        port = get_port(self)
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
@@ -231,7 +208,9 @@ class GenericTests(
         self._conf_path = path
         if not self.blob_cache_dir:
             # This is the blob cache for ClientStorage
-            self.blob_cache_dir = tempfile.mkdtemp()
+            self.blob_cache_dir = tempfile.mkdtemp(
+                'blob_cache',
+                dir=os.path.abspath(os.getcwd()))
         self._storage = ClientStorage(
             zport, '1', cache_size=20000000,
             min_disconnect_poll=0.5, wait=1,
@@ -241,14 +220,13 @@ class GenericTests(
 
     def tearDown(self):
         self._storage.close()
-        os.remove(self._conf_path)
-        ZODB.blob.remove_committed_dir(self.blob_cache_dir)
         for server in self._servers:
             forker.shutdown_zeo_server(server)
         if hasattr(os, 'waitpid'):
             # Not in Windows Python until 2.3
             for pid in self._pids:
                 os.waitpid(pid, 0)
+        StorageTestBase.StorageTestBase.tearDown(self)
 
     def runTest(self):
         try:
@@ -299,29 +277,22 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
 
     level = 2
 
-    def setUp(self):
-        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
-        self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
-
     def getConfig(self):
-        filename = self.__fs_base = tempfile.mktemp()
         return """\
         <filestorage 1>
         path %s
         </filestorage>
-        """ % filename
+        """ % tempfile.mktemp(dir='.')
 
     def _new_storage(self):
-        port = get_port()
+        port = get_port(self)
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
-        blob_cache_dir = tempfile.mkdtemp()
-
         self._pids.append(pid)
         self._servers.append(adminaddr)
-        self._conf_paths.append(path)
-        self.blob_cache_dirs.append(blob_cache_dir)
+
+        blob_cache_dir = tempfile.mkdtemp(dir='.')
 
         storage = ClientStorage(
             zport, '1', cache_size=20000000,
@@ -331,10 +302,9 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
         return storage
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._pids = []
         self._servers = []
-        self._conf_paths = []
-        self.blob_cache_dirs = []
 
         self._storage = self._new_storage()
         self._dst = self._new_storage()
@@ -343,16 +313,13 @@ class FileStorageRecoveryTests(StorageTestBase.StorageTestBase,
         self._storage.close()
         self._dst.close()
 
-        for p in self._conf_paths:
-            os.remove(p)
-        for p in self.blob_cache_dirs:
-            ZODB.blob.remove_committed_dir(p)
         for server in self._servers:
             forker.shutdown_zeo_server(server)
         if hasattr(os, 'waitpid'):
             # Not in Windows Python until 2.3
             for pid in self._pids:
                 os.waitpid(pid, 0)
+        StorageTestBase.StorageTestBase.tearDown(self)
 
     def new_dest(self):
         return self._new_storage()
@@ -363,12 +330,11 @@ class FileStorageTests(FullGenericTests):
     level = 2
 
     def getConfig(self):
-        filename = self.__fs_base = tempfile.mktemp()
         return """\
         <filestorage 1>
-        path %s
+        path Data.fs
         </filestorage>
-        """ % filename
+        """
 
     def checkInterfaceFromRemoteStorage(self):
         # ClientStorage itself doesn't implement IStorageIteration, but the
@@ -379,9 +345,16 @@ class FileStorageTests(FullGenericTests):
         self.failUnless(ZODB.interfaces.IStorageIteration.providedBy(
             self._storage))
         # This is communicated using ClientStorage's _info object:
-        self.assertEquals((('ZODB.interfaces', 'IStorageIteration'),
-                           ('zope.interface', 'Interface')),
-                          self._storage._info['interfaces'])
+        self.assertEquals(
+            (('ZODB.interfaces', 'IStorageRestoreable'),
+             ('ZODB.interfaces', 'IStorageIteration'),
+             ('ZODB.interfaces', 'IStorageUndoable'),
+             ('ZODB.interfaces', 'IStorageCurrentRecordIteration'),
+             ('ZODB.interfaces', 'IStorage'),
+             ('zope.interface', 'Interface'),
+             ),
+            self._storage._info['interfaces']
+            )
 
 
 class MappingStorageTests(GenericTests):
@@ -408,15 +381,19 @@ class DemoStorageTests(
         return """
         <demostorage 1>
           <filestorage 1>
-             path %s
+             path Data.fs
           </filestorage>
         </demostorage>
-        """ % tempfile.mktemp()
+        """
 
     def checkUndoZombie(self):
         # The test base class IteratorStorage assumes that we keep undo data
         # to construct our iterator, which we don't, so we disable this test.
         pass
+
+    def checkPackWithMultiDatabaseReferences(self):
+        pass # DemoStorage pack doesn't do gc
+    checkPackAllRevisions = checkPackWithMultiDatabaseReferences
 
 class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     """Make sure a heartbeat is being sent and that it does no harm
@@ -569,7 +546,7 @@ class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         logger.info("setUp() %s", self.id())
-        port = get_port()
+        port = get_port(self)
         zconf = forker.ZEOConfig(('', port))
         zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
                                                               zconf, port)
@@ -604,22 +581,18 @@ test_classes = [OneTimeTests,
 
 class CommonBlobTests:
 
-    def tearDown(self):
-        super(BlobAdaptedFileStorageTests, self).tearDown()
-        if os.path.exists(self.blobdir):
-            # Might be gone already if the super() method deleted
-            # the shared directory. Don't worry.
-            shutil.rmtree(self.blobdir)
-
     def getConfig(self):
         return """
         <blobstorage 1>
-          blob-dir %s
+          blob-dir blobs
           <filestorage 2>
-            path %s
+            path Data.fs
           </filestorage>
         </blobstorage>
-        """ % (self.blobdir, self.filestorage)
+        """
+
+    blobdir = 'blobs'
+    blob_cache_dir = 'blob_cache'
 
     def checkStoreBlob(self):
         from ZODB.utils import oid_repr, tid_repr
@@ -650,8 +623,7 @@ class CommonBlobTests:
             self._storage.tpc_abort(t)
             raise
         self.assert_(not os.path.exists(tfname))
-        filename = os.path.join(self.blobdir, oid_repr(oid),
-                                tid_repr(revid) + BLOB_SUFFIX)
+        filename = self._storage.fshelper.getBlobFilename(oid, revid)
         self.assert_(os.path.exists(filename))
         self.assertEqual(somedata, open(filename).read())
 
@@ -698,27 +670,21 @@ class CommonBlobTests:
         self.assert_((os.stat(filename).st_mode & stat.S_IREAD))
 
     def checkTemporaryDirectory(self):
-        self.assertEquals(self.blob_cache_dir,
+        self.assertEquals(os.path.join(self.blob_cache_dir, 'tmp'),
                           self._storage.temporaryDirectory())
 
     def checkTransactionBufferCleanup(self):
         oid = self._storage.new_oid()
-        handle, blob_file_name = tempfile.mkstemp() #XXX cleanup temp file
-        open(blob_file_name, 'w').write('I am a happy blob.')
+        open('blob_file', 'w').write('I am a happy blob.')
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.storeBlob(
-          oid, ZODB.utils.z64, 'foo', blob_file_name, '', t)
+          oid, ZODB.utils.z64, 'foo', 'blob_file', '', t)
         self._storage.close()
 
 
 class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
     """ZEO backed by a BlobStorage-adapted FileStorage."""
-
-    def setUp(self):
-        self.blobdir = tempfile.mkdtemp()  # blob directory on ZEO server
-        self.filestorage = tempfile.mktemp()
-        super(BlobAdaptedFileStorageTests, self).setUp()
 
     def checkStoreAndLoadBlob(self):
         from ZODB.utils import oid_repr, tid_repr
@@ -765,17 +731,15 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
                 d1 = f.read(8096)
                 d2 = somedata.read(8096)
                 self.assertEqual(d1, d2)
-                
-        
-        # The file should have been copied to the server:
-        filename = os.path.join(self.blobdir, oid_repr(oid),
-                                tid_repr(revid) + BLOB_SUFFIX)
+
+        # The file should be in the cache ...
+        filename = self._storage.fshelper.getBlobFilename(oid, revid)
         check_data(filename)
 
-        # It should also be in the cache:
-        filename = os.path.join(self.blob_cache_dir, oid_repr(oid),
-                                tid_repr(revid) + BLOB_SUFFIX)
-        check_data(filename)
+        # ... and on the server
+        server_filename = filename.replace(self.blob_cache_dir, self.blobdir)
+        self.assert_(server_filename.startswith(self.blobdir))
+        check_data(server_filename)
 
         # If we remove it from the cache and call loadBlob, it should
         # come back. We can do this in many threads.  We'll instrument
@@ -805,12 +769,8 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
 
 class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
 
-    def setUp(self):
-        self.blobdir = self.blob_cache_dir = tempfile.mkdtemp()
-        self.filestorage = tempfile.mktemp()
-        self.shared_blob_dir = True
-        super(BlobWritableCacheTests, self).setUp()
-
+    blob_cache_dir = 'blobs'
+    shared_blob_dir = True
 
 class StorageServerClientWrapper:
 
@@ -1004,6 +964,7 @@ transaction, we'll get a result:
     >>> sorted([int(u64(oid)) for (oid, _) in oids])
     [0, 101, 102, 103, 104]
 
+    >>> fs.close()
     """
 
 def tpc_finish_error():
@@ -1028,6 +989,8 @@ def tpc_finish_error():
     ...         self.client = client
     ...     def connect(self, sync=1):
     ...         self.client.notifyConnected(Connection(self.client))
+    ...     def close(self):
+    ...         pass
 
     >>> class StorageServer:
     ...     should_fail = True
@@ -1103,119 +1066,102 @@ def tpc_finish_error():
     ... else: print "Should have failed"
     finish
     connection closed
+
+    >>> cs.close()
+    connection closed
     """
 
-def clear_memory_cache_on_cache_verification_or_have_invalid_data():
-    r"""
+def client_has_newer_data_than_server():
+    """It is bad if a client has newer data than the server.
 
-    When a ZEO client reconnects, there are 2 caches it has to worry
-    about. The client cache, and the memory caches.  The memory caches
-    may have data not in the client caches.  Below is a scenario that
-    illustrates this.
-
-
-    First, we start a server:
-
-    >>> port1 = get_port()
-    >>> zconf = forker.ZEOConfig(('localhost', port1))
-    >>> sconf = '<filestorage 1>\npath Data.fs\n</filestorage>\n'
-    >>> _, adminaddr, pid, conf_path = forker.start_zeo_server(
-    ...     sconf, zconf, port1, keep=True)
-
-    Now, we'll create a client:
-
-    >>> db = ZODB.DB(ClientStorage(('localhost', port1), cache_size=12))
-    >>> conn = db.open()
-    >>> conn.root()[0] = MinPO(0)
-    >>> transaction.commit()
-
-    We'll restart the server on a different port.
-
-    >>> port2 = get_port()
-    >>> zconf = forker.ZEOConfig(('localhost', port2))
-    >>> forker.shutdown_zeo_server(adminaddr)
-
-    >>> conn.sync()
-    >>> conn._storage.is_connected()
-    False
-    
-    >>> zconf = forker.ZEOConfig(('localhost', port2))
-    >>> _, adminaddr, pid, conf_path = forker.start_zeo_server(
-    ...     sconf, zconf, port2, keep=True)
-
-    And write a bunch of data to it.
-
-    >>> db2 = ZODB.DB(ClientStorage(('localhost', port2), cache_size=12))
-    >>> conn2 = db2.open()
-    >>> for i in range(10):
-    ...     conn2.root()[i+1] = MinPO(i+1)
-    ...     transaction.commit()
-    >>> conn2.root()[0].value = 42
-    >>> transaction.commit()
-    >>> db2.close()
-    >>> forker.shutdown_zeo_server(adminaddr)
-
-    Now, we'll restart the server on the original port with a small
-    invalidation queue size.  This will force the original client to
-    validate it's cache.
-
-    >>> transaction.abort()
-
-    >>> len(conn.root())
-    >>> conn.root()[0].value
-
-    >>> len(conn._cache)
-    >>> len(conn._storage._cache)
-
-    >>> zconf = forker.ZEOConfig(('localhost', port1))
-    >>> zconf.invalidation_queue_size = 1
-    >>> _, adminaddr, pid, conf_path = forker.start_zeo_server(
-    ...      sconf, zconf, port1)
-    
-    Now, if we sync the original connection, we should get  current data:
-
-
-    >>> conn._storage._wait(5)
-    >>> len(conn._cache)
-
-    >>> transaction.abort()
-
-
-
-    >>> len(conn._cache)
-    
-    >>> len(conn.root())
-    11
-    
-    >>> conn.root()[0].value
-    42
-
-    >>> forker.shutdown_zeo_server(adminaddr)
+    >>> db = ZODB.DB('Data.fs')
     >>> db.close()
+    >>> shutil.copyfile('Data.fs', 'Data.save')
+    >>> addr, admin = start_server(keep=1)
+    >>> db = ZEO.DB(addr, name='client', max_disconnect_poll=.01)
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x = 1
+    >>> transaction.commit()
 
+    OK, we've added some data to the storage and the client cache has
+    the new data. Now, we'll stop the server, put back the old data, and
+    see what happens. :)
+
+    >>> stop_server(admin)
+    >>> shutil.copyfile('Data.save', 'Data.fs')
+
+    >>> import zope.testing.loggingsupport
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...     'ZEO', level=logging.ERROR)
+    >>> formatter = logging.Formatter('%(name)s %(levelname)s %(message)s')
+
+    >>> _, admin = start_server(addr=addr)
+
+    >>> for i in range(1000):
+    ...     while len(handler.records) < 5:
+    ...           time.sleep(.01)
+
+    >>> db.close()
+    >>> for record in handler.records[:5]:
+    ...     print formatter.format(record)
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    ZEO.ClientStorage CRITICAL client
+    Client has seen newer transactions than server!
+    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('localhost', ...))
+    Traceback (most recent call last):
+    ...
+    ClientStorageError: client Client has seen newer transactions than server!
+    ZEO.ClientStorage CRITICAL client
+    Client has seen newer transactions than server!
+    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('localhost', ...))
+    Traceback (most recent call last):
+    ...
+    ClientStorageError: client Client has seen newer transactions than server!
+    ...
+
+    Note that the errors repeat because the client keeps on trying to connect.
+
+    >>> handler.uninstall()
+    >>> stop_server(admin)
+    
     """
 
-
-
-test_classes = [FileStorageTests, FileStorageRecoveryTests,
-                MappingStorageTests, DemoStorageTests,
-                BlobAdaptedFileStorageTests, BlobWritableCacheTests,
-                ConfigurationTests,
-                ]
+slow_test_classes = [
+    BlobAdaptedFileStorageTests, BlobWritableCacheTests,
+    DemoStorageTests, FileStorageTests, MappingStorageTests,
+    ]
+    
+quick_test_classes = [FileStorageRecoveryTests, ConfigurationTests]
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(doctest.DocTestSuite(setUp=ZODB.tests.util.setUp,
-                                       tearDown=ZODB.tests.util.tearDown))
-    suite.addTest(doctest.DocFileSuite('registerDB.test'))
-    suite.addTest(
-        doctest.DocFileSuite('zeo-fan-out.test',
-                             setUp=ZODB.tests.util.setUp,
-                             tearDown=ZODB.tests.util.tearDown,
-                             ),
+
+    # Collect misc tests into their own layer to educe size of
+    # unit test layer
+    zeo = unittest.TestSuite()
+    zeo.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
+    zeo.addTest(doctest.DocTestSuite(
+        setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
+    zeo.addTest(doctest.DocTestSuite(ZEO.tests.IterationTests,
+        setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
+    zeo.addTest(doctest.DocFileSuite('registerDB.test'))
+    zeo.addTest(
+        doctest.DocFileSuite(
+            'zeo-fan-out.test', 'zdoptions.test',
+            'drop_cache_rather_than_verify.txt',
+            setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
+            ),
         )
-    for klass in test_classes:
+    for klass in quick_test_classes:
+        zeo.addTest(unittest.makeSuite(klass, "check"))
+    zeo.layer = ZODB.tests.util.MininalTestLayer('testZeo-misc')
+    suite.addTest(zeo)
+
+    # Put the heavyweights in their own layers
+    for klass in slow_test_classes:
         sub = unittest.makeSuite(klass, "check")
+        sub.layer = ZODB.tests.util.MininalTestLayer(klass.__name__)
         suite.addTest(sub)
     return suite
 

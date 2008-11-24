@@ -337,12 +337,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             receiveBlobStart
     #             receiveBlobChunk
     #             receiveBlobStop
+    #
+    # Z309 -- named after the ZODB release 3.9
+    #         New server methods:
+    #             restorea, iterator_start, iterator_next,
+    #             iterator_record_start, iterator_record_next,
+    #             iterator_gc
     
-    # XXX add blob methods
-
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z308"
+    current_protocol = "Z309"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.

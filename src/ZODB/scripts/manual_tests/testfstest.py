@@ -9,11 +9,12 @@ import re
 import struct
 import tempfile
 import unittest
+import ZODB.tests.util
 
 import fstest
 from fstest import FormatError, U64
 
-class TestCorruptedFS(unittest.TestCase):
+class TestCorruptedFS(ZODB.tests.util.TestCase):
 
     f = open('test-checker.fs', 'rb')
     datafs = f.read()
@@ -21,17 +22,14 @@ class TestCorruptedFS(unittest.TestCase):
     del f
 
     def setUp(self):
-        self._temp = tempfile.mktemp()
+        ZODB.tests.util.TestCase.setUp(self)
+        self._temp = 'Data.fs'
         self._file = open(self._temp, 'wb')
 
     def tearDown(self):
         if not self._file.closed:
             self._file.close()
-        if os.path.exists(self._temp):
-            try:
-                os.remove(self._temp)
-            except os.error:
-                pass
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def noError(self):
         if not self._file.closed:

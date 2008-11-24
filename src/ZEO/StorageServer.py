@@ -543,7 +543,10 @@ class ZEOStorage:
         self.locked = 1
         self.timeout.begin(self)
         self.stats.lock_time = time.time()
-        self.storage.tpc_begin(txn, tid, status)
+        if (tid is not None) or (status != ' '):
+            self.storage.tpc_begin(txn, tid, status)
+        else:
+            self.storage.tpc_begin(txn)
 
     def _store(self, oid, serial, data):
         err = None
@@ -587,7 +590,8 @@ class ZEOStorage:
     def _restore(self, oid, serial, data, prev_txn):
         err = None
         try:
-            self.storage.restore(oid, serial, data, '', prev_txn, self.transaction)
+            self.storage.restore(oid, serial, data, '', prev_txn,
+                                 self.transaction)
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
@@ -765,7 +769,8 @@ class ZEOStorage:
         txn_info = self._txn_iterators_last[txn_iid]
         if txn_info.tid != tid:
             raise Exception(
-                'Out-of-order request for record iterator for transaction %r' % tid)
+                'Out-of-order request for record iterator for transaction %r'
+                % tid)
         self._iterators[record_iid] = iter(txn_info)
         return record_iid
 

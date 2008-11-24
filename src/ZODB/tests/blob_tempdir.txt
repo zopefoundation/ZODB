@@ -21,6 +21,8 @@ The created file is in the default temporary directory::
   >>> w.name.startswith(tempfile.gettempdir())
   True
 
+  >>> w.close()
+
 Case 2: Blobs that are in a database
 ====================================
 
@@ -30,10 +32,9 @@ First, we need a datatabase with blob support::
   >>> from ZODB.MappingStorage import MappingStorage
   >>> from ZODB.blob import BlobStorage
   >>> from ZODB.DB import DB
-  >>> from tempfile import mkdtemp
   >>> import os.path
-  >>> base_storage = MappingStorage("test")
-  >>> blob_dir = mkdtemp()
+  >>> base_storage = MappingStorage('test')
+  >>> blob_dir = os.path.abspath('blobs')
   >>> blob_storage = BlobStorage(blob_dir, base_storage)
   >>> database = DB(blob_storage)
 
@@ -46,3 +47,5 @@ writing and expect the file to be in the blob temporary directory::
   >>> w = blob.open('w')
   >>> w.name.startswith(os.path.join(blob_dir, 'tmp'))
   True
+
+  >>> w.close()

@@ -154,6 +154,7 @@ class MinimalTestSuite(StorageTestBase.StorageTestBase,
                        ):
 
     def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
         self._storage = MinimalMemoryStorage()
 
     # we don't implement undo

@@ -18,10 +18,12 @@ from zope.testing import doctest
 import os
 import random
 import string
+import struct
 import sys
 import tempfile
 import unittest
 import ZEO.cache
+import ZODB.tests.util
 import zope.testing.setupstack
 
 import ZEO.cache
@@ -43,7 +45,8 @@ def hexprint(file):
         printable = ""
         hex = ""
         for character in line:
-            if character in string.printable and not ord(character) in [12,13,9]:
+            if (character in string.printable
+                and not ord(character) in [12,13,9]):
                 printable += character
             else:
                 printable += '.'
@@ -60,17 +63,20 @@ def oid(o):
     return repr_to_oid(repr)
 tid = oid
 
-class CacheTests(unittest.TestCase):
+class CacheTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
         # The default cache size is much larger than we need here.  Since
         # testSerialization reads the entire file into a string, it's not
         # good to leave it that big.
+        ZODB.tests.util.TestCase.setUp(self)
         self.cache = ZEO.cache.ClientCache(size=1024**2)
 
     def tearDown(self):
+        self.cache.close()
         if self.cache.path:
             os.remove(self.cache.path)
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def testLastTid(self):
         self.assertEqual(self.cache.getLastTid(), None)
@@ -120,7 +126,7 @@ class CacheTests(unittest.TestCase):
 
     def testEviction(self):
         # Manually override the current maxsize
-        cache = ZEO.cache.ClientCache(None, 3295)
+        cache = ZEO.cache.ClientCache(None, 3395)
 
         # Trivial test of eviction code.  Doesn't test non-current
         # eviction.
@@ -129,7 +135,7 @@ class CacheTests(unittest.TestCase):
             n = p64(i)
             cache.store(n, n, None, data[i])
             self.assertEquals(len(cache), i + 1)
-        # The cache now uses 3287 bytes.  The next insert
+        # The cache is now almost full.  The next insert
         # should delete some objects.
         n = p64(50)
         cache.store(n, n, None, data[51])
@@ -190,6 +196,136 @@ class CacheTests(unittest.TestCase):
         # If an object cannot be stored in the cache, it must not be
         # recorded as non-current.
         self.assert_(1 not in cache.noncurrent)
+
+    def testVeryLargeCaches(self):
+        cache = ZEO.cache.ClientCache('cache', size=(1<<32)+(1<<20))
+        cache.store(n1, n2, None, "x")
+        cache.close()
+        cache = ZEO.cache.ClientCache('cache', size=(1<<33)+(1<<20))
+        self.assertEquals(cache.load(n1), ('x', n2))
+        cache.close()
+
+    def testConversionOfLargeFreeBlocks(self):
+        f = open('cache', 'wb')
+        f.write(ZEO.cache.magic+
+                '\0'*8 +
+                'f'+struct.pack(">I", (1<<32)-12)
+                )
+        f.seek((1<<32)-1)
+        f.write('x')
+        f.close()
+        cache = ZEO.cache.ClientCache('cache', size=1<<32)
+        cache.close()
+        cache = ZEO.cache.ClientCache('cache', size=1<<32)
+        cache.close()
+        f = open('cache', 'rb')
+        f.seek(12)
+        self.assertEquals(f.read(1), 'f')
+        self.assertEquals(struct.unpack(">I", f.read(4))[0],
+                          ZEO.cache.max_block_size)
+        f.close()
+
+    if not sys.platform.startswith('linux'):
+        # On platforms without sparse files, these tests are just way
+        # too hard on the disk and take too long (especially in a windows
+        # VM).
+        del testVeryLargeCaches
+        del testConversionOfLargeFreeBlocks
+
+    def test_clear_zeo_cache(self):
+        cache = self.cache
+        for i in range(10):
+            cache.store(p64(i), n2, None, str(i))
+            cache.store(p64(i), n1, n2, str(i)+'old')
+        self.assertEqual(len(cache), 20)
+        self.assertEqual(cache.load(n3), ('3', n2))
+        self.assertEqual(cache.loadBefore(n3, n2), ('3old', n1, n2))
+
+        cache.clear()
+        self.assertEqual(len(cache), 0)
+        self.assertEqual(cache.load(n3), None)
+        self.assertEqual(cache.loadBefore(n3, n2), None)
+        
+    def testChangingCacheSize(self):
+        # start with a small cache
+        data = 'x'
+        recsize = ZEO.cache.allocated_record_overhead+len(data)
+
+        for extra in (2, recsize-2):
+
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+100*recsize+extra)
+            for i in range(100):
+                cache.store(p64(i), n1, None, data)
+            self.assertEquals(len(cache), 100)
+            self.assertEquals(os.path.getsize(
+                'cache'), ZEO.cache.ZEC_HEADER_SIZE+100*recsize+extra)
+
+            # Now make it smaller
+            cache.close()
+            small = 50
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+small*recsize+extra)
+            self.assertEquals(len(cache), small)
+            self.assertEquals(os.path.getsize(
+                'cache'), ZEO.cache.ZEC_HEADER_SIZE+small*recsize+extra)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              set(range(small)))
+            for i in range(100, 110):
+                cache.store(p64(i), n1, None, data)
+
+            # We use small-1 below because an extra object gets
+            # evicted because of the optimization to assure that we
+            # always get a free block after a new allocated block.
+            expected_len = small - 1
+            self.assertEquals(len(cache), expected_len)
+            expected_oids = set(range(11, 50)+range(100, 110))
+            self.assertEquals(
+                set(u64(oid) for (oid, tid) in cache.contents()),
+                expected_oids)
+
+            # Make sure we can reopen with same size
+            cache.close()
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+small*recsize+extra)
+            self.assertEquals(len(cache), expected_len)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            # Now make it bigger
+            cache.close()
+            large = 150
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+large*recsize+extra)
+            self.assertEquals(len(cache), expected_len)
+            self.assertEquals(os.path.getsize(
+                'cache'), ZEO.cache.ZEC_HEADER_SIZE+large*recsize+extra)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+
+            for i in range(200, 305):
+                cache.store(p64(i), n1, None, data)
+            
+            # We use large-2 for the same reason we used small-1 above.
+            expected_len = large-2
+            self.assertEquals(len(cache), expected_len)
+            expected_oids = set(range(11, 50)+range(106, 110)+range(200, 305))
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            # Make sure we can reopen with same size
+            cache.close()
+            cache = ZEO.cache.ClientCache(
+                'cache', size=ZEO.cache.ZEC_HEADER_SIZE+large*recsize+extra)
+            self.assertEquals(len(cache), expected_len)
+            self.assertEquals(set(u64(oid) for (oid, tid) in cache.contents()),
+                              expected_oids)
+
+            # Cleanup
+            cache.close()
+            os.remove('cache')
+        
 
 __test__ = dict(
     kill_does_not_cause_cache_corruption =
@@ -345,6 +481,13 @@ __test__ = dict(
     >>> logger.removeHandler(handler)
 
     >>> cache.close()
+    """,
+    bad_magic_number =
+    r"""
+    >>> open('cache', 'w').write("Hi world!")
+    >>> try: cache = ZEO.cache.ClientCache('cache', 1000)
+    ... except Exception, v: print v
+    unexpected magic number: 'Hi w'
     """
     )
 

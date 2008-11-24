@@ -99,6 +99,9 @@ def Main():
     import sys
     import getopt
 
+    global PACK
+    global VERBOSE
+
     PACK = 0
     VERBOSE = 0
     try:

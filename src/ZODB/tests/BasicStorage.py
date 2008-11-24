@@ -25,6 +25,8 @@ from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 from ZODB.tests.StorageTestBase import handle_serials
 
 import transaction
+import zope.interface
+import zope.interface.verify
 
 ZERO = '\0'*8
 
@@ -42,12 +44,12 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 0, 0, 0, transaction.Transaction())
+            ZERO, ZERO, '', '', transaction.Transaction())
 
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            0, 1, 2, '', transaction.Transaction())
+            ZERO, 1, 2, '', transaction.Transaction())
         self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):
@@ -151,17 +153,6 @@ class BasicStorage:
         revid2 = self._dostore(oid, revid=revid1, data=p42)
         eq(revid2, self._storage.getTid(oid))
 
-    def checkTwoArgBegin(self):
-        # Unsure: how standard is three-argument tpc_begin()?
-        t = transaction.Transaction()
-        tid = '\0\0\0\0\0psu'
-        self._storage.tpc_begin(t, tid)
-        oid = self._storage.new_oid()
-        data = zodb_pickle(MinPO(8))
-        self._storage.store(oid, None, data, '', t)
-        self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-
     def checkLen(self):
         # len(storage) reports the number of objects.
         # check it is zero when empty
@@ -188,3 +179,23 @@ class BasicStorage:
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
+
+    def checkInterfaces(self):
+        for iface in zope.interface.providedBy(self._storage):
+            zope.interface.verify.verifyObject(iface, self._storage)
+
+    def checkMultipleEmptyTransactions(self):
+        # There was a bug in handling empty transactions in mapping
+        # storage that caused the commit lock not to be released. :(
+        transaction.begin()
+        t = transaction.get()
+        self._storage.tpc_begin(t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        t.commit()
+        transaction.begin()
+        t = transaction.get()
+        self._storage.tpc_begin(t)      # Hung here before
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        t.commit()

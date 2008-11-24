@@ -16,6 +16,7 @@
 import random
 import unittest
 from persistent import Persistent
+from zope.testing import doctest
 
 NUM = 100
 
@@ -89,9 +90,7 @@ class TestUtils(unittest.TestCase):
 
 
 def test_suite():
-    return unittest.makeSuite(TestUtils, 'check')
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(TestUtils, 'check'))
+    suite.addTest(doctest.DocFileSuite('../utils.txt'))
+    return suite

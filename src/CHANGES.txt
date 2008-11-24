@@ -2,17 +2,11 @@
  Change History
 ================
 
-3.9.0a1 (2008-??-??)
+3.9.0 (2008-??-??)
 ====================
 
 New Features
 ------------
-
-- New `ClientStorage` configuration option `drop_cache_rather_verify`.
-  If this option is true then the ZEO client cache is dropped instead of
-  the long (unoptimized) verification. For large caches, setting this
-  option can avoid effective downtimes in the order of hours when
-  the connection to the ZEO server was interrupted for a longer time.
 
 - The connection now estimates the object size based on its pickle size
   and informs the cache about size changes.
@@ -24,6 +18,141 @@ New Features
   based on the total estimated size".
   There are corresponding methods to read and set the new configuration
   parameters.
+
+  XXX There are known issues with this implementation that need to be
+  sorted out before it is "released".
+
+3.9.0a5 (2008-11-??)
+====================
+
+New Features
+------------
+
+- When a ZEO cache is stale and would need verification, a
+  ZEO.interfaces.StaleCache event is published (to zope.event).
+  Applications may handle this event and take action such as exiting
+  the application without verifying the cache or starting cold.
+
+- There's a new convenience function, ZEO.DB, for creating databases
+  using ZEO Client Storages.  Just call ZEO.DB with the same arguments
+  you would otherwise pass to ZEO.ClientStorage.ClientStorage::
+
+    import ZEO
+    db = ZEO.DB(('some_host', 8200)) 
+
+- Object saves are a little faster
+
+- The previous (ZODB 3.8) ZEO client-cache format is supported.
+  The newer cache format introduced in ZODB 3.9.0a1 is no-longer
+  supported. Cache files can still be larger than 4G.  Cache file
+  sizes can now be changed.
+
+- When configuring storages in a storage server, the storage name now
+  defaults to "1".  In the overwhelmingly common case that a single
+  storage, the name can now be ommitted.
+
+Bug Fixes
+---------
+
+- ZEO client transaction iterators weren't properly handled after on
+  disconnects.
+
+- The code to drop a ZEO client cache rather than verifying didn't
+  drop it and didn't leave the client storage in a valid state.
+
+3.9.0a4 (2008-11-06)
+====================
+
+Bug Fixes
+---------
+
+- DemoStorage could sometimes hand out the same new object id more
+  than once.
+
+3.9.0a3 (2008-11-04)
+====================
+
+New Features
+------------
+
+- FileStorage now provides optional garbage collection.  A 'gc'
+  keyword option can be passed to the pack method.  A false value
+  prevents garbage collection.
+
+- The FileStorage constructor now provides a boolean pack_gc option,
+  which defaults to True, to control whether garbage collection is
+  performed when packing by default. This can be overridden with the
+  gc option to the pack method.
+
+  The ZConfig configuration for FileStorage now includes a pack-gc
+  option, corresponding to the pack_gc constructor argument.
+
+- The FileStorage constructor now has a packer keyword argument that
+  allows an alternative packer to be supplied.
+
+  The ZConfig configuration for FileStorage now includes a packer
+  option, corresponding to the packer constructor argument.
+
+Bug Fixes
+---------
+
+- DemoStorage could sometimes hand out the same new object id more
+  than once.
+
+3.9.0a2 (2008-10-31)
+====================
+
+Bug Fixes
+---------
+
+- MappingStorage hung when committing a transaction *after* committing
+  an empty transaction.
+
+3.9.0a1 (2008-10-29)
+====================
+
+New Features
+------------
+
+- MappingStorage now supports multi-version concurrency control and
+  iteration and provides a better storage implementation example.
+
+- DemoStorage has a number of new features:
+
+  - The ability to use a separate storage, such as a file storage to
+    store changes
+
+  - Blob support
+
+  - Multi-version concurrency control and iteration
+
+  - Explicit support dfor demo-storage stacking via push and pop methods.
+
+- Wen calling ZODB.DB to create a database, you can now pass a file
+  name, rather than a storage to use a file storage.
+
+- Added support for copying and recovery of blob storages:
+
+  - Added a helper function, ZODB.blob.is_blob_record for testing whether
+    a data record is for a blob.  This can be used when iterating over a
+    storage to detect blob records so that blob data can be copied.
+
+    In the future, we may want to build this into a blob-aware
+    iteration interface, so that records get blob file attributes
+    automatically.
+
+  - Added the IBlobStorageRestoreable interfaces for blob storages
+    that support recovery via a restoreBlob method.
+
+  - Updated ZODB.blob.BlobStorage to implement
+    IBlobStorageRestoreable and to have a copyTransactionsFrom method
+    that also copies blob data.
+
+- New `ClientStorage` configuration option `drop_cache_rather_verify`.
+  If this option is true then the ZEO client cache is dropped instead of
+  the long (unoptimized) verification. For large caches, setting this
+  option can avoid effective downtimes in the order of hours when
+  the connection to the ZEO server was interrupted for a longer time.
 
 - Cleaned-up the storage iteration API and provided an iterator implementation
   for ZEO.
@@ -53,6 +182,8 @@ New Features
   src/ZODB/historical_connections.txt.
 
 - Removed the ThreadedAsync module.
+
+- Now depend on zc.lockfile
 
 Bugs Fixed
 ----------

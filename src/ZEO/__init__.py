@@ -20,3 +20,9 @@ ZEO is now part of ZODB; ZODB's home on the web is
     http://www.zope.org/Wikis/ZODB
 
 """
+
+def DB(*args, **kw):
+    import ZEO.ClientStorage, ZODB
+    return ZODB.DB(ZEO.ClientStorage.ClientStorage(*args, **kw))
+
+    
