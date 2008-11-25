@@ -471,7 +471,7 @@ Now, we can call lastInvalidations on it:
     True
 
     >>> from ZODB.utils import u64
-    >>> [[int(u64(oid)) for (oid, version) in oids]
+    >>> [[int(u64(oid)) for oid in oids]
     ...  for (i, oids) in invalidations]
     ... # doctest: +NORMALIZE_WHITESPACE
     [[0, 91], [0, 92], [0, 93], [0, 94], [0, 95],

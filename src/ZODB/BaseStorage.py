@@ -425,8 +425,7 @@ class DataRecord(object):
 
     version = ''
 
-    def __init__(self, oid, tid, data, version, prev):
-        assert not version, "versions are no-longer supported"
+    def __init__(self, oid, tid, data, prev):
         self.oid = oid
         self.tid = tid
         self.data = data

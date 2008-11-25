@@ -1090,7 +1090,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 pos = pos - 8 - u64(read(8))
 
             seek(0)
-            return [(trans.tid, [(r.oid, '') for r in trans])
+            return [(trans.tid, [r.oid for r in trans])
                     for trans in FileIterator(self._file_name, pos=pos)]
         finally:
             self._lock_release()
@@ -1711,7 +1711,7 @@ class TransactionRecordIterator(FileStorageFormatter):
 class Record(BaseStorage.DataRecord):
 
     def __init__(self, oid, tid, data, prev, pos):
-        super(Record, self).__init__(oid, tid, data, '', prev)
+        super(Record, self).__init__(oid, tid, data, prev)
         self.pos = pos
 
 

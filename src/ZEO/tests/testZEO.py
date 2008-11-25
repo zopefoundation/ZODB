@@ -818,7 +818,7 @@ class StorageServerWrapper:
         return result
 
     def store(self, oid, serial, data, version_ignored, transaction):
-        self.server.storea(oid, serial, data, '', id(transaction))
+        self.server.storea(oid, serial, data, id(transaction))
 
     def tpc_finish(self, transaction, func = lambda: None):
         self.server.tpc_finish(id(transaction))
@@ -859,7 +859,7 @@ def multiple_storages_invalidation_queue_is_not_insane():
     
     >>> trans, oids = s1.getInvalidations(last)
     >>> from ZODB.utils import u64
-    >>> sorted([int(u64(oid)) for (oid, v) in oids])
+    >>> sorted([int(u64(oid)) for oid in oids])
     [10, 11, 12, 13, 14]
     
     >>> server.close_server()
@@ -913,7 +913,7 @@ structure using lastTransactions.
 
 
     >>> from ZODB.utils import u64
-    >>> sorted([int(u64(oid)) for (oid, _) in oids])
+    >>> sorted([int(u64(oid)) for oid in oids])
     [0, 92, 93, 94, 95, 96, 97, 98, 99, 100]
 
 (Note that the fact that we get oids for 92-100 is actually an
@@ -961,7 +961,7 @@ transaction, we'll get a result:
     >>> ntid == last[-1]
     True
 
-    >>> sorted([int(u64(oid)) for (oid, _) in oids])
+    >>> sorted([int(u64(oid)) for oid in oids])
     [0, 101, 102, 103, 104]
 
     >>> fs.close()
@@ -970,9 +970,11 @@ transaction, we'll get a result:
 def tpc_finish_error():
     r"""Server errors in tpc_finish weren't handled properly.
 
-    >>> import ZEO.ClientStorage
+    >>> import ZEO.ClientStorage, ZEO.zrpc.connection
 
     >>> class Connection:
+    ...     peer_protocol_version = (
+    ...         ZEO.zrpc.connection.Connection.current_protocol)
     ...     def __init__(self, client):
     ...         self.client = client
     ...     def get_addr(self):
@@ -1127,6 +1129,22 @@ def client_has_newer_data_than_server():
     
     """
 
+def history_over_zeo():
+    """
+    >>> addr, _ = start_server()
+    >>> import ZEO, ZODB.blob, transaction
+    >>> db = ZEO.DB(addr)
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x = 0
+    >>> transaction.commit()
+    >>> len(db.history(conn.root()._p_oid, 99))
+    2
+
+    >>> db.close()
+    """
+
+
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     DemoStorageTests, FileStorageTests, MappingStorageTests,
@@ -1150,6 +1168,7 @@ def test_suite():
         doctest.DocFileSuite(
             'zeo-fan-out.test', 'zdoptions.test',
             'drop_cache_rather_than_verify.txt',
+            'protocols.test',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )
