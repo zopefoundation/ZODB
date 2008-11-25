@@ -22,7 +22,23 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
-3.9.0a5 (2008-11-??)
+3.9.0a6 (2008-11-??)
+====================
+
+New Features
+------------
+
+- ZODB 3.9 ZEO clients can connect to ZODB 3.8 servers.
+
+Bug Fixes
+---------
+
+- ZODB 3.8 clients couldn't talk to  ZODB 3.9 servers.
+
+- The history method on ZEO clients failed.
+
+
+3.9.0a5 (2008-11-21)
 ====================
 
 New Features
