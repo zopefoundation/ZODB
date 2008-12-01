@@ -306,11 +306,37 @@ file that can be opened.
     >>> open(blob.committed()).read()
     "I'm a happy blob."
 
+We can also read committed data by calling open with a 'c' flag:
+
+    >>> f = blob.open('c')
+
+This just returns a regular file object:
+
+    >>> type(f)
+    <type 'file'>
+
+and doesn't prevent us from opening the blob for writing:
+
+    >>> blob.open('w').write('x')
+    >>> blob.open().read()
+    'x'
+
+    >>> f.read()
+    "I'm a happy blob."
+
+    >>> f.close()
+    >>> transaction.abort()
+
 An exception is raised if we call committed on a blob that has
 uncommitted changes:
 
     >>> blob = Blob()
     >>> blob.committed()
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
+
+    >>> blob.open('c')
     Traceback (most recent call last):
     ...
     BlobError: Uncommitted changes
@@ -322,8 +348,18 @@ uncommitted changes:
     ...
     BlobError: Uncommitted changes
 
+    >>> blob.open('c')
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
+
     >>> s = transaction.savepoint()
     >>> blob.committed()
+    Traceback (most recent call last):
+    ...
+    BlobError: Uncommitted changes
+
+    >>> blob.open('c')
     Traceback (most recent call last):
     ...
     BlobError: Uncommitted changes

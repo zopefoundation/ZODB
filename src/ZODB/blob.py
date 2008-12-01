@@ -45,7 +45,7 @@ SAVEPOINT_SUFFIX = ".spb"
 LAYOUT_MARKER = '.layout'
 LAYOUTS = {}
 
-valid_modes = 'r', 'w', 'r+', 'a'
+valid_modes = 'r', 'w', 'r+', 'a', 'c'
 
 # Threading issues:
 # We want to support closing blob files when they are destroyed.
@@ -118,6 +118,9 @@ class Blob(persistent.Persistent):
     def open(self, mode="r"):
         if mode not in valid_modes:
             raise ValueError("invalid mode", mode)
+
+        if mode == 'c':
+            return open(self.committed(), 'rb')
 
         if self.writers:
             raise BlobError("Already opened for writing.")

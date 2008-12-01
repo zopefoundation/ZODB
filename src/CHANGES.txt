@@ -22,7 +22,18 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
-3.9.0a6 (2008-11-??)
+3.9.0a6 (2008-12-??)
+====================
+
+New Features
+------------
+
+- The Blob open method now supports a new mode, 'c', to open committed
+  data for reading as an ordinary file, rather than as a blob file.
+  The ordinary file may be used outside the current transaction and
+  even after the blob's database connection has been closed.
+
+3.9.0a6 (2008-11-30)
 ====================
 
 New Features
