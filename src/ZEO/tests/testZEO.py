@@ -1168,7 +1168,7 @@ def test_suite():
         doctest.DocFileSuite(
             'zeo-fan-out.test', 'zdoptions.test',
             'drop_cache_rather_than_verify.txt',
-            'protocols.test',
+            'protocols.test', 'zeo_blob_cache.test',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )
