@@ -34,14 +34,22 @@ from the server before the cache size is checked. The
 blob_cache_size_check option defaults to 100. We passed 10, to check
 after writing 10% of the target size.
 
+We want to check for name collections in the blob cache dir. We'll try
+to provoke name collections by reducing the number of cache directory
+subdirectories.
+
+    >>> import ZEO.ClientStorage
+    >>> orig_blob_cache_layout_size = ZEO.ClientStorage.BlobCacheLayout.size
+    >>> ZEO.ClientStorage.BlobCacheLayout.size = 11
+
 Now, let's write some data:
 
-    >>> import ZODB.blob, transaction
+    >>> import ZODB.blob, transaction, time
     >>> conn = db.open()
     >>> for i in range(1, 101):
     ...     conn.root()[i] = ZODB.blob.Blob()
     ...     conn.root()[i].open('w').write(chr(i)*100)
-    ...     transaction.commit()
+    >>> transaction.commit()
 
 We've committed 10000 bytes of data, but our target size is 4000.  We
 expect to have not much more than the target size in the cache blob
@@ -66,8 +74,9 @@ necessary, but the cache size will remain not much bigger than the
 target:
 
     >>> for i in range(1, 101):
-    ...     if conn.root()[i].open().read() != chr(i)*100:
-    ...         print 'bad data', i
+    ...     data = conn.root()[i].open().read()
+    ...     if data != chr(i)*100:
+    ...         print 'bad data', `chr(i)`, `data`
 
     >>> db.storage._check_blob_size_thread.join()
 
@@ -75,16 +84,55 @@ target:
     True
 
     >>> for i in range(1, 101):
-    ...     if conn.root()[i].open().read() != chr(i)*100:
-    ...         print 'bad data', i
+    ...     data = conn.root()[i].open().read()
+    ...     if data != chr(i)*100:
+    ...         print 'bad data', `chr(i)`, `data`
 
     >>> db.storage._check_blob_size_thread.join()
 
     >>> cache_size('blobs') < 5000
     True
 
+    >>> for i in range(1, 101):
+    ...     data = open(conn.root()[i].committed(), 'rb').read()
+    ...     if data != chr(i)*100:
+    ...         print 'bad data', `chr(i)`, `data`
 
+    >>> db.storage._check_blob_size_thread.join()
+
+    >>> cache_size('blobs') < 5000
+    True
+
+Now let see if we can stress things a bit.  We'll create many clients
+and get them to pound on the blobs all at once to see if we can
+provoke problems:
+
+    >>> import threading, random
+    >>> def run():
+    ...     db = ZEO.DB(addr, blob_dir='blobs',
+    ...                 blob_cache_size=4000, blob_cache_size_check=10)
+    ...     conn = db.open()
+    ...     for i in range(300):
+    ...         time.sleep(0)
+    ...         i = random.randint(1, 100)
+    ...         data = conn.root()[i].open().read()
+    ...         if data != chr(i)*100:
+    ...             print 'bad data', `chr(i)`, `data`
+    ...     db._storage._check_blob_size_thread.join()
+    ...     db.close()
+
+    >>> threads = [threading.Thread(target=run) for i in range(10)]
+    >>> for thread in threads:
+    ...     thread.setDaemon(True)
+    >>> for thread in threads:
+    ...     thread.start()
+    >>> for thread in threads:
+    ...     thread.join()
+
+    >>> cache_size('blobs') < 5000
+    True
 
 .. cleanup
 
     >>> db.close()
+    >>> ZEO.ClientStorage.BlobCacheLayout.size = orig_blob_cache_layout_size
