@@ -47,15 +47,6 @@ class StorageServer:
         zrpc.connection.Connection class.
         """
         self.rpc = rpc
-        
-        # Wait until we know what version the other side is using.
-        while rpc.peer_protocol_version is None:
-            time.sleep(0.1)
-
-        if rpc.peer_protocol_version == 'Z200':
-            self.lastTransaction = lambda: None
-            self.getInvalidations = lambda tid: None
-            self.getAuthProtocol = lambda: None
 
     def extensionMethod(self, name):
         return ExtensionMethodWrapper(self.rpc, name).call
@@ -111,15 +102,15 @@ class StorageServer:
         return self.rpc.call('getInvalidations', tid)
 
     ##
-    # Check whether serial numbers s and sv are current for oid.
-    # If one or both of the serial numbers are not current, the
+    # Check whether a serial number is current for oid.
+    # If the serial number is not current, the
     # server will make an asynchronous invalidateVerify() call.
     # @param oid object id
-    # @param s serial number on non-version data
+    # @param s serial number
     # @defreturn async
 
     def zeoVerify(self, oid, s):
-        self.rpc.callAsync('zeoVerify', oid, s, None)
+        self.rpc.callAsync('zeoVerify', oid, s)
 
     ##
     # Check whether current serial number is valid for oid.
@@ -130,7 +121,7 @@ class StorageServer:
     # @defreturn async
 
     def verify(self, oid, serial):
-        self.rpc.callAsync('verify', oid, '', serial)
+        self.rpc.callAsync('verify', oid, serial)
 
     ##
     # Signal to the server that cache verification is done.
@@ -183,7 +174,7 @@ class StorageServer:
     # @exception KeyError if oid is not found
 
     def loadEx(self, oid):
-        return self.rpc.call("loadEx", oid, '')[:2]
+        return self.rpc.call("loadEx", oid)
 
     ##
     # Return non-current data along with transaction ids that identify
@@ -207,11 +198,10 @@ class StorageServer:
     # @defreturn async
 
     def storea(self, oid, serial, data, id):
-        self.rpc.callAsync('storea', oid, serial, data, '', id)
+        self.rpc.callAsync('storea', oid, serial, data, id)
 
     def restorea(self, oid, serial, data, prev_txn, id):
         self.rpc.callAsync('restorea', oid, serial, data, prev_txn, id)
-
 
     def storeBlob(self, oid, serial, data, blobfilename, txn):
 
@@ -228,13 +218,12 @@ class StorageServer:
                     break
                 yield ('storeBlobChunk', (chunk, ))
             f.close()
-            yield ('storeBlobEnd', (oid, serial, data, '', id(txn)))
+            yield ('storeBlobEnd', (oid, serial, data, id(txn)))
 
         self.rpc.callAsyncIterator(store())
 
     def storeBlobShared(self, oid, serial, data, filename, id):
-        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
-                           '', id)
+        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, id)
 
     ##
     # Start two-phase commit for a transaction
@@ -262,15 +251,12 @@ class StorageServer:
 
     def history(self, oid, length=None):
         if length is None:
-            return self.rpc.call('history', oid, '')
+            return self.rpc.call('history', oid)
         else:
-            return self.rpc.call('history', oid, '', length)
+            return self.rpc.call('history', oid, length)
 
     def record_iternext(self, next):
         return self.rpc.call('record_iternext', next)
-
-    def load(self, oid):
-        return self.rpc.call('load', oid, '')
 
     def sendBlob(self, oid, serial):
         return self.rpc.call('sendBlob', oid, serial)
@@ -283,9 +269,6 @@ class StorageServer:
 
     def new_oid(self):
         return self.rpc.call('new_oid')
-
-    def store(self, oid, serial, data, trans):
-        return self.rpc.call('store', oid, serial, data, '', trans)
 
     def undo(self, trans_id, trans):
         return self.rpc.call('undo', trans_id, trans)
@@ -310,6 +293,90 @@ class StorageServer:
 
     def iterator_gc(self, iids):
         return self.rpc.callAsync('iterator_gc', iids)
+
+class StorageServer308(StorageServer):
+
+    def __init__(self, rpc):
+        if rpc.peer_protocol_version == 'Z200':
+            self.lastTransaction = lambda: None
+            self.getInvalidations = lambda tid: None
+            self.getAuthProtocol = lambda: None
+
+        StorageServer.__init__(self, rpc)
+
+    def history(self, oid, length=None):
+        if length is None:
+            return self.rpc.call('history', oid, '')
+        else:
+            return self.rpc.call('history', oid, '', length)
+
+    def getInvalidations(self, tid):
+        # Not in protocol version 2.0.0; see __init__()
+        result = self.rpc.call('getInvalidations', tid)
+        if result is not None:
+            result = result[0], [oid for (oid, version) in result[1]]
+        return result
+
+    def verify(self, oid, serial):
+        self.rpc.callAsync('verify', oid, '', serial)
+    
+    def loadEx(self, oid):
+        return self.rpc.call("loadEx", oid, '')[:2]
+
+    def storea(self, oid, serial, data, id):
+        self.rpc.callAsync('storea', oid, serial, data, '', id)
+
+    def storeBlob(self, oid, serial, data, blobfilename, txn):
+
+        # Store a blob to the server.  We don't want to real all of
+        # the data into memory, so we use a message iterator.  This
+        # allows us to read the blob data as needed.
+
+        def store():
+            yield ('storeBlobStart', ())
+            f = open(blobfilename, 'rb')
+            while 1:
+                chunk = f.read(59000)
+                if not chunk:
+                    break
+                yield ('storeBlobChunk', (chunk, ))
+            f.close()
+            yield ('storeBlobEnd', (oid, serial, data, '', id(txn)))
+
+        self.rpc.callAsyncIterator(store())
+
+    def storeBlobShared(self, oid, serial, data, filename, id):
+        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
+                           '', id)
+
+    def zeoVerify(self, oid, s):
+        self.rpc.callAsync('zeoVerify', oid, s, None)
+
+    def iterator_start(self, start, stop):
+        raise NotImplementedError
+
+    def iterator_next(self, iid):
+        raise NotImplementedError
+
+    def iterator_record_start(self, txn_iid, tid):
+        raise NotImplementedError
+
+    def iterator_record_next(self, iid):
+        raise NotImplementedError
+
+    def iterator_gc(self, iids):
+        raise NotImplementedError
+
+
+def stub(client, connection):
+        
+    # Wait until we know what version the other side is using.
+    while connection.peer_protocol_version is None:
+        time.sleep(0.1)
+
+    if connection.peer_protocol_version < 'Z309':
+        return StorageServer308(connection)
+    return StorageServer(connection)
 
 
 class ExtensionMethodWrapper:

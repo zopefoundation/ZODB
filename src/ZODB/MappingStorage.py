@@ -332,7 +332,7 @@ class TransactionRecord:
 
     def __iter__(self):
         for oid, data in self.data.items():
-            yield DataRecord(oid, self.tid, data, None)
+            yield DataRecord(oid, self.tid, data)
 
     def pack(self, oid):
         self.status = 'p'
@@ -345,12 +345,12 @@ class DataRecord(object):
     zope.interface.implements(ZODB.interfaces.IStorageRecordInformation)
 
     version = ''
+    data_txn = None
 
-    def __init__(self, oid, tid, data, prev):
+    def __init__(self, oid, tid, data):
         self.oid = oid
         self.tid = tid
         self.data = data
-        self.data_txn = prev
 
 def DB(*args, **kw):
     return ZODB.DB(MappingStorage(), *args, **kw)

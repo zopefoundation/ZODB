@@ -978,7 +978,12 @@ class IBlob(Interface):
 
         Returns a file(-like) object for handling the blob data.
 
-        mode: Mode to open the file with. Possible values: r,w,r+,a
+        mode: Mode to open the file with. Possible values: r,w,r+,a,c
+
+        The mode 'c' is similar to 'r', except that an orinary file
+        object is returned and may be used in a separate transaction
+        and after the blob's database connection has been closed.
+        
         """
 
     def committed():

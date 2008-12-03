@@ -779,24 +779,25 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
-    __super_init = Connection.__init__
-    __super_close = Connection.close
 
     # Servers use a shared server trigger that uses the asyncore socket map
     trigger = trigger()
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
-        self.__super_init(sock, addr, obj, 'S')
-        self.obj.notifyConnected(self)
+        Connection.__init__(self, sock, addr, obj, 'S')
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
         self.message_output(self.current_protocol)
 
+    def recv_handshake(self, proto):
+        Connection.recv_handshake(self, proto)
+        self.obj.notifyConnected(self)
+
     def close(self):
         self.obj.notifyDisconnected()
-        self.__super_close()
+        Connection.close(self)
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""

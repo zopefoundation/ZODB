@@ -37,7 +37,6 @@ import ZODB.serialize
 import ZEO.zrpc.error
 
 import zope.interface
-from ZEO import ClientStub
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.server import Dispatcher
@@ -80,9 +79,6 @@ class StorageServerError(StorageError):
 
 class ZEOStorage:
     """Proxy to underlying storage for a single remote client."""
-
-    # Classes we instantiate.  A subclass might override.
-    ClientStorageStubClass = ClientStub.ClientStorage
 
     # A list of extension methods.  A subclass with extra methods
     # should override.
@@ -128,7 +124,12 @@ class ZEOStorage:
 
     def notifyConnected(self, conn):
         self.connection = conn # For restart_other() below
-        self.client = self.ClientStorageStubClass(conn)
+        assert conn.peer_protocol_version is not None
+        if conn.peer_protocol_version < 'Z309':
+            self.client = ClientStub308(conn)
+            conn.register_object(ZEOStorage308Adapter(self))
+        else:
+            self.client = ClientStub(conn)
         addr = conn.addr
         if isinstance(addr, type("")):
             label = addr
@@ -207,7 +208,6 @@ class ZEOStorage:
                 self.tpc_transaction = lambda : storage._transaction
             else:
                 raise
-                
 
     def _check_tid(self, tid, exc=None):
         if self.read_only:
@@ -288,7 +288,6 @@ class ZEOStorage:
                 'size': storage.getSize(),
                 'name': storage.getName(),
                 'supportsUndo': supportsUndo,
-                'supportsVersions': False,
                 'extensionMethods': self.getExtensionMethods(),
                 'supports_record_iternext': hasattr(self, 'record_iternext'),
                 'interfaces': tuple(interfaces),
@@ -302,22 +301,13 @@ class ZEOStorage:
     def getExtensionMethods(self):
         return self._extensions
 
-    def loadEx(self, oid, version=''):
+    def loadEx(self, oid):
         self.stats.loads += 1
-        if version:
-            raise StorageServerError("Versions aren't supported.")
-
-        data, serial = self.storage.load(oid, '')
-        return data, serial, ''
+        return self.storage.load(oid, '')
 
     def loadBefore(self, oid, tid):
         self.stats.loads += 1
         return self.storage.loadBefore(oid, tid)
-
-    def zeoLoad(self, oid):
-        self.stats.loads += 1
-        p, s = self.storage.load(oid, '')
-        return p, s, '', None, None
 
     def getInvalidations(self, tid):
         invtid, invlist = self.server.get_invalidations(self.storage_id, tid)
@@ -327,18 +317,16 @@ class ZEOStorage:
                  % (len(invlist), u64(invtid)))
         return invtid, invlist
 
-    def verify(self, oid, version, tid):
-        if version:
-            raise StorageServerError("Versions aren't supported.")
+    def verify(self, oid, tid):
         try:
             t = self.getTid(oid)
         except KeyError:
-            self.client.invalidateVerify((oid, ""))
+            self.client.invalidateVerify(oid)
         else:
             if tid != t:
-                self.client.invalidateVerify((oid, ''))
+                self.client.invalidateVerify(oid)
 
-    def zeoVerify(self, oid, s, sv=None):
+    def zeoVerify(self, oid, s):
         if not self.verifying:
             self.verifying = 1
             self.stats.verifying_clients += 1
@@ -351,11 +339,8 @@ class ZEOStorage:
             # invalidation is right.  It could be an application bug
             # that left a dangling reference, in which case it's bad.
         else:
-            if sv:
-                raise StorageServerError("Versions aren't supported.")
-            else:
-                if s != os:
-                    self.client.invalidateVerify((oid, ''))
+            if s != os:
+                self.client.invalidateVerify((oid, ''))
 
     def endZeoVerify(self):
         if self.verifying:
@@ -483,9 +468,7 @@ class ZEOStorage:
     # Most of the real implementations are in methods beginning with
     # an _.
 
-    def storea(self, oid, serial, data, version, id):
-        if version:
-            raise StorageServerError("Versions aren't supported.")
+    def storea(self, oid, serial, data, id):
         self._check_tid(id, exc=StorageTransactionError)
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data)
@@ -503,17 +486,13 @@ class ZEOStorage:
     def storeBlobChunk(self, chunk):
         os.write(self.blob_tempfile[0], chunk)
 
-    def storeBlobEnd(self, oid, serial, data, version, id):
-        if version:
-            raise StorageServerError("Versions aren't supported.")
+    def storeBlobEnd(self, oid, serial, data, id):
         fd, tempname = self.blob_tempfile
         self.blob_tempfile = None
         os.close(fd)
         self.blob_log.append((oid, serial, data, tempname))
 
-    def storeBlobShared(self, oid, serial, data, filename, version, id):
-        if version:
-            raise StorageServerError("Versions aren't supported.")
+    def storeBlobShared(self, oid, serial, data, filename, id):
         # Reconstruct the full path from the filename in the OID directory
         filename = os.path.join(self.storage.fshelper.getPathForOID(oid),
                                 filename)
@@ -570,7 +549,7 @@ class ZEOStorage:
             newserial = [(oid, err)]
         else:
             if serial != "\0\0\0\0\0\0\0\0":
-                self.invalidated.append((oid, ''))
+                self.invalidated.append(oid)
 
             if isinstance(newserial, str):
                 newserial = [(oid, newserial)]
@@ -633,8 +612,7 @@ class ZEOStorage:
 
     def _undo(self, trans_id):
         tid, oids = self.storage.undo(trans_id, self.transaction)
-        inv = [(oid, None) for oid in oids]
-        self.invalidated.extend(inv)
+        self.invalidated.extend(oids)
         return tid, oids
 
     # When a delayed transaction is restarted, the dance is
@@ -723,20 +701,6 @@ class ZEOStorage:
         else:
             return 1
 
-    def modifiedInVersion(self, oid):
-        return ''
-
-    def versions(self):
-        return ()
-
-    def versionEmpty(self, version):
-        return True
-
-    def commitVersion(self, *a, **k):
-        raise NotImplementedError
-
-    abortVersion = commitVersion
-
     # IStorageIteration support
 
     def iterator_start(self, start, stop):
@@ -785,7 +749,6 @@ class ZEOStorage:
             item = (info.oid,
                     info.tid,
                     info.data,
-                    info.version,
                     info.data_txn)
         return item
 
@@ -805,10 +768,7 @@ class StorageServerDB:
         if version:
             raise StorageServerError("Versions aren't supported.")
         storage_id = self.storage_id
-        self.server.invalidate(
-            None, storage_id, tid,
-            [(oid, '') for oid in oids],
-            )
+        self.server.invalidate(None, storage_id, tid, oids)
         for zeo_server in self.server.connections.get(storage_id, ())[:]:
             try:
                 zeo_server.connection.poll()
@@ -1081,7 +1041,7 @@ class StorageServer:
 
         This is called from several ZEOStorage methods.
 
-        invalidated is a sequence of oid, empty-string pairs.
+        invalidated is a sequence of oids.
 
         This can do three different things:
 
@@ -1306,3 +1266,129 @@ class SlowMethodThread(threading.Thread):
             self.delay.error(sys.exc_info())
         else:
             self.delay.reply(result)
+
+
+class ClientStub:
+
+    def __init__(self, rpc):
+        self.rpc = rpc
+
+    def beginVerify(self):
+        self.rpc.callAsync('beginVerify')
+
+    def invalidateVerify(self, args):
+        self.rpc.callAsync('invalidateVerify', args)
+
+    def endVerify(self):
+        self.rpc.callAsync('endVerify')
+
+    def invalidateTransaction(self, tid, args):
+        self.rpc.callAsyncNoPoll('invalidateTransaction', tid, args)
+
+    def serialnos(self, arg):
+        self.rpc.callAsync('serialnos', arg)
+
+    def info(self, arg):
+        self.rpc.callAsync('info', arg)
+
+    def storeBlob(self, oid, serial, blobfilename):
+
+        def store():
+            yield ('receiveBlobStart', (oid, serial))
+            f = open(blobfilename, 'rb')
+            while 1:
+                chunk = f.read(59000)
+                if not chunk:
+                    break
+                yield ('receiveBlobChunk', (oid, serial, chunk, ))
+            f.close()
+            yield ('receiveBlobStop', (oid, serial))
+
+        self.rpc.callAsyncIterator(store())
+
+class ClientStub308(ClientStub):
+
+    def invalidateTransaction(self, tid, args):
+        self.rpc.callAsyncNoPoll(
+            'invalidateTransaction', tid, [(arg, '') for arg in args])
+
+    def invalidateVerify(self, oid):
+        self.rpc.callAsync('invalidateVerify', (oid, ''))
+
+class ZEOStorage308Adapter:
+
+    def __init__(self, storage):
+        self.storage = storage
+
+    def getSerial(self, oid):
+        return self.storage.loadEx(oid)[1] # Z200
+
+    def history(self, oid, version, size=1):
+        if version:
+            raise ValueError("Versions aren't supported.")
+        return self.storage.history(oid, size)
+
+    def getInvalidations(self, tid):
+        result = self.storage.getInvalidations(tid)
+        if result is not None:
+            result = result[0], [(oid, '') for oid in result[1]]
+        return result
+
+    def verify(self, oid, version, tid):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
+        return self.storage.verify(oid, tid)
+
+    def loadEx(self, oid, version=''):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
+        data, serial = self.storage.loadEx(oid)
+        return data, serial, ''
+
+    def storea(self, oid, serial, data, version, id):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
+        self.storage.storea(oid, serial, data, id)
+
+    def storeBlobEnd(self, oid, serial, data, version, id):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
+        self.storage.storeBlobEnd(oid, serial, data, id)
+
+    def storeBlobShared(self, oid, serial, data, filename, version, id):
+        if version:
+            raise StorageServerError("Versions aren't supported.")
+        self.storage.storeBlobShared(oid, serial, data, filename, id)
+
+    def getInfo(self):
+        result = self.storage.getInfo()
+        result['supportsVersions'] = False
+        return result
+
+    def zeoVerify(self, oid, s, sv=None):
+        if sv:
+            raise StorageServerError("Versions aren't supported.")
+        self.storage.zeoVerify(oid, s)
+
+    def modifiedInVersion(self, oid):
+        return ''
+
+    def versions(self):
+        return ()
+
+    def versionEmpty(self, version):
+        return True
+
+    def commitVersion(self, *a, **k):
+        raise NotImplementedError
+
+    abortVersion = commitVersion
+
+    def zeoLoad(self, oid):             # Z200
+        p, s = self.storage,loadEx(oid)
+        return p, s, '', None, None
+
+    def __getattr__(self, name):
+        return getattr(self.storage, name)
+
+    

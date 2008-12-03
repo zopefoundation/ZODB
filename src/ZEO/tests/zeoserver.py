@@ -13,6 +13,9 @@
 ##############################################################################
 """Helper file used to launch a ZEO server cross platform"""
 
+from ZEO.StorageServer import StorageServer
+from ZEO.runzeo import ZEOOptions
+
 import asyncore
 import os
 import sys
@@ -24,10 +27,6 @@ import signal
 import asyncore
 import threading
 import logging
-
-from ZEO.StorageServer import StorageServer
-from ZEO.runzeo import ZEOOptions
-
 
 def cleanup(storage):
     # FileStorage and the Berkeley storages have this method, which deletes
@@ -154,13 +153,19 @@ def main():
     # wrong, it's a bug in the test suite.
     keep = 0
     configfile = None
+    suicide = True
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'kC:')
+    opts, args = getopt.getopt(sys.argv[1:], 'kSC:v:')
     for opt, arg in opts:
         if opt == '-k':
             keep = 1
         elif opt == '-C':
             configfile = arg
+        elif opt == '-S':
+            suicide = False
+        elif opt == '-v':
+            import ZEO.zrpc.connection
+            ZEO.zrpc.connection.Connection.current_protocol = arg
 
     zo = ZEOOptions()
     zo.realize(["-C", configfile])
@@ -203,10 +208,11 @@ def main():
         sys.exit(2)
 
     t.register_socket(server.dispatcher)
-    # Create daemon suicide thread
-    d = Suicide(test_addr)
-    d.setDaemon(1)
-    d.start()
+    if suicide:
+        # Create daemon suicide thread
+        d = Suicide(test_addr)
+        d.setDaemon(1)
+        d.start()
     # Loop for socket events
     log(label, 'entering asyncore loop')
     asyncore.loop()

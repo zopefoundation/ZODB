@@ -86,7 +86,8 @@ def encode_format(fmt):
 
 
 def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
-                     path='Data.fs'):
+                     path='Data.fs', protocol=None, blob_dir=None,
+                     suicide=True):
     """Start a ZEO server in a separate process.
 
     Takes two positional arguments a string containing the storage conf
@@ -98,6 +99,9 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
 
     if not storage_conf:
         storage_conf = '<filestorage>\npath %s\n</filestorage>' % path
+        if blob_dir:
+            storage_conf = '<blobstorage>\nblob-dir %s\n%s\n</blobstorage>' % (
+                blob_dir, storage_conf)
 
     if port is None:
         raise AssertionError("The port wasn't specified")
@@ -126,6 +130,11 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     args = [qa(sys.executable), qa(script), '-C', qa(tmpfile)]
     if keep:
         args.append("-k")
+    if not suicide:
+        args.append("-S")
+    if protocol:
+        args.extend(["-v", protocol])
+        
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
 
@@ -276,7 +285,7 @@ def setUp(test):
     servers = {}
 
     def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
-                     addr=None):
+                     addr=None, path='Data.fs', protocol=None):
         """Start a ZEO server.
 
         Return the server and admin addresses.
@@ -289,7 +298,7 @@ def setUp(test):
         elif addr is not None:
             raise TypeError("Can't specify port and addr")
         addr, adminaddr, pid, config_path = start_zeo_server(
-            storage_conf, zeo_conf, port, keep)
+            storage_conf, zeo_conf, port, keep, path, protocol)
         os.remove(config_path)
         servers[adminaddr] = pid
         return addr, adminaddr

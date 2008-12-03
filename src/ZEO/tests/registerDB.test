@@ -9,8 +9,8 @@ multiple storage servers.
 We'll create a Faux storage that has a registerDB method.
 
     >>> class FauxStorage:
-    ...     invalidations = [('trans0', [('ob0', '')]), 
-    ...                      ('trans1', [('ob0', ''), ('ob1', '')]),
+    ...     invalidations = [('trans0', ['ob0']), 
+    ...                      ('trans1', ['ob0', 'ob1']),
     ...                      ]
     ...     def registerDB(self, db):
     ...         self.db = db
@@ -85,24 +85,24 @@ Now, if we call invalidate, we'll see it propigate to the client:
 
     >>> storage.db.invalidate('trans2', ['ob1', 'ob2'])
     invalidateTransaction trans2 1
-    [('ob1', ''), ('ob2', '')]
+    ['ob1', 'ob2']
     invalidateTransaction trans2 2
-    [('ob1', ''), ('ob2', '')]
+    ['ob1', 'ob2']
 
     >>> storage.db.invalidate('trans3', ['ob1', 'ob2'])
     invalidateTransaction trans3 1
-    [('ob1', ''), ('ob2', '')]
+    ['ob1', 'ob2']
     invalidateTransaction trans3 2
-    [('ob1', ''), ('ob2', '')]
+    ['ob1', 'ob2']
 
 The storage servers queue will reflect the invalidations:
 
     >>> for tid, invalidated in server.invq['t']:
     ...     print repr(tid), invalidated
-    'trans3' [('ob1', ''), ('ob2', '')]
-    'trans2' [('ob1', ''), ('ob2', '')]
-    'trans1' [('ob0', ''), ('ob1', '')]
-    'trans0' [('ob0', '')]
+    'trans3' ['ob1', 'ob2']
+    'trans2' ['ob1', 'ob2']
+    'trans1' ['ob0', 'ob1']
+    'trans0' ['ob0']
 
 If we call invalidateCache, the storage server will close each of it's
 connections:
@@ -117,5 +117,5 @@ The servers's invalidation queue will get reset
 
     >>> for tid, invalidated in server.invq['t']:
     ...     print repr(tid), invalidated
-    'trans1' [('ob0', ''), ('ob1', '')]
-    'trans0' [('ob0', '')]
+    'trans1' ['ob0', 'ob1']
+    'trans0' ['ob0']

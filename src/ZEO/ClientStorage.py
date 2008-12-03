@@ -109,7 +109,7 @@ class ClientStorage(object):
     TransactionBufferClass = TransactionBuffer
     ClientCacheClass = ClientCache
     ConnectionManagerClass = ConnectionManager
-    StorageServerStubClass = ServerStub.StorageServer
+    StorageServerStubClass = ServerStub.stub
 
     def __init__(self, addr, storage='1', cache_size=20 * MB,
                  name='', client=None, debug=0, var=None,
@@ -566,7 +566,8 @@ class ClientStorage(object):
             ZODB.interfaces.IStorageCurrentRecordIteration,
             ZODB.interfaces.IBlobStorage,
             ):
-            if (iface.__module__, iface.__name__) in self._info.get('interfaces', ()):
+            if (iface.__module__, iface.__name__) in self._info.get(
+                'interfaces', ()):
                 zope.interface.alsoProvides(self, iface)
 
     def _handle_extensions(self):
@@ -1208,8 +1209,13 @@ class ClientStorage(object):
         self._pickler = cPickle.Pickler(self._tfile, 1)
         self._pickler.fast = 1 # Don't use the memo
 
+        if self._connection.peer_protocol_version < 'Z309':
+            client = ClientStorage308Adapter(self)
+        else:
+            client = self
+
         # allow incoming invalidations:
-        self._connection.register_object(self)
+        self._connection.register_object(client)
 
         # If verify_cache() finishes the cache verification process,
         # it should set self._server.  If it goes through full cache
@@ -1279,8 +1285,8 @@ class ClientStorage(object):
         server.endZeoVerify()
         return "full verification"
 
-    def invalidateVerify(self, args):
-        """Server callback to invalidate an (oid, '') pair.
+    def invalidateVerify(self, oid):
+        """Server callback to invalidate an oid pair.
 
         This is called as part of cache validation.
         """
@@ -1290,7 +1296,7 @@ class ClientStorage(object):
             # This should never happen.
             logger.error("%s invalidateVerify with no _pickler", self.__name__)
             return
-        self._pickler.dump((None, [args[0]]))
+        self._pickler.dump((None, [oid]))
 
     def endVerify(self):
         """Server callback to signal end of cache validation."""
@@ -1304,10 +1310,7 @@ class ClientStorage(object):
         try:
             if catch_up:
                 # process catch-up invalidations
-                tid, invalidations = catch_up
-                self._process_invalidations(
-                    tid, (arg[0] for arg in invalidations)
-                    )
+                self._process_invalidations(*catch_up)
             
             if self._pickler is None:
                 return
@@ -1337,7 +1340,7 @@ class ClientStorage(object):
         self._pending_server = None
 
 
-    def invalidateTransaction(self, tid, args):
+    def invalidateTransaction(self, tid, oids):
         """Server callback: Invalidate objects modified by tid."""
         self._lock.acquire()
         try:
@@ -1345,14 +1348,13 @@ class ClientStorage(object):
                 logger.debug(
                     "%s Transactional invalidation during cache verification",
                     self.__name__)
-                self._pickler.dump((tid, [arg[0] for arg in args]))
+                self._pickler.dump((tid, oids))
             else:
-                self._process_invalidations(tid, (arg[0] for arg in args))
+                self._process_invalidations(tid, oids)
         finally:
             self._lock.release()
 
     def _process_invalidations(self, tid, oids):
-        oids = list(oids)
         for oid in oids:
             if oid == self._load_oid:
                 self._load_status = 0
@@ -1363,8 +1365,8 @@ class ClientStorage(object):
 
     # The following are for compatibility with protocol version 2.0.0
 
-    def invalidateTrans(self, args):
-        return self.invalidateTransaction(None, args)
+    def invalidateTrans(self, oids):
+        return self.invalidateTransaction(None, oids)
 
     invalidate = invalidateVerify
     end = endVerify
@@ -1482,3 +1484,17 @@ class RecordIterator(object):
             self._completed = True
             raise ZODB.interfaces.StorageStopIteration()
         return ZODB.BaseStorage.DataRecord(*item)
+
+class ClientStorage308Adapter:
+
+    def __init__(self, client):
+        self.client = client
+
+    def invalidateTransaction(self, tid, args):
+        self.client.invalidateTransaction(tid, [arg[0] for arg in args])
+
+    def invalidateVerify(self, arg):
+        self.client.invalidateVerify(arg[0])
+
+    def __getattr__(self, name):
+        return getattr(self.client, name)
