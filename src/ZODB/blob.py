@@ -120,7 +120,15 @@ class Blob(persistent.Persistent):
             raise ValueError("invalid mode", mode)
 
         if mode == 'c':
-            return open(self.committed(), 'rb')
+            if (self._p_blob_uncommitted
+                or
+                not self._p_blob_committed
+                or
+                self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
+                ):
+                raise BlobError('Uncommitted changes')            
+            return self._p_jar._storage.openCommittedBlobFile(
+                self._p_oid, self._p_serial)
 
         if self.writers:
             raise BlobError("Already opened for writing.")
@@ -129,10 +137,20 @@ class Blob(persistent.Persistent):
             self.readers = []
 
         if mode == 'r':
-            if self._current_filename() is None:
-                self._create_uncommitted_file()
+            result = None
+            to_open = self._p_blob_uncommitted
+            if not to_open:
+                to_open = self._p_blob_committed
+                if to_open:
+                    result = self._p_jar._storage.openCommittedBlobFile(
+                        self._p_oid, self._p_serial, self)
+                else:
+                    self._create_uncommitted_file()
+                    to_open = self._p_blob_uncommitted
+                    assert to_open
 
-            result = BlobFile(self._current_filename(), mode, self)
+            if result is None:
+                result = BlobFile(to_open, mode, self)
 
             def destroyed(ref, readers=self.readers):
                 try:
@@ -181,7 +199,15 @@ class Blob(persistent.Persistent):
             self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
             ):
             raise BlobError('Uncommitted changes')
-        return self._p_blob_committed
+
+        result = self._p_blob_committed
+        
+        # We do this to make sure we have the file and to let the
+        # storage know we're accessing the file.
+        n = self._p_jar._storage.loadBlob(self._p_oid, self._p_serial)
+        assert result == n, (result, n)
+
+        return result
 
     def consumeFile(self, filename):
         """Will replace the current data of the blob with the file given under
@@ -233,11 +259,6 @@ class Blob(persistent.Persistent):
             self._p_changed = True
 
     # utility methods
-
-    def _current_filename(self):
-        # NOTE: _p_blob_committed and _p_blob_uncommitted appear by virtue of
-        # Connection._setstate
-        return self._p_blob_uncommitted or self._p_blob_committed
 
     def _create_uncommitted_file(self):
         assert self._p_blob_uncommitted is None, (
@@ -391,13 +412,15 @@ class FilesystemHelper:
         'committed' blob file related to that oid and tid.
 
         """
-        oid_path = self.getPathForOID(oid)
         # TIDs are numbers and sometimes passed around as integers. For our
         # computations we rely on the 64-bit packed string representation
+        if isinstance(oid, int):
+            oid = utils.p64(oid)
         if isinstance(tid, int):
             tid = utils.p64(tid)
-        filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
-        return os.path.join(oid_path, filename)
+        return os.path.join(self.base_dir,
+                            self.layout.getBlobFilePath(oid, tid),
+                            )
 
     def blob_mkstemp(self, oid, tid):
         """Given an oid and a tid, return a temporary file descriptor
@@ -516,10 +539,18 @@ class BushyLayout(object):
         oid = ''.join(binascii.unhexlify(byte[2:]) for byte in path)
         return oid
 
+    def getBlobFilePath(self, oid, tid):
+        """Given an oid and a tid, return the full filename of the
+        'committed' blob file related to that oid and tid.
+
+        """
+        oid_path = self.oid_to_path(oid)
+        filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
+        return os.path.join(oid_path, filename)
+
 LAYOUTS['bushy'] = BushyLayout()
 
-
-class LawnLayout(object):
+class LawnLayout(BushyLayout):
     """A shallow directory layout for blob directories.
 
     Creates a single level of directories (one for each oid).
@@ -671,6 +702,14 @@ class BlobStorage(SpecificationDecoratorBase):
         if not os.path.exists(filename):
             raise POSKeyError("No blob file", oid, serial)
         return filename
+
+    @non_overridable
+    def openCommittedBlobFile(self, oid, serial, blob=None):
+        blob_filename = self.loadBlob(oid, serial)
+        if blob is None:
+            return open(blob_filename, 'rb')
+        else:
+            return BlobFile(blob_filename, 'r', blob)
 
     @non_overridable
     def _packUndoing(self, packtime, referencesf):

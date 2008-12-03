@@ -285,7 +285,7 @@ def setUp(test):
     servers = {}
 
     def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
-                     addr=None, path='Data.fs', protocol=None):
+                     addr=None, path='Data.fs', protocol=None, blob_dir=None):
         """Start a ZEO server.
 
         Return the server and admin addresses.
@@ -298,7 +298,7 @@ def setUp(test):
         elif addr is not None:
             raise TypeError("Can't specify port and addr")
         addr, adminaddr, pid, config_path = start_zeo_server(
-            storage_conf, zeo_conf, port, keep, path, protocol)
+            storage_conf, zeo_conf, port, keep, path, protocol, blob_dir)
         os.remove(config_path)
         servers[adminaddr] = pid
         return addr, adminaddr

@@ -26,10 +26,10 @@ from ZEO.Exceptions import ClientStorageError, ClientDisconnected, AuthError
 from ZEO import ServerStub
 from ZEO.TransactionBuffer import TransactionBuffer
 from ZEO.zrpc.client import ConnectionManager
-from ZODB.blob import rename_or_copy_blob
 from ZODB import POSException
 from ZODB import utils
 from ZODB.loglevels import BLATHER
+import BTrees.IOBTree
 import cPickle
 import logging
 import os
@@ -43,6 +43,7 @@ import types
 import weakref
 import zc.lockfile
 import ZEO.interfaces
+import ZODB
 import ZODB.BaseStorage
 import ZODB.interfaces
 import zope.event
@@ -112,14 +113,16 @@ class ClientStorage(object):
     StorageServerStubClass = ServerStub.stub
 
     def __init__(self, addr, storage='1', cache_size=20 * MB,
-                 name='', client=None, debug=0, var=None,
+                 name='', client=None, var=None,
                  min_disconnect_poll=1, max_disconnect_poll=30,
                  wait_for_server_on_startup=None, # deprecated alias for wait
                  wait=None, wait_timeout=None,
                  read_only=0, read_only_fallback=0,
                  drop_cache_rather_verify=False,
                  username='', password='', realm=None,
-                 blob_dir=None, shared_blob_dir=False):
+                 blob_dir=None, shared_blob_dir=False,
+                 blob_cache_size=1<<62, blob_cache_size_check=100,
+                 ):
         """ClientStorage constructor.
 
         This is typically invoked from a custom_zodb.py file.
@@ -127,80 +130,105 @@ class ClientStorage(object):
         All arguments except addr should be keyword arguments.
         Arguments:
 
-        addr -- The server address(es).  This is either a list of
+        addr
+            The server address(es).  This is either a list of
             addresses or a single address.  Each address can be a
             (hostname, port) tuple to signify a TCP/IP connection or
             a pathname string to signify a Unix domain socket
             connection.  A hostname may be a DNS name or a dotted IP
             address.  Required.
 
-        storage -- The storage name, defaulting to '1'.  The name must
+        storage
+            The storage name, defaulting to '1'.  The name must
             match one of the storage names supported by the server(s)
             specified by the addr argument.  The storage name is
             displayed in the Zope control panel.
 
-        cache_size -- The disk cache size, defaulting to 20 megabytes.
+        cache_size
+            The disk cache size, defaulting to 20 megabytes.
             This is passed to the ClientCache constructor.
 
-        name -- The storage name, defaulting to ''.  If this is false,
+        name
+            The storage name, defaulting to ''.  If this is false,
             str(addr) is used as the storage name.
 
-        client -- A name used to construct persistent cache filenames.
+        client
+            A name used to construct persistent cache filenames.
             Defaults to None, in which case the cache is not persistent.
             See ClientCache for more info.
 
-        debug -- Ignored.  This is present only for backwards
-            compatibility with ZEO 1.
-
-        var -- When client is not None, this specifies the directory
+        var
+            When client is not None, this specifies the directory
             where the persistent cache files are created.  It defaults
             to None, in whichcase the current directory is used.
 
-        min_disconnect_poll -- The minimum delay in seconds between
+        min_disconnect_poll
+            The minimum delay in seconds between
             attempts to connect to the server, in seconds.  Defaults
             to 5 seconds.
 
-        max_disconnect_poll -- The maximum delay in seconds between
+        max_disconnect_poll
+            The maximum delay in seconds between
             attempts to connect to the server, in seconds.  Defaults
             to 300 seconds.
 
-        wait_for_server_on_startup -- A backwards compatible alias for
+        wait_for_server_on_startup
+            A backwards compatible alias for
             the wait argument.
 
-        wait -- A flag indicating whether to wait until a connection
+        wait
+            A flag indicating whether to wait until a connection
             with a server is made, defaulting to true.
 
-        wait_timeout -- Maximum time to wait for a connection before
+        wait_timeout
+            Maximum time to wait for a connection before
             giving up.  Only meaningful if wait is True.
 
-        read_only -- A flag indicating whether this should be a
+        read_only
+            A flag indicating whether this should be a
             read-only storage, defaulting to false (i.e. writing is
             allowed by default).
 
-        read_only_fallback -- A flag indicating whether a read-only
+        read_only_fallback
+            A flag indicating whether a read-only
             remote storage should be acceptable as a fallback when no
             writable storages are available.  Defaults to false.  At
             most one of read_only and read_only_fallback should be
             true.
 
-        username -- string with username to be used when authenticating.
+        username
+            string with username to be used when authenticating.
             These only need to be provided if you are connecting to an
             authenticated server storage.
 
-        password -- string with plaintext password to be used
-            when authenticated.
+        password
+            string with plaintext password to be used when authenticated.
 
-        realm -- not documented.
+        realm
+            not documented.
 
-        drop_cache_rather_verify -- a flag indicating that the cache
-            should be dropped rather than expensively verified.
+        drop_cache_rather_verify
+            a flag indicating that the cache should be dropped rather
+            than expensively verified.
 
-        blob_dir -- directory path for blob data.  'blob data' is data that
+        blob_dir
+            directory path for blob data.  'blob data' is data that
             is retrieved via the loadBlob API.
 
-        shared_blob_dir -- Flag whether the blob_dir is a server-shared
-        filesystem that should be used instead of transferring blob data over
-        zrpc.
+        shared_blob_dir
+            Flag whether the blob_dir is a server-shared filesystem
+            that should be used instead of transferring blob data over
+            zrpc.
+
+        blob_cache_size
+            Maximum size of the ZEO cache, in bytes. Defaults to 1GB.
+            This option is ignored if shared_blob_dir is true.
+
+        blob_cache_size_check
+            ZEO check size as percent of blob_cache_size.  The ZEO
+            cache size will be checked when this many bytes have been
+            loaded into the cache. Defaults to 50% of the blob cache
+            size.   This option is ignored if shared_blob_dir is true.
 
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
@@ -219,11 +247,6 @@ class ClientStorage(object):
             read_only_fallback and "fallback" or "normal",
             storage,
             )
-        
-        if debug:
-            logger.warning(
-                "%s ClientStorage(): debug argument is no longer used",
-                self.__name__)
 
         self._drop_cache_rather_verify = drop_cache_rather_verify
 
@@ -342,12 +365,19 @@ class ClientStorage(object):
         # XXX need to check for POSIX-ness here
         self.blob_dir = blob_dir
         self.shared_blob_dir = shared_blob_dir
+        
         if blob_dir is not None:
             # Avoid doing this import unless we need it, as it
             # currently requires pywin32 on Windows.
             import ZODB.blob
-            self.fshelper = ZODB.blob.FilesystemHelper(blob_dir)
-            self.fshelper.create()
+            if shared_blob_dir:
+                self.fshelper = ZODB.blob.FilesystemHelper(blob_dir)
+            else:
+                if 'zeocache' not in ZODB.blob.LAYOUTS:
+                    ZODB.blob.LAYOUTS['zeocache'] = BlobCacheLayout()
+                self.fshelper = ZODB.blob.FilesystemHelper(
+                    blob_dir, layout_name='zeocache')
+                self.fshelper.create()
             self.fshelper.checkSecure()
         else:
             self.fshelper = None
@@ -359,6 +389,11 @@ class ClientStorage(object):
             cache_path = None
 
         self._cache = self.ClientCacheClass(cache_path, size=cache_size)
+
+        self._blob_cache_size = blob_cache_size
+        self._blob_cache_size_check = (
+            blob_cache_size * blob_cache_size_check / 100)
+        self._check_blob_size()
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,
@@ -372,6 +407,8 @@ class ClientStorage(object):
             # doesn't succeed, call connect() to start a thread.
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
+
+        
 
     def _wait(self, timeout=None):
         if timeout is not None:
@@ -413,6 +450,73 @@ class ClientStorage(object):
             self._cache = None
         if self._tfile is not None:
             self._tfile.close()
+
+        if self._check_blob_size_thread is not None:
+            self._check_blob_size_thread.join()
+
+    _check_blob_size_thread = None
+    def _check_blob_size(self):
+        self._blob_data_bytes_loaded = 0
+        if self.shared_blob_dir or not self.blob_dir:
+            return
+
+        check_blob_size_thread = threading.Thread(
+            target=self._check_blob_size_method)
+        check_blob_size_thread.setDaemon(True)
+        check_blob_size_thread.start()
+        self._check_blob_size_thread = check_blob_size_thread
+
+    def _check_blob_size_method(self):
+        try:
+            check_lock = zc.lockfile.LockFile(
+                os.path.join(self.blob_dir, 'cache.lock'))
+        except zc.lockfile.LockError:
+            # Someone is already cleaning up, so don't bother
+            return
+
+        try:
+           target = self._blob_cache_size
+           size = 0
+           tmp = self.temporaryDirectory()
+           blob_suffix = ZODB.blob.BLOB_SUFFIX
+           files_by_atime = BTrees.IOBTree.BTree()
+           for base, dirs, files in os.walk(self.blob_dir):
+               if base == tmp:
+                   del dirs[:]
+                   continue
+               for file_name in files:
+                   if not file_name.endswith(blob_suffix):
+                       continue
+                   file_name = os.path.join(base, file_name)
+                   stat = os.stat(file_name)
+                   size += stat.st_size
+                   t = stat.st_atime
+                   if t not in files_by_atime:
+                       files_by_atime[t] = []
+                   files_by_atime[t].append(file_name)
+
+           while size > target and files_by_atime:
+               for file_name in files_by_atime.pop(files_by_atime.minKey()):
+                   lockfilename = os.path.join(os.path.dirname(file_name),
+                                               '.lock')
+                   try:
+                       lock = zc.lockfile.LockFile(lockfilename)
+                   except zc.lockfile.LockError:
+                       continue  # In use, skip
+
+                   try:
+                       size = os.stat(file_name).st_size
+                       try:
+                           os.remove(file_name)
+                       except OSError:
+                           raise
+                       else:
+                           size -= size
+                   finally:
+                       lock.close()
+        finally:
+            check_lock.close()
+
 
     def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
@@ -866,26 +970,20 @@ class ClientStorage(object):
             # use a slightly different file name. We keep the old one
             # until we're done to avoid conflicts. Then remove the old name.
             target += 'w'
-            rename_or_copy_blob(filename, target)
+            ZODB.blob.rename_or_copy_blob(filename, target)
             os.remove(target[:-1])
         else:
-            rename_or_copy_blob(filename, target)
+            ZODB.blob.rename_or_copy_blob(filename, target)
 
         # Now tell the server where we put it
         self._server.storeBlobShared(
             oid, serial, data, os.path.basename(target), id(txn))
 
-    def _have_blob(self, blob_filename, oid, serial):
-        if os.path.exists(blob_filename):
-            logger.debug("%s Found blob %r/%r in cache.",
-                         self.__name__, oid, serial)
-            return True
-        return False
-
     def receiveBlobStart(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         assert not os.path.exists(blob_filename)
-        assert os.path.exists(blob_filename+'.lock')
+        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
+        assert os.path.exists(lockfilename)
         blob_filename += '.dl'
         assert not os.path.exists(blob_filename)
         f = open(blob_filename, 'wb')
@@ -894,9 +992,13 @@ class ClientStorage(object):
     def receiveBlobChunk(self, oid, serial, chunk):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)+'.dl'
         assert os.path.exists(blob_filename)
-        f = open(blob_filename, 'ab')
+        f = open(blob_filename, 'r+b')
+        f.seek(0, 2)
         f.write(chunk)
         f.close()
+        self._blob_data_bytes_loaded += len(chunk)
+        if self._blob_data_bytes_loaded > self._blob_cache_size_check:
+            self._check_blob_size()
 
     def receiveBlobStop(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
@@ -913,14 +1015,25 @@ class ClientStorage(object):
                                            "configured.")
 
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
-        # Case 1: Blob is available already, just use it
-        if self._have_blob(blob_filename, oid, serial):
+        if self.shared_blob_dir:
+            if os.path.exists(blob_filename):
+                return blob_filename
+            else:
+                # We're using a server shared cache.  If the file isn't
+                # here, it's not anywhere.
+                raise POSException.POSKeyError("No blob file", oid, serial)
+
+        
+        if os.path.exists(blob_filename):
+            try:
+                _accessed(blob_filename)
+            except OSError:
+                # It might have been deleted while we were calling _accessed.
+                # We don't have the file lock.
+                if os.path.exists(blob_filename):
+                    raise
             return blob_filename
 
-        if self.shared_blob_dir:
-            # We're using a server shared cache.  If the file isn't
-            # here, it's not anywhere.
-            raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
         self.fshelper.createPathForOID(oid)
@@ -930,42 +1043,22 @@ class ClientStorage(object):
         # getting it multiple times even accross separate client
         # processes on the same machine. We'll use file locking.
 
-        lockfilename = blob_filename+'.lock'
-        try:
-            lock = zc.lockfile.LockFile(lockfilename)
-        except zc.lockfile.LockError:
-
-            # Someone is already downloading the Blob. Wait for the
-            # lock to be freed.  How long should we be willing to wait?
-            # TODO: maybe find some way to assess download progress.
-
-            while 1:
-                time.sleep(0.1)
-                try:
-                    lock = zc.lockfile.LockFile(lockfilename)
-                except zc.lockfile.LockError:
-                    pass
-                else:
-                    # We have the lock. We should be able to get the file now.
-                    lock.close()
-                    try:
-                        os.remove(lockfilename)
-                    except OSError:
-                        pass
-                    break
-
-            if self._have_blob(blob_filename, oid, serial):
-                return blob_filename
-
-            return None
+        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
+        while 1:
+            try:
+                lock = zc.lockfile.LockFile(lockfilename)
+            except zc.lockfile.LockError:
+                time.sleep(0.01)
+            else:
+                break
 
         try:
             # We got the lock, so it's our job to download it.  First,
             # we'll double check that someone didn't download it while we
             # were getting the lock:
 
-            if self._have_blob(blob_filename, oid, serial):
-                return blob_filename
+            if os.path.exists(blob_filename):
+                return _accessed(blob_filename)
 
             # Ask the server to send it to us.  When this function
             # returns, it will have been sent. (The recieving will
@@ -973,17 +1066,54 @@ class ClientStorage(object):
 
             self._server.sendBlob(oid, serial)
 
-            if self._have_blob(blob_filename, oid, serial):
-                return blob_filename
+            if os.path.exists(blob_filename):
+                return _accessed(blob_filename)
 
             raise POSException.POSKeyError("No blob file", oid, serial)
 
         finally:
             lock.close()
+
+    def openCommittedBlobFile(self, oid, serial, blob=None):
+        blob_filename = self.loadBlob(oid, serial)
+        try:
+            if blob is None:
+                return open(blob_filename, 'rb')
+            else:
+                return ZODB.blob.BlobFile(blob_filename, 'r', blob)
+        except (IOError):
+            # The file got removed while we were opening.
+            # Fall through and try again with the protection of the lock.
+            pass
+        
+        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
+        while 1:
             try:
-                os.remove(lockfilename)
-            except OSError:
-                pass
+                lock = zc.lockfile.LockFile(lockfilename)
+            except zc.lockfile.LockError:
+                time.sleep(.01)
+            else:
+                break
+
+        try:
+            blob_filename = self.fshelper.getBlobFilename(oid, serial)
+            if not os.path.exists(blob_filename):
+                if self.shared_blob_dir:
+                    # We're using a server shared cache.  If the file isn't
+                    # here, it's not anywhere.
+                    raise POSException.POSKeyError("No blob file", oid, serial)
+                self._server.sendBlob(oid, serial)
+                if not os.path.exists(blob_filename):
+                    raise POSException.POSKeyError("No blob file", oid, serial)
+
+            _accessed(blob_filename)
+            if blob is None:
+                return open(blob_filename, 'rb')
+            else:
+                return ZODB.blob.BlobFile(blob_filename, 'r', blob)
+        finally:
+            lock.close()
+        
 
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
@@ -1125,10 +1255,14 @@ class ClientStorage(object):
             blobs = self._tbuf.blobs
             while blobs:
                 oid, blobfilename = blobs.pop()
+                self._blob_data_bytes_loaded += os.stat(blobfilename).st_size
                 targetpath = self.fshelper.getPathForOID(oid, create=True)
-                rename_or_copy_blob(blobfilename,
-                          self.fshelper.getBlobFilename(oid, tid),
-                          )
+                ZODB.blob.rename_or_copy_blob(
+                    blobfilename,
+                    self.fshelper.getBlobFilename(oid, tid),
+                    )
+                if self._blob_data_bytes_loaded > self._blob_cache_size_check:
+                    self._check_blob_size()
 
         self._tbuf.clear()
 
@@ -1485,6 +1619,7 @@ class RecordIterator(object):
             raise ZODB.interfaces.StorageStopIteration()
         return ZODB.BaseStorage.DataRecord(*item)
 
+
 class ClientStorage308Adapter:
 
     def __init__(self, client):
@@ -1498,3 +1633,22 @@ class ClientStorage308Adapter:
 
     def __getattr__(self, name):
         return getattr(self.client, name)
+
+
+class BlobCacheLayout(object):
+
+    size = 997
+
+    def oid_to_path(self, oid):
+        return str(utils.u64(oid) % self.size)
+
+    def getBlobFilePath(self, oid, tid):
+        base, rem = divmod(utils.u64(oid), self.size)
+        return os.path.join(
+            str(rem),
+            "%s.%s%s" % (base, tid.encode('hex'), ZODB.blob.BLOB_SUFFIX)
+            )
+
+def _accessed(filename):
+    os.utime(filename, (time.time(), os.stat(filename).st_mtime))
+    return filename
