@@ -1015,16 +1015,25 @@ class ClientStorage(object):
                                            "configured.")
 
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
-        # Case 1: Blob is available already, just use it
+        if self.shared_blob_dir:
+            if os.path.exists(blob_filename):
+                return blob_filename
+            else:
+                # We're using a server shared cache.  If the file isn't
+                # here, it's not anywhere.
+                raise POSException.POSKeyError("No blob file", oid, serial)
+
+        
         if os.path.exists(blob_filename):
-            if not self.shared_blob_dir:
+            try:
                 _accessed(blob_filename)
+            except OSError:
+                # It might have been deleted while we were calling _accessed.
+                # We don't have the file lock.
+                if os.path.exists(blob_filename):
+                    raise
             return blob_filename
 
-        if self.shared_blob_dir:
-            # We're using a server shared cache.  If the file isn't
-            # here, it's not anywhere.
-            raise POSException.POSKeyError("No blob file", oid, serial)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
         self.fshelper.createPathForOID(oid)

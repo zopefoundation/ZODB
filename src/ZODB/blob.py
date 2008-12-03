@@ -412,6 +412,8 @@ class FilesystemHelper:
         """
         # TIDs are numbers and sometimes passed around as integers. For our
         # computations we rely on the 64-bit packed string representation
+        if isinstance(oid, int):
+            oid = utils.p64(oid)
         if isinstance(tid, int):
             tid = utils.p64(tid)
         return os.path.join(self.base_dir,

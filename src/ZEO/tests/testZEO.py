@@ -737,7 +737,11 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
         check_data(filename)
 
         # ... and on the server
-        server_filename = filename.replace(self.blob_cache_dir, self.blobdir)
+        server_filename = os.path.join(
+            self.blobdir,
+            ZODB.blob.BushyLayout().getBlobFilePath(oid, revid),
+            )
+        
         self.assert_(server_filename.startswith(self.blobdir))
         check_data(server_filename)
 
