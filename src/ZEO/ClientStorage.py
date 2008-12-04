@@ -1641,7 +1641,7 @@ def _check_blob_cache_size(blob_dir, target):
                    continue
                stat = os.stat(file_name)
                size += stat.st_size
-               t = stat.st_atime
+               t = int(stat.st_atime)
                if t not in files_by_atime:
                    files_by_atime[t] = []
                files_by_atime[t].append(file_name)
