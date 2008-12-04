@@ -131,16 +131,16 @@ def test_connectionDebugInfo():
 
     >>> info = db.connectionDebugInfo()
     >>> import pprint
-    >>> pprint.pprint(info, width=1)
+    >>> pprint.pprint(sorted(info, key=lambda i: str(i['opened'])), width=1)
     [{'before': None,
       'info': ' (0)',
       'opened': None},
      {'before': None,
       'info': 'test info (2)',
-      'opened': 'Thu Dec  4 15:40:44 2008 (1.40s)'},
+      'opened': 'Thu Dec 04 15:40:44 2008 (1.40s)'},
      {'before': '\x03zY\xd8\xc0m9\xdd',
       'info': ' (0)',
-      'opened': 'Thu Dec  4 15:40:45 2008 (0.30s)'}]
+      'opened': 'Thu Dec 04 15:40:45 2008 (0.30s)'}]
 
     >>> time.time = real_time
 
