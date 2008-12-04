@@ -22,7 +22,7 @@ import threading
 import warnings
 import os
 import shutil
-from time import time
+import time
 
 from persistent import PickleCache
 
@@ -1010,7 +1010,7 @@ class Connection(ExportImport, object):
         register for afterCompletion() calls.
         """
 
-        self._opened = time()
+        self._opened = time.time()
 
         if transaction_manager is None:
             transaction_manager = transaction.manager
