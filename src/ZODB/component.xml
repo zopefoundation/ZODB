@@ -93,7 +93,24 @@
           but only the filename when committing.
       </description>
     </key>
-
+    <key name="blob-cache-size" required="no" datatype="byte-size">
+      <description>
+            Maximum size of the ZEO blob cache, in bytes.  If not set, then
+            the cache size isn't checked and the blob directory will
+            grow without bound.
+            
+            This option is ignored if shared_blob_dir is true.
+      </description>
+    </key>
+    <key name="blob-cache-size-check" required="no" datatype="integer">
+      <description>
+            ZEO check size as percent of blob_cache_size.  The ZEO
+            cache size will be checked when this many bytes have been
+            loaded into the cache. Defaults to 100% of the blob cache
+            size.   This option is ignored if shared_blob_dir is true.
+      </description>
+    </key>
+    
     <key name="storage" default="1">
       <description>
         The name of the storage that the client wants to use.  If the

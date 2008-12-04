@@ -33,6 +33,7 @@ import BTrees.IOBTree
 import cPickle
 import logging
 import os
+import re
 import socket
 import stat
 import sys
@@ -121,7 +122,7 @@ class ClientStorage(object):
                  drop_cache_rather_verify=False,
                  username='', password='', realm=None,
                  blob_dir=None, shared_blob_dir=False,
-                 blob_cache_size=1<<62, blob_cache_size_check=100,
+                 blob_cache_size=None, blob_cache_size_check=100,
                  ):
         """ClientStorage constructor.
 
@@ -221,13 +222,16 @@ class ClientStorage(object):
             zrpc.
 
         blob_cache_size
-            Maximum size of the ZEO cache, in bytes. Defaults to 1GB.
+            Maximum size of the ZEO blob cache, in bytes.  If not set, then
+            the cache size isn't checked and the blob directory will
+            grow without bound.
+            
             This option is ignored if shared_blob_dir is true.
 
         blob_cache_size_check
             ZEO check size as percent of blob_cache_size.  The ZEO
             cache size will be checked when this many bytes have been
-            loaded into the cache. Defaults to 50% of the blob cache
+            loaded into the cache. Defaults to 100% of the blob cache
             size.   This option is ignored if shared_blob_dir is true.
 
         Note that the authentication protocol is defined by the server
@@ -390,10 +394,13 @@ class ClientStorage(object):
 
         self._cache = self.ClientCacheClass(cache_path, size=cache_size)
 
+
         self._blob_cache_size = blob_cache_size
-        self._blob_cache_size_check = (
-            blob_cache_size * blob_cache_size_check / 100)
-        self._check_blob_size()
+        self._blob_data_bytes_loaded = 0
+        if blob_cache_size is not None:
+            self._blob_cache_size_check = (
+                blob_cache_size * blob_cache_size_check / 100)
+            self._check_blob_size()
 
         self._rpc_mgr = self.ConnectionManagerClass(addr, self,
                                                     tmin=min_disconnect_poll,
@@ -455,68 +462,23 @@ class ClientStorage(object):
             self._check_blob_size_thread.join()
 
     _check_blob_size_thread = None
-    def _check_blob_size(self):
-        self._blob_data_bytes_loaded = 0
+    def _check_blob_size(self, bytes=None):
+        if self._blob_cache_size is None:
+            return
         if self.shared_blob_dir or not self.blob_dir:
             return
 
+        if (bytes is not None) and (bytes < self._blob_cache_size_check):
+            return
+        
+        self._blob_data_bytes_loaded = 0
         check_blob_size_thread = threading.Thread(
-            target=self._check_blob_size_method)
+            target=_check_blob_cache_size,
+            args=(self.blob_dir, self._blob_cache_size),
+            )
         check_blob_size_thread.setDaemon(True)
         check_blob_size_thread.start()
         self._check_blob_size_thread = check_blob_size_thread
-
-    def _check_blob_size_method(self):
-        try:
-            check_lock = zc.lockfile.LockFile(
-                os.path.join(self.blob_dir, 'cache.lock'))
-        except zc.lockfile.LockError:
-            # Someone is already cleaning up, so don't bother
-            return
-
-        try:
-           target = self._blob_cache_size
-           size = 0
-           tmp = self.temporaryDirectory()
-           blob_suffix = ZODB.blob.BLOB_SUFFIX
-           files_by_atime = BTrees.IOBTree.BTree()
-           for base, dirs, files in os.walk(self.blob_dir):
-               if base == tmp:
-                   del dirs[:]
-                   continue
-               for file_name in files:
-                   if not file_name.endswith(blob_suffix):
-                       continue
-                   file_name = os.path.join(base, file_name)
-                   stat = os.stat(file_name)
-                   size += stat.st_size
-                   t = stat.st_atime
-                   if t not in files_by_atime:
-                       files_by_atime[t] = []
-                   files_by_atime[t].append(file_name)
-
-           while size > target and files_by_atime:
-               for file_name in files_by_atime.pop(files_by_atime.minKey()):
-                   lockfilename = os.path.join(os.path.dirname(file_name),
-                                               '.lock')
-                   try:
-                       lock = zc.lockfile.LockFile(lockfilename)
-                   except zc.lockfile.LockError:
-                       continue  # In use, skip
-
-                   try:
-                       size = os.stat(file_name).st_size
-                       try:
-                           ZODB.blob.remove_committed(file_name)
-                       except OSError, v:
-                           pass # probably open on windows
-                       else:
-                           size -= size
-                   finally:
-                       lock.close()
-        finally:
-            check_lock.close()
-
 
     def registerDB(self, db):
         """Storage API: register a database for invalidation messages.
@@ -997,8 +959,7 @@ class ClientStorage(object):
         f.write(chunk)
         f.close()
         self._blob_data_bytes_loaded += len(chunk)
-        if self._blob_data_bytes_loaded > self._blob_cache_size_check:
-            self._check_blob_size()
+        self._check_blob_size(self._blob_data_bytes_loaded)
 
     def receiveBlobStop(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
@@ -1022,7 +983,6 @@ class ClientStorage(object):
                 # We're using a server shared cache.  If the file isn't
                 # here, it's not anywhere.
                 raise POSException.POSKeyError("No blob file", oid, serial)
-
         
         if os.path.exists(blob_filename):
             return _accessed(blob_filename)
@@ -1253,8 +1213,7 @@ class ClientStorage(object):
                     blobfilename,
                     self.fshelper.getBlobFilename(oid, tid),
                     )
-                if self._blob_data_bytes_loaded > self._blob_cache_size_check:
-                    self._check_blob_size()
+                self._check_blob_size(self._blob_data_bytes_loaded)
 
         self._tbuf.clear()
 
@@ -1647,3 +1606,70 @@ def _accessed(filename):
     except OSError:
         pass # We tried. :)
     return filename
+
+cache_file_name = re.compile(r'\d+$').match
+def _check_blob_cache_size(blob_dir, target):
+
+    layout = open(os.path.join(blob_dir, ZODB.blob.LAYOUT_MARKER)
+                  ).read().strip()
+    if not layout == 'zeocache':
+        raise ValueError("Invalid blob directory layout", layout)
+
+    try:
+        check_lock = zc.lockfile.LockFile(
+            os.path.join(blob_dir, 'check_size.lock'))
+    except zc.lockfile.LockError:
+        # Someone is already cleaning up, so don't bother
+        return
+    
+    try:
+       size = 0
+       blob_suffix = ZODB.blob.BLOB_SUFFIX
+       files_by_atime = BTrees.IOBTree.BTree()
+
+       for dirname in os.listdir(blob_dir):
+           if not cache_file_name(dirname):
+               continue
+           base = os.path.join(blob_dir, dirname)
+           if not os.path.isdir(base):
+               continue
+           for file_name in os.listdir(base):
+               if not file_name.endswith(blob_suffix):
+                   continue
+               file_name = os.path.join(base, file_name)
+               if not os.path.isfile(file_name):
+                   continue
+               stat = os.stat(file_name)
+               size += stat.st_size
+               t = stat.st_atime
+               if t not in files_by_atime:
+                   files_by_atime[t] = []
+               files_by_atime[t].append(file_name)
+
+       while size > target and files_by_atime:
+           for file_name in files_by_atime.pop(files_by_atime.minKey()):
+               lockfilename = os.path.join(os.path.dirname(file_name),
+                                           '.lock')
+               try:
+                   lock = zc.lockfile.LockFile(lockfilename)
+               except zc.lockfile.LockError:
+                   continue  # In use, skip
+
+               try:
+                   size = os.stat(file_name).st_size
+                   try:
+                       ZODB.blob.remove_committed(file_name)
+                   except OSError, v:
+                       pass # probably open on windows
+                   else:
+                       size -= size
+               finally:
+                   lock.close()
+    finally:
+        check_lock.close()
+
+def check_blob_size_script(args=None):
+    if args is None:
+        args = sys.argv[1:]
+    blob_dir, target = args
+    _check_blob_cache_size(blob_dir, int(target))
