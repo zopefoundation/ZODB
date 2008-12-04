@@ -167,7 +167,7 @@ class DemoStorage(object):
             try:
                 return self.base.loadBlob(oid, serial)
             except AttributeError:
-                if not zope.interface.IBlobStorage.providBy(self.base):
+                if not ZODB.interfaces.IBlobStorage.providedBy(self.base):
                     raise ZODB.POSException.POSKeyError(oid, serial)
                 raise
         except AttributeError:
@@ -182,7 +182,7 @@ class DemoStorage(object):
             try:
                 return self.base.openCommittedBlobFile(oid, serial, blob)
             except AttributeError:
-                if not zope.interface.IBlobStorage.providBy(self.base):
+                if not ZODB.interfaces.IBlobStorage.providedBy(self.base):
                     raise ZODB.POSException.POSKeyError(oid, serial)
                 raise
         except AttributeError:
