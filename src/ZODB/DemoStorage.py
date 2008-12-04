@@ -69,6 +69,8 @@ class DemoStorage(object):
 
         self._copy_methods_from_changes(changes)
 
+        self._next_oid = random.randint(1, 1<<62)
+
     def _blobify(self):
         if (self._temporary_changes and
             isinstance(self.changes, ZODB.MappingStorage.MappingStorage)
@@ -183,26 +185,19 @@ class DemoStorage(object):
     @ZODB.utils.locked
     def new_oid(self):
         while 1:
-            oid = ZODB.utils.p64(random.randint(1, 9223372036854775807))
+            oid = ZODB.utils.p64(self._next_oid )
+            if oid not in self._issued_oids:
+                try:
+                    self.changes.load(oid, '')
+                except ZODB.POSException.POSKeyError:
+                    try:
+                        self.base.load(oid, '')
+                    except ZODB.POSException.POSKeyError:
+                        self._next_oid += 1
+                        self._issued_oids.add(oid)
+                        return oid
 
-            if oid in self._issued_oids:
-                continue
-
-            try:
-                self.changes.load(oid, '')
-            except ZODB.POSException.POSKeyError:
-                pass
-            else:
-                continue
-            try:
-                self.base.load(oid, '')
-            except ZODB.POSException.POSKeyError:
-                pass
-            else:
-                continue
-            
-            self._issued_oids.add(oid)
-            return oid
+            self._next_oid = random.randint(1, 1<<62)
 
     def pack(self, t, referencesf, gc=None):
         if gc is None:
