@@ -22,7 +22,7 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
-3.9.0a6 (2008-12-??)
+3.9.0a7 (2008-12-??)
 ====================
 
 New Features
@@ -32,6 +32,12 @@ New Features
   data for reading as an ordinary file, rather than as a blob file.
   The ordinary file may be used outside the current transaction and
   even after the blob's database connection has been closed.
+
+Bugs Fixed
+----------
+
+- Starting ClientStorages sometimes failed with non-new but empty
+  cache files.
 
 3.9.0a6 (2008-11-30)
 ====================
