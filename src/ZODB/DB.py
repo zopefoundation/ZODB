@@ -17,12 +17,14 @@ $Id$"""
 
 import warnings
 
-import cPickle, cStringIO, sys
+import cPickle
+import cStringIO
+import sys
 import threading
-from time import time, ctime
 import logging
 import datetime
 import calendar
+import time
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
@@ -109,7 +111,8 @@ class AbstractConnectionPool(object):
 
 class ConnectionPool(AbstractConnectionPool):
 
-    def __init__(self, size, timeout=time()):
+    # XXX WTF, passing time.time() as a default?
+    def __init__(self, size, timeout=time.time()):
         super(ConnectionPool, self).__init__(size, timeout)
 
         # A stack of connections available to hand out.  This is a subset
@@ -129,7 +132,7 @@ class ConnectionPool(AbstractConnectionPool):
         assert c not in self.available
         self._reduce_size(strictly_less=True)
         self.all.add(c)
-        self.available.append((time(), c))
+        self.available.append((time.time(), c))
         n = len(self.all)
         limit = self.size
         if n > limit:
@@ -148,14 +151,14 @@ class ConnectionPool(AbstractConnectionPool):
         assert c in self.all
         assert c not in self.available
         self._reduce_size(strictly_less=True)
-        self.available.append((time(), c))
+        self.available.append((time.time(), c))
 
     def _reduce_size(self, strictly_less=False):
         """Throw away the oldest available connections until we're under our
         target size (strictly_less=False, the default) or no more than that
         (strictly_less=True).
         """
-        threshhold = time() - self.timeout
+        threshhold = time.time() - self.timeout
         target = self.size
         if strictly_less:
             target -= 1
@@ -210,7 +213,7 @@ class ConnectionPool(AbstractConnectionPool):
         
         If a connection is no longer viable because it has timed out, it is
         garbage collected."""
-        threshhold = time() - self.timeout
+        threshhold = time.time() - self.timeout
         for t, c in list(self.available):
             if t < threshhold:
                 del self.available[t]
@@ -227,7 +230,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
 
     # see the comments in ConnectionPool for method descriptions.
 
-    def __init__(self, size, timeout=time()):
+    def __init__(self, size, timeout=time.time()):
         super(KeyedConnectionPool, self).__init__(size, timeout)
         self.pools = {}
 
@@ -741,7 +744,7 @@ class DB(object):
 
     def connectionDebugInfo(self):
         result = []
-        t = time()
+        t = time.time()
 
         def get_info(c):
             # `result`, `time` and `before` are lexically inherited.
@@ -755,13 +758,12 @@ class DB(object):
             d = "%s (%s)" % (d, len(c._cache))
 
             result.append({
-                'opened': o and ("%s (%.2fs)" % (ctime(o), t-o)),
+                'opened': o and ("%s (%.2fs)" % (time.ctime(o), t-o)),
                 'info': d,
-                'before': before,
+                'before': c.before,
                 })
 
-        for before, pool in self._pools.items():
-            pool.map(get_info)
+        self._connectionMap(get_info)
         return result
 
     def getActivityMonitor(self):
@@ -783,7 +785,7 @@ class DB(object):
         time if t is not specified.
         """
         if t is None:
-            t = time()
+            t = time.time()
         t -= days * 86400
         try:
             self.storage.pack(t, self.references)
