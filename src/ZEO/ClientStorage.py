@@ -507,9 +507,9 @@ class ClientStorage(object):
                    try:
                        size = os.stat(file_name).st_size
                        try:
-                           os.remove(file_name)
-                       except OSError:
-                           raise
+                           ZODB.blob.remove_committed(file_name)
+                       except OSError, v:
+                           pass # probably open on windows
                        else:
                            size -= size
                    finally:
@@ -1025,15 +1025,7 @@ class ClientStorage(object):
 
         
         if os.path.exists(blob_filename):
-            try:
-                _accessed(blob_filename)
-            except OSError:
-                # It might have been deleted while we were calling _accessed.
-                # We don't have the file lock.
-                if os.path.exists(blob_filename):
-                    raise
-            return blob_filename
-
+            return _accessed(blob_filename)
 
         # First, we'll create the directory for this oid, if it doesn't exist. 
         self.fshelper.createPathForOID(oid)
@@ -1650,5 +1642,8 @@ class BlobCacheLayout(object):
             )
 
 def _accessed(filename):
-    os.utime(filename, (time.time(), os.stat(filename).st_mtime))
+    try:
+        os.utime(filename, (time.time(), os.stat(filename).st_mtime))
+    except OSError:
+        pass # We tried. :)
     return filename
