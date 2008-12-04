@@ -33,6 +33,13 @@ New Features
   The ordinary file may be used outside the current transaction and
   even after the blob's database connection has been closed.
 
+- ClientStorage now provides blob cache management. When using
+  non-shared blob directories, you can set a target cache size and the
+  cache will periodically be reduced to the target size.
+
+  The client blob directory layout has changed.  If you have existing
+  non-shared blob directories, you will have to remove them. 
+
 Bugs Fixed
 ----------
 

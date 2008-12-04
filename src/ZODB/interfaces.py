@@ -1034,6 +1034,18 @@ class IBlobStorage(Interface):
         Raises POSKeyError if the blobfile cannot be found.
         """
 
+    def openCommittedBlobFile(oid, serial, blob=None):
+        """Return a file for committed data for the given object id and serial
+
+        If a blob is provided, then a BlobFile object is returned,
+        otherwise, an ordinary file is returned.  In either case, the
+        file is opened for binary reading.
+
+        This method is used to allow storages that cache blob data to
+        make sure that data are available at least long enough for the
+        file to be opened.
+        """
+
     def temporaryDirectory():
         """Return a directory that should be used for uncommitted blob data.
 

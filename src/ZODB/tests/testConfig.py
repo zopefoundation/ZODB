@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+import os
 import transaction
 import unittest
 import ZEO.ClientStorage
@@ -115,15 +116,16 @@ class ZEOConfigTest(ConfigTestBase):
         cfg = """
         <zodb>
           <zeoclient>
-            blob-dir /tmp
+            blob-dir blobs
             server localhost:56897
             wait false
           </zeoclient>
         </zodb>
         """
         config, handle = ZConfig.loadConfigFile(getDbSchema(), StringIO(cfg))
-        self.assertEqual(config.database.config.storage.config.blob_dir,
-                         '/tmp')
+        self.assertEqual(
+            os.path.abspath(config.database.config.storage.config.blob_dir),
+            os.path.abspath('blobs'))
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
 

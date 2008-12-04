@@ -174,7 +174,21 @@ class DemoStorage(object):
             if self._blobify():
                 return self.loadBlob(oid, serial)
             raise
-                
+
+    def openCommittedBlobFile(self, oid, serial, blob=None):
+        try:
+            return self.changes.openCommittedBlobFile(oid, serial, blob)
+        except ZODB.POSException.POSKeyError:
+            try:
+                return self.base.openCommittedBlobFile(oid, serial, blob)
+            except AttributeError:
+                if not zope.interface.IBlobStorage.providBy(self.base):
+                    raise ZODB.POSException.POSKeyError(oid, serial)
+                raise
+        except AttributeError:
+            if self._blobify():
+                return self.openCommittedBlobFile(oid, serial, blob)
+            raise
 
     def loadSerial(self, oid, serial):
         try:

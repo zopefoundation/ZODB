@@ -38,6 +38,7 @@ from zope.interface import implements
 
 import transaction
 
+import ZODB
 from ZODB.blob import SAVEPOINT_SUFFIX
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
@@ -1270,6 +1271,13 @@ class TmpStore:
         if not os.path.exists(filename):
             return self._storage.loadBlob(oid, serial)
         return filename
+
+    def openCommittedBlobFile(self, oid, serial, blob=None):
+        blob_filename = self.loadBlob(oid, serial)
+        if blob is None:
+            return open(blob_filename, 'rb')
+        else:
+            return ZODB.blob.BlobFile(blob_filename, 'r', blob)
 
     def _getBlobPath(self):
         return os.path.join(self.temporaryDirectory(), 'savepoints')

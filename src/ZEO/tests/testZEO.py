@@ -737,7 +737,11 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
         check_data(filename)
 
         # ... and on the server
-        server_filename = filename.replace(self.blob_cache_dir, self.blobdir)
+        server_filename = os.path.join(
+            self.blobdir,
+            ZODB.blob.BushyLayout().getBlobFilePath(oid, revid),
+            )
+        
         self.assert_(server_filename.startswith(self.blobdir))
         check_data(server_filename)
 
@@ -1167,8 +1171,8 @@ def test_suite():
     zeo.addTest(
         doctest.DocFileSuite(
             'zeo-fan-out.test', 'zdoptions.test',
-            'drop_cache_rather_than_verify.txt',
-            'protocols.test',
+            'drop_cache_rather_than_verify.txt', 'client-config.test',
+            'protocols.test', 'zeo_blob_cache.test',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )

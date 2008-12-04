@@ -164,6 +164,12 @@ class ZEOClient(BaseConfig):
         # config.server is a multikey of socket-connection-address values
         # where the value is a socket family, address tuple.
         L = [server.address for server in self.config.server]
+        options = {}
+        if self.config.blob_cache_size is not None:
+            options['blob_cache_size'] = self.config.blob_cache_size
+        if self.config.blob_cache_size_check is not None:
+            options['blob_cache_size_check'] = self.config.blob_cache_size_check
+                    
         return ClientStorage(
             L,
             blob_dir=self.config.blob_dir,
@@ -181,7 +187,8 @@ class ZEOClient(BaseConfig):
             drop_cache_rather_verify=self.config.drop_cache_rather_verify,
             username=self.config.username,
             password=self.config.password,
-            realm=self.config.realm)
+            realm=self.config.realm,
+            **options)
 
 class BDBStorage(BaseConfig):
 
