@@ -518,15 +518,6 @@ class ZEOStorage:
         else:
             return self._wait(lambda: self._undo(trans_id))
 
-    def _tpc_begin(self, txn, tid, status):
-        self.locked = 1
-        self.timeout.begin(self)
-        self.stats.lock_time = time.time()
-        if (tid is not None) or (status != ' '):
-            self.storage.tpc_begin(txn, tid, status)
-        else:
-            self.storage.tpc_begin(txn)
-
     def _store(self, oid, serial, data):
         err = None
         try:
@@ -646,7 +637,15 @@ class ZEOStorage:
             template = "Preparing to commit transaction: %d objects, %d bytes"
         self.log(template % (self.txnlog.stores, self.txnlog.size()),
                  level=BLATHER)
-        self._tpc_begin(self.transaction, self.tid, self.status)
+
+        self.locked = 1
+        self.timeout.begin(self)
+        self.stats.lock_time = time.time()
+        if (self.tid is not None) or (self.status != ' '):
+            self.storage.tpc_begin(self.transaction, self.tid, self.status)
+        else:
+            self.storage.tpc_begin(self.transaction)
+
         loads, loader = self.txnlog.get_loader()
         for i in range(loads):
             store = loader.load()
