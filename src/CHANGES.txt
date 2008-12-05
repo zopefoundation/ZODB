@@ -22,7 +22,7 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
-3.9.0a7 (2008-12-??)
+3.9.0a7 (2008-12-05)
 ====================
 
 New Features
