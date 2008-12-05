@@ -104,7 +104,7 @@ def test_invalidateCache():
         >>> db.close()
     """
 
-def test_connectionDebugInfo():
+def connectionDebugInfo():
     r"""DB.connectionDebugInfo provides information about connections.
 
     >>> import time
@@ -133,14 +133,14 @@ def test_connectionDebugInfo():
     >>> import pprint
     >>> pprint.pprint(sorted(info, key=lambda i: str(i['opened'])), width=1)
     [{'before': None,
-      'info': ' (0)',
-      'opened': None},
-     {'before': None,
       'info': 'test info (2)',
-      'opened': 'Thu Dec 04 15:40:44 2008 (1.40s)'},
+      'opened': '2008-12-04T15:40:44 (1.40s)'},
      {'before': '\x03zY\xd8\xc0m9\xdd',
       'info': ' (0)',
-      'opened': 'Thu Dec 04 15:40:45 2008 (0.30s)'}]
+      'opened': '2008-12-04T15:40:45 (0.30s)'},
+     {'before': None,
+      'info': ' (0)',
+      'opened': None}]
 
     >>> time.time = real_time
 

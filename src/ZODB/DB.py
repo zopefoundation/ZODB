@@ -758,7 +758,9 @@ class DB(object):
             d = "%s (%s)" % (d, len(c._cache))
 
             result.append({
-                'opened': o and ("%s (%.2fs)" % (time.ctime(o), t-o)),
+                'opened': o and ("%s (%.2fs)" % (
+                    time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(o)),
+                    t-o)),
                 'info': d,
                 'before': c.before,
                 })
