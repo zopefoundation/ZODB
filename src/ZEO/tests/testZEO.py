@@ -27,9 +27,11 @@ import unittest
 import shutil
 
 # ZODB test support
+import ZEO.ServerStub
 import ZODB
 import ZODB.blob
 import ZODB.tests.util
+import ZODB.tests.testblob
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 import persistent
@@ -1156,6 +1158,49 @@ slow_test_classes = [
     
 quick_test_classes = [FileStorageRecoveryTests, ConfigurationTests]
 
+class ServerManagingClientStorage(ClientStorage):
+
+    class StorageServerStubClass(ZEO.ServerStub.StorageServer):
+
+        # Wait for abort for the benefit of blob_transacton.txt
+        def tpc_abort(self, id):
+            self.rpc.call('tpc_abort', id)
+
+    def __init__(self, name, blob_dir, shared=False):
+        if shared:
+            server_blob_dir = blob_dir
+        else:
+            server_blob_dir = 'server-'+blob_dir
+        self.globs = {}
+        port = forker.get_port2(self)
+        addr, admin, pid, config = forker.start_zeo_server(
+            """
+            <blobstorage>
+                blob-dir %s
+                <filestorage>
+                   path %s
+                </filestorage>
+            </blobstorage>
+            """ % (server_blob_dir, name+'.fs'),
+            port=port,
+            )
+        os.remove(config)
+        zope.testing.setupstack.register(self, os.waitpid, pid, 0)
+        zope.testing.setupstack.register(
+            self, forker.shutdown_zeo_server, admin)
+        if shared:
+            ClientStorage.__init__(self, addr, blob_dir=blob_dir,
+                                   shared_blob_dir=True)
+        else:
+            ClientStorage.__init__(self, addr, blob_dir=blob_dir)
+            
+    def close(self):
+        ClientStorage.close(self)
+        zope.testing.setupstack.tearDown(self)
+
+def create_storage_shared(name, blob_dir):
+    return ServerManagingClientStorage(name, blob_dir, True)
+
 def test_suite():
     suite = unittest.TestSuite()
 
@@ -1186,6 +1231,14 @@ def test_suite():
         sub = unittest.makeSuite(klass, "check")
         sub.layer = ZODB.tests.util.MininalTestLayer(klass.__name__)
         suite.addTest(sub)
+
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'ClientStorageNonSharedBlobs', ServerManagingClientStorage,
+        test_blob_storage_recovery=False))
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'ClientStorageSharedBlobs', create_storage_shared,
+        test_blob_storage_recovery=False))
+
     return suite
 
 
