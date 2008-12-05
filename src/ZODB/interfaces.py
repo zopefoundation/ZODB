@@ -1023,7 +1023,8 @@ class IBlobStorage(Interface):
         The storage will take ownership of the file and will rename it
         (or copy and remove it) immediately, or at transaction-commit
         time.  The file must not be open.
-        
+
+        The new serial is returned.
         """
 
     def loadBlob(oid, serial):
