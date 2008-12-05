@@ -52,6 +52,7 @@ entry_points = """
     zeopasswd = ZEO.zeopasswd:main
     mkzeoinst = ZEO.mkzeoinst:main
     zeoctl = ZEO.zeoctl:main
+    remove-old-zeo-cached-blobs = ZEO.ClientStorage:check_blob_size_script
     """
 
 scripts = []

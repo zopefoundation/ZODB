@@ -17,20 +17,16 @@ Transaction support for Blobs
 
 We need a database with a blob supporting storage::
 
-    >>> from ZODB.MappingStorage import MappingStorage
-    >>> from ZODB.blob import Blob, BlobStorage
-    >>> from ZODB.DB import DB
-    >>> import transaction
-    >>> base_storage = MappingStorage("test")
+    >>> import ZODB.blob, transaction
     >>> blob_dir = 'blobs'
-    >>> blob_storage = BlobStorage(blob_dir, base_storage)
-    >>> database = DB(blob_storage)
+    >>> blob_storage = create_storage(blob_dir=blob_dir)
+    >>> database = ZODB.DB(blob_storage)
     >>> connection1 = database.open()
     >>> root1 = connection1.root()
 
 Putting a Blob into a Connection works like any other Persistent object::
 
-    >>> blob1 = Blob()
+    >>> blob1 = ZODB.blob.Blob()
     >>> blob1.open('w').write('this is blob 1')
     >>> root1['blob1'] = blob1
     >>> 'blob1' in root1
@@ -130,7 +126,7 @@ when we start)::
 We can open more than one blob object during the course of a single
 transaction::
 
-    >>> blob2 = Blob()
+    >>> blob2 = ZODB.blob.Blob()
     >>> blob2.open('w').write('this is blob 3')
     >>> root2['blob2'] = blob2
     >>> transaction.commit()
@@ -189,16 +185,6 @@ connections::
     >>> root4['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
 
-BlobStorages implementation of getSize() does not include the blob data and
-only returns what the underlying storages do.  (We need to ensure the last
-number to be an int, otherwise it will be a long on 32-bit platforms and an
-int on 64-bit)::
-
-    >>> underlying_size = base_storage.getSize()
-    >>> blob_size = blob_storage.getSize()
-    >>> int(blob_size - underlying_size)
-    0
-
 You can't commit a transaction while blob files are open:
 
     >>> f = root3['blob1'].open('w')
@@ -227,7 +213,7 @@ We do support optimistic savepoints:
 
     >>> connection5 = database.open()
     >>> root5 = connection5.root()
-    >>> blob = Blob()
+    >>> blob = ZODB.blob.Blob()
     >>> blob_fh = blob.open("w")
     >>> blob_fh.write("I'm a happy blob.")
     >>> blob_fh.close()
@@ -297,7 +283,7 @@ file that can be opened.
 
     >>> connection6 = database.open()
     >>> root6 = connection6.root()
-    >>> blob = Blob()
+    >>> blob = ZODB.blob.Blob()
     >>> blob_fh = blob.open("w")
     >>> blob_fh.write("I'm a happy blob.")
     >>> blob_fh.close()
@@ -330,7 +316,7 @@ and doesn't prevent us from opening the blob for writing:
 An exception is raised if we call committed on a blob that has
 uncommitted changes:
 
-    >>> blob = Blob()
+    >>> blob = ZODB.blob.Blob()
     >>> blob.committed()
     Traceback (most recent call last):
     ...
@@ -375,55 +361,55 @@ You can't open a committed blob file for writing:
     ...
     IOError: ...
 
-tpc_abort with dirty data
--------------------------
+tpc_abort
+---------
 
-When `tpc_abort` is called during the first commit phase we need to be able to
-clean up dirty files:
+If a transaction is aborted in the middle of 2-phase commit, any data
+stored are discarded.
 
-    >>> class DummyBaseStorage(object):
-    ...     def tpc_abort(self):
-    ...         pass
-    >>> base_storage = DummyBaseStorage()
-    >>> blob_dir2 = 'blobs2'
-    >>> blob_storage2 = BlobStorage(blob_dir2, base_storage)
-    >>> committed_blob_dir = blob_storage2.fshelper.getPathForOID(0)
-    >>> os.makedirs(committed_blob_dir)
-    >>> committed_blob_file = blob_storage2.fshelper.getBlobFilename(0, 0)
-    >>> open(os.path.join(committed_blob_file), 'w').write('foo')
-    >>> os.path.exists(committed_blob_file)
+    >>> olddata, oldserial = blob_storage.load(blob._p_oid, '')
+    >>> t = transaction.get()
+    >>> blob_storage.tpc_begin(t)
+    >>> open('blobfile', 'w').write('This data should go away')
+    >>> s1 = blob_storage.storeBlob(blob._p_oid, oldserial, olddata, 'blobfile',
+    ...                             '', t)
+    >>> new_oid = blob_storage.new_oid()
+    >>> open('blobfile2', 'w').write('This data should go away too')
+    >>> s2 = blob_storage.storeBlob(new_oid, '\0'*8, olddata, 'blobfile2',
+    ...                             '', t)
+    >>> blob_storage.tpc_abort(t)
+
+Now, the serial for the existing blob should be the same:
+
+    >>> blob_storage.load(blob._p_oid, '') == (olddata, oldserial)
     True
 
-Now, telling the storage that Blob 0 and Blob 1 (both with serial 0) are dirty
-will: remove the committed file for Blob 0 and ignore the fact that Blob 1 is
-set to dirty but doesn't actually have an existing file:
+And we shouldn't be able to read the data that we saved:
 
-    >>> blob_storage2.dirty_oids = [(0, 0), (1, 0)]
-    >>> blob_storage2.tpc_abort()
-    >>> os.path.exists(committed_blob_file)
-    False
+    >>> blob_storage.loadBlob(blob._p_oid, s1)
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 'No blob file'
 
+Of course the old data should be unaffected:
 
-Note: This is a counter measure against regression of bug #126007.
+    >>> open(blob_storage.loadBlob(blob._p_oid, oldserial)).read()
+    "I'm a happy blob."
 
-`getSize` iterates over the existing blob files in the blob directory and adds
-up their size. The blob directory sometimes contains temporary files that the
-getSize function needs to ignore:
+Similarly, the new object wasn't added to the storage:
 
-    >>> garbage_file = os.path.join(blob_dir, 'garbage')
-    >>> open(garbage_file, 'w').write('garbage')
-    >>> int(blob_storage.getSize())
-    2673
+    >>> blob_storage.load(new_oid, '')
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 0x06
 
-Note: This is a counter measer against regression of bug #12991.
+    >>> blob_storage.loadBlob(blob._p_oid, s2)
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 'No blob file'
 
-Teardown
---------
-
-We don't need the storage directory and databases anymore::
+.. clean up
 
     >>> tm1.abort()
     >>> tm2.abort()
     >>> database.close()
-    >>> rmtree(blob_dir)
-    >>> rmtree(blob_dir2)
