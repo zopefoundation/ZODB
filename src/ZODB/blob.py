@@ -692,7 +692,7 @@ class BlobStorage(SpecificationDecoratorBase):
             oid, serial = self.dirty_oids.pop()
             clean = self.fshelper.getBlobFilename(oid, serial)
             if os.path.exists(clean):
-                remove_committed(clean) 
+                remove_committed(clean)
 
     @non_overridable
     def loadBlob(self, oid, serial):
@@ -781,13 +781,6 @@ class BlobStorage(SpecificationDecoratorBase):
             self._lock_release()
 
         return result
-
-    @non_overridable
-    def getSize(self):
-        """Return the size of the database in bytes."""
-        # XXX The old way of computing is way to resource hungry. We need to
-        # do some kind of estimation instead.
-        return getProxiedObject(self).getSize()
 
     @non_overridable
     def undo(self, serial_id, transaction):
