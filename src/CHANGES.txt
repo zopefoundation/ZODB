@@ -2,26 +2,6 @@
  Change History
 ================
 
-3.9.0 (2008-??-??)
-====================
-
-New Features
-------------
-
-- The connection now estimates the object size based on its pickle size
-  and informs the cache about size changes.
-
-  The database got additional configurations options (`cache-size-bytes`
-  and `historical-cache-size-bytes`) to limit the
-  cache size based on the estimated total size of cached objects.
-  The default values are 0 which has the interpretation "do not limit
-  based on the total estimated size".
-  There are corresponding methods to read and set the new configuration
-  parameters.
-
-  XXX There are known issues with this implementation that need to be
-  sorted out before it is "released".
-
 3.9.0a7 (2008-12-05)
 ====================
 
