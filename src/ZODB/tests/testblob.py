@@ -95,13 +95,8 @@ class ZODBBlobConfigTest(ConfigTestBase):
                           </zodb>
                           """)
 
-class BlobTestBase(ZODB.tests.StorageTestBase.StorageTestBase):
 
-    def setUp(self):
-        ZODB.tests.StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = self.create_storage()
-
-class BlobCloneTests(BlobTestBase):
+class BlobCloneTests(ZODB.tests.util.TestCase):
 
     def testDeepCopyCanInvalidate(self):
         """
@@ -109,7 +104,9 @@ class BlobCloneTests(BlobTestBase):
         readers and writers values in cloned objects (see
         http://mail.zope.org/pipermail/zodb-dev/2008-August/012054.html)
         """
-        database = DB(self._storage)
+        import ZODB.MappingStorage
+        database = DB(ZODB.blob.BlobStorage(
+            'blobs', ZODB.MappingStorage.MappingStorage()))
         connection = database.open()
         root = connection.root()
         transaction.begin()
@@ -130,6 +127,12 @@ class BlobCloneTests(BlobTestBase):
 
         # tearDown
         database.close()
+
+class BlobTestBase(ZODB.tests.StorageTestBase.StorageTestBase):
+
+    def setUp(self):
+        ZODB.tests.StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = self.create_storage()
 
 
 class BlobUndoTests(BlobTestBase):
@@ -483,8 +486,8 @@ def loadblob_tmpstore():
 
     We can access the blob correctly:
 
-    >>> tmpstore.loadBlob(blob_oid, tid) # doctest: +ELLIPSIS
-    '.../0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x01/0x...blob'
+    >>> tmpstore.loadBlob(blob_oid, tid) == blob_storage.loadBlob(blob_oid, tid)
+    True
 
     Clean up:
 
@@ -548,7 +551,9 @@ def setUpBlobAdaptedFileStorage(test):
 
     test.globs['create_storage'] = create_storage
 
-def storage_reusable_suite(prefix, factory):
+def storage_reusable_suite(prefix, factory,
+                           test_blob_storage_recovery=True,
+                           ):
     """Return a test suite for a generic IBlobStorage.
 
     Pass a factory taking a name and a blob directory name.
@@ -583,18 +588,25 @@ def storage_reusable_suite(prefix, factory):
             blob_dir = '%s.bobs' % name
         return factory(name, blob_dir)
 
-    for class_ in (BlobCloneTests, BlobUndoTests, RecoveryBlobStorage):
+    def add_test_based_on_test_class(class_):
         new_class = class_.__class__(
             prefix+class_.__name__, (class_, ),
             dict(create_storage=create_storage),
             )
         suite.addTest(unittest.makeSuite(new_class))
 
+    if test_blob_storage_recovery:
+        add_test_based_on_test_class(RecoveryBlobStorage)
+    add_test_based_on_test_class(BlobUndoTests)
+
+    suite.layer = ZODB.tests.util.MininalTestLayer(prefix+'BlobTests')
+
     return suite
 
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
+    suite.addTest(unittest.makeSuite(BlobCloneTests))
     suite.addTest(doctest.DocFileSuite(
         "blob_basic.txt",
         "blob_packing.txt", "blob_consume.txt",
