@@ -1233,11 +1233,9 @@ def test_suite():
         suite.addTest(sub)
 
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
-        'ClientStorageNonSharedBlobs', ServerManagingClientStorage,
-        test_blob_storage_recovery=False))
+        'ClientStorageNonSharedBlobs', ServerManagingClientStorage))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
-        'ClientStorageSharedBlobs', create_storage_shared,
-        test_blob_storage_recovery=False))
+        'ClientStorageSharedBlobs', create_storage_shared))
 
     return suite
 

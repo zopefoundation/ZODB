@@ -552,7 +552,8 @@ def setUpBlobAdaptedFileStorage(test):
     test.globs['create_storage'] = create_storage
 
 def storage_reusable_suite(prefix, factory,
-                           test_blob_storage_recovery=True,
+                           test_blob_storage_recovery=False,
+                           test_packing=False,
                            ):
     """Return a test suite for a generic IBlobStorage.
 
@@ -575,6 +576,11 @@ def storage_reusable_suite(prefix, factory,
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
         optionflags=doctest.ELLIPSIS,
         ))
+    if test_packing:
+        suite.addTest(doctest.DocFileSuite(
+            "blob_packing.txt",
+            setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+            ))
     suite.addTest(doctest.DocTestSuite(
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
         checker = zope.testing.renormalizing.RENormalizing([
@@ -608,9 +614,8 @@ def test_suite():
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
     suite.addTest(unittest.makeSuite(BlobCloneTests))
     suite.addTest(doctest.DocFileSuite(
-        "blob_basic.txt",
-        "blob_packing.txt", "blob_consume.txt",
-        "blob_tempdir.txt",
+        "blob_basic.txt", "blob_consume.txt", "blob_tempdir.txt",
+        "blobstorage_packing.txt",
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
         optionflags=doctest.ELLIPSIS,
@@ -629,7 +634,9 @@ def test_suite():
     suite.addTest(storage_reusable_suite(
         'BlobAdaptedFileStorage',
         lambda name, blob_dir:
-        ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name))
+        ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name)),
+        test_blob_storage_recovery=True,
+        test_packing=True,
         ))
 
     return suite
