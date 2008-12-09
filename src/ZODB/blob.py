@@ -572,48 +572,20 @@ class LawnLayout(BushyLayout):
 
 LAYOUTS['lawn'] = LawnLayout()
 
-class BlobStorage(SpecificationDecoratorBase):
-    """A storage to support blobs."""
+class BlobStorageMixin(object):
+    """A mix-in to help storages support blobssupport blobs."""
 
     zope.interface.implements(ZODB.interfaces.IBlobStorage)
 
-    # Proxies can't have a __dict__ so specifying __slots__ here allows
-    # us to have instance attributes explicitly on the proxy.
-    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
-                 '_blobs_pack_is_in_progress', )
-
-    def __new__(self, base_directory, storage, layout='automatic'):
-        return SpecificationDecoratorBase.__new__(self, storage)
-
-    def __init__(self, base_directory, storage, layout='automatic'):
+    def __init__(self, blob_dir, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
-        SpecificationDecoratorBase.__init__(self, storage)
-        self.fshelper = FilesystemHelper(base_directory, layout)
+        self.fshelper = FilesystemHelper(blob_dir, layout)
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
-        try:
-            supportsUndo = storage.supportsUndo
-        except AttributeError:
-            supportsUndo = False
-        else:
-            supportsUndo = supportsUndo()
-        self.__supportsUndo = supportsUndo
-        self._blobs_pack_is_in_progress = False
 
-        if ZODB.interfaces.IStorageRestoreable.providedBy(storage):
-            zope.interface.alsoProvides(self,
-                                        ZODB.interfaces.IBlobStorageRestoreable)
-
-    @non_overridable
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
-
-    @non_overridable
-    def __repr__(self):
-        normal_storage = getProxiedObject(self)
-        return '<BlobStorage proxy for %r at %s>' % (normal_storage,
-                                                     hex(id(self)))
 
     @non_overridable
     def _storeblob(self, oid, serial, blobfilename):
@@ -675,19 +647,15 @@ class BlobStorage(SpecificationDecoratorBase):
             self.tpc_finish(trans)
 
     @non_overridable
-    def tpc_finish(self, *arg, **kw):
-        # We need to override the base storage's tpc_finish instead of
-        # providing a _finish method because methods found on the proxied 
-        # object aren't rebound to the proxy
-        getProxiedObject(self).tpc_finish(*arg, **kw)
+    def blob_tpc_finish(self):
+        """Blob cleanup to be called from subclass tpc_finish
+        """
         self.dirty_oids = []
 
     @non_overridable
-    def tpc_abort(self, *arg, **kw):
-        # We need to override the base storage's abort instead of
-        # providing an _abort method because methods found on the proxied object
-        # aren't rebound to the proxy
-        getProxiedObject(self).tpc_abort(*arg, **kw)
+    def blob_tpc_abort(self):
+        """Blob cleanup to be called from subclass tpc_abort
+        """
         while self.dirty_oids:
             oid, serial = self.dirty_oids.pop()
             clean = self.fshelper.getBlobFilename(oid, serial)
@@ -710,6 +678,59 @@ class BlobStorage(SpecificationDecoratorBase):
             return open(blob_filename, 'rb')
         else:
             return BlobFile(blob_filename, 'r', blob)
+
+
+class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
+    """A storage to support blobs."""
+
+    zope.interface.implements(ZODB.interfaces.IBlobStorage)
+
+    # Proxies can't have a __dict__ so specifying __slots__ here allows
+    # us to have instance attributes explicitly on the proxy.
+    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
+                 '_blobs_pack_is_in_progress', )
+
+    def __new__(self, base_directory, storage, layout='automatic'):
+        return SpecificationDecoratorBase.__new__(self, storage)
+
+    def __init__(self, base_directory, storage, layout='automatic'):
+        # XXX Log warning if storage is ClientStorage
+        SpecificationDecoratorBase.__init__(self, storage)
+        BlobStorageMixin.__init__(self, base_directory, layout)
+        try:
+            supportsUndo = storage.supportsUndo
+        except AttributeError:
+            supportsUndo = False
+        else:
+            supportsUndo = supportsUndo()
+        self.__supportsUndo = supportsUndo
+        self._blobs_pack_is_in_progress = False
+
+        if ZODB.interfaces.IStorageRestoreable.providedBy(storage):
+            zope.interface.alsoProvides(self,
+                                        ZODB.interfaces.IBlobStorageRestoreable)
+
+    @non_overridable
+    def __repr__(self):
+        normal_storage = getProxiedObject(self)
+        return '<BlobStorage proxy for %r at %s>' % (normal_storage,
+                                                     hex(id(self)))
+
+    @non_overridable
+    def tpc_finish(self, *arg, **kw):
+        # We need to override the base storage's tpc_finish instead of
+        # providing a _finish method because methods found on the proxied 
+        # object aren't rebound to the proxy
+        getProxiedObject(self).tpc_finish(*arg, **kw)
+        self.blob_tpc_finish()
+
+    @non_overridable
+    def tpc_abort(self, *arg, **kw):
+        # We need to override the base storage's abort instead of
+        # providing an _abort method because methods found on the proxied object
+        # aren't rebound to the proxy
+        getProxiedObject(self).tpc_abort(*arg, **kw)
+        self.blob_tpc_abort()
 
     @non_overridable
     def _packUndoing(self, packtime, referencesf):
