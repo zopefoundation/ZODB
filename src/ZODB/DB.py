@@ -757,9 +757,10 @@ class DB(object):
                 d = ''
             d = "%s (%s)" % (d, len(c._cache))
 
+            # output UTC time with the standard Z time zone indicator
             result.append({
                 'opened': o and ("%s (%.2fs)" % (
-                    time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(o)),
+                    time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(o)),
                     t-o)),
                 'info': d,
                 'before': c.before,

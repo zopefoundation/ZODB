@@ -134,10 +134,10 @@ def connectionDebugInfo():
     >>> pprint.pprint(sorted(info, key=lambda i: str(i['opened'])), width=1)
     [{'before': None,
       'info': 'test info (2)',
-      'opened': '2008-12-04T15:40:44 (1.40s)'},
+      'opened': '2008-12-04T20:40:44Z (1.40s)'},
      {'before': '\x03zY\xd8\xc0m9\xdd',
       'info': ' (0)',
-      'opened': '2008-12-04T15:40:45 (0.30s)'},
+      'opened': '2008-12-04T20:40:45Z (0.30s)'},
      {'before': None,
       'info': ' (0)',
       'opened': None}]
