@@ -14,6 +14,7 @@
 import os, unittest
 import transaction
 import ZODB.FileStorage
+import ZODB.tests.testblob
 import ZODB.tests.util
 import zope.testing.setupstack
 from ZODB import POSException
@@ -558,6 +559,13 @@ def test_suite():
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
         tearDown=zope.testing.setupstack.tearDown))
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'BlobFileStorage',
+        lambda name, blob_dir:
+        ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir),
+        test_blob_storage_recovery=True,
+        test_packing=True,
+        ))
     return suite
 
 if __name__=='__main__':

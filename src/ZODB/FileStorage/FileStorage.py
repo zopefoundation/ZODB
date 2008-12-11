@@ -16,33 +16,35 @@
 $Revision: 1.16 $
 """
 
-import base64
 from cPickle import Pickler, Unpickler, loads
+from persistent.TimeStamp import TimeStamp
+from struct import pack, unpack
+from types import StringType
+from zc.lockfile import LockFile
+from ZODB.FileStorage.format import CorruptedDataError
+from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
+from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
+from ZODB.FileStorage.fspack import FileStoragePacker
+from ZODB.fsIndex import fsIndex
+from ZODB import BaseStorage, ConflictResolution, POSException
+from ZODB.loglevels import BLATHER
+from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
+from ZODB.utils import p64, u64, z64
+
+import base64
 import errno
+import logging
 import os
 import sys
 import time
-import logging
-from types import StringType
-from struct import pack, unpack
+import ZODB.blob
+import ZODB.interfaces
+import zope.interface
+import ZODB.utils
 
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
-
-import zope.interface
-import ZODB.interfaces
-from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from persistent.TimeStamp import TimeStamp
-from zc.lockfile import LockFile
-from ZODB.utils import p64, u64, cp, z64
-from ZODB.FileStorage.fspack import FileStoragePacker
-from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
-from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import CorruptedDataError
-from ZODB.loglevels import BLATHER
-from ZODB.fsIndex import fsIndex
 
 packed_version = "FS21"
 
@@ -86,9 +88,12 @@ class TempFormatter(FileStorageFormatter):
     def __init__(self, afile):
         self._file = afile
 
-class FileStorage(BaseStorage.BaseStorage,
-                  ConflictResolution.ConflictResolvingStorage,
-                  FileStorageFormatter):
+class FileStorage(
+    FileStorageFormatter,
+    ZODB.blob.BlobStorageMixin,
+    ConflictResolution.ConflictResolvingStorage,
+    BaseStorage.BaseStorage,
+    ):
 
     zope.interface.implements(
         ZODB.interfaces.IStorage,
@@ -102,7 +107,7 @@ class FileStorage(BaseStorage.BaseStorage,
     _pack_is_in_progress = False
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
-                 quota=None, pack_gc=True, packer=None):
+                 quota=None, pack_gc=True, packer=None, blob_dir=None):
 
         if read_only:
             self._is_read_only = True
@@ -197,6 +202,15 @@ class FileStorage(BaseStorage.BaseStorage,
                        file_name, seconds)
 
         self._quota = quota
+
+        self.blob_dir = blob_dir
+        if blob_dir:
+            self._blob_init(blob_dir)
+            zope.interface.alsoProvides(self,
+                                        ZODB.interfaces.IBlobStorageRestoreable)
+        else:
+            self._blob_init_no_blobs()
+        
 
     def _initIndex(self, index, tindex):
         self._index=index
@@ -654,7 +668,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 h.descr = descr
                 h.ext = ext
                 self._file.write(h.asString())
-                cp(self._tfile, self._file, dlen)
+                ZODB.utils.cp(self._tfile, self._file, dlen)
                 self._file.write(p64(tl))
                 self._file.flush()
             except:
@@ -695,11 +709,13 @@ class FileStorage(BaseStorage.BaseStorage,
         self._pos = self._nextpos
         self._index.update(self._tindex)
         self._ltid = tid
+        self._blob_tpc_finish()
 
     def _abort(self):
         if self._nextpos:
             self._file.truncate(self._pos)
             self._nextpos=0
+            self._blob_tpc_abort()
 
     def _undoDataInfo(self, oid, pos, tpos):
         """Return the tid, data pointer, and data for the oid record at pos
@@ -920,6 +936,18 @@ class FileStorage(BaseStorage.BaseStorage,
                 # Don't fail right away. We may be redeemed later!
                 failures[h.oid] = v
             else:
+
+                if self.blob_dir and not p and prev:
+                    up, userial = self._loadBackTxn(h.oid, prev)
+                    if ZODB.blob.is_blob_record(up):
+                        # We're undoing a blob modification operation.
+                        # We have to copy the blob data
+                        tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
+                        ZODB.utils.cp(
+                            self.openCommittedBlobFile(h.oid, userial),
+                            open(tmp, 'wb'))
+                        self._blob_storeblob(h.oid, self._tid, tmp)
+                
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
 
                 # TODO:  This seek shouldn't be necessary, but some other
@@ -1469,7 +1497,7 @@ def _truncate(file, name, pos):
                                name, oname)
                 o = open(oname,'wb')
                 file.seek(pos)
-                cp(file, o, file_size-pos)
+                ZODB.utils.cp(file, o, file_size-pos)
                 o.close()
                 break
     except:
