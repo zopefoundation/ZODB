@@ -22,8 +22,7 @@ Let's start by setting up some data:
 We'll also create a client.
 
     >>> import ZEO
-    >>> db = ZEO.DB(addr, blob_dir='blobs',
-    ...             blob_cache_size=4000, blob_cache_size_check=10)
+    >>> db = ZEO.DB(addr, blob_dir='blobs', blob_cache_size=4000)
 
 Here, we passed a blob_cache_size parameter, which specifies a target
 blob cache size.  This is not a hard limit, but rather a target.  It
@@ -66,7 +65,7 @@ directory.
     
     >>> db.storage._check_blob_size_thread.join()
 
-    >>> cache_size('blobs') < 6000
+    >>> cache_size('blobs') < 5000
     True
 
 If we read all of the blobs, data will be downloaded again, as
@@ -80,7 +79,7 @@ target:
 
     >>> db.storage._check_blob_size_thread.join()
 
-    >>> cache_size('blobs') < 6000
+    >>> cache_size('blobs') < 5000
     True
 
     >>> for i in range(1, 101):
@@ -97,7 +96,7 @@ target:
 
     >>> db.storage._check_blob_size_thread.join()
 
-    >>> cache_size('blobs') < 6000
+    >>> cache_size('blobs') < 5000
     True
 
     >>> for i in range(1, 101):
@@ -107,7 +106,7 @@ target:
 
     >>> db.storage._check_blob_size_thread.join()
 
-    >>> cache_size('blobs') < 6000
+    >>> cache_size('blobs') < 5000
     True
 
 Now let see if we can stress things a bit.  We'll create many clients
@@ -116,8 +115,7 @@ provoke problems:
 
     >>> import threading, random
     >>> def run():
-    ...     db = ZEO.DB(addr, blob_dir='blobs',
-    ...                 blob_cache_size=4000, blob_cache_size_check=10)
+    ...     db = ZEO.DB(addr, blob_dir='blobs', blob_cache_size=4000)
     ...     conn = db.open()
     ...     for i in range(300):
     ...         time.sleep(0)
@@ -140,7 +138,7 @@ provoke problems:
     >>> for thread in threads:
     ...     thread.join()
 
-    >>> cache_size('blobs') < 6000
+    >>> cache_size('blobs') < 5000
     True
 
 .. cleanup
