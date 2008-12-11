@@ -436,7 +436,7 @@ class ClientCache(object):
     # recent tid.
     @locked
     def setLastTid(self, tid):
-        if self.tid is not None and tid <= self.tid:
+        if (self.tid is not None) and (tid <= self.tid) and self:
             raise ValueError("new last tid (%s) must be greater than "
                              "previous one (%s)" % (u64(tid),
                                                     u64(self.tid)))

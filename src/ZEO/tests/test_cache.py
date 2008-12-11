@@ -85,6 +85,9 @@ class CacheTests(ZODB.tests.util.TestCase):
         self.assertEqual(self.cache.getLastTid(), n2)
         self.cache.invalidate(n1, n3)
         self.assertEqual(self.cache.getLastTid(), n3)
+
+        # the cache complains only when it's non-empty
+        self.cache.store(n1, n3, None, 'x')
         self.assertRaises(ValueError, self.cache.setLastTid, n2)
 
     def testLoad(self):
@@ -325,7 +328,12 @@ class CacheTests(ZODB.tests.util.TestCase):
             # Cleanup
             cache.close()
             os.remove('cache')
-        
+
+    def testSetAnyLastTidOnEmptyCache(self):
+        self.cache.setLastTid(p64(5))
+        self.cache.setLastTid(p64(5))
+        self.cache.setLastTid(p64(3))
+        self.cache.setLastTid(p64(4))
 
 __test__ = dict(
     kill_does_not_cause_cache_corruption =

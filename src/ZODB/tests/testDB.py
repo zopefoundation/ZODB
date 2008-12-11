@@ -104,6 +104,48 @@ def test_invalidateCache():
         >>> db.close()
     """
 
+def connectionDebugInfo():
+    r"""DB.connectionDebugInfo provides information about connections.
+
+    >>> import time
+    >>> now = 1228423244.5
+    >>> def faux_time():
+    ...     global now
+    ...     now += .1
+    ...     return now
+    >>> real_time = time.time
+    >>> time.time = faux_time
+
+    >>> from ZODB.tests.util import DB
+    >>> import transaction
+    >>> db = DB()
+    >>> c1 = db.open()
+    >>> c1.setDebugInfo('test info')
+    >>> c1.root()['a'] = MinPO(1)
+    >>> transaction.commit()
+    >>> c2 = db.open()
+    >>> _ = c1.root()['a']
+    >>> c2.close()
+
+    >>> c3 = db.open(before=c1.root()._p_serial)
+
+    >>> info = db.connectionDebugInfo()
+    >>> import pprint
+    >>> pprint.pprint(sorted(info, key=lambda i: str(i['opened'])), width=1)
+    [{'before': None,
+      'info': 'test info (2)',
+      'opened': '2008-12-04T20:40:44Z (1.40s)'},
+     {'before': '\x03zY\xd8\xc0m9\xdd',
+      'info': ' (0)',
+      'opened': '2008-12-04T20:40:45Z (0.30s)'},
+     {'before': None,
+      'info': ' (0)',
+      'opened': None}]
+
+    >>> time.time = real_time
+
+    """
+
 
 def test_suite():
     s = unittest.makeSuite(DBTests)

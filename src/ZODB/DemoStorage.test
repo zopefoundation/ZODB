@@ -96,7 +96,7 @@ the new underlying storages:
 The object id of the new object is quite random, and typically large:
 
     >>> print u64(conn.root()['2']._p_oid)
-    7106521602475165646
+    3553260803050964942
 
 Let's look at some other methods:
 
@@ -345,7 +345,7 @@ First we'll get a single OID.
     >>> storage = DemoStorage.push(storage)
     >>> random.seed(47)
     >>> storage.new_oid()
-    '\x10\x01\xa6bZ\x12\x98\xa2'
+    '\x1a,S\xa4\xe9\xbb\x17\xbd'
 
 Then we'll force the random number generator to use the same seed for the
 subsequent call to "new_oid" and show that we get a different OID.
@@ -353,7 +353,7 @@ subsequent call to "new_oid" and show that we get a different OID.
     >>> random.seed(47)
     >>> oid = storage.new_oid()
     >>> oid
-    'A\xe6\xcb\x06W\xed\xa2\x15'
+    '\x1a,S\xa4\xe9\xbb\x17\xbe'
 
 DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 

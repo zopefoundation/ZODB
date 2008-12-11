@@ -17,25 +17,13 @@ Import/export support for blob data
 
 Set up:
 
-    >>> from ZODB.FileStorage import FileStorage
-    >>> from ZODB.blob import Blob, BlobStorage
-    >>> from ZODB.DB import DB
+    >>> import ZODB.blob, transaction
     >>> from persistent.mapping import PersistentMapping
-    >>> import shutil
-    >>> import transaction
-    >>> storagefile1 = 'Data.fs.1'
-    >>> blob_dir1 = 'blobs1'
-    >>> storagefile2 = 'Data.fs.2'
-    >>> blob_dir2 = 'blobs2'
 
 We need an database with an undoing blob supporting storage:
 
-    >>> base_storage1 = FileStorage(storagefile1)
-    >>> blob_storage1 = BlobStorage(blob_dir1, base_storage1)
-    >>> base_storage2 = FileStorage(storagefile2)
-    >>> blob_storage2 = BlobStorage(blob_dir2, base_storage2)
-    >>> database1 = DB(blob_storage1)
-    >>> database2 = DB(blob_storage2)
+    >>> database1 = ZODB.DB(create_storage('1'))
+    >>> database2 = ZODB.DB(create_storage('2'))
 
 Create our root object for database1:
 
@@ -46,12 +34,11 @@ Put a couple blob objects in our database1 and on the filesystem:
 
     >>> import time, os
     >>> nothing = transaction.begin()
-    >>> tid = blob_storage1._tid
     >>> data1 = 'x'*100000
-    >>> blob1 = Blob()
+    >>> blob1 = ZODB.blob.Blob()
     >>> blob1.open('w').write(data1)
     >>> data2 = 'y'*100000
-    >>> blob2 = Blob()
+    >>> blob2 = ZODB.blob.Blob()
     >>> blob2.open('w').write(data2)
     >>> d = PersistentMapping({'blob1':blob1, 'blob2':blob2})
     >>> root1['blobdata'] = d
@@ -85,17 +72,7 @@ Make sure our data exists:
     True
     >>> transaction.get().abort()
 
-Clean up our blob directory:
+.. cleanup
 
-    >>> base_storage1.close()
-    >>> base_storage2.close()
-    >>> import ZODB.blob
-    >>> ZODB.blob.remove_committed_dir(blob_dir1)
-    >>> ZODB.blob.remove_committed_dir(blob_dir2)
-    >>> os.unlink(exportfile)
-    >>> os.unlink(storagefile1)
-    >>> os.unlink(storagefile1+".index")
-    >>> os.unlink(storagefile1+".tmp")
-    >>> os.unlink(storagefile2)
-    >>> os.unlink(storagefile2+".index")
-    >>> os.unlink(storagefile2+".tmp")
+    >>> database1.close()
+    >>> database2.close()

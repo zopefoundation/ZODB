@@ -64,7 +64,7 @@ To assure that we get a new tid that is later than the old, we can
 pass an existing tid.  Let's pass the tid we just got.
 
     >>> tid2 = ZODB.utils.newTid(tid)
-    >>> ZODB.utils.u64(tid), ZODB.utils.u64(tid2)
+    >>> long(ZODB.utils.u64(tid)), long(ZODB.utils.u64(tid2))
     (250347764454864008L, 250347764454864009L)
 
 Here, since we called it at the same time, we got a time stamp that

@@ -156,6 +156,21 @@ def testSomeDelegation():
 
     """
 
+def blob_pos_key_error_with_non_blob_base():
+    """
+    >>> storage = ZODB.DemoStorage.DemoStorage()
+    >>> storage.loadBlob(ZODB.utils.p64(1), ZODB.utils.p64(1))
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 0x01
+
+    >>> storage.openCommittedBlobFile(ZODB.utils.p64(1), ZODB.utils.p64(1))
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 0x01
+    
+    """
+
 
 def test_suite():
     suite = unittest.TestSuite((
