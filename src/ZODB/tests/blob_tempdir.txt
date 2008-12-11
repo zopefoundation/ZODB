@@ -1,0 +1,51 @@
+=======================================
+Temporary directory handling with blobs
+=======================================
+
+When creating uncommitted data files for a blob (e.g. by calling
+`blob.open('w')`) we need to decide where to create them. The decision depends
+on whether the blob is already stored in a database or not.
+
+Case 1: Blobs that are not in a database yet
+============================================
+
+Let's create a new blob and open it for writing::
+
+  >>> from ZODB.blob import Blob
+  >>> b = Blob()
+  >>> w = b.open('w')
+
+The created file is in the default temporary directory::
+
+  >>> import tempfile
+  >>> w.name.startswith(tempfile.gettempdir())
+  True
+
+  >>> w.close()
+
+Case 2: Blobs that are in a database
+====================================
+
+For this case we instanciate a blob and add it to a database immediately.
+First, we need a datatabase with blob support::
+
+  >>> from ZODB.MappingStorage import MappingStorage
+  >>> from ZODB.blob import BlobStorage
+  >>> from ZODB.DB import DB
+  >>> import os.path
+  >>> base_storage = MappingStorage('test')
+  >>> blob_dir = os.path.abspath('blobs')
+  >>> blob_storage = BlobStorage(blob_dir, base_storage)
+  >>> database = DB(blob_storage)
+
+Now we create a blob and put it in the database. After that we open it for
+writing and expect the file to be in the blob temporary directory::
+
+  >>> blob = Blob()
+  >>> connection = database.open()
+  >>> connection.add(blob)
+  >>> w = blob.open('w')
+  >>> w.name.startswith(os.path.join(blob_dir, 'tmp'))
+  True
+
+  >>> w.close()

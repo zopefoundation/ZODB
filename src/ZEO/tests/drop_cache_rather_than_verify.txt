@@ -1,0 +1,216 @@
+Avoiding cache verifification
+=============================
+
+For large databases it is common to also use very large ZEO cache
+files.  If a client has beed disconnected for too long, cache verification
+might be necessary, but cache verification can be very hard on the
+storage server.
+
+When verification is needed, a ZEO.interfaces.StaleCache event is
+published. Applications may handle this event to perform actions such
+as exiting the process to avoid a cold restart.
+
+ClientStorage provides an option to drop it's cache rather than doing
+verification.  When this option is used, and verification would be
+necessary, after publishing the event, ClientStorage:
+
+- Invalidates all object caches
+
+- Drops or clears it's client cache. (The end result is that the cache
+  is working but empty.)
+
+- Logs a CRITICAL message.
+
+Here's an example that shows that this is actually what happens.
+
+Start a server, create a cient to it and commit some data
+
+    >>> addr, admin = start_server(keep=1)
+    >>> import ZEO, transaction
+    >>> db = ZEO.DB(addr, drop_cache_rather_verify=True, client='cache',
+    ...             name='test')
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root()[1] = conn.root().__class__()
+    >>> conn.root()[1].x = 1
+    >>> transaction.commit()
+    >>> len(db.storage._cache)
+    3
+
+Now, we'll stop the server and restart with a different address:
+
+    >>> stop_server(admin)
+    >>> addr2, admin = start_server(keep=1)
+
+And create another client and write some data to it:
+
+    >>> db2 = ZEO.DB(addr2)
+    >>> wait_connected(db2.storage)
+    >>> conn2 = db2.open()
+    >>> for i in range(5):
+    ...     conn2.root()[1].x += 1
+    ...     transaction.commit()
+    >>> db2.close()
+    >>> stop_server(admin)
+
+Now, we'll restart the server.  Before we do that, we'll capture
+logging and event data:
+
+    >>> import logging, zope.testing.loggingsupport, zope.event
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...     'ZEO.ClientStorage', level=logging.ERROR)
+    >>> events = []
+    >>> def event_handler(e):
+    ...     events.append((
+    ...       len(e.storage._cache), str(handler), e.__class__.__name__))
+    >>> zope.event.subscribers.append(event_handler)
+
+Note that the event handler is saving away the length of the cache and
+the state of the log handler.  We'll use this to show that the event
+is generated before the cache is dropped or the message is logged.
+
+Now, we'll restart the server on the original address:
+
+    >>> _, admin = start_server(zeo_conf=dict(invalidation_queue_size=1),
+    ...                         addr=addr, keep=1)
+    >>> wait_connected(db.storage)
+
+Now, let's verify our assertions above:
+
+- Publishes a stale-cache event.
+
+    >>> for e in events:
+    ...     print e
+    (3, '', 'StaleCache')
+
+    Note that the length of the cache when the event handler was
+    called waa non-zero.  This is because the cache wasn't cleared
+    yet.  Similarly, the dropping-cache message hasn't been logged
+    yet.
+
+    >>> del events[:]
+  
+- Drops or clears it's client cache. (The end result is that the cache
+  is working but empty.)
+
+    >>> len(db.storage._cache)
+    0
+
+- Invalidates all object caches
+
+    >>> transaction.abort()
+    >>> conn.root()._p_changed
+
+- Logs a CRITICAL message.
+
+    >>> print handler
+    ZEO.ClientStorage CRITICAL
+      test dropping stale cache
+
+    >>> handler.clear()
+
+If we access the root object, it'll be loaded from the server:
+
+    >>> conn.root()[1].x
+    6
+
+    >>> len(db.storage._cache)
+    2
+
+Similarly, if we simply disconnect the client, and write data from
+another client:
+
+    >>> db.close()
+
+    >>> db2 = ZEO.DB(addr)
+    >>> wait_connected(db2.storage)
+    >>> conn2 = db2.open()
+    >>> for i in range(5):
+    ...     conn2.root()[1].x += 1
+    ...     transaction.commit()
+    >>> db2.close()
+
+    >>> db = ZEO.DB(addr, drop_cache_rather_verify=True, client='cache',
+    ...             name='test')
+    >>> wait_connected(db.storage)
+    
+  
+- Drops or clears it's client cache. (The end result is that the cache
+  is working but empty.)
+
+    >>> len(db.storage._cache)
+    1
+
+(When a database is created, it checks to make sure the root object is
+in the database, which is why we get 1, rather than 0 objects in the cache.)
+
+- Publishes a stake-cache event.
+
+    >>> for e in events:
+    ...     print e
+    (2, '', 'StaleCache')
+
+    >>> del events[:]
+
+- Logs a CRITICAL message.
+
+    >>> print handler
+    ZEO.ClientStorage CRITICAL
+      test dropping stale cache
+
+    >>> handler.clear()
+
+If we access the root object, it'll be loaded from the server:
+
+    >>> conn = db.open()
+    >>> conn.root()[1].x
+    11
+
+
+Finally, let's look at what happens without the
+drop_cache_rather_verify option:
+
+    >>> db.close()
+    >>> db = ZEO.DB(addr, client='cache')
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root()[1].x
+    11
+    >>> conn.root()[2] = conn.root().__class__()
+    >>> transaction.commit()
+    >>> len(db.storage._cache)
+    4
+
+    >>> stop_server(admin)
+    >>> addr2, admin = start_server(keep=1)
+    >>> db2 = ZEO.DB(addr2)
+    >>> wait_connected(db2.storage)
+    >>> conn2 = db2.open()
+    >>> for i in range(5):
+    ...     conn2.root()[1].x += 1
+    ...     transaction.commit()
+    >>> db2.close()
+    >>> stop_server(admin)
+
+    >>> _, admin = start_server(zeo_conf=dict(invalidation_queue_size=1),
+    ...                         addr=addr)
+    >>> wait_connected(db.storage)
+
+    >>> for e in events:
+    ...     print e
+    (4, '', 'StaleCache')
+
+    >>> print handler
+    <BLANKLINE>
+
+    >>> len(db.storage._cache)
+    3
+
+Here we see the cache wasn't dropped, although one of the records was
+invalidated during verification.
+
+.. Cleanup
+
+    >>> db.close()
+    >>> handler.uninstall()
+    >>> zope.event.subscribers.remove(event_handler)

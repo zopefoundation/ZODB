@@ -1,0 +1,380 @@
+==========================
+DemoStorage demo (doctest)
+==========================
+
+DemoStorages provide a way to provide incremental updates to an
+existing, base, storage without updating the storage.
+
+To see how this works, we'll start by creating a base storage and
+puting an object (in addition to the root object) in it:
+
+    >>> from ZODB.FileStorage import FileStorage
+    >>> base = FileStorage('base.fs')
+    >>> from ZODB.DB import DB
+    >>> db = DB(base)
+    >>> from persistent.mapping import PersistentMapping
+    >>> conn = db.open()
+    >>> conn.root()['1'] = PersistentMapping({'a': 1, 'b':2})
+    >>> import transaction
+    >>> transaction.commit()
+    >>> db.close()
+    >>> import os
+    >>> original_size = os.path.getsize('base.fs')
+
+Now, lets reopen the base storage in read-only mode:
+
+    >>> base = FileStorage('base.fs', read_only=True)
+
+And open a new storage to store changes:
+
+    >>> changes = FileStorage('changes.fs')
+
+and combine the 2 in a demofilestorage:
+
+    >>> from ZODB.DemoStorage import DemoStorage
+    >>> storage = DemoStorage(base=base, changes=changes)
+
+If there are no transactions, the storage reports the lastTransaction
+of the base database:
+
+    >>> storage.lastTransaction() == base.lastTransaction()
+    True
+
+Let's add some data:
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> items = conn.root()['1'].items()
+    >>> items.sort()
+    >>> items
+    [('a', 1), ('b', 2)]
+
+    >>> conn.root()['2'] = PersistentMapping({'a': 3, 'b':4})
+    >>> transaction.commit()
+
+    >>> conn.root()['2']['c'] = 5
+    >>> transaction.commit()
+
+Here we can see that we haven't modified the base storage:
+
+    >>> original_size == os.path.getsize('base.fs')
+    True
+
+But we have modified the changes database:
+
+    >>> len(changes)
+    2
+
+Our lastTransaction reflects the lastTransaction of the changes:
+
+    >>> storage.lastTransaction() > base.lastTransaction()
+    True
+
+    >>> storage.lastTransaction() == changes.lastTransaction()
+    True
+
+Let's walk over some of the methods so ewe can see how we delegate to
+the new underlying storages:
+
+    >>> from ZODB.utils import p64, u64
+    >>> storage.load(p64(0), '') == changes.load(p64(0), '')
+    True
+    >>> storage.load(p64(0), '') == base.load(p64(0), '')
+    False
+    >>> storage.load(p64(1), '') == base.load(p64(1), '')
+    True
+
+    >>> serial = base.getTid(p64(0))
+    >>> storage.loadSerial(p64(0), serial) == base.loadSerial(p64(0), serial)
+    True
+
+    >>> serial = changes.getTid(p64(0))
+    >>> storage.loadSerial(p64(0), serial) == changes.loadSerial(p64(0),
+    ...                                                          serial)
+    True
+
+The object id of the new object is quite random, and typically large:
+
+    >>> print u64(conn.root()['2']._p_oid)
+    3553260803050964942
+
+Let's look at some other methods:
+
+    >>> storage.getName()
+    "DemoStorage('base.fs', 'changes.fs')"
+
+    >>> storage.sortKey() == changes.sortKey()
+    True
+
+    >>> storage.getSize() == changes.getSize()
+    True
+    
+    >>> len(storage) == len(changes)
+    True
+
+    
+Undo methods are simply copied from the changes storage:
+
+    >>> [getattr(storage, name) == getattr(changes, name)
+    ...  for name in ('supportsUndo', 'undo', 'undoLog', 'undoInfo')
+    ...  ]
+    [True, True, True, True]
+
+    >>> db.close()
+
+Storage Stacking
+================
+
+A common use case is to stack demo storages.  DemoStorage provides
+some helper functions to help with this.  The push method, just
+creates a new demo storage who's base is the original demo storage:
+
+    >>> demo = DemoStorage()
+    >>> demo2 = demo.push()
+    >>> demo2.base is demo
+    True
+
+We can also supply an explicit changes storage, if we wish:
+
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> changes = MappingStorage()
+    >>> demo3 = demo2.push(changes)
+    >>> demo3.changes is changes, demo3.base is demo2
+    (True, True)
+
+The pop method closes the changes storage and returns the base
+*without* closing it:
+
+    >>> demo3.pop() is demo2
+    True
+
+    >>> changes.opened()
+    False
+
+Special backward compatibility support
+--------------------------------------
+
+Normally, when a demo storage is closed, it's base and changes
+storage are closed:
+
+    >>> demo = DemoStorage(base=MappingStorage(), changes=MappingStorage())
+    >>> demo.close()
+    >>> demo.base.opened(), demo.changes.opened()
+    (False, False)
+
+Older versions of DemoStorage didn't have a separate changes storage
+and didn't close or discard their changes when they were closed.  When
+a stack was built solely of demo storages, the close method
+effectively did nothing.  To maintain backward compatibility, when no
+base or changes storage is supplied in the constructor, the underlying
+storage created by the demo storage isn't closed by the demo storage.
+This backward-compatibility is deprecated.
+
+    >>> demo = DemoStorage()
+    >>> demo.close()
+    >>> demo.changes.opened(), demo.base.opened()
+    (True, True)
+
+    >>> demo = DemoStorage(base=MappingStorage())
+    >>> demo2 = demo.push()
+    >>> demo2.close()
+    >>> demo2.changes.opened(), demo2.base.base.opened()
+    (True, False)
+
+Blob Support
+============
+
+DemoStorage supports Blobs if the changes database supports blobs.
+
+    >>> import ZODB.blob
+    >>> base = ZODB.blob.BlobStorage('base', FileStorage('base.fs'))
+    >>> db = DB(base)
+    >>> conn = db.open()
+    >>> conn.root()['blob'] = ZODB.blob.Blob()
+    >>> conn.root()['blob'].open('w').write('state 1')
+    >>> transaction.commit()
+    >>> db.close()
+
+    >>> base = ZODB.blob.BlobStorage('base',
+    ...                               FileStorage('base.fs', read_only=True))
+    >>> changes = ZODB.blob.BlobStorage('changes',
+    ...                                 FileStorage('changes.fs', create=True))
+    >>> storage = DemoStorage(base=base, changes=changes)
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['blob'].open().read()
+    'state 1'
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob'].open('w').write('state 2')
+    >>> transaction.commit()
+    >>> conn.root()['blob'].open().read()
+    'state 2'
+    
+    >>> storage.temporaryDirectory() == changes.temporaryDirectory()
+    True
+
+    >>> db.close()
+
+It isn't necessary for the base database to support blobs.
+
+    >>> base = FileStorage('base.fs', read_only=True)
+    >>> changes = ZODB.blob.BlobStorage('changes', FileStorage('changes.fs'))
+    >>> storage = DemoStorage(base=base, changes=changes)
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['blob'].open().read()
+    'state 2'
+
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob2'] = ZODB.blob.Blob()
+    >>> conn.root()['blob2'].open('w').write('state 1')
+    >>> conn.root()['blob2'].open().read()
+    'state 1'
+
+    >>> db.close()
+
+If the changes database is created implicitly, it will get a blob
+storage wrapped around it when necessary:
+
+    >>> base = ZODB.blob.BlobStorage('base',
+    ...                               FileStorage('base.fs', read_only=True))
+    >>> storage = DemoStorage(base=base)
+
+    >>> type(storage.changes).__name__
+    'MappingStorage'
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['blob'].open().read()
+    'state 1'
+
+    >>> type(storage.changes).__name__
+    'BlobStorage'
+
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob'].open('w').write('state 2')
+    >>> transaction.commit()
+    >>> conn.root()['blob'].open().read()
+    'state 2'
+    
+    >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
+    True
+
+    >>> db.close()
+
+.. Check that the temporary directory is gone
+
+   For now, it won't go until the storage does.
+
+   >>> transaction.abort()
+   >>> conn.close()
+   >>> blobdir = storage.temporaryDirectory()
+   >>> del db, conn, storage, _
+   
+   >>> import gc
+   >>> _ = gc.collect()
+
+   >>> import os
+   >>> os.path.exists(blobdir)
+   False
+
+ZConfig support
+===============
+
+You can configure demo storages using ZConfig, using name, changes,
+and base options:
+
+    >>> import ZODB.config
+    >>> storage = ZODB.config.storageFromString("""
+    ... <demostorage>
+    ... </demostorage>
+    ... """)
+    >>> storage.getName()
+    "DemoStorage('MappingStorage', 'MappingStorage')"
+
+    >>> storage = ZODB.config.storageFromString("""
+    ... <demostorage>
+    ...    <filestorage base>
+    ...       path base.fs
+    ...    </filestorage>
+    ...
+    ...    <filestorage changes>
+    ...       path changes.fs
+    ...    </filestorage>
+    ... </demostorage>
+    ... """)
+    >>> storage.getName()
+    "DemoStorage('base.fs', 'changes.fs')"
+
+    >>> storage.close()
+
+    >>> storage = ZODB.config.storageFromString("""
+    ... <demostorage>
+    ...    name bob
+    ...    <filestorage>
+    ...       path base.fs
+    ...    </filestorage>
+    ...
+    ...    <filestorage changes>
+    ...       path changes.fs
+    ...    </filestorage>
+    ... </demostorage>
+    ... """)
+    >>> storage.getName()
+    'bob'
+    >>> storage.base.getName()
+    'base.fs'
+
+    >>> storage.close()
+
+
+Generating OIDs
+===============
+
+When asked for a new OID DemoStorage randomly chooses a value and then verifies
+that neither the base or changes storages already contain that OID.
+
+Under rare circumstances an OID can be chosen that has already been handed out,
+but which hasn't yet been comitted.  Lets verify that if the same OID is chosen
+twice during a transaction that everything will still work.
+
+First we'll get a single OID.
+
+    >>> import random
+    >>> storage = DemoStorage.push(storage)
+    >>> random.seed(47)
+    >>> storage.new_oid()
+    '\x1a,S\xa4\xe9\xbb\x17\xbd'
+
+Then we'll force the random number generator to use the same seed for the
+subsequent call to "new_oid" and show that we get a different OID.
+
+    >>> random.seed(47)
+    >>> oid = storage.new_oid()
+    >>> oid
+    '\x1a,S\xa4\xe9\xbb\x17\xbe'
+
+DemoStorage keeps up with the issued OIDs to know when not to reissue them...
+
+    >>> oid in storage._issued_oids
+    True
+
+...but once data is stored with a given OID...
+
+    >>> t = transaction.begin()
+    >>> storage.tpc_begin(t)
+    >>> tid = storage.store(oid, 0, 'data', '', t)
+    >>> storage.tpc_vote(t)
+    >>> oid in storage._issued_oids
+    True
+    >>> storage.tpc_finish(t)
+
+...there's no need to remember it any longer:
+
+    >>> oid in storage._issued_oids
+    False
+
+We're done with the storage, so "unwrap" the underlying storage.
+
+    >>> storage = storage.pop()

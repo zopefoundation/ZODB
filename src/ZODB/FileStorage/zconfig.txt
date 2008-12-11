@@ -1,0 +1,136 @@
+Defining FileStorages using ZConfig
+===================================
+
+ZODB provides support for defining many storages, including
+FileStorages, using ZConfig.  To do this, you use a filestorage
+section, and define a path:
+
+    >>> import ZODB.config
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ... </filestorage>
+    ... """)
+
+    >>> fs._file.name
+    'my.fs'
+
+
+There are a number of options we can provide:
+
+create
+    Flag that indicates whether the storage should be truncated if
+    it already exists.
+
+    To demonstrate this, we'll first write some dataL
+
+    >>> db = ZODB.DB(fs) # writes object 0
+    >>> db.close()
+
+    Then reopen with the create option:
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     create true
+    ... </filestorage>
+    ... """)
+
+    Because the file was truncated, we no-longer have object 0:
+
+    >>> fs.load('\0'*8)
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 0x00
+
+    >>> fs.close()
+
+read-only
+    If true, only reads may be executed against the storage.  Note
+    that the "pack" operation is not considered a write operation
+    and is still allowed on a read-only filestorage.
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     read-only true
+    ... </filestorage>
+    ... """)
+    >>> fs.isReadOnly()
+    True
+    >>> fs.close()
+
+quota
+    Maximum allowed size of the storage file.  Operations which
+    would cause the size of the storage to exceed the quota will
+    result in a ZODB.FileStorage.FileStorageQuotaError being
+    raised.
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     quota 10
+    ... </filestorage>
+    ... """)
+    >>> db = ZODB.DB(fs) # writes object 0
+    Traceback (most recent call last):
+    ...
+    FileStorageQuotaError: The storage quota has been exceeded.
+
+    >>> fs.close()
+
+packer
+    The dotten name (dotten module name and object name) of a
+    packer object.  This is used to provide an alternative pack
+    implementation.
+
+    To demonstrate this, we'll create a null packer that just prints
+    some information about it's arguments:
+
+    >>> def packer(storage, referencesf, stop, gc):
+    ...     print referencesf, storage is fs, gc
+    >>> ZODB.FileStorage.config_demo_printing_packer = packer
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     packer ZODB.FileStorage.config_demo_printing_packer
+    ... </filestorage>
+    ... """)
+
+    >>> import time
+    >>> db = ZODB.DB(fs) # writes object 0
+    >>> fs.pack(time.time(), 42)
+    42 True True
+
+    >>> fs.close()
+
+pack-gc
+    If false, then no garbage collection will be performed when
+    packing.  This can make packing go much faster and can avoid
+    problems when objects are referenced only from other
+    databases.
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     packer ZODB.FileStorage.config_demo_printing_packer
+    ...     pack-gc false
+    ... </filestorage>
+    ... """)
+
+    >>> fs.pack(time.time(), 42)
+    42 True False
+
+    Note that if we pass the gc option to pack, then this will
+    override the value set in the configuration:
+
+    >>> fs.pack(time.time(), 42, gc=True)
+    42 True True
+    
+    >>> fs.close()
+
+
+
+
+    
