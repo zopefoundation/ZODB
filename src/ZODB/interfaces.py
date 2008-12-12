@@ -953,6 +953,56 @@ class IStorageUndoable(IStorage):
         # DB pass-through
 
 
+class IStoragePollable(Interface):
+    """A storage that can be polled for changes."""
+
+    def bind_connection(connection):
+        """Returns a storage instance to be used by the given Connection.
+
+        This method is optional.  By implementing this method, a storage
+        instance can maintain Connection-specific state.
+
+        If this method is not provided, all connections to the same database
+        use the same storage instance (even across threads).
+        """
+
+    propagate_invalidations = Attribute(
+        """A boolean value indicating whether invalidations should propagate.
+
+        ZODB normally sends invalidation notifications between
+        Connection objects within a Python process.  If this
+        attribute is false, no such invalidations will be sent.
+        Cross-connection invalidation should normally be enabled, but
+        it adds unnecessary complexity to storages that expect the connection
+        to poll for invalidations instead.
+
+        If this attribute is not present, it is assumed to be true.
+        """)
+
+    def connection_closing():
+        """Notifies the storage that a connection is closing.
+
+        This method is optional.  This method is useful when
+        bind_connection() provides Connection-specific storage instances.
+        It lets the storage release resources.
+        """
+
+    def poll_invalidations():
+        """Poll the storage for external changes.
+
+        This method is optional.  This method is useful when
+        bind_connection() provides Connection-specific storage instances.
+
+        Returns either a sequence of OIDs that have changed, or None.  When a
+        sequence is returned, the corresponding objects should be removed
+        from the ZODB in-memory cache.  When None is returned, the storage is
+        indicating that so much time has elapsed since the last poll that it
+        is no longer possible to enumerate all of the changed OIDs, since the
+        previous transaction seen by the connection has already been packed.
+        In that case, the ZODB in-memory cache should be cleared.
+        """
+
+
 class IStorageCurrentRecordIteration(IStorage):
 
     def record_iternext(next=None):

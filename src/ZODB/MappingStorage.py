@@ -37,7 +37,7 @@ class MappingStorage(object):
     def __init__(self, name='MappingStorage'):
         self.__name__ = name
         self._data = {}                               # {oid->{tid->pickle}}
-        self._transactions = BTrees.OOBTree.OOBTree() # {tid->transaction}
+        self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
         self._ltid = None
         self._last_pack = None
         _lock = threading.RLock()

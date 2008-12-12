@@ -443,6 +443,10 @@ class DB(object):
             storage.store(z64, None, file.getvalue(), '', t)
             storage.tpc_vote(t)
             storage.tpc_finish(t)
+        if hasattr(storage, 'connection_closing'):
+            # Let the storage release whatever resources it used for loading
+            # the root object.
+            storage.connection_closing()
 
         # Multi-database setup.
         if databases is None:
