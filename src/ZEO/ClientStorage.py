@@ -1316,7 +1316,7 @@ class ClientStorage(object):
             if ltid and ltid != utils.z64:
                 self._cache.setLastTid(ltid)
             self.finish_verification()
-            return "full verification"
+            return "empty cache"
 
         last_inval_tid = self._cache.getLastTid()
         if last_inval_tid is not None:
