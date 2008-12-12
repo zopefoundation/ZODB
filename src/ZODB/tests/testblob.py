@@ -350,6 +350,7 @@ Works with savepoints too:
     >>> logger.setLevel(0)
     >>> logger.removeHandler(handler)
 
+    >>> database.close()
     """
 
 
@@ -533,7 +534,8 @@ def do_not_depend_on_cwd():
     >>> os.chdir(here)
     >>> conn.root()['blob'].open().read()
     'data'
-    
+
+    >>> bs.close()
     """
 
 def setUp(test):
