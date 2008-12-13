@@ -1,3 +1,10 @@
+Next Release
+===========
+
+Bugs Fixed:
+
+- Fixed a pack test that was not compatible with storages that always
+  return an object count of 0.
 
 Whats new in ZODB 3.8.1
 =======================

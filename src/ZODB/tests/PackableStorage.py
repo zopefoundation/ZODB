@@ -326,7 +326,8 @@ class PackableStorage(PackableStorageBase):
         root[2] = conn.get_connection('o').root()
         transaction.commit()
         db.pack(time.time()+1)
-        assert(len(self._storage) == 1)
+        # some valid storages always return 0 for len()
+        self.assertTrue(len(self._storage) in (0, 1))
                 
         
         
