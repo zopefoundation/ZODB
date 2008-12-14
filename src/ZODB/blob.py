@@ -583,9 +583,6 @@ LAYOUTS['lawn'] = LawnLayout()
 class BlobStorageMixin(object):
     """A mix-in to help storages support blobssupport blobs."""
 
-    zope.interface.implements(ZODB.interfaces.IBlobStorage)
-
-    @non_overridable
     def _blob_init(self, blob_dir, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
         self.fshelper = FilesystemHelper(blob_dir, layout)
@@ -597,7 +594,6 @@ class BlobStorageMixin(object):
         self.fshelper = NoBlobsFileSystemHelper()
         self.dirty_oids = []
 
-    @non_overridable
     def _blob_tpc_abort(self):
         """Blob cleanup to be called from subclass tpc_abort
         """
@@ -607,13 +603,11 @@ class BlobStorageMixin(object):
             if os.path.exists(clean):
                 remove_committed(clean)
 
-    @non_overridable
     def _blob_tpc_finish(self):
         """Blob cleanup to be called from subclass tpc_finish
         """
         self.dirty_oids = []
 
-    @non_overridable
     def copyTransactionsFrom(self, other):
         for trans in other.iterator():
             self.tpc_begin(trans, trans.tid, trans.status)
@@ -638,7 +632,6 @@ class BlobStorageMixin(object):
             self.tpc_vote(trans)
             self.tpc_finish(trans)
 
-    @non_overridable
     def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
         """
@@ -647,7 +640,6 @@ class BlobStorageMixin(object):
             raise POSKeyError("No blob file", oid, serial)
         return filename
 
-    @non_overridable
     def openCommittedBlobFile(self, oid, serial, blob=None):
         blob_filename = self.loadBlob(oid, serial)
         if blob is None:
@@ -655,7 +647,6 @@ class BlobStorageMixin(object):
         else:
             return BlobFile(blob_filename, 'r', blob)
 
-    @non_overridable
     def restoreBlob(self, oid, serial, data, blobfilename, prev_txn,
                     transaction):
         """Write blob data already committed in a separate database
@@ -665,7 +656,6 @@ class BlobStorageMixin(object):
 
         return self._tid
 
-    @non_overridable
     def _blob_storeblob(self, oid, serial, blobfilename):
         self._lock_acquire()
         try:
@@ -679,7 +669,6 @@ class BlobStorageMixin(object):
         finally:
             self._lock_release()
             
-    @non_overridable
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
         """Stores data that has a BLOB attached."""
@@ -689,12 +678,11 @@ class BlobStorageMixin(object):
 
         return self._tid
 
-    @non_overridable
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
 
 
-class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
+class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
 
     zope.interface.implements(ZODB.interfaces.IBlobStorage)
@@ -703,6 +691,7 @@ class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
     # us to have instance attributes explicitly on the proxy.
     __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
                  '_blobs_pack_is_in_progress', )
+
 
     def __new__(self, base_directory, storage, layout='automatic'):
         return SpecificationDecoratorBase.__new__(self, storage)
@@ -870,6 +859,12 @@ class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
         return undo_serial, keys
 
 
+for name, v in BlobStorageMixin.__dict__.items():
+    if isinstance(v, type(BlobStorageMixin.__dict__['storeBlob'])):
+        assert name not in BlobStorage.__dict__
+        setattr(BlobStorage, name, non_overridable(v))
+del name, v
+
 copied = logging.getLogger('ZODB.blob.copied').debug
 def rename_or_copy_blob(f1, f2, chmod=True):
     """Try to rename f1 to f2, fallback to copy.
@@ -908,9 +903,12 @@ if sys.platform == 'win32':
                 filename = os.path.join(dirpath, filename)
                 remove_committed(filename)
         shutil.rmtree(path)
+
+    link_or_copy = shutil.copy
 else:
     remove_committed = os.remove
     remove_committed_dir = shutil.rmtree
+    link_or_copy = os.link
 
 
 def is_blob_record(record):

@@ -210,7 +210,12 @@ class FileStorage(
                                         ZODB.interfaces.IBlobStorageRestoreable)
         else:
             self._blob_init_no_blobs()
-        
+
+    def copyTransactionsFrom(self, other):
+        if self.blob_dir:
+            return ZODB.blob.BlobStorageMixin.copyTransactionsFrom(self, other)
+        else:
+            return BaseStorage.BaseStorage.copyTransactionsFrom(self, other)
 
     def _initIndex(self, index, tindex):
         self._index=index
@@ -1016,15 +1021,7 @@ class FileStorage(
         # Our default packer is built around the original packer.  We
         # simply adapt the old interface to the new.  We don't really
         # want to invest much in the old packer, at least for now.
-        p = FileStoragePacker(
-            storage._file.name,
-            stop,
-            storage._lock_acquire,
-            storage._lock_release,
-            storage._commit_lock_acquire,
-            storage._commit_lock_release,
-            storage.getSize(),
-            gc)
+        p = FileStoragePacker(storage, referencesf, stop, gc)
         opos = p.pack()
         if opos is None:
             return None
@@ -1078,13 +1075,21 @@ class FileStorage(
                 try:
                     if os.path.exists(oldpath):
                         os.remove(oldpath)
+                    if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
+                        ZODB.blob.remove_committed_dir(self.blob_dir + ".old")
+                        
                     os.rename(self._file_name, oldpath)
+                    if self.blob_dir:
+                        os.rename(self.blob_dir, self.blob_dir + ".old")
                 except Exception:
                     self._file = open(self._file_name, 'r+b')
                     raise
 
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
+                if self.blob_dir:
+                    os.rename(self.blob_dir + '.pack', self.blob_dir)
+                    
                 self._file = open(self._file_name, 'r+b')
                 self._initIndex(index, self._tindex)
                 self._pos = opos
