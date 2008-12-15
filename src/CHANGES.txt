@@ -28,7 +28,7 @@ New Features
 New Features
 ------------
 
-- Made ZEO Clieny Blob Cache control a bit more rational.  Now, when
+- Made ZEO Client Blob Cache control a bit more rational.  Now, when
   checking the cache size, the target is::
 
      blob-cache-size * (100 - blob-cache-size-check) / 100
