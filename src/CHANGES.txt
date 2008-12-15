@@ -22,6 +22,27 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+3.9.0a8 (2008-12-15)
+====================
+
+New Features
+------------
+
+- Made ZEO Clieny Blob Cache control a bit more rational.  Now, when
+  checking the cache size, the target is::
+
+     blob-cache-size * (100 - blob-cache-size-check) / 100
+
+  The makes it far more likely (but doesn't guarantee) that the blob
+  cache size will remain under the maximum.  
+
+  The blob-cache-size check was reduced to 10%.
+
+Bugs Fixed
+----------
+
+- Fixed a bug in the logic to reduce the blob cache size.
+
 3.9.0a7 (2008-12-05)
 ====================
 
