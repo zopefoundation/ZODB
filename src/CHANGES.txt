@@ -2,25 +2,26 @@
  Change History
 ================
 
-3.9.0 (2008-??-??)
+3.9.0a8 (2008-12-15)
 ====================
 
 New Features
 ------------
 
-- The connection now estimates the object size based on its pickle size
-  and informs the cache about size changes.
+- Made ZEO Clieny Blob Cache control a bit more rational.  Now, when
+  checking the cache size, the target is::
 
-  The database got additional configurations options (`cache-size-bytes`
-  and `historical-cache-size-bytes`) to limit the
-  cache size based on the estimated total size of cached objects.
-  The default values are 0 which has the interpretation "do not limit
-  based on the total estimated size".
-  There are corresponding methods to read and set the new configuration
-  parameters.
+     blob-cache-size * (100 - blob-cache-size-check) / 100
 
-  XXX There are known issues with this implementation that need to be
-  sorted out before it is "released".
+  The makes it far more likely (but doesn't guarantee) that the blob
+  cache size will remain under the maximum.  
+
+  The blob-cache-size check was reduced to 10%.
+
+Bugs Fixed
+----------
+
+- Fixed a bug in the logic to reduce the blob cache size.
 
 3.9.0a7 (2008-12-05)
 ====================
