@@ -1057,6 +1057,12 @@ class FileStorage(
         if gc is None:
             gc = self._pack_gc
 
+        oldpath = self._file_name + ".old"
+        if os.path.exists(oldpath):
+            os.remove(oldpath)
+        if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
+            ZODB.blob.remove_committed_dir(self.blob_dir + ".old")
+
         have_commit_lock = False
         try:
             pack_result = None
@@ -1068,32 +1074,24 @@ class FileStorage(
                 return
             have_commit_lock = True
             opos, index = pack_result
-            oldpath = self._file_name + ".old"
             self._lock_acquire()
             try:
                 self._file.close()
                 try:
-                    if os.path.exists(oldpath):
-                        os.remove(oldpath)
-                    if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
-                        ZODB.blob.remove_committed_dir(self.blob_dir + ".old")
-                        
                     os.rename(self._file_name, oldpath)
-                    if self.blob_dir:
-                        os.rename(self.blob_dir, self.blob_dir + ".old")
                 except Exception:
                     self._file = open(self._file_name, 'r+b')
                     raise
 
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
-                if self.blob_dir:
-                    os.rename(self.blob_dir + '.pack', self.blob_dir)
-                    
                 self._file = open(self._file_name, 'r+b')
                 self._initIndex(index, self._tindex)
                 self._pos = opos
                 self._save_index()
+
+                if self.blob_dir:
+                    self._move_unpacked_blobs()
             finally:
                 self._lock_release()
         finally:
@@ -1103,6 +1101,29 @@ class FileStorage(
             self._pack_is_in_progress = False
             self._lock_release()
 
+    def _move_unpacked_blobs(self):
+        # Move any blobs linked or copied while packing to the
+        # pack dir, which will become the old dir
+        lblob_dir = len(self.blob_dir)
+        for path, dir_names, file_names in os.walk(self.blob_dir, False):
+            n = 0
+            for file_name in file_names:
+                if not file_name.endswith('.blob'):
+                    continue
+                file_packed = os.path.join(
+                    path[:lblob_dir]+'.pack'+path[lblob_dir:],
+                    file_name)
+                if not os.path.exists(file_packed):
+                    if not os.path.exists(os.path.dirname(file_packed)):
+                        os.makedirs(os.path.dirname(file_packed), 0700)
+                    ZODB.blob.rename_or_copy_blob(
+                        os.path.join(path, file_name),
+                        file_packed)
+                    n += 1
+            if (n == len(file_names)) and not os.listdir(path):
+                os.rmdir(path)
+        os.rename(self.blob_dir+'.pack', self.blob_dir+'.old')
+        
     def iterator(self, start=None, stop=None):
         return FileIterator(self._file_name, start, stop)
 
