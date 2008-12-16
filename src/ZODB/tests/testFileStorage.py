@@ -14,6 +14,7 @@
 import os, unittest
 import transaction
 import ZODB.FileStorage
+import ZODB.tests.testblob
 import ZODB.tests.util
 import zope.testing.setupstack
 from ZODB import POSException
@@ -547,6 +548,40 @@ def deal_with_finish_failures():
     >>> db.close()
     """
 
+def pack_with_open_blob_files():
+    """
+    Make sure packing works while there are open blob files.
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')
+    >>> db = ZODB.DB(fs)
+    >>> tm1 = transaction.TransactionManager()
+    >>> conn1 = db.open(tm1)
+    >>> import ZODB.blob
+    >>> conn1.root()[1] = ZODB.blob.Blob()
+    >>> conn1.add(conn1.root()[1])
+    >>> conn1.root()[1].open('w').write('some data')
+    >>> tm1.commit()
+    
+    >>> tm2 = transaction.TransactionManager()
+    >>> conn2 = db.open(tm2)
+    >>> f = conn1.root()[1].open()
+    >>> conn1.root()[2] = ZODB.blob.Blob()
+    >>> conn1.add(conn1.root()[2])
+    >>> conn1.root()[2].open('w').write('some more data')
+
+    >>> db.pack()
+    >>> f.read()
+    'some data'
+
+    >>> tm1.commit()
+    >>> conn2.sync()
+    >>> conn2.root()[2].open().read()
+    'some more data'
+
+    >>> db.close()
+    """
+    
+
 def test_suite():
     from zope.testing import doctest
 
@@ -558,6 +593,13 @@ def test_suite():
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
         tearDown=zope.testing.setupstack.tearDown))
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'BlobFileStorage',
+        lambda name, blob_dir:
+        ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir),
+        test_blob_storage_recovery=True,
+        test_packing=True,
+        ))
     return suite
 
 if __name__=='__main__':

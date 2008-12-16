@@ -483,6 +483,14 @@ class FilesystemHelper:
                 continue
             yield oid, path
 
+class NoBlobsFileSystemHelper:
+
+    @property
+    def temp_dir(self):
+        raise TypeError("Blobs are not supported")
+
+    getPathForOID = getBlobFilenamem = temp_dir
+
 
 class BlobStorageError(Exception):
     """The blob storage encountered an invalid state."""
@@ -575,53 +583,31 @@ LAYOUTS['lawn'] = LawnLayout()
 class BlobStorageMixin(object):
     """A mix-in to help storages support blobssupport blobs."""
 
-    zope.interface.implements(ZODB.interfaces.IBlobStorage)
-
-    def __init__(self, blob_dir, layout='automatic'):
+    def _blob_init(self, blob_dir, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
         self.fshelper = FilesystemHelper(blob_dir, layout)
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
 
-    def temporaryDirectory(self):
-        return self.fshelper.temp_dir
+    def _blob_init_no_blobs(self):
+        self.fshelper = NoBlobsFileSystemHelper()
+        self.dirty_oids = []
 
-    @non_overridable
-    def _storeblob(self, oid, serial, blobfilename):
-        self._lock_acquire()
-        try:
-            self.fshelper.getPathForOID(oid, create=True)
-            targetname = self.fshelper.getBlobFilename(oid, serial)
-            rename_or_copy_blob(blobfilename, targetname)
-
-            # if oid already in there, something is really hosed.
-            # The underlying storage should have complained anyway
-            self.dirty_oids.append((oid, serial))
-        finally:
-            self._lock_release()
-            
-    @non_overridable
-    def storeBlob(self, oid, oldserial, data, blobfilename, version,
-                  transaction):
-        """Stores data that has a BLOB attached."""
-        assert not version, "Versions aren't supported."
-        serial = self.store(oid, oldserial, data, '', transaction)
-        self._storeblob(oid, serial, blobfilename)
-
-        return self._tid
-
-    @non_overridable
-    def restoreBlob(self, oid, serial, data, blobfilename, prev_txn,
-                    transaction):
-        """Write blob data already committed in a separate database
+    def _blob_tpc_abort(self):
+        """Blob cleanup to be called from subclass tpc_abort
         """
-        self.restore(oid, serial, data, '', prev_txn, transaction)
-        self._storeblob(oid, serial, blobfilename)
+        while self.dirty_oids:
+            oid, serial = self.dirty_oids.pop()
+            clean = self.fshelper.getBlobFilename(oid, serial)
+            if os.path.exists(clean):
+                remove_committed(clean)
 
-        return self._tid
+    def _blob_tpc_finish(self):
+        """Blob cleanup to be called from subclass tpc_finish
+        """
+        self.dirty_oids = []
 
-    @non_overridable
     def copyTransactionsFrom(self, other):
         for trans in other.iterator():
             self.tpc_begin(trans, trans.tid, trans.status)
@@ -646,23 +632,6 @@ class BlobStorageMixin(object):
             self.tpc_vote(trans)
             self.tpc_finish(trans)
 
-    @non_overridable
-    def blob_tpc_finish(self):
-        """Blob cleanup to be called from subclass tpc_finish
-        """
-        self.dirty_oids = []
-
-    @non_overridable
-    def blob_tpc_abort(self):
-        """Blob cleanup to be called from subclass tpc_abort
-        """
-        while self.dirty_oids:
-            oid, serial = self.dirty_oids.pop()
-            clean = self.fshelper.getBlobFilename(oid, serial)
-            if os.path.exists(clean):
-                remove_committed(clean)
-
-    @non_overridable
     def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
         """
@@ -671,7 +640,6 @@ class BlobStorageMixin(object):
             raise POSKeyError("No blob file", oid, serial)
         return filename
 
-    @non_overridable
     def openCommittedBlobFile(self, oid, serial, blob=None):
         blob_filename = self.loadBlob(oid, serial)
         if blob is None:
@@ -679,8 +647,42 @@ class BlobStorageMixin(object):
         else:
             return BlobFile(blob_filename, 'r', blob)
 
+    def restoreBlob(self, oid, serial, data, blobfilename, prev_txn,
+                    transaction):
+        """Write blob data already committed in a separate database
+        """
+        self.restore(oid, serial, data, '', prev_txn, transaction)
+        self._blob_storeblob(oid, serial, blobfilename)
 
-class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
+        return self._tid
+
+    def _blob_storeblob(self, oid, serial, blobfilename):
+        self._lock_acquire()
+        try:
+            self.fshelper.getPathForOID(oid, create=True)
+            targetname = self.fshelper.getBlobFilename(oid, serial)
+            rename_or_copy_blob(blobfilename, targetname)
+
+            # if oid already in there, something is really hosed.
+            # The underlying storage should have complained anyway
+            self.dirty_oids.append((oid, serial))
+        finally:
+            self._lock_release()
+            
+    def storeBlob(self, oid, oldserial, data, blobfilename, version,
+                  transaction):
+        """Stores data that has a BLOB attached."""
+        assert not version, "Versions aren't supported."
+        serial = self.store(oid, oldserial, data, '', transaction)
+        self._blob_storeblob(oid, serial, blobfilename)
+
+        return self._tid
+
+    def temporaryDirectory(self):
+        return self.fshelper.temp_dir
+
+
+class BlobStorage(SpecificationDecoratorBase):
     """A storage to support blobs."""
 
     zope.interface.implements(ZODB.interfaces.IBlobStorage)
@@ -690,13 +692,14 @@ class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
     __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
                  '_blobs_pack_is_in_progress', )
 
+
     def __new__(self, base_directory, storage, layout='automatic'):
         return SpecificationDecoratorBase.__new__(self, storage)
 
     def __init__(self, base_directory, storage, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
         SpecificationDecoratorBase.__init__(self, storage)
-        BlobStorageMixin.__init__(self, base_directory, layout)
+        self._blob_init(base_directory, layout)
         try:
             supportsUndo = storage.supportsUndo
         except AttributeError:
@@ -722,7 +725,7 @@ class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
         # providing a _finish method because methods found on the proxied 
         # object aren't rebound to the proxy
         getProxiedObject(self).tpc_finish(*arg, **kw)
-        self.blob_tpc_finish()
+        self._blob_tpc_finish()
 
     @non_overridable
     def tpc_abort(self, *arg, **kw):
@@ -730,7 +733,7 @@ class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
         # providing an _abort method because methods found on the proxied object
         # aren't rebound to the proxy
         getProxiedObject(self).tpc_abort(*arg, **kw)
-        self.blob_tpc_abort()
+        self._blob_tpc_abort()
 
     @non_overridable
     def _packUndoing(self, packtime, referencesf):
@@ -856,6 +859,12 @@ class BlobStorage(SpecificationDecoratorBase, BlobStorageMixin):
         return undo_serial, keys
 
 
+for name, v in BlobStorageMixin.__dict__.items():
+    if isinstance(v, type(BlobStorageMixin.__dict__['storeBlob'])):
+        assert name not in BlobStorage.__dict__
+        setattr(BlobStorage, name, non_overridable(v))
+del name, v
+
 copied = logging.getLogger('ZODB.blob.copied').debug
 def rename_or_copy_blob(f1, f2, chmod=True):
     """Try to rename f1 to f2, fallback to copy.
@@ -894,9 +903,12 @@ if sys.platform == 'win32':
                 filename = os.path.join(dirpath, filename)
                 remove_committed(filename)
         shutil.rmtree(path)
+
+    link_or_copy = shutil.copy
 else:
     remove_committed = os.remove
     remove_committed_dir = shutil.rmtree
+    link_or_copy = os.link
 
 
 def is_blob_record(record):

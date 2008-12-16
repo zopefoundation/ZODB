@@ -22,6 +22,14 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+3.9.0a9 (2008-12-??)
+====================
+
+New Features
+------------
+
+- FileStorage now supports blobs directly.
+
 3.9.0a8 (2008-12-15)
 ====================
 

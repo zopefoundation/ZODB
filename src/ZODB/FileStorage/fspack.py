@@ -24,16 +24,15 @@ from the revision of the root at that time or if it is reachable from
 a backpointer after that time.
 """
 
-import os
-
-from ZODB.serialize import referencesf
+from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
+from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.utils import p64, u64, z64
 
-from ZODB.fsIndex import fsIndex
-from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
-from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
-import ZODB.POSException
 import logging
+import os
+import ZODB.blob
+import ZODB.fsIndex
+import ZODB.POSException
 
 logger = logging.getLogger(__name__)
 
@@ -147,7 +146,7 @@ class PackCopier(FileStorageFormatter):
 
 class GC(FileStorageFormatter):
 
-    def __init__(self, file, eof, packtime, gc):
+    def __init__(self, file, eof, packtime, gc, referencesf):
         self._file = file
         self._name = file.name
         self.eof = eof
@@ -155,7 +154,9 @@ class GC(FileStorageFormatter):
         self.gc = gc
         # packpos: position of first txn header after pack time
         self.packpos = None
-        self.oid2curpos = fsIndex() # maps oid to current data record position
+
+        # {oid -> current data record position}:
+        self.oid2curpos = ZODB.fsIndex.fsIndex()
 
         # The set of reachable revisions of each object.
         #
@@ -166,11 +167,13 @@ class GC(FileStorageFormatter):
         # second is a dictionary mapping objects to lists of
         # positions; it is used to handle the same number of objects
         # for which we must keep multiple revisions.
-        self.reachable = fsIndex()
+        self.reachable = ZODB.fsIndex.fsIndex()
         self.reach_ex = {}
 
         # keep ltid for consistency checks during initial scan
         self.ltid = z64
+
+        self.referencesf = referencesf
 
     def isReachable(self, oid, pos):
         """Return 1 if revision of `oid` at `pos` is reachable."""
@@ -319,7 +322,7 @@ class GC(FileStorageFormatter):
         while dh.back:
             dh = self._read_data_header(dh.back)
         if dh.plen:
-            return referencesf(self._file.read(dh.plen))
+            return self.referencesf(self._file.read(dh.plen))
         else:
             return []
 
@@ -332,7 +335,16 @@ class FileStoragePacker(FileStorageFormatter):
     # current_size is the storage's _pos.  All valid data at the start
     # lives before that offset (there may be a checkpoint transaction in
     # progress after it).
-    def __init__(self, path, stop, la, lr, cla, clr, current_size, gc=True):
+    def __init__(self, storage, referencesf, stop, gc=True):
+        self._storage = storage
+        if storage.blob_dir:
+            self.pack_blobs = True
+            self.blob_removed = open(
+                os.path.join(storage.blob_dir, '.removed'), 'w')
+        else:
+            self.pack_blobs = False
+            
+        path = storage._file.name
         self._name = path
         # We open our own handle on the storage so that much of pack can
         # proceed in parallel.  It's important to close this file at every
@@ -342,24 +354,24 @@ class FileStoragePacker(FileStorageFormatter):
         self._path = path
         self._stop = stop
         self.locked = False
-        self.file_end = current_size
+        self.file_end = storage.getSize()
 
-        self.gc = GC(self._file, self.file_end, self._stop, gc)
+        self.gc = GC(self._file, self.file_end, self._stop, gc, referencesf)
 
         # The packer needs to acquire the parent's commit lock
         # during the copying stage, so the two sets of lock acquire
         # and release methods are passed to the constructor.
-        self._lock_acquire = la
-        self._lock_release = lr
-        self._commit_lock_acquire = cla
-        self._commit_lock_release = clr
+        self._lock_acquire = storage._lock_acquire
+        self._lock_release = storage._lock_release
+        self._commit_lock_acquire = storage._commit_lock_acquire
+        self._commit_lock_release = storage._commit_lock_release
 
         # The packer will use several indexes.
         # index: oid -> pos
         # tindex: oid -> pos, for current txn
         # oid2tid: not used by the packer
 
-        self.index = fsIndex()
+        self.index = ZODB.fsIndex.fsIndex()
         self.tindex = {}
         self.oid2tid = {}
         self.toid2tid = {}
@@ -465,18 +477,6 @@ class FileStoragePacker(FileStorageFormatter):
 
         return pos, new_pos
 
-    def fetchBackpointer(self, oid, back):
-        """Return data and refs backpointer `back` to object `oid.
-
-        If `back` is 0 or ultimately resolves to 0, return None
-        and None.  In this case, the transaction undoes the object
-        creation.
-        """
-        if back == 0:
-            return None
-        data, tid = self._loadBackTxn(oid, back, 0)
-        return data
-
     def copyDataRecords(self, pos, th):
         """Copy any current data records between pos and tend.
 
@@ -492,8 +492,24 @@ class FileStoragePacker(FileStorageFormatter):
         while pos < tend:
             h = self._read_data_header(pos)
             if not self.gc.isReachable(h.oid, pos):
+                if self.pack_blobs:
+                    # We need to find out if this is a blob, so get the data:
+                    if h.plen:
+                        data = self._file.read(h.plen)
+                    else:
+                        data = self.fetchDataViaBackpointer(h.oid, h.back)
+                    if data and ZODB.blob.is_blob_record(data):
+                        # We need to remove the blob record. Maybe we
+                        # need to remove oid:
+                        if h.oid not in self.gc.reachable:
+                            self.blob_removed.write(h.oid.encode('hex')+'\n')
+                        else:
+                            self.blob_removed.write(
+                                (h.oid+h.tid).encode('hex')+'\n')
+                
                 pos += h.recordlen()
                 continue
+
             pos += h.recordlen()
 
             # If we are going to copy any data, we need to copy
@@ -510,15 +526,24 @@ class FileStoragePacker(FileStorageFormatter):
             if h.plen:
                 data = self._file.read(h.plen)
             else:
-                # If a current record has a backpointer, fetch
-                # refs and data from the backpointer.  We need
-                # to write the data in the new record.
-                data = self.fetchBackpointer(h.oid, h.back)
+                data = self.fetchDataViaBackpointer(h.oid, h.back)
 
             self.writePackedDataRecord(h, data, new_tpos)
             new_pos = self._tfile.tell()
 
         return new_tpos, pos
+
+    def fetchDataViaBackpointer(self, oid, back):
+        """Return the data for oid via backpointer back
+
+        If `back` is 0 or ultimately resolves to 0, return None.
+        In this case, the transaction undoes the object
+        creation.
+        """
+        if back == 0:
+            return None
+        data, tid = self._loadBackTxn(oid, back, 0)
+        return data
 
     def writePackedDataRecord(self, h, data, new_tpos):
         # Update the header to reflect current information, then write
@@ -575,7 +600,7 @@ class FileStoragePacker(FileStorageFormatter):
             if h.plen:
                 data = self._file.read(h.plen)
             else:
-                data = self.fetchBackpointer(h.oid, h.back)
+                data = self.fetchDataViaBackpointer(h.oid, h.back)
                 if h.back:
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 

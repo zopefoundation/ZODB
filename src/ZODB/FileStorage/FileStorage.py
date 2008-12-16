@@ -16,33 +16,35 @@
 $Revision: 1.16 $
 """
 
-import base64
 from cPickle import Pickler, Unpickler, loads
+from persistent.TimeStamp import TimeStamp
+from struct import pack, unpack
+from types import StringType
+from zc.lockfile import LockFile
+from ZODB.FileStorage.format import CorruptedDataError
+from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
+from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
+from ZODB.FileStorage.fspack import FileStoragePacker
+from ZODB.fsIndex import fsIndex
+from ZODB import BaseStorage, ConflictResolution, POSException
+from ZODB.loglevels import BLATHER
+from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
+from ZODB.utils import p64, u64, z64
+
+import base64
 import errno
+import logging
 import os
 import sys
 import time
-import logging
-from types import StringType
-from struct import pack, unpack
+import ZODB.blob
+import ZODB.interfaces
+import zope.interface
+import ZODB.utils
 
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
-
-import zope.interface
-import ZODB.interfaces
-from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from persistent.TimeStamp import TimeStamp
-from zc.lockfile import LockFile
-from ZODB.utils import p64, u64, cp, z64
-from ZODB.FileStorage.fspack import FileStoragePacker
-from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
-from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import CorruptedDataError
-from ZODB.loglevels import BLATHER
-from ZODB.fsIndex import fsIndex
 
 packed_version = "FS21"
 
@@ -86,9 +88,12 @@ class TempFormatter(FileStorageFormatter):
     def __init__(self, afile):
         self._file = afile
 
-class FileStorage(BaseStorage.BaseStorage,
-                  ConflictResolution.ConflictResolvingStorage,
-                  FileStorageFormatter):
+class FileStorage(
+    FileStorageFormatter,
+    ZODB.blob.BlobStorageMixin,
+    ConflictResolution.ConflictResolvingStorage,
+    BaseStorage.BaseStorage,
+    ):
 
     zope.interface.implements(
         ZODB.interfaces.IStorage,
@@ -102,7 +107,7 @@ class FileStorage(BaseStorage.BaseStorage,
     _pack_is_in_progress = False
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
-                 quota=None, pack_gc=True, packer=None):
+                 quota=None, pack_gc=True, packer=None, blob_dir=None):
 
         if read_only:
             self._is_read_only = True
@@ -197,6 +202,20 @@ class FileStorage(BaseStorage.BaseStorage,
                        file_name, seconds)
 
         self._quota = quota
+
+        self.blob_dir = blob_dir
+        if blob_dir:
+            self._blob_init(blob_dir)
+            zope.interface.alsoProvides(self,
+                                        ZODB.interfaces.IBlobStorageRestoreable)
+        else:
+            self._blob_init_no_blobs()
+
+    def copyTransactionsFrom(self, other):
+        if self.blob_dir:
+            return ZODB.blob.BlobStorageMixin.copyTransactionsFrom(self, other)
+        else:
+            return BaseStorage.BaseStorage.copyTransactionsFrom(self, other)
 
     def _initIndex(self, index, tindex):
         self._index=index
@@ -654,7 +673,7 @@ class FileStorage(BaseStorage.BaseStorage,
                 h.descr = descr
                 h.ext = ext
                 self._file.write(h.asString())
-                cp(self._tfile, self._file, dlen)
+                ZODB.utils.cp(self._tfile, self._file, dlen)
                 self._file.write(p64(tl))
                 self._file.flush()
             except:
@@ -695,11 +714,13 @@ class FileStorage(BaseStorage.BaseStorage,
         self._pos = self._nextpos
         self._index.update(self._tindex)
         self._ltid = tid
+        self._blob_tpc_finish()
 
     def _abort(self):
         if self._nextpos:
             self._file.truncate(self._pos)
             self._nextpos=0
+            self._blob_tpc_abort()
 
     def _undoDataInfo(self, oid, pos, tpos):
         """Return the tid, data pointer, and data for the oid record at pos
@@ -920,6 +941,18 @@ class FileStorage(BaseStorage.BaseStorage,
                 # Don't fail right away. We may be redeemed later!
                 failures[h.oid] = v
             else:
+
+                if self.blob_dir and not p and prev:
+                    up, userial = self._loadBackTxn(h.oid, prev)
+                    if ZODB.blob.is_blob_record(up):
+                        # We're undoing a blob modification operation.
+                        # We have to copy the blob data
+                        tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
+                        ZODB.utils.cp(
+                            self.openCommittedBlobFile(h.oid, userial),
+                            open(tmp, 'wb'))
+                        self._blob_storeblob(h.oid, self._tid, tmp)
+                
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
 
                 # TODO:  This seek shouldn't be necessary, but some other
@@ -988,15 +1021,7 @@ class FileStorage(BaseStorage.BaseStorage,
         # Our default packer is built around the original packer.  We
         # simply adapt the old interface to the new.  We don't really
         # want to invest much in the old packer, at least for now.
-        p = FileStoragePacker(
-            storage._file.name,
-            stop,
-            storage._lock_acquire,
-            storage._lock_release,
-            storage._commit_lock_acquire,
-            storage._commit_lock_release,
-            storage.getSize(),
-            gc)
+        p = FileStoragePacker(storage, referencesf, stop, gc)
         opos = p.pack()
         if opos is None:
             return None
@@ -1032,6 +1057,12 @@ class FileStorage(BaseStorage.BaseStorage,
         if gc is None:
             gc = self._pack_gc
 
+        oldpath = self._file_name + ".old"
+        if os.path.exists(oldpath):
+            os.remove(oldpath)
+        if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
+            ZODB.blob.remove_committed_dir(self.blob_dir + ".old")
+
         have_commit_lock = False
         try:
             pack_result = None
@@ -1043,13 +1074,10 @@ class FileStorage(BaseStorage.BaseStorage,
                 return
             have_commit_lock = True
             opos, index = pack_result
-            oldpath = self._file_name + ".old"
             self._lock_acquire()
             try:
                 self._file.close()
                 try:
-                    if os.path.exists(oldpath):
-                        os.remove(oldpath)
                     os.rename(self._file_name, oldpath)
                 except Exception:
                     self._file = open(self._file_name, 'r+b')
@@ -1061,6 +1089,9 @@ class FileStorage(BaseStorage.BaseStorage,
                 self._initIndex(index, self._tindex)
                 self._pos = opos
                 self._save_index()
+
+                if self.blob_dir:
+                    self._move_unpacked_blobs()
             finally:
                 self._lock_release()
         finally:
@@ -1070,6 +1101,68 @@ class FileStorage(BaseStorage.BaseStorage,
             self._pack_is_in_progress = False
             self._lock_release()
 
+    def _move_unpacked_blobs(self):
+        # Move any blobs linked or copied while packing to the
+        # pack dir, which will become the old dir
+        lblob_dir = len(self.blob_dir)
+        fshelper = self.fshelper
+        old = self.blob_dir+'.old'
+        os.mkdir(old, 0777)
+
+        # Helper to clean up dirs left empty after moving things to old
+        def maybe_remove_empty_dir_containing(path):
+            path = os.path.dirname(path)
+            if len(path) <= lblob_dir:
+                return
+            if not os.listdir(path):
+                os.rmdir(path)
+                maybe_remove_empty_dir_containing(path)
+
+        # Helper that moves a oid dir or revision file to the old dir.
+        def move(path):
+            dest = os.path.dirname(old+path[lblob_dir:])
+            if not os.path.exists(dest):
+                os.makedirs(dest, 0700)
+            os.rename(path, old+path[lblob_dir:])
+            maybe_remove_empty_dir_containing(path)
+            
+        # Fist step: "remove" oids or revisions by moving them to .old
+        # (Later, when we add an option to not keep old files, we'll
+        # be able to simply remove.)
+        for line in open(os.path.join(self.blob_dir, '.removed')):
+            line = line.strip().decode('hex')
+
+            if len(line) == 8:
+                # oid is garbage, re/move dir
+                path = fshelper.getPathForOID(line)
+                if not os.path.exists(path):
+                    # Hm, already gone. Odd.
+                    continue
+                move(path)
+                continue
+            
+            if len(line) != 16:
+                raise ValueError("Bad record in ", self.blob_dir, '.removed')
+            
+            oid, tid = line[:8], line[8:]
+            path = fshelper.getBlobFilename(oid, tid)
+            if not os.path.exists(path):
+                # Hm, already gone. Odd.
+                continue
+            move(path)
+            
+        # Second step, copy remaining files.
+        link_or_copy = ZODB.blob.link_or_copy
+        for path, dir_names, file_names in os.walk(self.blob_dir):
+            for file_name in file_names:
+                if not file_name.endswith('.blob'):
+                    continue
+                file_path = os.path.join(path, file_name)
+                dest = os.path.dirname(old+file_path[lblob_dir:])
+                if not os.path.exists(dest):
+                    os.makedirs(dest, 0700)
+                link_or_copy(file_path, old+file_path[lblob_dir:])
+        
     def iterator(self, start=None, stop=None):
         return FileIterator(self._file_name, start, stop)
 
@@ -1469,7 +1562,7 @@ def _truncate(file, name, pos):
                                name, oname)
                 o = open(oname,'wb')
                 file.seek(pos)
-                cp(file, o, file_size-pos)
+                ZODB.utils.cp(file, o, file_size-pos)
                 o.close()
                 break
     except:
