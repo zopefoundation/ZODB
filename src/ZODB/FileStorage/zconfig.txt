@@ -2,8 +2,8 @@ Defining FileStorages using ZConfig
 ===================================
 
 ZODB provides support for defining many storages, including
-FileStorages, using ZConfig.  To do this, you use a filestorage
-section, and define a path:
+FileStorages, using ZConfig.  To define a FileStorage, you use a
+filestorage section, and define a path:
 
     >>> import ZODB.config
     >>> fs = ZODB.config.storageFromString("""
@@ -15,8 +15,31 @@ section, and define a path:
     >>> fs._file.name
     'my.fs'
 
+    >>> fs.close()
 
 There are a number of options we can provide:
+
+blob-dir
+    If supplied, the file storage will provide blob support and this
+    is the name of a directory to hold blob data.  The directory will
+    be created if it doeesn't exist.  If no value (or an empty value)
+    is provided, then no blob support will be provided. (You can still
+    use a BlobStorage to provide blob support.)
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     blob-dir blobs
+    ... </filestorage>
+    ... """)
+
+    >>> fs._file.name
+    'my.fs'
+    >>> import os
+    >>> os.path.basename(fs.blob_dir)
+    'blobs'
+
+    >>> fs.close()
 
 create
     Flag that indicates whether the storage should be truncated if
@@ -24,7 +47,7 @@ create
 
     To demonstrate this, we'll first write some dataL
 
-    >>> db = ZODB.DB(fs) # writes object 0
+    >>> db = ZODB.DB('my.fs') # writes object 0
     >>> db.close()
 
     Then reopen with the create option:

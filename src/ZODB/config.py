@@ -147,6 +147,7 @@ class FileStorage(BaseConfig):
                            read_only=self.config.read_only,
                            quota=self.config.quota,
                            pack_gc=self.config.pack_gc,
+                           blob_dir=self.config.blob_dir,
                            **options)
 
 class BlobStorage(BaseConfig):

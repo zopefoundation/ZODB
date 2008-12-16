@@ -7,11 +7,20 @@
 
   <sectiontype name="filestorage" datatype=".FileStorage"
                implements="ZODB.storage">
-    <key name="path" required="yes">
+    <key name="path" required="yes" datatype="existing-dirpath">
       <description>
         Path name to the main storage file.  The names for
         supplemental files, including index and lock files, will be
         computed from this.
+      </description>
+    </key>
+    <key name="blob-dir" required="no" datatype="existing-dirpath">
+      <description>
+        If supplied, the file storage will provide blob support and this
+        is the name of a directory to hold blob data.  The directory will
+        be created if it doeesn't exist.  If no value (or an empty value)
+        is provided, then no blob support will be provided. (You can still
+        use a BlobStorage to provide blob support.)
       </description>
     </key>
     <key name="create" datatype="boolean" default="false">
