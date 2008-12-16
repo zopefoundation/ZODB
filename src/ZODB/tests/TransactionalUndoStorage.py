@@ -427,10 +427,23 @@ class TransactionalUndoStorage:
         self._iterate()
 
     def checkTransactionalUndoAfterPack(self):
-        eq = self.assertEqual
+        # bwarsaw Date: Thu Mar 28 21:04:43 2002 UTC
+        # This is a test which should provoke the underlying bug in
+        # transactionalUndo() on a standby storage.  If our hypothesis
+        # is correct, the bug is in FileStorage, and is caused by
+        # encoding the file position in the `id' field of the undoLog
+        # information.  Note that Full just encodes the tid, but this
+        # is a problem for FileStorage (we have a strategy for fixing
+        # this).
+
+        # So, basically, this makes sure that undo info doesn't depend
+        # on file positions.  We change the file positions in an undo
+        # record by packing.
+        
         # Add a few object revisions
-        oid = self._storage.new_oid()
-        revid1 = self._dostore(oid, data=MinPO(51))
+        oid = '\0'*8
+        revid0 = self._dostore(oid, data=MinPO(50))
+        revid1 = self._dostore(oid, revid=revid0, data=MinPO(51))
         snooze()
         packtime = time.time()
         snooze()                # time.time() now distinct from packtime
@@ -438,7 +451,7 @@ class TransactionalUndoStorage:
         self._dostore(oid, revid=revid2, data=MinPO(53))
         # Now get the undo log
         info = self._storage.undoInfo()
-        eq(len(info), 3)
+        self.assertEqual(len(info), 4)
         tid = info[0]['id']
         # Now pack just the initial revision of the object.  We need the
         # second revision otherwise we won't be able to undo the third
@@ -446,18 +459,18 @@ class TransactionalUndoStorage:
         self._storage.pack(packtime, referencesf)
         # Make some basic assertions about the undo information now
         info2 = self._storage.undoInfo()
-        eq(len(info2), 2)
+        self.assertEqual(len(info2), 2)
         # And now attempt to undo the last transaction
         t = Transaction()
         self._storage.tpc_begin(t)
         tid, oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        eq(len(oids), 1)
-        eq(oids[0], oid)
+        self.assertEqual(len(oids), 1)
+        self.assertEqual(oids[0], oid)
         data, revid = self._storage.load(oid, '')
         # The object must now be at the second state
-        eq(zodb_unpickle(data), MinPO(52))
+        self.assertEqual(zodb_unpickle(data), MinPO(52))
         self._iterate()
 
     def checkTransactionalUndoAfterPackWithObjectUnlinkFromRoot(self):

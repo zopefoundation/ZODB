@@ -248,26 +248,27 @@ class GC(FileStorageFormatter):
 
     def findReachableAtPacktime(self, roots):
         """Mark all objects reachable from the oids in roots as reachable."""
+        reachable = self.reachable
+        oid2curpos = self.oid2curpos
+
         todo = list(roots)
         while todo:
             oid = todo.pop()
-            if self.reachable.has_key(oid):
+            if oid in reachable:
                 continue
 
-            L = []
-
-            pos = self.oid2curpos.get(oid)
-            if pos is not None:
-                L.append(pos)
-                todo.extend(self.findrefs(pos))
-
-            if not L:
-                continue
-
-            pos = L.pop()
-            self.reachable[oid] = pos
-            if L:
-                self.reach_ex[oid] = L
+            try:
+                pos = oid2curpos[oid]
+            except KeyError:
+                if oid == z64 and len(oid2curpos) == 0:
+                    # special case, pack to before creation time
+                    continue
+                raise
+            
+            reachable[oid] = pos
+            for oid in self.findrefs(pos):
+                if oid not in reachable:
+                    todo.append(oid)
 
     def findReachableFromFuture(self):
         # In this pass, the roots are positions of object revisions.
