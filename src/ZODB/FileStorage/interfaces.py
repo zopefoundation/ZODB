@@ -20,17 +20,34 @@ class IFileStoragePacker(zope.interface.Interface):
 
         The new file will have the same name as the old file with
         '.pack' appended. (The packer can get the old file name via
-        storage._file.name.)
+        storage._file.name.) If blobs are supported, if the storages
+        blob_dir attribute is not None or empty, then a .removed file
+        most be created in the blob directory. This file contains of
+        the form:
+
+           (oid+serial).encode('hex')+'\n'
+
+        or, of the form:
+
+           oid.encode('hex')+'\n'
+        
 
         If packing is unnecessary, or would not change the file, then
-        None is returned, otherwise a tule is returned with:
+        no pack or removed files are created None is returned,
+        otherwise a tuple is returned with:
 
         - the size of the packed file, and
 
         - the packed index
 
         If and only if packing was necessary (non-None) and there was
-        no error, then the commit lock must be acquired.
+        no error, then the commit lock must be acquired.  In addition,
+        it is up to FileStorage to:
+
+        - Rename the .pack file, and
+
+        - process the blob_dir/.removed file by removing the blobs
+          corresponding to the file records.        
         """
 
 class IFileStorage(zope.interface.Interface):

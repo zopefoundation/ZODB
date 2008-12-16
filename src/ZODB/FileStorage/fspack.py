@@ -337,12 +337,11 @@ class FileStoragePacker(FileStorageFormatter):
     def __init__(self, storage, referencesf, stop, gc=True):
         self._storage = storage
         if storage.blob_dir:
-            self.blob_dir = storage.blob_dir+'.pack'
-            self.fshelper = ZODB.blob.FilesystemHelper(
-                self.blob_dir, storage.fshelper.layout_name)
-            self.fshelper.create()
+            self.pack_blobs = True
+            self.blob_removed = open(
+                os.path.join(storage.blob_dir, '.removed'), 'w')
         else:
-            self.blob_dir = None
+            self.pack_blobs = False
             
         path = storage._file.name
         self._name = path
@@ -492,8 +491,24 @@ class FileStoragePacker(FileStorageFormatter):
         while pos < tend:
             h = self._read_data_header(pos)
             if not self.gc.isReachable(h.oid, pos):
+                if self.pack_blobs:
+                    # We need to find out if this is a blob, so get the data:
+                    if h.plen:
+                        data = self._file.read(h.plen)
+                    else:
+                        data = self.fetchDataViaBackpointer(h.oid, h.back)
+                    if data and ZODB.blob.is_blob_record(data):
+                        # We need to remove the blob record. Maybe we
+                        # need to remove oid:
+                        if h.oid not in self.gc.reachable:
+                            self.blob_removed.write(h.oid.encode('hex')+'\n')
+                        else:
+                            self.blob_removed.write(
+                                (h.oid+h.tid).encode('hex')+'\n')
+                
                 pos += h.recordlen()
                 continue
+
             pos += h.recordlen()
 
             # If we are going to copy any data, we need to copy
@@ -510,39 +525,24 @@ class FileStoragePacker(FileStorageFormatter):
             if h.plen:
                 data = self._file.read(h.plen)
             else:
-                # If a current record has a backpointer, fetch
-                # refs and data from the backpointer.  We need
-                # to write the data in the new record.
-                data = self.fetchBackpointer(h.oid, h.back)
+                data = self.fetchDataViaBackpointer(h.oid, h.back)
 
             self.writePackedDataRecord(h, data, new_tpos)
             new_pos = self._tfile.tell()
 
-            if ZODB.blob.is_blob_record(data):
-                self.copyBlob(h.oid, h.tid)
-
         return new_tpos, pos
 
-    def fetchBackpointer(self, oid, back):
-        """Return data and refs backpointer `back` to object `oid.
+    def fetchDataViaBackpointer(self, oid, back):
+        """Return the data for oid via backpointer back
 
-        If `back` is 0 or ultimately resolves to 0, return None
-        and None.  In this case, the transaction undoes the object
+        If `back` is 0 or ultimately resolves to 0, return None.
+        In this case, the transaction undoes the object
         creation.
         """
         if back == 0:
             return None
         data, tid = self._loadBackTxn(oid, back, 0)
         return data
-
-    def copyBlob(self, oid, tid):
-        if not self.blob_dir:
-            return
-        self.fshelper.createPathForOID(oid)
-        ZODB.blob.link_or_copy(
-            self._storage.fshelper.getBlobFilename(oid, tid),
-            self.fshelper.getBlobFilename(oid, tid),
-            )
 
     def writePackedDataRecord(self, h, data, new_tpos):
         # Update the header to reflect current information, then write
@@ -599,15 +599,12 @@ class FileStoragePacker(FileStorageFormatter):
             if h.plen:
                 data = self._file.read(h.plen)
             else:
-                data = self.fetchBackpointer(h.oid, h.back)
+                data = self.fetchDataViaBackpointer(h.oid, h.back)
                 if h.back:
                     prev_txn = self.getTxnFromData(h.oid, h.back)
 
             self._copier.copy(h.oid, h.tid, data, prev_txn,
                               pos, self._tfile.tell())
-
-            if ZODB.blob.is_blob_record(data):
-                self.copyBlob(h.oid, h.tid)
 
         tlen = self._tfile.tell() - pos
         assert tlen == th.tlen

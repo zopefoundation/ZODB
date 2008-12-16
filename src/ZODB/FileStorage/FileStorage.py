@@ -1105,24 +1105,63 @@ class FileStorage(
         # Move any blobs linked or copied while packing to the
         # pack dir, which will become the old dir
         lblob_dir = len(self.blob_dir)
-        for path, dir_names, file_names in os.walk(self.blob_dir, False):
-            n = 0
+        fshelper = self.fshelper
+        old = self.blob_dir+'.old'
+        os.mkdir(old, 0777)
+
+        # Helper to clean up dirs left empty after moving things to old
+        def maybe_remove_empty_dir_containing(path):
+            path = os.path.dirname(path)
+            if len(path) <= lblob_dir:
+                return
+            if not os.listdir(path):
+                os.rmdir(path)
+                maybe_remove_empty_dir_containing(path)
+
+        # Helper that moves a oid dir or revision file to the old dir.
+        def move(path):
+            dest = os.path.dirname(old+path[lblob_dir:])
+            if not os.path.exists(dest):
+                os.makedirs(dest, 0700)
+            os.rename(path, old+path[lblob_dir:])
+            maybe_remove_empty_dir_containing(path)
+            
+        # Fist step: "remove" oids or revisions by moving them to .old
+        # (Later, when we add an option to not keep old files, we'll
+        # be able to simply remove.)
+        for line in open(os.path.join(self.blob_dir, '.removed')):
+            line = line.strip().decode('hex')
+
+            if len(line) == 8:
+                # oid is garbage, re/move dir
+                path = fshelper.getPathForOID(line)
+                if not os.path.exists(path):
+                    # Hm, already gone. Odd.
+                    continue
+                move(path)
+                continue
+            
+            if len(line) != 16:
+                raise ValueError("Bad record in ", self.blob_dir, '.removed')
+            
+            oid, tid = line[:8], line[8:]
+            path = fshelper.getBlobFilename(oid, tid)
+            if not os.path.exists(path):
+                # Hm, already gone. Odd.
+                continue
+            move(path)
+            
+        # Second step, copy remaining files.
+        link_or_copy = ZODB.blob.link_or_copy
+        for path, dir_names, file_names in os.walk(self.blob_dir):
             for file_name in file_names:
                 if not file_name.endswith('.blob'):
                     continue
-                file_packed = os.path.join(
-                    path[:lblob_dir]+'.pack'+path[lblob_dir:],
-                    file_name)
-                if not os.path.exists(file_packed):
-                    if not os.path.exists(os.path.dirname(file_packed)):
-                        os.makedirs(os.path.dirname(file_packed), 0700)
-                    ZODB.blob.rename_or_copy_blob(
-                        os.path.join(path, file_name),
-                        file_packed)
-                    n += 1
-            if (n == len(file_names)) and not os.listdir(path):
-                os.rmdir(path)
-        os.rename(self.blob_dir+'.pack', self.blob_dir+'.old')
+                file_path = os.path.join(path, file_name)
+                dest = os.path.dirname(old+file_path[lblob_dir:])
+                if not os.path.exists(dest):
+                    os.makedirs(dest, 0700)
+                link_or_copy(file_path, old+file_path[lblob_dir:])
         
     def iterator(self, start=None, stop=None):
         return FileIterator(self._file_name, start, stop)
