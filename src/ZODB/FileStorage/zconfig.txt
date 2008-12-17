@@ -39,15 +39,17 @@ blob-dir
     >>> os.path.basename(fs.blob_dir)
     'blobs'
 
-    >>> fs.close()
-
 create
     Flag that indicates whether the storage should be truncated if
     it already exists.
 
-    To demonstrate this, we'll first write some dataL
+    To demonstrate this, we'll first write some data:
 
-    >>> db = ZODB.DB('my.fs') # writes object 0
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> import ZODB.blob, transaction
+    >>> conn.root()[1] = ZODB.blob.Blob()
+    >>> transaction.commit()
     >>> db.close()
 
     Then reopen with the create option:
@@ -55,6 +57,7 @@ create
     >>> fs = ZODB.config.storageFromString("""
     ... <filestorage>
     ...     path my.fs
+    ...     blob-dir blobs
     ...     create true
     ... </filestorage>
     ... """)
@@ -65,6 +68,9 @@ create
     Traceback (most recent call last):
     ...
     POSKeyError: 0x00
+
+    >>> sorted(os.listdir('blobs'))
+    ['.layout', 'tmp']
 
     >>> fs.close()
 
@@ -111,7 +117,7 @@ packer
     some information about it's arguments:
 
     >>> def packer(storage, referencesf, stop, gc):
-    ...     print referencesf, storage is fs, gc
+    ...     print referencesf, storage is fs, gc, storage.pack_keep_old
     >>> ZODB.FileStorage.config_demo_printing_packer = packer
 
     >>> fs = ZODB.config.storageFromString("""
@@ -124,7 +130,7 @@ packer
     >>> import time
     >>> db = ZODB.DB(fs) # writes object 0
     >>> fs.pack(time.time(), 42)
-    42 True True
+    42 True True True
 
     >>> fs.close()
 
@@ -143,13 +149,29 @@ pack-gc
     ... """)
 
     >>> fs.pack(time.time(), 42)
-    42 True False
+    42 True False True
 
     Note that if we pass the gc option to pack, then this will
     override the value set in the configuration:
 
     >>> fs.pack(time.time(), 42, gc=True)
-    42 True True
+    42 True True True
+    
+    >>> fs.close()
+
+pack-keep-old
+    If false, then old files aren't kept when packing
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     packer ZODB.FileStorage.config_demo_printing_packer
+    ...     pack-keep-old false
+    ... </filestorage>
+    ... """)
+
+    >>> fs.pack(time.time(), 42)
+    42 True True False
     
     >>> fs.close()
 

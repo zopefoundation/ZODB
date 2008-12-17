@@ -30,6 +30,8 @@ New Features
 
 - FileStorage now supports blobs directly.
 
+- You can now control whether FileStorages keep .old files when packing.
+
 3.9.0a8 (2008-12-15)
 ====================
 

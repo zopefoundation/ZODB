@@ -11,9 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Open database and storage from a configuration.
-
-$Id$"""
+"""Open database and storage from a configuration."""
 
 import os
 from cStringIO import StringIO
@@ -147,6 +145,7 @@ class FileStorage(BaseConfig):
                            read_only=self.config.read_only,
                            quota=self.config.quota,
                            pack_gc=self.config.pack_gc,
+                           pack_keep_old=self.config.pack_keep_old,
                            blob_dir=self.config.blob_dir,
                            **options)
 

@@ -107,7 +107,8 @@ class FileStorage(
     _pack_is_in_progress = False
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
-                 quota=None, pack_gc=True, packer=None, blob_dir=None):
+                 quota=None, pack_gc=True, pack_keep_old=True, packer=None,
+                 blob_dir=None):
 
         if read_only:
             self._is_read_only = True
@@ -131,6 +132,7 @@ class FileStorage(
         self._file_name = file_name
 
         self._pack_gc = pack_gc
+        self.pack_keep_old = pack_keep_old
         if packer is not None:
             self.packer = packer
 
@@ -203,12 +205,16 @@ class FileStorage(
 
         self._quota = quota
 
-        self.blob_dir = blob_dir
         if blob_dir:
+            self.blob_dir = os.path.abspath(blob_dir)
+            if create and os.path.exists(self.blob_dir):
+                ZODB.blob.remove_committed_dir(self.blob_dir)
+                
             self._blob_init(blob_dir)
             zope.interface.alsoProvides(self,
                                         ZODB.interfaces.IBlobStorageRestoreable)
         else:
+            self.blob_dir = None
             self._blob_init_no_blobs()
 
     def copyTransactionsFrom(self, other):
@@ -1085,6 +1091,8 @@ class FileStorage(
 
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
+                if not self.pack_keep_old:
+                    os.remove(oldpath)
                 self._file = open(self._file_name, 'r+b')
                 self._initIndex(index, self._tindex)
                 self._pos = opos
@@ -1107,7 +1115,7 @@ class FileStorage(
         lblob_dir = len(self.blob_dir)
         fshelper = self.fshelper
         old = self.blob_dir+'.old'
-        os.mkdir(old, 0777)
+        link_or_copy = ZODB.blob.link_or_copy
 
         # Helper to clean up dirs left empty after moving things to old
         def maybe_remove_empty_dir_containing(path):
@@ -1118,17 +1126,23 @@ class FileStorage(
                 os.rmdir(path)
                 maybe_remove_empty_dir_containing(path)
 
-        # Helper that moves a oid dir or revision file to the old dir.
-        def move(path):
-            dest = os.path.dirname(old+path[lblob_dir:])
-            if not os.path.exists(dest):
-                os.makedirs(dest, 0700)
-            os.rename(path, old+path[lblob_dir:])
-            maybe_remove_empty_dir_containing(path)
+        if self.pack_keep_old:
+            # Helpers that move oid dir or revision file to the old dir.
+            os.mkdir(old, 0777)
+            link_or_copy(os.path.join(self.blob_dir, '.layout'),
+                         os.path.join(old, '.layout'))
+            def handle_file(path):
+                dest = os.path.dirname(old+path[lblob_dir:])
+                if not os.path.exists(dest):
+                    os.makedirs(dest, 0700)
+                os.rename(path, old+path[lblob_dir:])
+            handle_dir = handle_file
+        else:
+            # Helpers that remove an oid dir or revision file.
+            handle_file = ZODB.blob.remove_committed
+            handle_dir = ZODB.blob.remove_committed_dir
             
-        # Fist step: "remove" oids or revisions by moving them to .old
-        # (Later, when we add an option to not keep old files, we'll
-        # be able to simply remove.)
+        # Fist step: move or remove oids or revisions
         for line in open(os.path.join(self.blob_dir, '.removed')):
             line = line.strip().decode('hex')
 
@@ -1138,7 +1152,8 @@ class FileStorage(
                 if not os.path.exists(path):
                     # Hm, already gone. Odd.
                     continue
-                move(path)
+                handle_dir(path)
+                maybe_remove_empty_dir_containing(path)
                 continue
             
             if len(line) != 16:
@@ -1149,10 +1164,16 @@ class FileStorage(
             if not os.path.exists(path):
                 # Hm, already gone. Odd.
                 continue
-            move(path)
+            handle_file(path)
+            assert not os.path.exists(path)
+            maybe_remove_empty_dir_containing(path)
+
+        os.remove(os.path.join(self.blob_dir, '.removed'))
+
+        if not self.pack_keep_old:
+            return
             
         # Second step, copy remaining files.
-        link_or_copy = ZODB.blob.link_or_copy
         for path, dir_names, file_names in os.walk(self.blob_dir):
             for file_name in file_names:
                 if not file_name.endswith('.blob'):

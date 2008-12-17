@@ -59,6 +59,12 @@
          databases.
       </description>
     </key>
+    <key name="pack-keep-old" datatype="boolean" default="true">
+      <description>
+         If true, a copy of the database before packing is kept in a
+         ".old" file.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
