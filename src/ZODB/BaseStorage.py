@@ -291,7 +291,6 @@ class BaseStorage(UndoLogCompatible):
                 u, d, e = self._ude
                 self._finish(self._tid, u, d, e)
                 self._clear_temp()
-                return self._tid
             finally:
                 self._ude = None
                 self._transaction = None
