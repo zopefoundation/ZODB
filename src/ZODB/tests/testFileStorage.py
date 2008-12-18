@@ -580,7 +580,6 @@ def pack_with_open_blob_files():
 
     >>> db.close()
     """
-    
 
 def test_suite():
     from zope.testing import doctest
@@ -600,6 +599,8 @@ def test_suite():
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
+    suite.addTest(PackableStorage.IExternalGC_suite(
+        lambda : ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')))
     return suite
 
 if __name__=='__main__':

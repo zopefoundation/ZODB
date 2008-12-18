@@ -425,11 +425,13 @@ class FileStorage(
             if h.plen:
                 data = self._file.read(h.plen)
                 return data, h.tid
-            else:
+            elif h.back:
                 # Get the data from the backpointer, but tid from
                 # current txn.
                 data = self._loadBack_impl(oid, h.back)[0]
                 return data, h.tid
+            else:
+                raise POSKeyError(oid)
         finally:
             self._lock_release()
 
@@ -520,6 +522,41 @@ class FileStorage(
                 return ConflictResolution.ResolvedSerial
             else:
                 return self._tid
+
+        finally:
+            self._lock_release()
+
+    def deleteObject(self, oid, oldserial, transaction):
+        if self._is_read_only:
+            raise POSException.ReadOnlyError()
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(self, transaction)
+        
+        self._lock_acquire()
+        try:
+            old = self._index_get(oid, 0)
+            if not old:
+                raise POSException.POSKeyError(oid)
+            h = self._read_data_header(old, oid)
+            committed_tid = h.tid
+
+            if oldserial != committed_tid:
+                raise POSException.ConflictError(
+                    oid=oid, serials=(committed_tid, oldserial))
+                    
+            pos = self._pos
+            here = pos + self._tfile.tell() + self._thl
+            self._tindex[oid] = here
+            new = DataHeader(oid, self._tid, old, pos, 0, 0)
+            self._tfile.write(new.asString())
+            self._tfile.write(z64)
+
+            # Check quota
+            if self._quota is not None and here > self._quota:
+                raise FileStorageQuotaError(
+                    "The storage quota has been exceeded.")
+
+            return self._tid
 
         finally:
             self._lock_release()

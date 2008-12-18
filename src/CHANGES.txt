@@ -35,6 +35,13 @@ New Features
 - POSKeyErrors are no longer logged by ZEO servers, because they are
   really client errors.
 
+- A new storage interface, IExternalGC, to support external garbage
+  collection, http://wiki.zope.org/ZODB/ExternalGC, has been defined
+  and implemented for FileStorage.
+
+- As a small convenience (mainly for tests), you can now specify
+  initial data as a string argument to the Blob constructor.
+
 3.9.0a8 (2008-12-15)
 ====================
 

@@ -969,6 +969,27 @@ class IStorageCurrentRecordIteration(IStorage):
         
         """
 
+class IExternalGC(IStorage):
+
+   def deleteObject(oid, serial, transaction):
+       """Mark an object as deleted
+
+       This method marks an object as deleted via a new object
+       revision.  Subsequent attempts to load current data for the
+       object will fail with a POSKeyError, but loads for
+       non-current data will suceed if there are previous
+       non-delete records.  The object will be removed from the
+       storage when all not-delete records are removed.
+
+       The the storage's transaction id for the current transaction is
+       returned.
+
+       The serial argument must match the most recently committed
+       serial for the object. This is a seat belt.
+
+       This method can only be called in the first phase of 2-phase
+       commit.
+       """
 
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""

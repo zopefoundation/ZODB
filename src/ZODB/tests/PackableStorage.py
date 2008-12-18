@@ -13,24 +13,22 @@
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
 
-import cPickle
 from cStringIO import StringIO
-
-import time
-
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-import transaction
-import ZODB.interfaces
 from ZODB import DB
+from ZODB.POSException import ConflictError, StorageError
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import snooze
-from ZODB.POSException import ConflictError, StorageError
-
 from ZODB.tests.MTStorage import TestThread
-
+from ZODB.tests.StorageTestBase import snooze
+from zope.testing import doctest
+import cPickle
+import time
+import transaction
+import ZODB.interfaces
 import ZODB.tests.util
+import zope.testing.setupstack
 
 ZERO = '\0'*8
 
@@ -750,3 +748,17 @@ class ElapsedTimer:
     def elapsed_millis(self):
         return int((time.time() - self.start_time) * 1000)
 
+
+def IExternalGC_suite(factory):
+    """Return a test suite for a generic .
+
+    Pass a factory taking a name and a blob directory name.
+    """
+
+    def setup(test):
+        ZODB.tests.util.setUp(test)
+        test.globs['create_storage'] = factory
+
+    return doctest.DocFileSuite(
+        'IExternalGC.test',
+        setUp=setup, tearDown=zope.testing.setupstack.tearDown)
