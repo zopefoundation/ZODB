@@ -173,3 +173,12 @@ Blobs are not subclassable::
         ...
     TypeError: Blobs do not support subclassing.
 
+Passing data to the blob constructor
+------------------------------------
+
+If you have a small amount of data, you can pass it to the blob
+constructor.  (This is a convenience, mostly for writing tests.)
+
+    >>> myblob = Blob('some data')
+    >>> myblob.open().read()
+    'some data'

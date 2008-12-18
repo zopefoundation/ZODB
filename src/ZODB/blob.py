@@ -63,12 +63,14 @@ class Blob(persistent.Persistent):
 
     readers = writers = None
 
-    def __init__(self):
+    def __init__(self, data=None):
         # Raise exception if Blobs are getting subclassed
         # refer to ZODB-Bug No.127182 by Jim Fulton on 2007-07-20
         if (self.__class__ is not Blob):
             raise TypeError('Blobs do not support subclassing.')
         self.__setstate__()
+        if data is not None:
+            self.open('w').write(data)
 
     def __setstate__(self, state=None):
         # we use lists here because it will allow us to add and remove
