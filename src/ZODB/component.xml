@@ -121,7 +121,7 @@
       <description>
             ZEO check size as percent of blob_cache_size.  The ZEO
             cache size will be checked when this many bytes have been
-            loaded into the cache. Defaults to 100% of the blob cache
+            loaded into the cache. Defaults to 10% of the blob cache
             size.   This option is ignored if shared_blob_dir is true.
       </description>
     </key>
