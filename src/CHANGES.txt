@@ -32,6 +32,9 @@ New Features
 
 - You can now control whether FileStorages keep .old files when packing.
 
+- POSKeyErrors are no longer logged by ZEO servers, because they are
+  really client errors.
+
 3.9.0a8 (2008-12-15)
 ====================
 

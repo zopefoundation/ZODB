@@ -13,52 +13,42 @@
 ##############################################################################
 """Test suite for ZEO based on ZODB.tests."""
 
-# System imports
+from ZEO.ClientStorage import ClientStorage
+from ZEO.tests.forker import get_port
+from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests
+from ZEO.tests import IterationTests
+from ZEO.zrpc.error import DisconnectedError
+from ZODB.tests import StorageTestBase, BasicStorage,  \
+     TransactionalUndoStorage,  \
+     PackableStorage, Synchronization, ConflictResolution, RevisionStorage, \
+     MTStorage, ReadOnlyStorage, IteratorStorage, RecoveryStorage
+from ZODB.tests.MinPO import MinPO
+from ZODB.tests.StorageTestBase import zodb_unpickle
+from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
+
 import asyncore
 import doctest
 import logging
 import os
+import persistent
+import shutil
 import signal
 import stat
 import tempfile
 import threading
 import time
+import transaction
 import unittest
-import shutil
-
-# ZODB test support
 import ZEO.ServerStub
+import ZEO.StorageServer
+import ZEO.tests.ConnectionTests
+import ZEO.zrpc.connection
 import ZODB
 import ZODB.blob
-import ZODB.tests.util
 import ZODB.tests.testblob
-from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle
-import persistent
-import transaction
+import ZODB.tests.util
+import ZODB.utils
 import zope.testing.setupstack
-
-# ZODB test mixin classes
-from ZODB.tests import StorageTestBase, BasicStorage,  \
-     TransactionalUndoStorage,  \
-     PackableStorage, Synchronization, ConflictResolution, RevisionStorage, \
-     MTStorage, ReadOnlyStorage, IteratorStorage, RecoveryStorage
-
-from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
-
-from ZEO.ClientStorage import ClientStorage
-
-from ZEO.zrpc.error import DisconnectedError
-
-import ZEO.zrpc.connection
-
-from ZEO.tests import forker, Cache, CommitLockTests, ThreadTests, \
-     IterationTests
-from ZEO.tests.forker import get_port
-
-import ZEO.tests.ConnectionTests
-
-import ZEO.StorageServer
 
 logger = logging.getLogger('ZEO.tests.testZEO')
 
@@ -1148,6 +1138,22 @@ def history_over_zeo():
     2
 
     >>> db.close()
+    """
+
+def dont_log_poskeyerrors_on_server():
+    """
+    >>> addr, admin = start_server()
+    >>> import ZEO.ClientStorage
+    >>> cs = ZEO.ClientStorage.ClientStorage(addr)
+    >>> cs.load(ZODB.utils.p64(1))
+    Traceback (most recent call last):
+    ...
+    POSKeyError: 0x01
+
+    >>> cs.close()
+    >>> stop_server(admin)
+    >>> 'POSKeyError' in open('server-%s.log' % addr[1]).read()
+    False
     """
 
 

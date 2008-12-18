@@ -27,6 +27,7 @@ from ZEO.zrpc.marshal import Marshaller
 from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.log import short_repr, log
 from ZODB.loglevels import BLATHER, TRACE
+import ZODB.POSException
 
 REPLY = ".reply" # message name used for replies
 ASYNC = 1
@@ -377,6 +378,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #         sends Z303 to server
     #     OK, because Z303 is in the server's clients_we_can_talk_to
 
+    # Exception types that should not be logged:
+    unlogged_exception_types = ()
+
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
@@ -569,8 +573,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, msg:
-            self.log("%s() raised exception: %s" % (name, msg), logging.INFO,
-                     exc_info=True)
+            if not isinstance(msg, self.unlogged_exception_types):
+                self.log("%s() raised exception: %s" % (name, msg),
+                         logging.INFO, exc_info=True)
             error = sys.exc_info()[:2]
             return self.return_error(msgid, flags, *error)
 
@@ -779,6 +784,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
+
+    # Exception types that should not be logged:
+    unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
     # Servers use a shared server trigger that uses the asyncore socket map
     trigger = trigger()
