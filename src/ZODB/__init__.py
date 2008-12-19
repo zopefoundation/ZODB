@@ -12,9 +12,6 @@
 #
 ##############################################################################
 
-# The next line must use double quotes, so release.py recognizes it.
-__version__ = "3.7.0b3"
-
 import sys
 
 from persistent import TimeStamp
