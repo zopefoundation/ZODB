@@ -639,7 +639,10 @@ class InvqTests(CommonSetupTearDown):
         # message is generated
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
-
+        forker.wait_until(
+            lambda :
+            perstorage.lastTransaction() == self._storage.lastTransaction()
+            )
         perstorage.load(oid, '')
         perstorage.close()
 
@@ -859,12 +862,13 @@ class ReconnectionTests(CommonSetupTearDown):
         # do two storages of the object to make sure an invalidation
         # message is generated
         revid = self._dostore(oid)
-        self._dostore(oid, revid)
-
+        revid = self._dostore(oid, revid)
+        forker.wait_until(
+            lambda :
+            perstorage.lastTransaction() == self._storage.lastTransaction()
+            )
         perstorage.load(oid, '')
-
         self.shutdownServer()
-
         self.pollDown()
         self._storage.verify_result = None
         perstorage.verify_result = None
