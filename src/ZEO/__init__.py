@@ -17,7 +17,7 @@ See the file README.txt in this directory for an overview.
 
 ZEO is now part of ZODB; ZODB's home on the web is
 
-    http://www.zope.org/Wikis/ZODB
+    http://wiki.zope.org/ZODB
 
 """
 
