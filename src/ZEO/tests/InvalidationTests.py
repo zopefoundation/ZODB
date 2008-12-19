@@ -236,8 +236,6 @@ class LargeUpdatesThread(FailableThread):
 
 class InvalidationTests:
 
-    level = 2
-
     # Minimum # of seconds the main thread lets the workers run.  The
     # test stops as soon as this much time has elapsed, and all threads
     # have managed to commit a change.

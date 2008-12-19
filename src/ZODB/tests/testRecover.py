@@ -30,8 +30,6 @@ import transaction
 
 class RecoverTest(ZODB.tests.util.TestCase):
 
-    level = 2
-
     path = None
 
     def setUp(self):

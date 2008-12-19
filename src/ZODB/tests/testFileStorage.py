@@ -334,8 +334,6 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
 
 class SlowFileStorageTest(BaseFileStorageTests):
 
-    level = 2
-
     def check10Kstores(self):
         # The _get_cached_serial() method has a special case
         # every 8000 calls.  Make sure it gets minimal coverage.
