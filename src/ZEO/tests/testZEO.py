@@ -342,6 +342,7 @@ class FileStorageTests(FullGenericTests):
              ('ZODB.interfaces', 'IStorageIteration'),
              ('ZODB.interfaces', 'IStorageUndoable'),
              ('ZODB.interfaces', 'IStorageCurrentRecordIteration'),
+             ('ZODB.interfaces', 'IExternalGC'),
              ('ZODB.interfaces', 'IStorage'),
              ('zope.interface', 'Interface'),
              ),
@@ -1128,7 +1129,6 @@ def client_has_newer_data_than_server():
 def history_over_zeo():
     """
     >>> addr, _ = start_server()
-    >>> import ZEO, ZODB.blob, transaction
     >>> db = ZEO.DB(addr)
     >>> wait_connected(db.storage)
     >>> conn = db.open()
@@ -1143,8 +1143,7 @@ def history_over_zeo():
 def dont_log_poskeyerrors_on_server():
     """
     >>> addr, admin = start_server()
-    >>> import ZEO.ClientStorage
-    >>> cs = ZEO.ClientStorage.ClientStorage(addr)
+    >>> cs = ClientStorage(addr)
     >>> cs.load(ZODB.utils.p64(1))
     Traceback (most recent call last):
     ...
@@ -1156,6 +1155,52 @@ def dont_log_poskeyerrors_on_server():
     False
     """
 
+def delete_object_multiple_clients():
+    """If we delete on one client, the delete should be reflected on the other.
+
+    First, we'll create an object:
+    
+    >>> addr, _ = start_server()
+    >>> db = ZEO.DB(addr)
+    >>> conn = db.open()
+    >>> conn.root()[0] = conn.root().__class__()
+    >>> transaction.commit()
+    >>> oid = conn.root()[0]._p_oid
+
+    We verify that we can read it in another client, which also loads
+    it into the client cache.
+    
+    >>> cs = ClientStorage(addr)
+    >>> p, s = cs.load(oid)
+    
+    Now, we'll remove the object:
+
+    >>> txn = transaction.begin()
+    >>> db.storage.tpc_begin(txn)
+    >>> db.storage.deleteObject(oid, s, txn)
+    >>> db.storage.tpc_vote(txn)
+    >>> db.storage.tpc_finish(txn)
+
+    And we'll get a POSKeyError if we try to access it:
+
+    >>> db.storage.load(oid) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    POSKeyError: ...
+
+    We'll wait for our other storage to get the invalidation and then
+    try to access the object. We'll get a POSKeyError there too:
+    
+    >>> tid = db.storage.lastTransaction()
+    >>> forker.wait_until(lambda : cs.lastTransaction() == tid)
+    >>> cs.load(oid) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    POSKeyError: ...
+
+    >>> db.close()
+    >>> cs.close()
+    """
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
@@ -1207,6 +1252,16 @@ class ServerManagingClientStorage(ClientStorage):
 def create_storage_shared(name, blob_dir):
     return ServerManagingClientStorage(name, blob_dir, True)
 
+class ServerManagingClientStorageForIExternalGCTest(
+    ServerManagingClientStorage):
+
+    def pack(self, t=None, referencesf=None):
+        ServerManagingClientStorage.pack(self, t, referencesf, wait=True)
+        # Packing doesn't clear old versions out of zeo client caches,
+        # so we'll clear the caches.
+        self._cache.clear()
+        ZEO.ClientStorage._check_blob_cache_size(self.blob_dir, 0)
+
 def test_suite():
     suite = unittest.TestSuite()
 
@@ -1227,6 +1282,10 @@ def test_suite():
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )
+    zeo.addTest(PackableStorage.IExternalGC_suite(
+        lambda :
+        ServerManagingClientStorageForIExternalGCTest('data.fs', 'blobs')
+        ))
     for klass in quick_test_classes:
         zeo.addTest(unittest.makeSuite(klass, "check"))
     zeo.layer = ZODB.tests.util.MininalTestLayer('testZeo-misc')

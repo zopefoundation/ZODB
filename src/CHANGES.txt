@@ -37,7 +37,7 @@ New Features
 
 - A new storage interface, IExternalGC, to support external garbage
   collection, http://wiki.zope.org/ZODB/ExternalGC, has been defined
-  and implemented for FileStorage.
+  and implemented for FileStorage and ClientStorage.
 
 - As a small convenience (mainly for tests), you can now specify
   initial data as a string argument to the Blob constructor.

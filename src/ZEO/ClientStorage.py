@@ -634,6 +634,7 @@ class ClientStorage(object):
             ZODB.interfaces.IStorageUndoable,
             ZODB.interfaces.IStorageCurrentRecordIteration,
             ZODB.interfaces.IBlobStorage,
+            ZODB.interfaces.IExternalGC,
             ):
             if (iface.__module__, iface.__name__) in self._info.get(
                 'interfaces', ()):
@@ -968,6 +969,11 @@ class ClientStorage(object):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
         os.rename(blob_filename+'.dl', blob_filename)
         os.chmod(blob_filename, stat.S_IREAD)
+
+    def deleteObject(self, oid, serial, txn):
+        self._check_trans(txn)
+        self._server.deleteObject(oid, serial, id(txn))
+        self._tbuf.store(oid, None)
 
     def loadBlob(self, oid, serial):
         # Load a blob.  If it isn't present and we have a shared blob

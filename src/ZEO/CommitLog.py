@@ -37,6 +37,10 @@ class CommitLog:
     def size(self):
         return self.file.tell()
 
+    def delete(self, oid, serial):
+        self.pickler.dump(('d', oid, serial))
+        self.stores += 1
+
     def store(self, oid, serial, data):
         self.pickler.dump(('s', oid, serial, data))
         self.stores += 1

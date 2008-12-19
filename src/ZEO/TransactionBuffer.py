@@ -87,7 +87,7 @@ class TransactionBuffer:
             self.pickler.dump((oid, data))
             self.count += 1
             # Estimate per-record cache size
-            self.size = self.size + len(data) + 31
+            self.size = self.size + (data and len(data) or 0) + 31
         finally:
             self.lock.release()
 

@@ -468,6 +468,11 @@ class ZEOStorage:
     # Most of the real implementations are in methods beginning with
     # an _.
 
+    def deleteObject(self, oid, serial, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        self.stats.stores += 1
+        self.txnlog.delete(oid, serial)
+
     def storea(self, oid, serial, data, id):
         self._check_tid(id, exc=StorageTransactionError)
         self.stats.stores += 1
@@ -517,6 +522,30 @@ class ZEOStorage:
             return self._undo(trans_id)
         else:
             return self._wait(lambda: self._undo(trans_id))
+
+    def _delete(self, oid, serial):
+        err = None
+        try:
+            self.storage.deleteObject(oid, serial, self.transaction)
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except Exception, err:
+            self.store_failed = 1
+            if isinstance(err, ConflictError):
+                self.stats.conflicts += 1
+                self.log("conflict error oid=%s msg=%s" %
+                         (oid_repr(oid), str(err)), BLATHER)
+            if not isinstance(err, TransactionError):
+                # Unexpected errors are logged and passed to the client
+                self.log("store error: %s, %s" % sys.exc_info()[:2],
+                         logging.ERROR, exc_info=True)
+            err = self._marshal_error(err)
+            # The exception is reported back as newserial for this oid
+            self.serials.append((oid, err))
+        else:
+            self.invalidated.append(oid)
+
+        return err is None
 
     def _store(self, oid, serial, data):
         err = None
@@ -652,7 +681,9 @@ class ZEOStorage:
             store_type = store[0]
             store_args = store[1:]
 
-            if store_type == 's':
+            if store_type == 'd':
+                do_store = self._delete
+            elif store_type == 's':
                 do_store = self._store
             elif store_type == 'r':
                 do_store = self._restore
