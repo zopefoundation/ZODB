@@ -326,20 +326,21 @@ def setUp(test):
     test.globs['wait_connected'] = wait_connected
     test.globs['wait_disconnected'] = wait_disconnected
 
-def wait_connected(storage):
+
+def wait_until(func, timeout=30, label=None):
+    if not label:
+        label = func.__name__
     now = time.time()
     giveup = now + 30
-    while not storage.is_connected():
+    while not func():
         now = time.time()
         if time.time() > giveup:
-            raise AssertionError("timed out waiting for storage to connect")
-        time.sleep(0.1)
+            raise AssertionError("Timed out waiting for", label)
+        time.sleep(0.01)
+        
+def wait_connected(storage):
+    wait_until(storage.is_connected)
 
 def wait_disconnected(storage):
-    now = time.time()
-    giveup = now + 30
-    while storage.is_connected():
-        now = time.time()
-        if time.time() > giveup:
-            raise AssertionError("timed out waiting for storage to connect")
-        time.sleep(0.1)
+    def not_connected():
+        return not storage.is_connected()
