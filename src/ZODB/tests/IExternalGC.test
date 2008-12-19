@@ -31,10 +31,11 @@ transaction ourselves.
 
     >>> txn = transaction.begin()
     >>> storage.tpc_begin(txn)
-    >>> tid = storage.deleteObject(oid0, s0, txn)
-    >>> tid = storage.deleteObject(oid1, s1, txn)
+    >>> storage.deleteObject(oid0, s0, txn)
+    >>> storage.deleteObject(oid1, s1, txn)
     >>> storage.tpc_vote(txn)
     >>> storage.tpc_finish(txn)
+    >>> tid = storage.lastTransaction()
 
 Now if we try to load data for the objects, we get a POSKeyError:
 
@@ -63,6 +64,9 @@ gone:
 
     >>> import time
     >>> db.pack(time.time()+1)
+
+
+>>> time.sleep(1)
 
     >>> storage.load(oid0, '') # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -101,7 +105,8 @@ isn't current:
 
     >>> txn = transaction.begin()
     >>> storage.tpc_begin(txn)
-    >>> storage.deleteObject(oid, bad_serial, txn) # doctest: +ELLIPSIS
+    >>> storage.deleteObject(oid, bad_serial, txn); storage.tpc_vote(txn)
+    ... # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     ConflictError: database conflict error ...

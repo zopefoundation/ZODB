@@ -101,6 +101,7 @@ class FileStorage(
         ZODB.interfaces.IStorageIteration,
         ZODB.interfaces.IStorageUndoable,
         ZODB.interfaces.IStorageCurrentRecordIteration,
+        ZODB.interfaces.IExternalGC,
         )
 
     # Set True while a pack is in progress; undo is blocked for the duration.
@@ -555,8 +556,6 @@ class FileStorage(
             if self._quota is not None and here > self._quota:
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
-
-            return self._tid
 
         finally:
             self._lock_release()

@@ -981,9 +981,6 @@ class IExternalGC(IStorage):
        non-delete records.  The object will be removed from the
        storage when all not-delete records are removed.
 
-       The the storage's transaction id for the current transaction is
-       returned.
-
        The serial argument must match the most recently committed
        serial for the object. This is a seat belt.
 
