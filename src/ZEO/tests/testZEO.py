@@ -41,8 +41,6 @@ from ZODB.tests import StorageTestBase, BasicStorage, VersionStorage, \
      PackableStorage, Synchronization, ConflictResolution, RevisionStorage, \
      MTStorage, ReadOnlyStorage
 
-from ZODB.tests.testDemoStorage import DemoStorageWrappedBase
-
 from ZEO.ClientStorage import ClientStorage
 
 import ZEO.zrpc.connection
@@ -59,15 +57,6 @@ logger = logging.getLogger('ZEO.tests.testZEO')
 class DummyDB:
     def invalidate(self, *args):
         pass
-
-class OneTimeTests(unittest.TestCase):
-
-    def checkZEOVersionNumber(self):
-        import ZEO
-        # Starting with ZODB 3.4, the ZODB and ZEO version numbers should
-        # be identical.
-        self.assertEqual(ZODB.__version__, ZEO.version)
-
 
 class CreativeGetState(persistent.Persistent):
     def __getstate__(self):
@@ -405,46 +394,6 @@ class ConnectionInvalidationOnReconnect(
         # Now, the root object in the connection should have been invalidated:
         self.assertEqual(db._invalidatedCache, base+1)
     
-
-class DemoStorageWrappedAroundClientStorage(DemoStorageWrappedBase):
-
-    def getConfig(self):
-        return """<mappingstorage 1/>"""
-
-    def _makeBaseStorage(self):
-        logger.info("setUp() %s", self.id())
-        port = get_port()
-        zconf = forker.ZEOConfig(('', port))
-        zport, adminaddr, pid, path = forker.start_zeo_server(self.getConfig(),
-                                                              zconf, port)
-        self._pids = [pid]
-        self._servers = [adminaddr]
-        self._conf_path = path
-        _base = ClientStorage(zport, '1', cache_size=20000000,
-                                      min_disconnect_poll=0.5, wait=1,
-                                      wait_timeout=60)
-        _base.registerDB(DummyDB())
-        return _base
-
-    def tearDown(self):
-        DemoStorageWrappedBase.tearDown(self)
-        os.remove(self._conf_path)
-        for server in self._servers:
-            forker.shutdown_zeo_server(server)
-        if hasattr(os, 'waitpid'):
-            # Not in Windows Python until 2.3
-            for pid in self._pids:
-                os.waitpid(pid, 0)
-
-
-test_classes = [OneTimeTests,
-                FileStorageTests,
-                MappingStorageTests,
-                DemoStorageWrappedAroundClientStorage,
-                HeartbeatTests,
-                CatastrophicClientLoopFailure,
-                ConnectionInvalidationOnReconnect,
-               ]
 
 class CommonBlobTests:
 
@@ -952,8 +901,12 @@ def tpc_finish_error():
     connection closed
     """
 
-test_classes = [FileStorageTests, MappingStorageTests, DemoStorageTests,
-                BlobAdaptedFileStorageTests, BlobWritableCacheTests]
+test_classes = [
+    HeartbeatTests, CatastrophicClientLoopFailure,
+    ConnectionInvalidationOnReconnect, FileStorageTests,
+    MappingStorageTests, DemoStorageTests,
+    BlobAdaptedFileStorageTests, BlobWritableCacheTests,
+    ]
 
 def test_suite():
     suite = unittest.TestSuite()
