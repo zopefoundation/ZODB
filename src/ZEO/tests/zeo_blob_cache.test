@@ -22,7 +22,7 @@ Let's start by setting up some data:
 We'll also create a client.
 
     >>> import ZEO
-    >>> db = ZEO.DB(addr, blob_dir='blobs', blob_cache_size=4000)
+    >>> db = ZEO.DB(addr, blob_dir='blobs', blob_cache_size=3000)
 
 Here, we passed a blob_cache_size parameter, which specifies a target
 blob cache size.  This is not a hard limit, but rather a target.  It
@@ -50,7 +50,7 @@ Now, let's write some data:
     ...     conn.root()[i].open('w').write(chr(i)*100)
     >>> transaction.commit()
 
-We've committed 10000 bytes of data, but our target size is 4000.  We
+We've committed 10000 bytes of data, but our target size is 3000.  We
 expect to have not much more than the target size in the cache blob
 directory.
 
