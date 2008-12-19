@@ -570,6 +570,7 @@ def pack_with_open_blob_files():
     >>> db.pack()
     >>> f.read()
     'some data'
+    >>> f.close()
 
     >>> tm1.commit()
     >>> conn2.sync()
