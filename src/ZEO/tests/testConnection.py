@@ -35,14 +35,6 @@ class FileStorageConfig:
                              create and 'yes' or 'no',
                              read_only and 'yes' or 'no')
 
-class BerkeleyStorageConfig:
-    def getConfig(self, path, create, read_only):
-        return """\
-        <fullstorage 1>
-        envdir %s
-        read-only %s
-        </fullstorage>""" % (path, read_only and "yes" or "no")
-
 class MappingStorageConfig:
     def getConfig(self, path, create, read_only):
         return """<mappingstorage 1/>"""
@@ -54,7 +46,6 @@ class FileStorageConnectionTests(
     InvalidationTests.InvalidationTests
     ):
     """FileStorage-specific connection tests."""
-    level = 2
 
 class FileStorageReconnectionTests(
     FileStorageConfig,
@@ -62,48 +53,18 @@ class FileStorageReconnectionTests(
     ):
     """FileStorage-specific re-connection tests."""
     # Run this at level 1 because MappingStorage can't do reconnection tests
-    level = 1
 
 class FileStorageInvqTests(
     FileStorageConfig,
     ConnectionTests.InvqTests
     ):
     """FileStorage-specific invalidation queue tests."""
-    level = 1
 
 class FileStorageTimeoutTests(
     FileStorageConfig,
     ConnectionTests.TimeoutTests
     ):
-    level = 2
-
-class BDBConnectionTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.ConnectionTests,
-    InvalidationTests.InvalidationTests
-    ):
-    """Berkeley storage connection tests."""
-    level = 2
-
-class BDBReconnectionTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.ReconnectionTests
-    ):
-    """Berkeley storage re-connection tests."""
-    level = 2
-
-class BDBInvqTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.InvqTests
-    ):
-    """Berkeley storage invalidation queue tests."""
-    level = 2
-
-class BDBTimeoutTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.TimeoutTests
-    ):
-    level = 2
+    pass
 
 
 class MappingStorageConnectionTests(
@@ -111,7 +72,6 @@ class MappingStorageConnectionTests(
     ConnectionTests.ConnectionTests
     ):
     """Mapping storage connection tests."""
-    level = 1
 
 # The ReconnectionTests can't work with MappingStorage because it's only an
 # in-memory storage and has no persistent state.
@@ -120,10 +80,8 @@ class MappingStorageTimeoutTests(
     MappingStorageConfig,
     ConnectionTests.TimeoutTests
     ):
-    level = 1
+    pass
 
-
-
 test_classes = [FileStorageConnectionTests,
                 FileStorageReconnectionTests,
                 FileStorageInvqTests,
