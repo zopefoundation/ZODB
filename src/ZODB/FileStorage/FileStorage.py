@@ -21,7 +21,7 @@ from persistent.TimeStamp import TimeStamp
 from struct import pack, unpack
 from types import StringType
 from zc.lockfile import LockFile
-from ZODB.FileStorage.format import CorruptedDataError
+from ZODB.FileStorage.format import CorruptedError, CorruptedDataError
 from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
 from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
 from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
@@ -49,7 +49,6 @@ fsync = getattr(os, "fsync", None)
 packed_version = "FS21"
 
 logger = logging.getLogger('ZODB.FileStorage')
-
 
 def panic(message, *data):
     logger.critical(message, *data)
@@ -210,7 +209,7 @@ class FileStorage(
             self.blob_dir = os.path.abspath(blob_dir)
             if create and os.path.exists(self.blob_dir):
                 ZODB.blob.remove_committed_dir(self.blob_dir)
-                
+
             self._blob_init(blob_dir)
             zope.interface.alsoProvides(self,
                                         ZODB.interfaces.IBlobStorageRestoreable)
@@ -484,7 +483,7 @@ class FileStorage(
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
         assert not version
-        
+
         self._lock_acquire()
         try:
             if oid > self._oid:
@@ -532,7 +531,7 @@ class FileStorage(
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
-        
+
         self._lock_acquire()
         try:
             old = self._index_get(oid, 0)
@@ -544,7 +543,7 @@ class FileStorage(
             if oldserial != committed_tid:
                 raise POSException.ConflictError(
                     oid=oid, serials=(committed_tid, oldserial))
-                    
+
             pos = self._pos
             here = pos + self._tfile.tell() + self._thl
             self._tindex[oid] = here
@@ -748,7 +747,7 @@ class FileStorage(
     def _finish_finish(self, tid):
         # This is a separate method to allow tests to replace it with
         # something broken. :)
-        
+
         self._file.flush()
         if fsync is not None:
             fsync(self._file.fileno())
@@ -825,7 +824,7 @@ class FileStorage(
             # Eek, a later transaction modified the data, but,
             # maybe it is pointing at the same data we are.
             ctid, cdataptr, cdata = self._undoDataInfo(oid, ipos, tpos)
-            
+
             if cdataptr != pos:
                 # We aren't sure if we are talking about the same data
                 try:
@@ -994,7 +993,7 @@ class FileStorage(
                             self.openCommittedBlobFile(h.oid, userial),
                             open(tmp, 'wb'))
                         self._blob_storeblob(h.oid, self._tid, tmp)
-                
+
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
 
                 # TODO:  This seek shouldn't be necessary, but some other
@@ -1177,7 +1176,7 @@ class FileStorage(
             # Helpers that remove an oid dir or revision file.
             handle_file = ZODB.blob.remove_committed
             handle_dir = ZODB.blob.remove_committed_dir
-            
+
         # Fist step: move or remove oids or revisions
         for line in open(os.path.join(self.blob_dir, '.removed')):
             line = line.strip().decode('hex')
@@ -1191,10 +1190,10 @@ class FileStorage(
                 handle_dir(path)
                 maybe_remove_empty_dir_containing(path)
                 continue
-            
+
             if len(line) != 16:
                 raise ValueError("Bad record in ", self.blob_dir, '.removed')
-            
+
             oid, tid = line[:8], line[8:]
             path = fshelper.getBlobFilename(oid, tid)
             if not os.path.exists(path):
@@ -1208,7 +1207,7 @@ class FileStorage(
 
         if not self.pack_keep_old:
             return
-            
+
         # Second step, copy remaining files.
         for path, dir_names, file_names in os.walk(self.blob_dir):
             for file_name in file_names:
@@ -1219,7 +1218,7 @@ class FileStorage(
                 if not os.path.exists(dest):
                     os.makedirs(dest, 0700)
                 link_or_copy(file_path, old+file_path[lblob_dir:])
-        
+
     def iterator(self, start=None, stop=None):
         return FileIterator(self._file_name, start, stop)
 
@@ -1244,7 +1243,7 @@ class FileStorage(
                     for trans in FileIterator(self._file_name, pos=pos)]
         finally:
             self._lock_release()
-        
+
 
     def lastTid(self, oid):
         """Return last serialno committed for object oid.
@@ -1641,16 +1640,23 @@ class FileIterator(FileStorageFormatter):
         assert isinstance(filename, str)
         file = open(filename, 'rb')
         self._file = file
+        self._file_name = filename
         if file.read(4) != packed_version:
             raise FileStorageFormatError(file.name)
         file.seek(0,2)
         self._file_size = file.tell()
+        if (pos < 4) or pos > self._file_size:
+            raise ValueError("Given position is greater than the file size",
+                             pos, self._file_size)
         self._pos = pos
         assert start is None or isinstance(start, str)
         assert stop is None or isinstance(stop, str)
-        if start:
-            self._skip_to_start(start)
+        self._start = start
         self._stop = stop
+        if start:
+            if self._file_size <= 4:
+                return
+            self._skip_to_start(start)
 
     def __len__(self):
         # Define a bogus __len__() to make the iterator work
@@ -1674,32 +1680,87 @@ class FileIterator(FileStorageFormatter):
             file.close()
 
     def _skip_to_start(self, start):
-        # Scan through the transaction records doing almost no sanity
-        # checks.
         file = self._file
-        read = file.read
-        seek = file.seek
+        pos1 = self._pos
+        file.seek(pos1)
+        tid1 = file.read(8)
+        if len(tid1) < 8:
+            raise CorruptedError("Couldn't read tid.")
+        if start < tid1:
+            pos2 = pos1
+            tid2 = tid1
+            file.seek(4)
+            tid1 = file.read(8)
+            if start <= tid1:
+                self._pos = 4
+                return
+            pos1 = 4
+        else:
+            if start == tid1:
+                return
+
+            # Try to read the last transaction. We could be unlucky and
+            # opened the file while committing a transaction.  In that
+            # case, we'll just scan from the beginning if the file is
+            # small enough, otherwise we'll fail.
+            file.seek(self._file_size-8)
+            l = u64(file.read(8))
+            if not (l + 12 <= self._file_size and
+                    self._read_num(self._file_size-l) == l):
+                if self._file_size < (1<<20):
+                    return self._scan_foreward(start)
+                raise ValueError("Can't find last transaction in large file")
+            pos2 = self._file_size-l-8
+            file.seek(pos2)
+            tid2 = file.read(8)
+            if tid2 < tid1:
+                raise CorruptedError("Tids out of order.")
+            if tid2 <= start:
+                if tid2 == start:
+                    self._pos = pos2
+                else:
+                    self._pos = self._file_size
+                return
+
+        t1 = ZODB.TimeStamp.TimeStamp(tid1).timeTime()
+        t2 = ZODB.TimeStamp.TimeStamp(tid2).timeTime()
+        ts = ZODB.TimeStamp.TimeStamp(start).timeTime()
+        if (ts - t1) < (t2 - ts):
+            return self._scan_forward(pos1, start)
+        else:
+            return self._scan_backward(pos2, start)
+
+    def _scan_forward(self, pos, start):
+        logger.debug("Scan forward %s:%s looking for %r",
+                     self._file_name, pos, start)
+        file = self._file
         while 1:
-            seek(self._pos)
-            h = read(16)
-            if len(h) < 16:
+            # Read the transaction record
+            h = self._read_txn_header(pos)
+            if h.tid >= start:
+                self._pos = pos
                 return
-            tid, stl = unpack(">8s8s", h)
-            if tid >= start:
+
+            pos += h.tlen + 8
+
+    def _scan_backward(self, pos, start):
+        logger.debug("Scan backward %s:%s looking for %r",
+                     self._file_name, pos, start)
+        file = self._file
+        seek = file.seek
+        read = file.read
+        while 1:
+            pos -= 8
+            seek(pos)
+            tlen = ZODB.utils.u64(read(8))
+            pos -= tlen
+            h = self._read_txn_header(pos)
+            if h.tid <= start:
+                if h.tid == start:
+                    self._pos = pos
+                else:
+                    self._pos = pos + tlen + 8
                 return
-            tl = u64(stl)
-            try:
-                self._pos += tl + 8
-            except OverflowError:
-                self._pos = long(self._pos) + tl + 8
-            if __debug__:
-                # Sanity check
-                seek(self._pos - 8, 0)
-                rtl = read(8)
-                if rtl != stl:
-                    pos = file.tell() - 8
-                    panic("%s has inconsistent transaction length at %s "
-                          "(%s != %s)", file.name, pos, u64(rtl), u64(stl))
 
     # Iterator protocol
     def __iter__(self):

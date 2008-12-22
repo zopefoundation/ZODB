@@ -93,7 +93,7 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-            'zconfig.txt',
+            'zconfig.txt', 'iterator.test',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
             ),
         doctest.DocTestSuite(

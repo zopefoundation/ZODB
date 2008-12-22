@@ -42,6 +42,11 @@ New Features
 - As a small convenience (mainly for tests), you can now specify
   initial data as a string argument to the Blob constructor.
 
+- The FileStorage iterator now handles large files better.  Whenm
+  iteratng from a starting transaction near the end of the file, the
+  iterator will scan backward from the end of the file to find the
+  starting point.
+
 3.9.0a8 (2008-12-15)
 ====================
 
@@ -54,7 +59,7 @@ New Features
      blob-cache-size * (100 - blob-cache-size-check) / 100
 
   The makes it far more likely (but doesn't guarantee) that the blob
-  cache size will remain under the maximum.  
+  cache size will remain under the maximum.
 
   The blob-cache-size check was reduced to 10%.
 
@@ -79,7 +84,7 @@ New Features
   cache will periodically be reduced to the target size.
 
   The client blob directory layout has changed.  If you have existing
-  non-shared blob directories, you will have to remove them. 
+  non-shared blob directories, you will have to remove them.
 
 Bugs Fixed
 ----------
@@ -119,7 +124,7 @@ New Features
   you would otherwise pass to ZEO.ClientStorage.ClientStorage::
 
     import ZEO
-    db = ZEO.DB(('some_host', 8200)) 
+    db = ZEO.DB(('some_host', 8200))
 
 - Object saves are a little faster
 
@@ -297,7 +302,7 @@ Bugs Fixed
 - Fixed bug 153316: persistent and BTrees were using `int`
   for memory sizes which caused errors on x86_64 Intel Xeon machines
   (using 64-bit Linux).
-  
+
 - Fixed small bug that the Connection.isReadOnly method didn't
   work after a savepoint.
 
@@ -390,7 +395,7 @@ Bugs Fixed:
 Bugs Fixed:
 
 - Fixed several bugs that caused ZEO cache corruption when connecting
-  to servers. These bugs affected both persistent and non-persistent caches. 
+  to servers. These bugs affected both persistent and non-persistent caches.
 
 - Improved the the ZEO client shutdown support to try to
   avoid spurious errors on exit, especially for scripts, such as zeopack.
@@ -416,7 +421,7 @@ Bugs Fixed:
 Bugs Fixed:
 
 - The cache used an excessive amount of memory, causing applications
-  with large caches to exhaust available memory. 
+  with large caches to exhaust available memory.
 
 3.8.1b1 (2008-05-08)
 ====================
