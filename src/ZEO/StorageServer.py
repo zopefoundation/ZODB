@@ -34,6 +34,7 @@ import itertools
 import transaction
 
 import ZODB.serialize
+import ZODB.TimeStamp
 import ZEO.zrpc.error
 
 import zope.interface
@@ -48,7 +49,7 @@ from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
-from ZODB.utils import u64, oid_repr, mktemp
+from ZODB.utils import u64, p64, oid_repr, mktemp
 from ZODB.loglevels import BLATHER
 
 
@@ -817,6 +818,7 @@ class StorageServer:
 
     def __init__(self, addr, storages, read_only=0,
                  invalidation_queue_size=100,
+                 invalidation_age=None,
                  transaction_timeout=None,
                  monitor_address=None,
                  auth_protocol=None,
@@ -853,6 +855,13 @@ class StorageServer:
             N == invalidation_queue_size.  This queue is used to
             speed client cache verification when a client disconnects
             for a short period of time.
+
+        invalidation_age --
+            If the invalidation queue isn't big enough to support a
+            quick verification, but the last transaction seen by a
+            client is younger than the invalidation age, then
+            invalidations will be computed by iterating over
+            transactions later than the given transaction.
 
         transaction_timeout -- The maximum amount of time to wait for
             a transaction to commit after acquiring the storage lock.
@@ -907,7 +916,7 @@ class StorageServer:
         for name, storage in storages.items():
             self._setup_invq(name, storage)
             storage.registerDB(StorageServerDB(self, name))
-
+        self.invalidation_age = invalidation_age
         self.connections = {}
         self.dispatcher = self.DispatcherClass(addr,
                                                factory=self.new_connection)
@@ -1126,30 +1135,34 @@ class StorageServer:
         do full cache verification.
         """
 
-
-        invq = self.invq[storage_id]
-
         # We make a copy of invq because it might be modified by a
         # foreign (other than main thread) calling invalidate above.
-        invq = invq[:]
+        invq = self.invq[storage_id][:]
 
-        if not invq:
+        oids = set()
+        latest_tid = None
+        if invq and invq[-1][0] <= tid:
+            # We have needed data in the queue
+            for _tid, L in invq:
+                if _tid <= tid:
+                    break
+                oids.update(L)
+            latest_tid = invq[0][0]
+        elif (self.invalidation_age and
+              (self.invalidation_age >
+               (time.time()-ZODB.TimeStamp.TimeStamp(tid).timeTime())
+               )
+              ):
+            for t in self.storages[storage_id].iterator(p64(u64(tid)+1)):
+                for r in t:
+                    oids.add(r.oid)
+                latest_tid = t.tid
+        elif not invq:
             log("invq empty")
-            return None, []
+        else:
+            log("tid to old for invq %s < %s" % (u64(tid), u64(invq[-1][0])))
 
-        earliest_tid = invq[-1][0]
-        if earliest_tid > tid:
-            log("tid to old for invq %s < %s" % (u64(tid), u64(earliest_tid)))
-            return None, []
-
-        oids = {}
-        for _tid, L in invq:
-            if _tid <= tid:
-                break
-            for key in L:
-                oids[key] = 1
-        latest_tid = invq[0][0]
-        return latest_tid, oids.keys()
+        return latest_tid, list(oids)
 
     def close_server(self):
         """Close the dispatcher so that there are no new connections.

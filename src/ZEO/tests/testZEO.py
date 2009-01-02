@@ -68,7 +68,7 @@ class MiscZEOTests:
     """ZEO tests that don't fit in elsewhere."""
 
     def checkCreativeGetState(self):
-        # This test covers persistent objects that provide their own 
+        # This test covers persistent objects that provide their own
         # __getstate__ which modifies the state of the object.
         # For details see bug #98275
 
@@ -456,7 +456,7 @@ class CatastrophicClientLoopFailure(
             )
 
         ZEO.zrpc.connection.client_map[None] = Evil()
-        
+
         try:
             ZEO.zrpc.connection.client_trigger.pull_trigger()
         except DisconnectedError:
@@ -498,7 +498,7 @@ class ConnectionInvalidationOnReconnect(
                 self._invalidatedCache += 1
             def invalidate(*a, **k):
                 pass
-                
+
         db = DummyDB()
         storage.registerDB(db)
 
@@ -517,7 +517,7 @@ class ConnectionInvalidationOnReconnect(
 
         # Now, the root object in the connection should have been invalidated:
         self.assertEqual(db._invalidatedCache, base+1)
-    
+
 
 class CommonBlobTests:
 
@@ -638,7 +638,7 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
         for i in range(1000000):
             somedata.write("%s\n" % i)
         somedata.seek(0)
-        
+
         blob = Blob()
         bd_fh = blob.open('w')
         ZODB.utils.cp(somedata, bd_fh)
@@ -665,7 +665,7 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
         def check_data(path):
             self.assert_(os.path.exists(path))
             f = open(path, 'rb')
-            somedata.seek(0) 
+            somedata.seek(0)
             d1 = d2 = 1
             while d1 or d2:
                 d1 = f.read(8096)
@@ -681,7 +681,7 @@ class BlobAdaptedFileStorageTests(FullGenericTests, CommonBlobTests):
             self.blobdir,
             ZODB.blob.BushyLayout().getBlobFilePath(oid, revid),
             )
-        
+
         self.assert_(server_filename.startswith(self.blobdir))
         check_data(server_filename)
 
@@ -800,12 +800,12 @@ def multiple_storages_invalidation_queue_is_not_insane():
     >>> for i in range(20):
     ...     o2.x = PersistentDict(); o2 = o2.x
     ...     commit()
-    
+
     >>> trans, oids = s1.getInvalidations(last)
     >>> from ZODB.utils import u64
     >>> sorted([int(u64(oid)) for oid in oids])
     [10, 11, 12, 13, 14]
-    
+
     >>> server.close_server()
     """
 
@@ -834,7 +834,7 @@ Let's create a file storage and stuff some data into it:
     >>> db.close()
 
 Now we'll open a storage server on the data, simulating a restart:
-    
+
     >>> fs = FileStorage('t.fs')
     >>> sv = StorageServer(('', get_port()), dict(fs=fs))
     >>> s = ZEOStorage(sv, sv.read_only)
@@ -884,7 +884,7 @@ without this method:
     >>> sv = StorageServer(('', get_port()), dict(fs=fs))
     >>> st = StorageServerWrapper(sv, 'fs')
     >>> s = st.server
-    
+
 Now, if we ask for the invalidations since the last committed
 transaction, we'll get a result:
 
@@ -1070,7 +1070,7 @@ def client_has_newer_data_than_server():
 
     >>> handler.uninstall()
     >>> stop_server(admin)
-    
+
     """
 
 def history_over_zeo():
@@ -1106,7 +1106,7 @@ def delete_object_multiple_clients():
     """If we delete on one client, the delete should be reflected on the other.
 
     First, we'll create an object:
-    
+
     >>> addr, _ = start_server()
     >>> db = ZEO.DB(addr)
     >>> conn = db.open()
@@ -1116,10 +1116,10 @@ def delete_object_multiple_clients():
 
     We verify that we can read it in another client, which also loads
     it into the client cache.
-    
+
     >>> cs = ClientStorage(addr)
     >>> p, s = cs.load(oid)
-    
+
     Now, we'll remove the object:
 
     >>> txn = transaction.begin()
@@ -1137,7 +1137,7 @@ def delete_object_multiple_clients():
 
     We'll wait for our other storage to get the invalidation and then
     try to access the object. We'll get a POSKeyError there too:
-    
+
     >>> tid = db.storage.lastTransaction()
     >>> forker.wait_until(lambda : cs.lastTransaction() == tid)
     >>> cs.load(oid) # doctest: +ELLIPSIS
@@ -1153,7 +1153,7 @@ slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     DemoStorageTests, FileStorageTests, MappingStorageTests,
     ]
-    
+
 quick_test_classes = [
     FileStorageRecoveryTests, ConfigurationTests, HeartbeatTests,
     CatastrophicClientLoopFailure, ConnectionInvalidationOnReconnect,
@@ -1194,7 +1194,7 @@ class ServerManagingClientStorage(ClientStorage):
                                    shared_blob_dir=True)
         else:
             ClientStorage.__init__(self, addr, blob_dir=blob_dir)
-            
+
     def close(self):
         ClientStorage.close(self)
         zope.testing.setupstack.tearDown(self)
@@ -1228,7 +1228,7 @@ def test_suite():
         doctest.DocFileSuite(
             'zeo-fan-out.test', 'zdoptions.test',
             'drop_cache_rather_than_verify.txt', 'client-config.test',
-            'protocols.test', 'zeo_blob_cache.test',
+            'protocols.test', 'zeo_blob_cache.test', 'invalidation-age.txt',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )

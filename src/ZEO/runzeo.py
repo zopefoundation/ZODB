@@ -100,6 +100,7 @@ class ZEOOptionsMixin:
         self.add("read_only", "zeo.read_only", default=0)
         self.add("invalidation_queue_size", "zeo.invalidation_queue_size",
                  default=100)
+        self.add("invalidation_age", "zeo.invalidation_age")
         self.add("transaction_timeout", "zeo.transaction_timeout",
                  "t:", "timeout=", float)
         self.add("monitor_address", "zeo.monitor_address.address",
@@ -137,7 +138,7 @@ class ZEOOptions(ZDOptions, ZEOOptionsMixin):
                 if s.name is None:
                     s.name = '1'
                     break
-                
+
 
 class ZEOServer:
 
@@ -243,17 +244,7 @@ class ZEOServer:
             SignalHandler.registerHandler(SIGUSR2, self.handle_sigusr2)
 
     def create_server(self):
-        from ZEO.StorageServer import StorageServer
-        self.server = StorageServer(
-            self.options.address,
-            self.storages,
-            read_only=self.options.read_only,
-            invalidation_queue_size=self.options.invalidation_queue_size,
-            transaction_timeout=self.options.transaction_timeout,
-            monitor_address=self.options.monitor_address,
-            auth_protocol=self.options.auth_protocol,
-            auth_database=self.options.auth_database,
-            auth_realm=self.options.auth_realm)
+        self.server = create_server(self.storages, self.options)
 
     def loop_forever(self):
         asyncore.loop()
@@ -331,6 +322,23 @@ class ZEOServer:
                     log("removed PID file '%s'" % pidfile)
             except IOError:
                 logger.error("PID file '%s' could not be removed" % pidfile)
+
+
+def create_server(storages, options):
+    from ZEO.StorageServer import StorageServer
+    return StorageServer(
+        options.address,
+        storages,
+        read_only = options.read_only,
+        invalidation_queue_size = options.invalidation_queue_size,
+        invalidation_age = options.invalidation_age,
+        transaction_timeout = options.transaction_timeout,
+        monitor_address = options.monitor_address,
+        auth_protocol = options.auth_protocol,
+        auth_database = options.auth_database,
+        auth_realm = options.auth_realm,
+        )
+
 
 # Signal names
 

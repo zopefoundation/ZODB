@@ -36,6 +36,7 @@ class ZEOConfig:
         self.address = addr
         self.read_only = None
         self.invalidation_queue_size = None
+        self.invalidation_age = None
         self.monitor_address = None
         self.transaction_timeout = None
         self.authentication_protocol = None
@@ -49,6 +50,8 @@ class ZEOConfig:
             print >> f, "read-only", self.read_only and "true" or "false"
         if self.invalidation_queue_size is not None:
             print >> f, "invalidation-queue-size", self.invalidation_queue_size
+        if self.invalidation_age is not None:
+            print >> f, "invalidation-age", self.invalidation_age
         if self.monitor_address is not None:
             print >> f, "monitor-address %s:%s" % self.monitor_address
         if self.transaction_timeout is not None:

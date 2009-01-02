@@ -2,7 +2,7 @@
  Change History
 ================
 
-3.9.0 (2008-??-??)
+3.9.0 (2009-??-??)
 ====================
 
 New Features
@@ -22,7 +22,7 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
-3.9.0a9 (2008-12-??)
+3.9.0a9 (2009-01-??)
 ====================
 
 New Features
@@ -42,10 +42,18 @@ New Features
 - As a small convenience (mainly for tests), you can now specify
   initial data as a string argument to the Blob constructor.
 
-- The FileStorage iterator now handles large files better.  Whenm
+- ZEO Servers now provide an option, invalidation-age, that allows
+  quick verification of ZEO clients less than a given age even if the
+  number of transactions the client hasn't seen exceeds the
+  invalidation queue size. This is only recommended if the storage
+  being served  supports effecient iteration from a point near the end
+  of the transaction history.
+
+- The FileStorage iterator now handles large files better.  When
   iteratng from a starting transaction near the end of the file, the
   iterator will scan backward from the end of the file to find the
-  starting point.
+  starting point.  This enhancement makes it practical to take
+  advantage of the new storage server invalidation-age option.
 
 3.9.0a8 (2008-12-15)
 ====================
