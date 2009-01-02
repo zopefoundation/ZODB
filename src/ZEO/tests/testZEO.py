@@ -1139,7 +1139,9 @@ def delete_object_multiple_clients():
     try to access the object. We'll get a POSKeyError there too:
 
     >>> tid = db.storage.lastTransaction()
-    >>> forker.wait_until(lambda : cs.lastTransaction() == tid)
+    >>> forker.wait_until(
+    ...    'cs has caught up',
+    ...    lambda : cs.lastTransaction() == tid)
     >>> cs.load(oid) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...

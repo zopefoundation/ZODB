@@ -640,6 +640,7 @@ class InvqTests(CommonSetupTearDown):
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
         forker.wait_until(
+            "Client has seen all of the transactions from the server",
             lambda :
             perstorage.lastTransaction() == self._storage.lastTransaction()
             )
@@ -864,6 +865,7 @@ class ReconnectionTests(CommonSetupTearDown):
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
         forker.wait_until(
+            "Client has seen all of the transactions from the server",
             lambda :
             perstorage.lastTransaction() == self._storage.lastTransaction()
             )
