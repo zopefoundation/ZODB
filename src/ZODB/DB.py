@@ -122,6 +122,21 @@ class ConnectionPool(AbstractConnectionPool):
         # in this stack.
         self.available = []
 
+    def _append(self, c):
+        available = self.available
+        cactive = c._cache.cache_non_ghost_count
+        if (available and
+            (available[-1][1]._cache.cache_non_ghost_count > cactive)
+            ):
+            i = len(available) - 1
+            while (i and
+                   (available[i-1][1]._cache.cache_non_ghost_count > cactive)
+                   ):
+                i -= 1
+            available.insert(i, (time.time(), c))
+        else:
+            available.append((time.time(), c))
+
     def push(self, c):
         """Register a new available connection.
 
@@ -132,7 +147,7 @@ class ConnectionPool(AbstractConnectionPool):
         assert c not in self.available
         self._reduce_size(strictly_less=True)
         self.all.add(c)
-        self.available.append((time.time(), c))
+        self._append(c)
         n = len(self.all)
         limit = self.size
         if n > limit:
@@ -151,7 +166,7 @@ class ConnectionPool(AbstractConnectionPool):
         assert c in self.all
         assert c not in self.available
         self._reduce_size(strictly_less=True)
-        self.available.append((time.time(), c))
+        self._append(c)
 
     def _reduce_size(self, strictly_less=False):
         """Throw away the oldest available connections until we're under our
@@ -210,7 +225,7 @@ class ConnectionPool(AbstractConnectionPool):
 
     def availableGC(self):
         """Perform garbage collection on available connections.
-        
+
         If a connection is no longer viable because it has timed out, it is
         garbage collected."""
         threshhold = time.time() - self.timeout

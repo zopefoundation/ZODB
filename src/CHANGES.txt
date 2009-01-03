@@ -55,6 +55,14 @@ New Features
   starting point.  This enhancement makes it practical to take
   advantage of the new storage server invalidation-age option.
 
+- Previously, database connections were managed as a stack.  This
+  tended to cause the same connection(s) to be used over and over.
+  For example, the most used conection would typically be the onlyt
+  connection used.  In some rare situations, extra connections could
+  be opened and end up on the top of the stack, causing extreme memory
+  wastage.  Now, when connections are placed on the stack, they sink
+  below existing connections that have more active objects.
+
 3.9.0a8 (2008-12-15)
 ====================
 

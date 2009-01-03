@@ -173,6 +173,47 @@ be reused by the next open():
     >>> len(pool.available), len(pool.all)
     (0, 3)
 
+It's a bit more complicated though.  The connection pool tries to keep
+connections with larger caches at the top of the stack.  It does this
+by having connections with larger caches "sink" below connections with
+larger caches when they are closed.
+
+To see this, we'll add some objects to the caches:
+
+    >>> for i in range(10):
+    ...     c1.root()[i] = c1.root().__class__()
+    >>> import transaction
+    >>> transaction.commit()
+    >>> c1._cache.cache_non_ghost_count
+    11
+
+    >>> for i in range(5):
+    ...     _ = len(c2.root()[i])
+    >>> c2._cache.cache_non_ghost_count
+    6
+
+Now, we'll close the connections and get them back:
+
+    >>> c1.close()
+    >>> c2.close()
+    >>> c3.close()
+
+We closed c3 last, but c1 is the biggest, so we get c1 on the next
+open:
+
+    >>> db.open() is c1
+    True
+
+Similarly, c2 is the next buggest, so we get that next:
+
+    >>> db.open() is c2
+    True
+
+and finally c3:
+
+    >>> db.open() is c3
+    True
+
 What about the 3 in pool.all?  We've seen that closing connections doesn't
 reduce pool.all, and it would be bad if DB kept connections alive forever.
 
@@ -295,8 +336,13 @@ resources (like RDB connections), for the duration.
 
 Now open more connections so that the total exceeds pool_size (2):
 
-    >>> conn1 = db.open()
-    >>> conn2 = db.open()
+    >>> conn1 = db.open(); _ = conn1.root()['a']
+    >>> conn2 = db.open(); _ = conn2.root()['a']
+
+Note that we accessed the objects in the new connections so they would
+be of the same size, so that when they get closed, they don't sink
+below conn0.
+
     >>> pool = db.pool
     >>> len(pool.all), len(pool.available)  # all Connections are in use
     (3, 0)
