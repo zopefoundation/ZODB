@@ -175,7 +175,7 @@ be reused by the next open():
 
 It's a bit more complicated though.  The connection pool tries to keep
 connections with larger caches at the top of the stack.  It does this
-by having connections with larger caches "sink" below connections with
+by having connections with smaller caches "sink" below connections with
 larger caches when they are closed.
 
 To see this, we'll add some objects to the caches:
