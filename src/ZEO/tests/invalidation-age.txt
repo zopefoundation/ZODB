@@ -73,6 +73,7 @@ If we reopen the first client, we'll do quick verification.  We'll
 turn on logging so we can see this:
 
     >>> import logging, sys
+    >>> old_logging_level = logging.getLogger().getEffectiveLevel()
     >>> logging.getLogger().setLevel(logging.INFO)
     >>> handler = logging.StreamHandler(sys.stdout)
     >>> logging.getLogger().addHandler(handler)
@@ -139,3 +140,4 @@ do quick verification:
 
     >>> db.close()
 
+    >>> logging.getLogger().setLevel(old_logging_level)
