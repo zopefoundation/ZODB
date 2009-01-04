@@ -19,9 +19,10 @@ import ZEO.ClientStorage
 import ZODB.config
 import ZODB.POSException
 import ZODB.tests.util
+from zope.testing import doctest
 
 class ConfigTestBase(ZODB.tests.util.TestCase):
-        
+
     def _opendb(self, s):
         return ZODB.config.databaseFromString(s)
 
@@ -128,11 +129,35 @@ class ZEOConfigTest(ConfigTestBase):
             os.path.abspath('blobs'))
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
+def db_connection_pool_timeout():
+    """
+Test that the database pool timeout option works:
+
+    >>> db = ZODB.config.databaseFromString('''
+    ...     <zodb>
+    ...       <mappingstorage/>
+    ...     </zodb>
+    ... ''')
+    >>> db.pool._timeout == 1<<31
+    True
+
+    >>> db = ZODB.config.databaseFromString('''
+    ...     <zodb>
+    ...       pool-timeout 600
+    ...       <mappingstorage/>
+    ...     </zodb>
+    ... ''')
+    >>> db.pool._timeout == 600
+    True
+
+    """
+
 
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
     suite.addTest(unittest.makeSuite(ZEOConfigTest))
+    suite.addTest(doctest.DocTestSuite())
     return suite
 
 

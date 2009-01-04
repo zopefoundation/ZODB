@@ -250,6 +250,11 @@
         and exceeding twice pool-size connections causes a critical
         message to be logged.
       </description>
+    <key name="pool-timeout" datatype="time-interval"/>
+      <description>
+        The minimum interval that an unused (non-historical)
+        connection should be kept.
+      </description>
     <key name="historical-pool-size" datatype="integer" default="3"/>
       <description>
         The expected maximum total number of historical connections

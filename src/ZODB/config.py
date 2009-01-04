@@ -92,6 +92,10 @@ class ZODBDatabase(BaseConfig):
     def open(self, databases=None):
         section = self.config
         storage = section.storage.open()
+        options = {}
+        if section.pool_timeout is not None:
+            options['pool_timeout'] = section.pool_timeout
+
         try:
             return ZODB.DB(
                 storage,
@@ -104,7 +108,7 @@ class ZODBDatabase(BaseConfig):
                 historical_timeout=section.historical_timeout,
                 database_name=section.database_name,
                 databases=databases,
-                )
+                **options)
         except:
             storage.close()
             raise
@@ -127,7 +131,7 @@ class DemoStorage(BaseConfig):
                     base = factory.open()
                 else:
                     raise ValueError("Too many base storages defined!")
-        
+
         from ZODB.DemoStorage import DemoStorage
         return DemoStorage(self.config.name, base=base, changes=changes)
 
@@ -139,7 +143,7 @@ class FileStorage(BaseConfig):
         if self.config.packer:
             m, name = self.config.packer.rsplit('.', 1)
             options['packer'] = getattr(__import__(m, {}, {}, ['*']), name)
-            
+
         return FileStorage(self.config.path,
                            create=self.config.create,
                            read_only=self.config.read_only,
@@ -169,7 +173,7 @@ class ZEOClient(BaseConfig):
             options['blob_cache_size'] = self.config.blob_cache_size
         if self.config.blob_cache_size_check is not None:
             options['blob_cache_size_check'] = self.config.blob_cache_size_check
-                    
+
         return ClientStorage(
             L,
             blob_dir=self.config.blob_dir,

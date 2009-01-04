@@ -63,6 +63,12 @@ New Features
   wastage.  Now, when connections are placed on the stack, they sink
   below existing connections that have more active objects.
 
+- There is a new pool-timeout database configuration option to specify that
+  connections unused after the given time interval should be garbage
+  colection.  This will provide a means of dealing with extra
+  connections that are created in rare circumstances and that would
+  consume an unreasonable amount of memory.
+
 3.9.0a8 (2008-12-15)
 ====================
 

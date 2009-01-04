@@ -12,8 +12,7 @@
 #
 ##############################################################################
 """Database objects
-
-$Id$"""
+"""
 
 import warnings
 
@@ -70,7 +69,7 @@ class AbstractConnectionPool(object):
     connectionDebugInfo() can still gather statistics.
     """
 
-    def __init__(self, size, timeout=None):
+    def __init__(self, size, timeout):
         # The largest # of connections we expect to see alive simultaneously.
         self._size = size
 
@@ -95,8 +94,7 @@ class AbstractConnectionPool(object):
     def setTimeout(self, timeout):
         old = self._timeout
         self._timeout = timeout
-        if timeout is not None and old != timeout and (
-            old is None or old > timeout):
+        if timeout < old:
             self._reduce_size()
 
     def getSize(self):
@@ -112,7 +110,7 @@ class AbstractConnectionPool(object):
 class ConnectionPool(AbstractConnectionPool):
 
     # XXX WTF, passing time.time() as a default?
-    def __init__(self, size, timeout=time.time()):
+    def __init__(self, size, timeout=1<<31):
         super(ConnectionPool, self).__init__(size, timeout)
 
         # A stack of connections available to hand out.  This is a subset
@@ -245,7 +243,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
 
     # see the comments in ConnectionPool for method descriptions.
 
-    def __init__(self, size, timeout=time.time()):
+    def __init__(self, size, timeout=1<<31):
         super(KeyedConnectionPool, self).__init__(size, timeout)
         self.pools = {}
 
@@ -305,8 +303,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
         for pool in self.pools.itervalues():
             result.extend(pool.available)
         return tuple(result)
-        
-        
+
 
 def toTimeStamp(dt):
     utc_struct = dt.utctimetuple()
@@ -379,6 +376,7 @@ class DB(object):
 
     def __init__(self, storage,
                  pool_size=7,
+                 pool_timeout=1<<31,
                  cache_size=400,
                  cache_size_bytes=0,
                  historical_pool_size=3,
@@ -416,7 +414,7 @@ class DB(object):
         self._r = x.release
 
         # pools and cache sizes
-        self.pool = ConnectionPool(pool_size)
+        self.pool = ConnectionPool(pool_size, pool_timeout)
         self.historical_pool = KeyedConnectionPool(historical_pool_size,
                                                    historical_timeout)
         self._cache_size = cache_size
@@ -838,7 +836,7 @@ class DB(object):
         finally:
             self._r()
 
-    def setHistoricalCacheSize(self, size):       
+    def setHistoricalCacheSize(self, size):
         self._a()
         try:
             self._historical_cache_size = size
@@ -848,7 +846,7 @@ class DB(object):
         finally:
             self._r()
 
-    def setHistoricalCacheSizeBytes(self, size):       
+    def setHistoricalCacheSizeBytes(self, size):
         self._a()
         try:
             self._historical_cache_size_bytes = size
