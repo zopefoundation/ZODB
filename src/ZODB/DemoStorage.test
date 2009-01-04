@@ -5,6 +5,17 @@ DemoStorage demo (doctest)
 DemoStorages provide a way to provide incremental updates to an
 existing, base, storage without updating the storage.
 
+.. We need to mess with time to prevent spurious test failures on windows
+
+    >>> now = 1231019584.0
+    >>> def faux_time_time():
+    ...     global now
+    ...     now += .1
+    ...     return now
+    >>> import time
+    >>> real_time_time = time.time
+    >>> time.time = faux_time_time
+
 To see how this works, we'll start by creating a base storage and
 puting an object (in addition to the root object) in it:
 
@@ -73,7 +84,7 @@ Our lastTransaction reflects the lastTransaction of the changes:
     >>> storage.lastTransaction() == changes.lastTransaction()
     True
 
-Let's walk over some of the methods so ewe can see how we delegate to
+Let's walk over some of the methods so we can see how we delegate to
 the new underlying storages:
 
     >>> from ZODB.utils import p64, u64
@@ -108,11 +119,11 @@ Let's look at some other methods:
 
     >>> storage.getSize() == changes.getSize()
     True
-    
+
     >>> len(storage) == len(changes)
     True
 
-    
+
 Undo methods are simply copied from the changes storage:
 
     >>> [getattr(storage, name) == getattr(changes, name)
@@ -210,7 +221,7 @@ DemoStorage supports Blobs if the changes database supports blobs.
     >>> transaction.commit()
     >>> conn.root()['blob'].open().read()
     'state 2'
-    
+
     >>> storage.temporaryDirectory() == changes.temporaryDirectory()
     True
 
@@ -257,7 +268,7 @@ storage wrapped around it when necessary:
     >>> transaction.commit()
     >>> conn.root()['blob'].open().read()
     'state 2'
-    
+
     >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
     True
 
@@ -271,7 +282,7 @@ storage wrapped around it when necessary:
    >>> conn.close()
    >>> blobdir = storage.temporaryDirectory()
    >>> del db, conn, storage, _
-   
+
    >>> import gc
    >>> _ = gc.collect()
 
@@ -378,3 +389,7 @@ DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 We're done with the storage, so "unwrap" the underlying storage.
 
     >>> storage = storage.pop()
+
+.. restore time
+
+    >>> time.time = real_time_time
