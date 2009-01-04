@@ -60,7 +60,11 @@ directory.
     ...     for base, dirs, files in os.walk(d):
     ...         for f in files:
     ...             if f.endswith('.blob'):
-    ...                 size += os.stat(os.path.join(base, f)).st_size
+    ...                 try:
+    ...                     size += os.stat(os.path.join(base, f)).st_size
+    ...                 except OSError:
+    ...                      if os.path.exists(os.path.join(base, f)):
+    ...                          raise
     ...     return size
     
     >>> db.storage._check_blob_size_thread.join()
