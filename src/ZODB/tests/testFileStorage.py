@@ -27,18 +27,8 @@ from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
 from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 
-class BaseFileStorageTests(StorageTestBase.StorageTestBase):
-
-    def open(self, **kwargs):
-        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
-                                                     **kwargs)
-
-    def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
-        self.open(create=1)
-
 class FileStorageTests(
-    BaseFileStorageTests,
+    StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
     RevisionStorage.RevisionStorage,
@@ -54,6 +44,14 @@ class FileStorageTests(
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage
     ):
+
+    def open(self, **kwargs):
+        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
+                                                     **kwargs)
+
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
+        self.open(create=1)
 
     def checkLongMetadata(self):
         s = "X" * 75000
@@ -287,6 +285,13 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
+class FileStorageTestsWithBlobsEnabled(FileStorageTests):
+
+    def open(self, **kwargs):
+        if 'blob_dir' not in kwargs:
+            kwargs = kwargs.copy()
+            kwargs['blob_dir'] = 'blobs'
+        return FileStorageTests.open(self, **kwargs)
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
@@ -301,7 +306,6 @@ class FileStorageRecoveryTest(
     def tearDown(self):
         self._dst.close()
         StorageTestBase.StorageTestBase.tearDown(self)
-        
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
@@ -331,23 +335,6 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         # Skip this check as it calls restore directly.
         pass
 
-
-class SlowFileStorageTest(BaseFileStorageTests):
-
-    def check10Kstores(self):
-        # The _get_cached_serial() method has a special case
-        # every 8000 calls.  Make sure it gets minimal coverage.
-        oids = [[self._storage.new_oid(), None] for i in range(100)]
-        for i in range(100):
-            t = transaction.Transaction()
-            self._storage.tpc_begin(t)
-            for j in range(100):
-                o = MinPO(j)
-                oid, revid = oids[j]
-                serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
-                oids[j][1] = serial
-            self._storage.tpc_vote(t)
-            self._storage.tpc_finish(t)
 
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
@@ -494,7 +481,7 @@ Of course, calling lastInvalidations on an empty storage refturns no data:
 
 def deal_with_finish_failures():
     r"""
-    
+
     It's really bad to get errors in FileStorage's _finish method, as
     that can cause the file storage to be in an inconsistent
     state. The data file will be fine, but the internal data
@@ -523,7 +510,7 @@ def deal_with_finish_failures():
     ...
     TypeError: <lambda>() takes no arguments (1 given)
 
-    
+
     >>> print handler
     ZODB.FileStorage CRITICAL
       Failure in _finish. Closing.
@@ -559,7 +546,7 @@ def pack_with_open_blob_files():
     >>> conn1.add(conn1.root()[1])
     >>> conn1.root()[1].open('w').write('some data')
     >>> tm1.commit()
-    
+
     >>> tm2 = transaction.TransactionManager()
     >>> conn2 = db.open(tm2)
     >>> f = conn1.root()[1].open()
@@ -586,7 +573,8 @@ def test_suite():
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
                   FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
-                  SlowFileStorageTest]:
+                  FileStorageTestsWithBlobsEnabled,
+                  ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,

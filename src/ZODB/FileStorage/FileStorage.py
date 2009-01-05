@@ -984,15 +984,19 @@ class FileStorage(
             else:
 
                 if self.blob_dir and not p and prev:
-                    up, userial = self._loadBackTxn(h.oid, prev)
-                    if ZODB.blob.is_blob_record(up):
-                        # We're undoing a blob modification operation.
-                        # We have to copy the blob data
-                        tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
-                        ZODB.utils.cp(
-                            self.openCommittedBlobFile(h.oid, userial),
-                            open(tmp, 'wb'))
-                        self._blob_storeblob(h.oid, self._tid, tmp)
+                    try:
+                        up, userial = self._loadBackTxn(h.oid, prev)
+                    except ZODB.POSException.POSKeyError:
+                        pass # It was removed, so no need to copy data
+                    else:
+                        if ZODB.blob.is_blob_record(up):
+                            # We're undoing a blob modification operation.
+                            # We have to copy the blob data
+                            tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
+                            ZODB.utils.cp(
+                                self.openCommittedBlobFile(h.oid, userial),
+                                open(tmp, 'wb'))
+                            self._blob_storeblob(h.oid, self._tid, tmp)
 
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
 
