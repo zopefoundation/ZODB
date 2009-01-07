@@ -485,13 +485,14 @@ class FilesystemHelper:
                 continue
             yield oid, path
 
+
 class NoBlobsFileSystemHelper:
 
     @property
     def temp_dir(self):
         raise TypeError("Blobs are not supported")
 
-    getPathForOID = getBlobFilenamem = temp_dir
+    getPathForOID = getBlobFilename = temp_dir
 
 
 class BlobStorageError(Exception):
