@@ -267,7 +267,7 @@ class GC(FileStorageFormatter):
                     # special case, pack to before creation time
                     continue
                 raise
-            
+
             reachable[oid] = pos
             for oid in self.findrefs(pos):
                 if oid not in reachable:
@@ -343,7 +343,7 @@ class FileStoragePacker(FileStorageFormatter):
                 os.path.join(storage.blob_dir, '.removed'), 'w')
         else:
             self.pack_blobs = False
-            
+
         path = storage._file.name
         self._name = path
         # We open our own handle on the storage so that much of pack can
@@ -501,12 +501,22 @@ class FileStoragePacker(FileStorageFormatter):
                     if data and ZODB.blob.is_blob_record(data):
                         # We need to remove the blob record. Maybe we
                         # need to remove oid:
-                        if h.oid not in self.gc.reachable:
-                            self.blob_removed.write(h.oid.encode('hex')+'\n')
-                        else:
-                            self.blob_removed.write(
-                                (h.oid+h.tid).encode('hex')+'\n')
-                
+
+                        # But first, we need to make sure the record
+                        # we're looking at isn't a dup of the current
+                        # record. There's a bug in ZEO blob support that causes
+                        # duplicate data records.
+                        rpos = self.gc.reachable.get(h.oid)
+                        is_dup = (rpos
+                                  and self._read_data_header(rpos).tid == h.tid)
+                        if not is_dup:
+                            if h.oid not in self.gc.reachable:
+                                self.blob_removed.write(
+                                    h.oid.encode('hex')+'\n')
+                            else:
+                                self.blob_removed.write(
+                                    (h.oid+h.tid).encode('hex')+'\n')
+
                 pos += h.recordlen()
                 continue
 

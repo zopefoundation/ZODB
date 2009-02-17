@@ -22,6 +22,15 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+3.9.0a11 (2009-02-17)
+=====================
+
+Bugs Fixed
+----------
+
+- Packing a blob-enabled file storage in a ZEO server caused blob data
+  to be lost.
+
 3.9.0a10 (2009-01-05)
 =====================
 

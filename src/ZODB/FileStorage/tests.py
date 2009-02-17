@@ -14,16 +14,18 @@
 
 from zope.testing import doctest
 
+import cPickle
 import os
 import time
 import transaction
 import unittest
+import ZODB.blob
 import ZODB.FileStorage
 import ZODB.tests.util
 
 def pack_keep_old():
     """Should a copy of the database be kept?
-    
+
 The pack_keep_old constructor argument controls whether a .old file (and .old directory for blobs is kept.)
 
     >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')
@@ -61,7 +63,7 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     True
     >>> db.close()
 
-    
+
     >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs',
     ...                                   create=True, pack_keep_old=False)
     >>> db = ZODB.DB(fs)
@@ -85,10 +87,43 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     >>> os.path.exists('blobs.old')
     False
     >>> db.close()
-    
-    
     """
 
+def pack_with_repeated_blob_records():
+    """
+    There is a bug in ZEO that causes duplicate bloc database records
+    to be written in a blob store operation. (Maybe this has been
+    fixed by the time you read this, but there might still be
+    transactions in the wild that have duplicate records.
+
+    >>> fs = ZODB.FileStorage.FileStorage('t', blob_dir='bobs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = ZODB.blob.Blob()
+    >>> transaction.commit()
+    >>> tm = transaction.TransactionManager()
+    >>> oid = conn.root()[1]._p_oid
+    >>> blob_record, oldserial = fs.load(oid)
+
+    Now, create a transaction with multiple saves:
+
+    >>> trans = tm.begin()
+    >>> fs.tpc_begin(trans)
+    >>> open('ablob', 'w').write('some data')
+    >>> _ = fs.store(oid, oldserial, blob_record, '', trans)
+    >>> _ = fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
+    >>> fs.tpc_vote(trans)
+    >>> fs.tpc_finish(trans)
+
+    >>> time.sleep(.01)
+    >>> db.pack()
+
+    >>> conn.sync()
+    >>> conn.root()[1].open().read()
+    'some data'
+
+    >>> db.close()
+    """
 
 def test_suite():
     return unittest.TestSuite((
