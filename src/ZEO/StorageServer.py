@@ -1116,14 +1116,13 @@ class StorageServer:
             invq.insert(0, (tid, invalidated))
 
         for p in self.connections.get(storage_id, ()):
-            if invalidated and p is not conn:
-                try:
+            try:
+                if invalidated and p is not conn:
                     p.client.invalidateTransaction(tid, invalidated)
-                except ZEO.zrpc.error.DisconnectedError:
-                    pass
-
-            elif info is not None:
-                p.client.info(info)
+                elif info is not None:
+                    p.client.info(info)
+            except ZEO.zrpc.error.DisconnectedError:
+                pass
 
     def get_invalidations(self, storage_id, tid):
         """Return a tid and list of all objects invalidation since tid.
