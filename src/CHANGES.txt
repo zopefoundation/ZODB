@@ -31,6 +31,9 @@ Bugs Fixed
 - Packing a blob-enabled file storage in a ZEO server caused blob data
   to be lost.
 
+- Packing could return spurious errors due to errors notifying
+  disconnected clients of new database size statistics.
+
 3.9.0a10 (2009-01-05)
 =====================
 
