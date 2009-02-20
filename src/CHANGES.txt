@@ -22,6 +22,9 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+- Changed the url in the package metadata to point to PyPi. Also removed
+  references to download.zope.org.
+
 3.9.0a11 (2009-02-17)
 =====================
 

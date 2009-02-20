@@ -54,8 +54,7 @@ and install it are to use `easy_install
 
 To install by hand, first install the dependencies, ZConfig, zdaemon,
 zope.interface, zope.proxy and zope.testing.  These can be found
-either in the `Python Package Index <http://www.python.org/pypi>`_,
-or at http://download.zope.org/distribution/.
+in the `Python Package Index <http://www.python.org/pypi>`_.
 
 To build it, run the setup script::
 
