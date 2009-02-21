@@ -22,6 +22,9 @@ New Features
   XXX There are known issues with this implementation that need to be
   sorted out before it is "released".
 
+- Moved a blob related logging message to debug level, for the case of
+  everything working as intended.
+
 - Changed the url in the package metadata to point to PyPi. Also removed
   references to download.zope.org.
 

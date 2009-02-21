@@ -518,7 +518,7 @@ def auto_layout_select(path):
         layout = open(layout_marker, 'rb').read()
         layout = layout.strip()
         log('Blob directory `%s` has layout marker set. '
-            'Selected `%s` layout. ' % (path, layout))
+            'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
     return layout
 
 
