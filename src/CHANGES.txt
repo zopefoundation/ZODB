@@ -2,32 +2,6 @@
  Change History
 ================
 
-3.9.0 (2009-??-??)
-====================
-
-New Features
-------------
-
-- The connection now estimates the object size based on its pickle size
-  and informs the cache about size changes.
-
-  The database got additional configurations options (`cache-size-bytes`
-  and `historical-cache-size-bytes`) to limit the
-  cache size based on the estimated total size of cached objects.
-  The default values are 0 which has the interpretation "do not limit
-  based on the total estimated size".
-  There are corresponding methods to read and set the new configuration
-  parameters.
-
-  XXX There are known issues with this implementation that need to be
-  sorted out before it is "released".
-
-- Moved a blob related logging message to debug level, for the case of
-  everything working as intended.
-
-- Changed the url in the package metadata to point to PyPi. Also removed
-  references to download.zope.org.
-
 3.9.0a12 (2009-02-26)
 =====================
 
@@ -39,7 +13,7 @@ Bugs Fixed
   increasingly expensive over time.
 
 - The monitor server didn't correctly report the actual number of
-  clients. 
+  clients.
 
 3.9.0a11 (2009-02-17)
 =====================
