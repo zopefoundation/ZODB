@@ -28,6 +28,19 @@ New Features
 - Changed the url in the package metadata to point to PyPi. Also removed
   references to download.zope.org.
 
+3.9.0a12 (2009-02-26)
+=====================
+
+Bugs Fixed
+----------
+
+- Connections from old ZEO clients weren't discarded when they were
+  closed causing memory to leak and invalidations to become
+  increasingly expensive over time.
+
+- The monitor server didn't correctly report the actual number of
+  clients. 
+
 3.9.0a11 (2009-02-17)
 =====================
 

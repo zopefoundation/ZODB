@@ -161,9 +161,6 @@ class ZEOStorage:
         else:
             self.log("disconnected")
 
-        if self.stats is not None:
-            self.stats.clients -= 1
-
     def __repr__(self):
         tid = self.transaction and repr(self.transaction.id)
         if self.storage:
@@ -923,7 +920,8 @@ class StorageServer:
         self.stats = {}
         self.timeouts = {}
         for name in self.storages.keys():
-            self.stats[name] = StorageStats()
+            self.connections[name] = []
+            self.stats[name] = StorageStats(self.connections[name])
             if transaction_timeout is None:
                 # An object with no-op methods
                 timeout = StubTimeoutThread()
@@ -1011,13 +1009,8 @@ class StorageServer:
 
         Returns the timeout and stats objects for the appropriate storage.
         """
-        l = self.connections.get(storage_id)
-        if l is None:
-            l = self.connections[storage_id] = []
-        l.append(conn)
-        stats = self.stats[storage_id]
-        stats.clients += 1
-        return self.timeouts[storage_id], stats
+        self.connections[storage_id].append(conn)
+        return self.timeouts[storage_id], self.stats[storage_id]
 
     def _invalidateCache(self, storage_id):
         """We need to invalidate any caches we have.
@@ -1048,14 +1041,11 @@ class StorageServer:
         # Rebuild invq
         self._setup_invq(storage_id, self.storages[storage_id])
 
-        connections = self.connections.get(storage_id, ())
-
         # Make a copy since we are going to be mutating the
         # connections indirectoy by closing them.  We don't care about
         # later transactions since they will have to validate their
         # caches anyway.
-        connections = connections[:]
-        for p in connections:
+        for p in self.connections[storage_id][:]:
             try:
                 p.connection.should_close()
                 p.connection.trigger.pull_trigger()
@@ -1115,7 +1105,7 @@ class StorageServer:
                 invq.pop()
             invq.insert(0, (tid, invalidated))
 
-        for p in self.connections.get(storage_id, ()):
+        for p in self.connections[storage_id]:
             try:
                 if invalidated and p is not conn:
                     p.client.invalidateTransaction(tid, invalidated)
@@ -1349,6 +1339,9 @@ class ZEOStorage308Adapter:
 
     def __init__(self, storage):
         self.storage = storage
+
+    def __eq__(self, other):
+        return self is other or self.storage is other
 
     def getSerial(self, oid):
         return self.storage.loadEx(oid)[1] # Z200
