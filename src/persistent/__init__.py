@@ -15,20 +15,37 @@
 
 $Id$
 """
-
-from cPersistence import Persistent, GHOST, UPTODATE, CHANGED, STICKY
-from cPickleCache import PickleCache
-
-from cPersistence import simple_new
-import copy_reg
-copy_reg.constructor(simple_new)
-
-# Make an interface declaration for Persistent,
-# if zope.interface is available.
 try:
-    from zope.interface import classImplements
-except ImportError:
-    pass
+    from cPersistence import Persistent
+    from cPersistence import GHOST
+    from cPersistence import UPTODATE
+    from cPersistence import CHANGED
+    from cPersistence import STICKY
+    from cPersistence import simple_new
+except ImportError: # XXX need pure-Python fallback
+    _HAVE_CPERSISTECE = False
+    from pyPersistence import Persistent
+    from pyPersistence import GHOST
+    from pyPersistence import UPTODATE
+    from pyPersistence import CHANGED
+    from pyPersistence import STICKY
 else:
-    from persistent.interfaces import IPersistent
-    classImplements(Persistent, IPersistent)
+    _HAVE_CPERSISTECE = True
+    import copy_reg
+    copy_reg.constructor(simple_new)
+
+try:
+    from cPickleCache import PickleCache
+except ImportError:
+    from picklecache import PickleCache
+
+if _HAVE_CPERSISTECE:
+    # Make an interface declaration for Persistent, if zope.interface
+    # is available.  XXX that the pyPersistent version already does this?
+    try:
+        from zope.interface import classImplements
+    except ImportError:
+        pass
+    else:
+        from persistent.interfaces import IPersistent
+        classImplements(Persistent, IPersistent)
