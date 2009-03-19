@@ -18,6 +18,7 @@ $Id$
 
 from cPersistence import Persistent, GHOST, UPTODATE, CHANGED, STICKY
 from cPickleCache import PickleCache
+#from persistent._persistence import Persistent
 
 from cPersistence import simple_new
 import copy_reg

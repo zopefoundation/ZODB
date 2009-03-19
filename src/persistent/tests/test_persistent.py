@@ -12,7 +12,7 @@
 #
 ##############################################################################
 from zope.testing import doctest
-from persistent import Persistent
+from persistent._persistence import Persistent
 
 class P(Persistent):
     def __init__(self):

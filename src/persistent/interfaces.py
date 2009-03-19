@@ -156,14 +156,14 @@ class IPersistent(Interface):
     """
 
     _p_jar = Attribute(
-        """The data manager for the object.
+        """The data manager for the object. (Deprecated)
 
         The data manager implements the IPersistentDataManager interface.
         If there is no data manager, then this is None.
         """)
 
     _p_oid = Attribute(
-        """The object id.
+        """The object id. (Deprecated)
 
         It is up to the data manager to assign this.
         The special value None is reserved to indicate that an object
@@ -173,7 +173,7 @@ class IPersistent(Interface):
         """)
 
     _p_changed = Attribute(
-        """The persistent state of the object.
+        """The persistent state of the object. (Deprecated)
 
         This is one of:
 
@@ -203,7 +203,7 @@ class IPersistent(Interface):
         """)
 
     _p_serial = Attribute(
-        """The object serial number.
+        """The object serial number. (Deprecated)
 
         This member is used by the data manager to distiguish distinct
         revisions of a given persistent object.
@@ -221,9 +221,13 @@ class IPersistent(Interface):
     def __setstate__(state):
         """Set the object data.
         """
+    
+    def _p_release_state():
+        """Release the object's state.
+        """
 
     def _p_activate():
-        """Activate the object.
+        """Activate the object. (Deprecated)
 
         Change the object to the saved state if it is a ghost.
         """
@@ -238,7 +242,7 @@ class IPersistent(Interface):
         """
 
     def _p_invalidate():
-        """Invalidate the object.
+        """Invalidate the object. (Deprecated)
 
         Invalidate the object.  This causes any data to be thrown
         away, even if the object is in the changed state.  The object
@@ -253,6 +257,39 @@ class IPersistentNoReadConflicts(IPersistent):
         A specific persistent object type can define this method and
         have it return true if the data manager should ignore read
         conflicts for this object.
+        """
+
+class IPersistentObserver(Interface):
+    
+    def __setitem__(event, ignore):
+        """Efficiently notify observer or persistent object usage.
+        
+        Event is one of Used, Unused or Changed.
+        """
+    
+    def activate():
+        """Activate the referenced object.
+
+        Change the object to the saved state if it is a ghost.
+        """
+    
+    def invalidate():
+        """Invalidate the referenced object.
+
+        Invalidate the object.  This causes any data to be thrown
+        away, even if the object is in the changed state.  The object
+        is moved to the ghost state; further accesses will cause
+        object data to be reloaded.
+        """
+    
+    def ghostify():
+        """Move the referenced object to the ghost state.
+        
+        Called by _p_deactivate
+        """
+    
+    def unchanged():
+        """
         """
 
 # TODO:  document conflict resolution.
