@@ -280,7 +280,7 @@ class DummyConnection:
 
 def test_suite():
     return unittest.TestSuite((
-        DocTestSuite(),
+        unittest.makeSuite(PickleCacheTests),
         ))
 
 if __name__ == '__main__':
