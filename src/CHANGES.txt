@@ -8,6 +8,30 @@
 New Features
 ------------
 
+3.9.0a13 (2009-??-??)
+=====================
+
+New Features
+------------
+
+- The zeopack script has gotten a numner of improvements:
+
+  - Simplified command-line interface. (The old interface is still
+    supported, except that support for ZEO version 1 servers has been
+    dropped.)
+
+  - Multiple storages can be packed in sequence.
+
+    - This simplifies pack scheduling on servers serving multiple
+      databases.
+
+    - All storages are packed to the same time.
+
+  - You can now specify a time of day to pack to.
+
+  - The script will now time out if it can't connect to s storage in
+    60 seconds.
+
 - The connection now estimates the object size based on its pickle size
   and informs the cache about size changes.
 
@@ -18,15 +42,6 @@ New Features
   based on the total estimated size".
   There are corresponding methods to read and set the new configuration
   parameters.
-
-  XXX There are known issues with this implementation that need to be
-  sorted out before it is "released".
-
-- Moved a blob related logging message to debug level, for the case of
-  everything working as intended.
-
-- Changed the url in the package metadata to point to PyPi. Also removed
-  references to download.zope.org.
 
 3.9.0a12 (2009-02-26)
 =====================

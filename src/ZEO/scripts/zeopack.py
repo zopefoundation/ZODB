@@ -1,123 +1,182 @@
 #!/usr/bin/env python2.3
 
-"""Connect to a ZEO server and ask it to pack.
-
-Usage: zeopack.py [options]
-
-Options:
-
-    -p port -- port to connect to
-
-    -h host -- host to connect to (default is current host)
-
-    -U path -- Unix-domain socket to connect to
-
-    -S name -- storage name (default is '1')
-
-    -d days -- pack objects more than days old
-
-    -1 -- Connect to a ZEO 1 server
-
-    -W -- wait for server to come up.  Normally the script tries to
-       connect for 10 seconds, then exits with an error.  The -W
-       option is only supported with ZEO 1.
-
-You must specify either -p and -h or -U.
-"""
-
-import getopt
+import logging
+import optparse
 import socket
 import sys
 import time
+import traceback
+import ZEO.ClientStorage
 
-from ZEO.ClientStorage import ClientStorage
+usage = """Usage: %prog [options] [servers]
+
+Pack one or more storages hosted by ZEO servers.
+
+The positional arguments specify 0 or more tcp servers to pack, where
+each is of the form:
+
+    host:port[:name]
+
+"""
 
 WAIT = 10 # wait no more than 10 seconds for client to connect
 
-def connect(storage):
-    # The connect-on-startup logic that ZEO provides isn't too useful
-    # for this script.  We'd like to client to attempt to startup, but
-    # fail if it can't get through to the server after a reasonable
-    # amount of time.  There's no external support for this, so we'll
-    # expose the ZEO 1.0 internals.  (consenting adults only)
-    t0 = time.time()
-    while t0 + WAIT > time.time():
-        storage._call.connect()
-        if storage._connected:
-            return
-    raise RuntimeError("Unable to connect to ZEO server")
+def _main(args=None, prog=None):
+    if args is None:
+        args = sys.argv[1:]
 
-def pack1(addr, storage, days, wait):
-    cs = ClientStorage(addr, storage=storage,
-                       wait_for_server_on_startup=wait)
-    if wait:
-        # _startup() is an artifact of the way ZEO 1.0 works.  The
-        # ClientStorage doesn't get fully initialized until registerDB()
-        # is called.  The only thing we care about, though, is that
-        # registerDB() calls _startup().
-        cs._startup()
-    else:
-        connect(cs)
-    cs.invalidator = None
-    cs.pack(wait=1, days=days)
-    cs.close()
+    parser = optparse.OptionParser(usage, prog=prog)
 
-def pack2(addr, storage, days):
-    cs = ClientStorage(addr, storage=storage, wait=1, read_only=1)
-    cs.pack(wait=1, days=days)
-    cs.close()
+    parser.add_option(
+        "-d", "--days", dest="days", type='int', default=0,
+        help=("Pack objects that are older than this number of days")
+        )
 
-def usage(exit=1):
-    print __doc__
-    print " ".join(sys.argv)
-    sys.exit(exit)
+    parser.add_option(
+        "-t", "--time", dest="time",
+        help=("Time of day to pack to of the form: HH[:MM[:SS]]. "
+              "Defaults to current time.")
+        )
 
-def main():
-    host = None
-    port = None
-    unix = None
-    storage = '1'
-    days = 0
-    wait = 0
-    zeoversion = 2
+    parser.add_option(
+        "-u", "--unix", dest="unix_sockets", action="append",
+        help=("A unix-domain-socket server to connect to, of the form: "
+              "path[:name]")
+        )
+
+    parser.remove_option('-h')
+    parser.add_option(
+        "-h", dest="host",
+        help=("Deprecated: "
+              "Used with the -p and -S options, specified the host to "
+              "connect to.")
+        )
+
+    parser.add_option(
+        "-p", type="int", dest="port",
+        help=("Deprecated: "
+              "Used with the -h and -S options, specifies "
+              "the port to connect to.")
+        )
+
+    parser.add_option(
+        "-S", dest="name", default='1',
+        help=("Deprecated: Used with the -h and -p, options, or with the "
+              "-U option specified the storage name to use. Defaults to 1.")
+        )
+
+    parser.add_option(
+        "-U", dest="unix",
+        help=("Deprecated: Used with the -S option, "
+              "Unix-domain socket to connect to.")
+        )
+
+    if not args:
+        parser.print_help()
+        return
+
+    def error(message):
+        sys.stderr.write("Error:\n%s\n" % message)
+        sys.exit(1)
+
+    options, args = parser.parse_args(args)
+
+    packt = time.time()
+    if options.time:
+        time_ = map(int, options.time.split(':'))
+        if len(time_) == 1:
+            time_ += (0, 0)
+        elif len(time_) == 2:
+            time_ += (0,)
+        elif len(time_) > 3:
+            error("Invalid time value: %r" % options.time)
+
+        packt = time.localtime(packt)
+        packt = time.mktime(packt[:3]+tuple(time_)+packt[6:])
+
+    packt -= options.days * 86400
+
+    servers = []
+
+    if options.host:
+        if not options.port:
+            error("If host (-h) is specified then a port (-p) must be "
+                  "specified as well.")
+        servers.append(((options.host, options.port), options.name))
+    elif options.port:
+        error("If port (-p) is specified then a host (-h) must be "
+              "specified as well.")
+
+    if options.unix:
+        servers.append((options.unix, options.name))
+
+    for server in args:
+        data = server.split(':')
+        if len(data) in (2, 3):
+            host = data[0]
+            try:
+                port = int(data[1])
+            except ValueError:
+                error("Invalid port in server specification: %r" % server)
+            addr = host, port
+            if len(data) == 2:
+                name = '1'
+            else:
+                name = data[2]
+        else:
+            error("Invalid server specification: %r" % server)
+
+        servers.append((addr, name))
+
+    for server in options.unix_sockets or ():
+        data = server.split(':')
+        if len(data) == 1:
+            addr = data[0]
+            name = '1'
+        elif len(data) == 2:
+            addr = data[0]
+            name = data[1]
+        else:
+            error("Invalid server specification: %r" % server)
+
+        servers.append((addr, name))
+
+    if not servers:
+        error("No servers specified.")
+
+    for addr, name in servers:
+        try:
+            cs = ZEO.ClientStorage.ClientStorage(
+                addr, storage=name, wait=False, read_only=1)
+            for i in range(60):
+                if cs.is_connected():
+                    break
+                time.sleep(1)
+            else:
+                sys.stderr.write("Couldn't connect to: %r\n"
+                                 % ((addr, name), ))
+                cs.close()
+                continue
+            cs.pack(packt, wait=True)
+            cs.close()
+        except:
+            traceback.print_exception(*(sys.exc_info()+(99, sys.stderr)))
+            error("Error packing storage %s in %r" % (name, addr))
+
+def main(*args):
+    root_logger = logging.getLogger()
+    old_level = root_logger.getEffectiveLevel()
+    logging.getLogger().setLevel(logging.WARNING)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        "%(name)s %(levelname)s %(message)s"))
+    logging.getLogger().addHandler(handler)
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'p:h:U:S:d:W1')
-        for o, a in opts:
-            if o == '-p':
-                port = int(a)
-            elif o == '-h':
-                host = a
-            elif o == '-U':
-                unix = a
-            elif o == '-S':
-                storage = a
-            elif o == '-d':
-                days = int(a)
-            elif o == '-W':
-                wait = 1
-            elif o == '-1':
-                zeoversion = 1
-    except Exception, err:
-        print err
-        usage()
-
-    if unix is not None:
-        addr = unix
-    else:
-        if host is None:
-            host = socket.gethostname()
-        if port is None:
-            usage()
-        addr = host, port
-
-    if zeoversion == 1:
-        pack1(addr, storage, days, wait)
-    else:
-        pack2(addr, storage, days)
+        _main(*args)
+    finally:
+        logging.getLogger().setLevel(old_level)
+        logging.getLogger().removeHandler(handler)
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception, err:
-        print err
-        sys.exit(1)
+    main()
+
