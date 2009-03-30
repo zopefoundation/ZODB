@@ -18,7 +18,7 @@ Client -- abstract base class for authentication client
 """
 
 import os
-import sha
+from ZEO.hash import sha1
 
 class Client:
     # Subclass should override to list the names of methods that
@@ -113,7 +113,7 @@ class Database:
         return self._users[username]
 
     def hash(self, s):
-        return sha.new(s).hexdigest()
+        return sha1.new(s).hexdigest()
 
     def add_user(self, username, password):
         if self._users.has_key(username):
