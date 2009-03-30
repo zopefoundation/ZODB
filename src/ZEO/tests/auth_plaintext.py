@@ -19,7 +19,10 @@ This mechanism offers *no network security at all*; the only security
 is provided by not storing plaintext passwords on disk.
 """
 
-import sha
+try
+    from hashlib import sha1 as sha
+except ImportError:
+    import sha
 
 from ZEO.StorageServer import ZEOStorage
 from ZEO.auth import register_module
