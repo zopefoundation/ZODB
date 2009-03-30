@@ -31,7 +31,10 @@ try:
     import hmac
 except ImportError:
     import _hmac as hmac
-import sha
+try:
+    from hashlib import sha1 as sha
+except ImportError:
+    import sha
 import socket
 import struct
 import threading
