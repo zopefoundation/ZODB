@@ -14,7 +14,7 @@ New Features
 New Features
 ------------
 
-- The zeopack script has gotten a numner of improvements:
+- The zeopack script has gotten a number of improvements:
 
   - Simplified command-line interface. (The old interface is still
     supported, except that support for ZEO version 1 servers has been
