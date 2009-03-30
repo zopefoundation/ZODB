@@ -113,7 +113,7 @@ class Database:
         return self._users[username]
 
     def hash(self, s):
-        return sha1.new(s).hexdigest()
+        return sha1(s).hexdigest()
 
     def add_user(self, username, password):
         if self._users.has_key(username):
