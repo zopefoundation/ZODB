@@ -43,6 +43,11 @@ New Features
   There are corresponding methods to read and set the new configuration
   parameters.
 
+Bugs Fixed
+----------
+
+- fixed Python 2.6 compatibility issue with ZEO/zeoserverlog.py
+
 3.9.0a12 (2009-02-26)
 =====================
 
