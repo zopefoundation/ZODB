@@ -19,17 +19,15 @@ This mechanism offers *no network security at all*; the only security
 is provided by not storing plaintext passwords on disk.
 """
 
-try:
-    from hashlib import sha1 as sha
-except ImportError:
-    import sha
 
 from ZEO.StorageServer import ZEOStorage
 from ZEO.auth import register_module
 from ZEO.auth.base import Client, Database
 
+from ZEO.hash import sha1
+
 def session_key(username, realm, password):
-    return sha.new("%s:%s:%s" % (username, realm, password)).hexdigest()
+    return sha1.new("%s:%s:%s" % (username, realm, password)).hexdigest()
 
 class StorageClass(ZEOStorage):
 
@@ -39,7 +37,7 @@ class StorageClass(ZEOStorage):
         except LookupError:
             return 0
 
-        password_dig = sha.new(password).hexdigest()
+        password_dig = sha1.new(password).hexdigest()
         if dbpw == password_dig:
             self.connection.setSessionKey(session_key(username,
                                                       self.database.realm,
