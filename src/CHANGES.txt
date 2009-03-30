@@ -48,6 +48,9 @@ Bugs Fixed
 
 - fixed Python 2.6 compatibility issue with ZEO/zeoserverlog.py
 
+- using hashlib.sha1 if available in order to avoid DeprecationWarning
+  under Python 2.6
+
 3.9.0a12 (2009-02-26)
 =====================
 
