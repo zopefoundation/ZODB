@@ -19,7 +19,7 @@ This mechanism offers *no network security at all*; the only security
 is provided by not storing plaintext passwords on disk.
 """
 
-try
+try:
     from hashlib import sha1 as sha
 except ImportError:
     import sha
