@@ -15,6 +15,8 @@
 
 $Id$"""
 
+import sys
+
 from ZODB.utils import oid_repr, readable_tid_repr
 
 # BBB: We moved the two transactions to the transaction package
@@ -34,22 +36,38 @@ _recon.__no_side_effects__ = True
 class POSError(StandardError):
     """Persistent object system error."""
 
-    def __reduce__(self):
-        # Cope extra data from internal structures
-        state = self.__dict__.copy()
-        state['message'] = self.message
-        state['args'] = self.args
+    if sys.version_info[:2] == (2, 6):
+        # The 'message' attribute was deprecated for BaseException with
+        # Python 2.6; here we create descriptor properties to continue using it
+        def __set_message(self, v):
+            self.__dict__['message'] = v
 
-        return (_recon, (self.__class__, state))
+        def __get_message(self):
+            return self.__dict__['message']
 
-class POSKeyError(KeyError, POSError):
+        def __del_message(self):
+            del self.__dict__['message']
+
+        message = property(__get_message, __set_message, __del_message)
+
+    if sys.version_info[:2] >= (2, 5):
+        def __reduce__(self):
+            # Copy extra data from internal structures
+            state = self.__dict__.copy()
+            if sys.version_info[:2] == (2, 5):
+                state['message'] = self.message
+            state['args'] = self.args
+
+            return (_recon, (self.__class__, state))
+
+class POSKeyError(POSError, KeyError):
     """Key not found in database."""
 
     def __str__(self):
         return oid_repr(self.args[0])
 
 
-class ConflictError(TransactionError):
+class ConflictError(POSError, TransactionError):
     """Two transactions tried to modify the same object at once.
 
     This transaction should be resubmitted.
@@ -213,7 +231,7 @@ class BTreesConflictError(ConflictError):
         return "BTrees conflict error at %d/%d/%d: %s" % (
             self.p1, self.p2, self.p3, self.msgs[self.reason])
 
-class DanglingReferenceError(TransactionError):
+class DanglingReferenceError(POSError, TransactionError):
     """An object has a persistent reference to a missing object.
 
     If an object is stored and it has a reference to another object
