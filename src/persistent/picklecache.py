@@ -31,7 +31,8 @@ class RingNode(object):
 class PickleCache(object):
     implements(IPickleCache)
 
-    def __init__(self, jar, target_size):
+    def __init__(self, jar, target_size=0, cache_size_bytes=0):
+        # TODO:  forward-port Dieter's bytes stuff
         self.jar = jar
         self.target_size = target_size
         self.drain_resistance = 0
@@ -171,7 +172,7 @@ class PickleCache(object):
     def invalidate(self, to_invalidate):
         """ See IPickleCache.
         """
-        if isintance(to_invalidate, str):
+        if isinstance(to_invalidate, str):
             self._invalidate(to_invalidate)
         else:
             for oid in to_invalidate:
