@@ -304,6 +304,7 @@ class ObjectWriter:
                         # to be added.  We'll be optimistic, though, and
                         # assume that the object will be added eventually.
 
+                        # TODO: should be done by connection
                         oid = self._jar.new_oid()
                         obj._p_jar = self._jar
                         obj._p_oid = oid
@@ -319,6 +320,7 @@ class ObjectWriter:
         database_name = None
 
         if oid is None:
+            # TODO: should be done by connection
             oid = obj._p_oid = self._jar.new_oid()
             obj._p_jar = self._jar
             self._stack.append(obj)
