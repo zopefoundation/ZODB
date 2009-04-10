@@ -116,6 +116,8 @@ class ZEOOptionsMixin:
 
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
 
+    __doc__ = __doc__
+
     logsectionname = "eventlog"
     schemadir = os.path.dirname(ZEO.__file__)
 
