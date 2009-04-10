@@ -183,7 +183,7 @@ More information
 We maintain a Wiki page about all things ZODB, including status on
 future directions for ZODB.  Please see
 
-    http://www.zope.org/Wikis/ZODB
+    http://wiki.zope.org/ZODB/FrontPage
 
 and feel free to contribute your comments.  There is a Mailman mailing
 list in place to discuss all issues related to ZODB.  You can send
