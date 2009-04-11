@@ -31,7 +31,6 @@ try:
     import hmac
 except ImportError:
     import _hmac as hmac
-import sha
 import socket
 import struct
 import threading
