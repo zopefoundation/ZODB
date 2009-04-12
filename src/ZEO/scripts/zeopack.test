@@ -18,9 +18,13 @@ for our test:
     ...             repr(args)[1:-1],
     ...             ', '.join("%s=%r" % i for i in sorted(kw.items())),
     ...             )
-    ...     def pack(self, *args, **kw):
-    ...         print "pack(%s %s)" % (
-    ...             repr(args)[1:-1],
+    ...     def pack(self, t=None, *args, **kw):
+    ...         now = time.localtime(time.time())
+    ...         local_midnight = time.mktime(now[:3]+(0, 0, 0)+now[6:])
+    ...         t -= local_midnight # adjust for tz
+    ...         t += 86400*7 # add a week to make sure we're positive
+    ...         print "pack(%r,%s %s)" % (
+    ...             t, repr(args)[1:-1],
     ...             ', '.join("%s=%r" % i for i in sorted(kw.items())),
     ...             )
     ...     def is_connected(self):
@@ -74,9 +78,6 @@ Since packing involved time, we'd better have our way with it:
     >>> import time
     >>> time_orig = time.time
     >>> time.time = lambda : 1237906517.0
-    >>> import os
-    >>> oldtz = os.environ.get('TZ')
-    >>> os.environ['TZ'] = 'PST+07'
     >>> sleep_orig = time.sleep
     >>> def sleep(t):
     ...     print 'sleep(%r)' % t
@@ -87,11 +88,11 @@ Normally, we pass one or more TCP server specifications:
     >>> main(["host1:8100", "host1:8100:2"])
     ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
     is_connected True
-    pack(1237906517.0, wait=True)
+    pack(644117.0, wait=True)
     close()
     ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
     is_connected True
-    pack(1237906517.0, wait=True)
+    pack(644117.0, wait=True)
     close()
 
 We can also pass unix-domain-sockey servers using the -u option:
@@ -99,19 +100,19 @@ We can also pass unix-domain-sockey servers using the -u option:
     >>> main(["-ufoo", "-ubar:spam", "host1:8100", "host1:8100:2"])
     ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
     is_connected True
-    pack(1237906517.0, wait=True)
+    pack(644117.0, wait=True)
     close()
     ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
     is_connected True
-    pack(1237906517.0, wait=True)
+    pack(644117.0, wait=True)
     close()
     ClientStorage('foo', read_only=1, storage='1', wait=False)
     is_connected True
-    pack(1237906517.0, wait=True)
+    pack(644117.0, wait=True)
     close()
     ClientStorage('bar', read_only=1, storage='spam', wait=False)
     is_connected True
-    pack(1237906517.0, wait=True)
+    pack(644117.0, wait=True)
     close()
 
 The -d option causes a pack time the given number of days earlier to
@@ -120,19 +121,19 @@ be used:
     >>> main(["-ufoo", "-ubar:spam", "-d3", "host1:8100", "host1:8100:2"])
     ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
     is_connected True
-    pack(1237647317.0, wait=True)
+    pack(384917.0, wait=True)
     close()
     ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
     is_connected True
-    pack(1237647317.0, wait=True)
+    pack(384917.0, wait=True)
     close()
     ClientStorage('foo', read_only=1, storage='1', wait=False)
     is_connected True
-    pack(1237647317.0, wait=True)
+    pack(384917.0, wait=True)
     close()
     ClientStorage('bar', read_only=1, storage='spam', wait=False)
     is_connected True
-    pack(1237647317.0, wait=True)
+    pack(384917.0, wait=True)
     close()
 
 The -t option allows us to control the time of day:
@@ -140,11 +141,11 @@ The -t option allows us to control the time of day:
     >>> main(["-ufoo", "-d3", "-t1:30", "host1:8100:2"])
     ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
     is_connected True
-    pack(1237624200.0, wait=True)
+    pack(351000.0, wait=True)
     close()
     ClientStorage('foo', read_only=1, storage='1', wait=False)
     is_connected True
-    pack(1237624200.0, wait=True)
+    pack(351000.0, wait=True)
     close()
 
 Connection timeout
@@ -164,7 +165,7 @@ seconds of waiting for a connect.
     is_connected False
     sleep(1)
     is_connected True
-    pack(1237624200.0, wait=True)
+    pack(351000.0, wait=True)
     close()
 
     >>> def call_main(args):
@@ -208,13 +209,13 @@ Legacy support
     >>> main(["-d3", "-h", "host1", "-p", "8100", "-S", "2"])
     ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
     is_connected True
-    pack(1237647317.0, wait=True)
+    pack(384917.0, wait=True)
     close()
 
     >>> main(["-d3", "-U", "foo/bar", "-S", "2"])
     ClientStorage('foo/bar', read_only=1, storage='2', wait=False)
     is_connected True
-    pack(1237647317.0, wait=True)
+    pack(384917.0, wait=True)
     close()
 
 Error handling
@@ -263,7 +264,3 @@ Note that in the previous example, the first line was output through logging.
     >>> ZEO.ClientStorage.ClientStorage = ClientStorage_orig
     >>> time.time = time_orig
     >>> time.sleep = sleep_orig
-    >>> if oldtz is None:
-    ...     del os.environ['TZ']
-    ... else:
-    ...     os.environ['TZ'] = oldtz
