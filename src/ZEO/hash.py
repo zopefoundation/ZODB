@@ -18,11 +18,11 @@ between versions."""
 
 import sys
 
-if sys.version_info[:2] >= (2, 6):
+try:
     import hashlib
     sha1 = hashlib.sha1
     new = sha1
-else:
+except ImportError:
     import sha
     sha1 = sha.new
     new = sha1
