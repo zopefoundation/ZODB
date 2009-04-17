@@ -87,10 +87,10 @@ class Connection(ExportImport, object):
         self._debug_info = ()
 
         self._db = db
-        
+
         # historical connection
         self.before = before
-        
+
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
@@ -228,7 +228,7 @@ class Connection(ExportImport, object):
             return obj
         obj = self._added.get(oid, None)
         if obj is not None:
-            return obj        
+            return obj
         obj = self._pre_cache.get(oid, None)
         if obj is not None:
             return obj
@@ -533,7 +533,7 @@ class Connection(ExportImport, object):
 
     def _commit(self, transaction):
         """Commit changes to an object"""
-        
+
         if self.before is not None:
             raise ReadOnlyHistoryError()
 
@@ -553,7 +553,7 @@ class Connection(ExportImport, object):
         self._added_during_commit = []
 
         if self._invalidatedCache:
-            raise ConflictError()            
+            raise ConflictError()
 
         for obj in self._registered_objects:
             oid = obj._p_oid
@@ -595,7 +595,7 @@ class Connection(ExportImport, object):
                  or self._savepoint_storage.creating[oid]
                  )
                 ):
-                
+
                 # obj is a new object
 
                 # Because obj was added, it is now in _creating, so it
@@ -616,7 +616,7 @@ class Connection(ExportImport, object):
             if isinstance(obj, Blob):
                 if not IBlobStorage.providedBy(self._storage):
                     raise Unsupported(
-                        "Storing Blobs in %s is not supported." % 
+                        "Storing Blobs in %s is not supported." %
                         repr(self._storage))
                 if obj.opened():
                     raise ValueError("Can't commit with opened blobs.")
@@ -829,7 +829,7 @@ class Connection(ExportImport, object):
         # 3. Raise ConflictError.
 
         # Does anything actually use _p_independent()?  It would simplify
-        # the code if we could drop support for it.  
+        # the code if we could drop support for it.
         # (BTrees.Length does.)
 
 
@@ -840,7 +840,7 @@ class Connection(ExportImport, object):
             if t is None:
                 raise POSKeyError() # historical connection!
             p, serial, end = t
-        
+
         else:
             # There is a harmless data race with self._invalidated.  A
             # dict update could go on in another thread, but we don't care
@@ -848,22 +848,22 @@ class Connection(ExportImport, object):
 
             if self._invalidatedCache:
                 raise ReadConflictError()
-    
+
             if (obj._p_oid in self._invalidated and
                     not myhasattr(obj, "_p_independent")):
                 # If the object has _p_independent(), we will handle it below.
                 self._load_before_or_conflict(obj)
                 return
-    
+
             p, serial = self._storage.load(obj._p_oid, '')
             self._load_count += 1
-    
+
             self._inv_lock.acquire()
             try:
                 invalid = obj._p_oid in self._invalidated
             finally:
                 self._inv_lock.release()
-    
+
             if invalid:
                 if myhasattr(obj, "_p_independent"):
                     # This call will raise a ReadConflictError if something
