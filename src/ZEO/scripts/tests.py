@@ -15,11 +15,17 @@
 
 $Id$
 """
-import unittest
-from zope.testing import doctest
+import re, unittest
+from zope.testing import doctest, renormalizing
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('zeopack.test'),
+        doctest.DocFileSuite(
+            'zeopack.test',
+            checker=renormalizing.RENormalizing([
+                (re.compile('usage: Usage: '), 'Usage: '), # Py 2.4
+                (re.compile('options:'), 'Options:'), # Py 2.4
+                ])
+            ),
         ))
 
