@@ -44,7 +44,7 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
     path
        A file-storage path. This argument is ignored if a storage
        configuration is supplied.
-    
+
     blob_dir
        A blob directory path. This argument is ignored if a storage
        configuration is supplied.
@@ -57,12 +57,12 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
 
     zeo_conf
        A ZEO server configuration string.
-    
+
     port
        If no ZEO configuration is supplied, the one will be computed
        from the port.  If no port is supplied, one will be chosedn
        randomly.
-    
+
     """
     import os, ZEO.tests.forker
     if storage_conf is None and path is None:
@@ -77,4 +77,4 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
     def stop_server():
         ZEO.tests.forker.shutdown_zeo_server(admin)
         os.waitpid(pid, 0)
-    return addr, stop_server 
+    return addr, stop_server
