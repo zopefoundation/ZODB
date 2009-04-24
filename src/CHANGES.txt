@@ -14,6 +14,11 @@ New Features
 New Features
 ------------
 
+- Convenience methods ZODB.DB.open and ZEO.DB.open provide a
+  convenient way to open a connection to a database.  They open a
+  database and return a connection to it. When the connection is
+  closed, the database is closed as well.
+
 - The zeopack script has gotten a number of improvements:
 
   - Simplified command-line interface. (The old interface is still
@@ -64,7 +69,7 @@ Bugs Fixed
   increasingly expensive over time.
 
 - The monitor server didn't correctly report the actual number of
-  clients. 
+  clients.
 
 3.9.0a11 (2009-02-17)
 =====================

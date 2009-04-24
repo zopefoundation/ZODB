@@ -329,6 +329,20 @@ def getTID(at, before):
     return before
 
 
+class Methods(object):
+
+    def __init__(self, name, ifunc, cfunc=None):
+        self.__name__ = name
+        self.im_func = ifunc
+        self.cm_func = cfunc
+
+    def __get__(self, inst, class_):
+        if inst is None:
+            if self.cm_func is None:
+                raise AttributeError("Only in instances", self.__name__)
+            return self.cm_func.__get__(class_, type(class_))
+        return self.im_func.__get__(inst, class_)
+
 class DB(object):
     """The Object Database
     -------------------
@@ -754,6 +768,14 @@ class DB(object):
 
         finally:
             self._r()
+
+    def class_open(class_, *args, **kw):
+        db = class_(*args, **kw)
+        conn = db.open()
+        conn.onCloseCallback(db.close)
+        return conn
+
+    open = Methods('open', open, class_open)
 
     def connectionDebugInfo(self):
         result = []

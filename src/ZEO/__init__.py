@@ -25,6 +25,15 @@ def DB(*args, **kw):
     import ZEO.ClientStorage, ZODB
     return ZODB.DB(ZEO.ClientStorage.ClientStorage(*args, **kw))
 
+def open(*args, **kw):
+    db = DB(*args, **kw)
+    conn = db.open()
+    conn.onCloseCallback(db.close)
+    return conn
+
+DB.open = open
+del open
+
 def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
            port=None):
     """Convenience function to start a server for interactive exploration

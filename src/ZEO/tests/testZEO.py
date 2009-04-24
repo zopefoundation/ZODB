@@ -1151,6 +1151,30 @@ def delete_object_multiple_clients():
     >>> cs.close()
     """
 
+
+def open_convenience():
+    """Often, we just want to open a single connection.
+
+    >>> addr, _ = start_server(path='data.fs')
+    >>> conn = ZEO.DB.open(addr)
+    >>> conn.root()
+    {}
+
+    >>> conn.root()['x'] = 1
+    >>> transaction.commit()
+    >>> conn.close()
+
+    Let's make sure the database was cloased when we closed the
+    connection, and that the data is there.
+
+    >>> db = ZEO.DB(addr)
+    >>> conn = db.open()
+    >>> conn.root()
+    {'x': 1}
+    >>> db.close()
+    """
+
+
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     DemoStorageTests, FileStorageTests, MappingStorageTests,

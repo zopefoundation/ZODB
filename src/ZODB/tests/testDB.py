@@ -146,8 +146,44 @@ def connectionDebugInfo():
 
     """
 
+def passing_a_file_name_to_DB():
+    """You can pass a file-storage file name to DB.
+
+    (Also note that we can access DB in ZODB.)
+
+    >>> db = ZODB.DB('data.fs')
+    >>> db.storage # doctest: +ELLIPSIS
+    <ZODB.FileStorage.FileStorage.FileStorage object at ...
+    >>> os.path.exists('data.fs')
+    True
+
+    >>> db.close()
+    """
+
+def open_convenience():
+    """Often, we just want to open a single connection.
+
+    >>> conn = ZODB.DB.open('data.fs')
+    >>> conn.root()
+    {}
+
+    >>> conn.root()['x'] = 1
+    >>> transaction.commit()
+    >>> conn.close()
+
+    Let's make sure the database was cloased when we closed the
+    connection, and that the data is there.
+
+    >>> db = ZODB.DB('data.fs')
+    >>> conn = db.open()
+    >>> conn.root()
+    {'x': 1}
+    >>> db.close()
+    """
 
 def test_suite():
     s = unittest.makeSuite(DBTests)
-    s.addTest(doctest.DocTestSuite())
+    s.addTest(doctest.DocTestSuite(
+        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+        ))
     return s
