@@ -33,7 +33,7 @@ from ZODB.tests import (
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
-        
+
     HistoryStorage.HistoryStorage,
     IteratorStorage.ExtendedIteratorStorage,
     IteratorStorage.IteratorStorage,
@@ -72,12 +72,12 @@ class DemoStorageTests(
         transaction.commit()
         self.assertEqual(len(self._storage), 11)
         self.assert_(self._storage)
-        
+
     def checkLoadBeforeUndo(self):
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
-        
+
 class DemoStorageWrappedBase(DemoStorageTests):
 
     def setUp(self):
@@ -93,7 +93,7 @@ class DemoStorageWrappedBase(DemoStorageTests):
         raise NotImplementedError
 
     def checkPackOnlyOneObject(self):
-        pass # Wrapping demo storages don't do gc 
+        pass # Wrapping demo storages don't do gc
 
     def checkPackWithMultiDatabaseReferences(self):
         pass # we never do gc
@@ -110,7 +110,7 @@ class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
     def _makeBaseStorage(self):
         from ZODB.FileStorage import FileStorage
         return FileStorage('FileStorageTests.fs')
-                       
+
 
 
 def setUp(test):
@@ -168,7 +168,7 @@ def blob_pos_key_error_with_non_blob_base():
     Traceback (most recent call last):
     ...
     POSKeyError: 0x01
-    
+
     """
 
 
