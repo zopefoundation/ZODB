@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -16,8 +16,8 @@ import unittest
 
 from persistent.mapping import PersistentMapping
 import transaction
-import ZODB.PollableMappingStorage
 from ZODB.DB import DB
+from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
 
 
 from ZODB.tests import (
@@ -31,11 +31,11 @@ from ZODB.tests import (
     Synchronization,
     )
 
-class PollableTests:
+class MVCCTests:
 
     def checkCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.
-        # This will fail if Connection doesn't poll for changes.
+        # This will fail if the Connection doesn't poll for changes.
         db = DB(self._storage)
         try:
             c1 = db.open()
@@ -129,7 +129,7 @@ class PollableTests:
             db.close()
     
 
-class PollableMappingStorageTests(
+class MVCCMappingStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
 
@@ -140,11 +140,11 @@ class PollableMappingStorageTests(
     PackableStorage.PackableStorageWithOptionalGC,
     RevisionStorage.RevisionStorage,
     Synchronization.SynchronizedStorage,
-    PollableTests
+    MVCCTests
     ):
 
     def setUp(self):
-        self._storage = ZODB.PollableMappingStorage.PollableMappingStorage()
+        self._storage = MVCCMappingStorage()
 
     def tearDown(self):
         self._storage.close()
@@ -155,7 +155,7 @@ class PollableMappingStorageTests(
 
 
 def test_suite():
-    suite = unittest.makeSuite(PollableMappingStorageTests, 'check')
+    suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')
     return suite
 
 if __name__ == "__main__":

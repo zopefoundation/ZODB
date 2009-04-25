@@ -20,30 +20,31 @@ connection's view.
 import time
 
 import BTrees
-from ZODB.interfaces import IStoragePollable
+from ZODB.interfaces import IMVCCStorage
 from ZODB.MappingStorage import MappingStorage
 from ZODB.TimeStamp import TimeStamp
 from zope.interface import implements
 
 
-class PollableMappingStorage(MappingStorage):
-    implements(IStoragePollable)
+class MVCCMappingStorage(MappingStorage):
+    implements(IMVCCStorage)
 
-    propagate_invalidations = False
-
-    def __init__(self, name="Pollable Mapping Storage"):
+    def __init__(self, name="MVCC Mapping Storage"):
         MappingStorage.__init__(self, name=name)
         # _polled_tid contains the transaction ID at the last poll.
         self._polled_tid = ''
 
-    def bind_connection(self, connection):
-        """Returns a storage instance to be used by the given Connection.
+    def new_instance(self):
+        """Returns a storage instance that is a view of the same data.
         """
-        return BoundStorage(self)
+        res = MVCCMappingStorage(name=self.__name__)
+        res._transactions = self._transactions
+        return res
 
-    def connection_closing(self):
-        """Notifies the storage that a connection is closing.
-        """
+    def sync(self, force=False):
+        pass
+
+    def release(self):
         pass
 
     def poll_invalidations(self):
@@ -82,12 +83,3 @@ class PollableMappingStorage(MappingStorage):
 
         self._polled_tid = new_tid
         return list(changed_oids)
-
-
-class BoundStorage(PollableMappingStorage):
-    """A PollableMappingStorage used for a specific Connection."""
-
-    def __init__(self, common):
-        PollableMappingStorage.__init__(self, name=common.__name__)
-        # bound storages use the same transaction log as the common storage.
-        self._transactions = common._transactions
