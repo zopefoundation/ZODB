@@ -35,6 +35,7 @@ import transaction.weakset
 
 from zope.interface import implements
 from ZODB.interfaces import IDatabase
+from ZODB.interfaces import IMVCCStorage
 
 import BTrees.OOBTree
 import transaction
@@ -425,28 +426,32 @@ class DB(object):
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
 
+        if IMVCCStorage.providedBy(storage):
+            temp_storage = storage.new_instance()
+        else:
+            temp_storage = storage
         try:
-            storage.load(z64, '')
-        except KeyError:
-            # Create the database's root in the storage if it doesn't exist
-            from persistent.mapping import PersistentMapping
-            root = PersistentMapping()
-            # Manually create a pickle for the root to put in the storage.
-            # The pickle must be in the special ZODB format.
-            file = cStringIO.StringIO()
-            p = cPickle.Pickler(file, 1)
-            p.dump((root.__class__, None))
-            p.dump(root.__getstate__())
-            t = transaction.Transaction()
-            t.description = 'initial database creation'
-            storage.tpc_begin(t)
-            storage.store(z64, None, file.getvalue(), '', t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
-        if hasattr(storage, 'connection_closing'):
-            # Let the storage release whatever resources it used for loading
-            # the root object.
-            storage.connection_closing()
+            try:
+                temp_storage.load(z64, '')
+            except KeyError:
+                # Create the database's root in the storage if it doesn't exist
+                from persistent.mapping import PersistentMapping
+                root = PersistentMapping()
+                # Manually create a pickle for the root to put in the storage.
+                # The pickle must be in the special ZODB format.
+                file = cStringIO.StringIO()
+                p = cPickle.Pickler(file, 1)
+                p.dump((root.__class__, None))
+                p.dump(root.__getstate__())
+                t = transaction.Transaction()
+                t.description = 'initial database creation'
+                temp_storage.tpc_begin(t)
+                temp_storage.store(z64, None, file.getvalue(), '', t)
+                temp_storage.tpc_vote(t)
+                temp_storage.tpc_finish(t)
+        finally:
+            if IMVCCStorage.providedBy(temp_storage):
+                temp_storage.release()
 
         # Multi-database setup.
         if databases is None:

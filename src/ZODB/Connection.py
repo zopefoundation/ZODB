@@ -30,6 +30,7 @@ from persistent import PickleCache
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
 from ZODB.interfaces import IBlobStorage
+from ZODB.interfaces import IMVCCStorage
 from ZODB.blob import Blob, rename_or_copy_blob
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
@@ -95,10 +96,13 @@ class Connection(ExportImport, object):
         self.connections = {self._db.database_name: self}
 
         storage = db.storage
-        m = getattr(storage, 'bind_connection', None)
-        if m is not None:
-            # Use a storage instance bound to this connection.
-            storage = m(self)
+        if IMVCCStorage.providedBy(storage):
+            # Use a connection-specific storage instance.
+            self._mvcc_storage = True
+            storage = storage.new_instance()
+        else:
+            self._mvcc_storage = False
+
         self._normal_storage = self._storage = storage
         self.new_oid = storage.new_oid
         self._savepoint_storage = None
@@ -153,13 +157,6 @@ class Connection(ExportImport, object):
         # in the cache on abort and in other connections on finish.
         self._modified = []
 
-        # Allow the storage to decide whether invalidations should
-        # propagate between connections.  If the storage provides MVCC
-        # semantics, it is better to not propagate invalidations between
-        # connections.
-        self._propagate_invalidations = getattr(
-            self._storage, 'propagate_invalidations', True)
-
         # _invalidated queues invalidate messages delivered from the DB
         # _inv_lock prevents one thread from modifying the set while
         # another is processing invalidations.  All the invalidations
@@ -190,10 +187,10 @@ class Connection(ExportImport, object):
         # _conflicts).
         self._conflicts = {}
 
-        # If MVCC is enabled, then _mvcc is True and _txn_time stores
-        # the upper bound on transactions visible to this connection.
-        # That is, all object revisions must be written before _txn_time.
-        # If it is None, then the current revisions are acceptable.
+        # _txn_time stores the upper bound on transactions visible to
+        # this connection. That is, all object revisions must be
+        # written before _txn_time. If it is None, then the current
+        # revisions are acceptable.
         self._txn_time = None
 
         # To support importFile(), implemented in the ExportImport base
@@ -306,10 +303,8 @@ class Connection(ExportImport, object):
         if self._opened:
             self.transaction_manager.unregisterSynch(self)
 
-        # If the storage wants to know, tell it this connection is closing.
-        m = getattr(self._storage, 'connection_closing', None)
-        if m is not None:
-            m()
+        if self._mvcc_storage:
+            self._storage.sync(force=False)
 
         if primary:
             for connection in self.connections.values():
@@ -339,8 +334,9 @@ class Connection(ExportImport, object):
 
     def invalidate(self, tid, oids):
         """Notify the Connection that transaction 'tid' invalidated oids."""
-        if not self._propagate_invalidations:
-            # The storage disabled inter-connection invalidation.
+        if self._mvcc_storage:
+            # Inter-connection invalidation is not needed when the
+            # storage provides MVCC.
             return
         if self.before is not None:
             # this is an historical connection.  Invalidations are irrelevant.
@@ -479,13 +475,11 @@ class Connection(ExportImport, object):
         self._registered_objects = []
         self._creating.clear()
 
-    def _poll_invalidations(self):
-        """Poll and process object invalidations provided by the storage.
-        """
-        m = getattr(self._storage, 'poll_invalidations', None)
-        if m is not None:
+    # Process pending invalidations.
+    def _flush_invalidations(self):
+        if self._mvcc_storage:
             # Poll the storage for invalidations.
-            invalidated = m()
+            invalidated = self._storage.poll_invalidations()
             if invalidated is None:
                 # special value: the transaction is so old that
                 # we need to flush the whole cache.
@@ -493,9 +487,6 @@ class Connection(ExportImport, object):
             elif invalidated:
                 self._cache.invalidate(invalidated)
 
-    # Process pending invalidations.
-    def _flush_invalidations(self):
-        self._poll_invalidations()
         self._inv_lock.acquire()
         try:
             # Non-ghostifiable objects may need to read when they are

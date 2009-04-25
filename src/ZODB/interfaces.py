@@ -953,45 +953,92 @@ class IStorageUndoable(IStorage):
         # DB pass-through
 
 
-class IStoragePollable(Interface):
-    """A storage that can be polled for changes."""
+class IMVCCStorage(IStorage):
+    """A storage that provides MVCC semantics internally.
 
-    def bind_connection(connection):
-        """Returns a storage instance to be used by the given Connection.
+    MVCC (multi-version concurrency control) means each user of a
+    database has a snapshot view of the database. The snapshot view
+    does not change, even if concurrent connections commit
+    transactions, until a transaction boundary. Relational databases
+    that support serializable transaction isolation provide MVCC.
 
-        This method is optional.  By implementing this method, a storage
-        instance can maintain Connection-specific state.
+    Storages that implement IMVCCStorage, such as RelStorage, provide
+    MVCC semantics at the ZODB storage layer. When ZODB.Connection uses
+    a storage that implements IMVCCStorage, each connection uses a
+    connection-specific storage instance, and that storage instance
+    provides a snapshot of the database.
 
-        If this method is not provided, all connections to the same database
-        use the same storage instance (even across threads).
+    By contrast, storages that do not implement IMVCCStorage, such as
+    FileStorage, rely on ZODB.Connection to provide MVCC semantics, so
+    in that case, one storage instance is shared by many
+    ZODB.Connections. Applications that use ZODB.Connection always have
+    a snapshot view of the database; IMVCCStorage only modifies which
+    layer of ZODB provides MVCC.
+
+    Furthermore, IMVCCStorage changes the way object invalidation
+    works. An essential feature of ZODB is the propagation of object
+    invalidation messages to keep in-memory caches up to date. Storages
+    like FileStorage and ZEO.ClientStorage send invalidation messages
+    to all other Connection instances at transaction commit time.
+    Storages that implement IMVCCStorage, on the other hand, expect the
+    ZODB.Connection to poll for a list of invalidated objects.
+
+    Certain methods of IMVCCStorage implementations open persistent
+    back end database sessions and retain the sessions even after the
+    method call finishes::
+
+        load
+        loadEx
+        loadSerial
+        loadBefore
+        store
+        restore
+        new_oid
+        history
+        tpc_begin
+        tpc_vote
+        tpc_abort
+        tpc_finish
+
+    If you know that the storage instance will no longer be used after
+    calling any of these methods, you should call the release method to
+    release the persistent sessions. The persistent sessions will be
+    reopened as necessary if you call one of those methods again.
+
+    Other storage methods open short lived back end sessions and close
+    the back end sessions before returning. These include::
+
+        __len__
+        getSize
+        undoLog
+        undo
+        pack
+        iterator
+
+    These methods do not provide MVCC semantics, so these methods
+    operate on the most current view of the database, rather than the
+    snapshot view that the other methods use.
+    """
+
+    def new_instance():
+        """Creates and returns another storage instance.
+
+        The returned instance provides IMVCCStorage and connects to the
+        same back-end database. The database state visible by the
+        instance will be a snapshot that varies independently of other
+        storage instances.
         """
 
-    propagate_invalidations = Attribute(
-        """A boolean value indicating whether invalidations should propagate.
+    def release():
+        """Release all persistent sessions used by this storage instance.
 
-        ZODB normally sends invalidation notifications between
-        Connection objects within a Python process.  If this
-        attribute is false, no such invalidations will be sent.
-        Cross-connection invalidation should normally be enabled, but
-        it adds unnecessary complexity to storages that expect the connection
-        to poll for invalidations instead.
-
-        If this attribute is not present, it is assumed to be true.
-        """)
-
-    def connection_closing():
-        """Notifies the storage that a connection is closing.
-
-        This method is optional.  This method is useful when
-        bind_connection() provides Connection-specific storage instances.
-        It lets the storage release resources.
+        After this call, the storage instance can still be used;
+        calling methods that use persistent sessions will cause the
+        persistent sessions to be reopened.
         """
 
     def poll_invalidations():
         """Poll the storage for external changes.
-
-        This method is optional.  This method is useful when
-        bind_connection() provides Connection-specific storage instances.
 
         Returns either a sequence of OIDs that have changed, or None.  When a
         sequence is returned, the corresponding objects should be removed
@@ -1000,6 +1047,14 @@ class IStoragePollable(Interface):
         is no longer possible to enumerate all of the changed OIDs, since the
         previous transaction seen by the connection has already been packed.
         In that case, the ZODB in-memory cache should be cleared.
+        """
+
+    def sync(force=True):
+        """Updates the internal snapshot to the current state of the database.
+
+        If the force parameter is False, the storage may choose to
+        ignore this call. By ignoring this call, a storage can reduce
+        the frequency of database polls, thus reducing database load.
         """
 
 
