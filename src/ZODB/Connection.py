@@ -1073,6 +1073,11 @@ class Connection(ExportImport, object):
         if getattr(self, '_reader', None) is not None:
             self._reader._cache = cache
 
+    def _releaseStorage(self):
+        """Tell the storage to release resources it's using"""
+        if self._mvcc_storage:
+            self._storage.release()
+
     ##########################################################################
     # Python protocol
 

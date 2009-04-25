@@ -186,6 +186,7 @@ class ConnectionPool(AbstractConnectionPool):
             # reclaim `c` now, and `c` would be left in a user-visible
             # crazy state.
             c._resetCache()
+            c._releaseStorage()
 
     def reduce_size(self):
         self._reduce_size()
