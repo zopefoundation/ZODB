@@ -515,7 +515,7 @@ class DB(object):
         self._a()
         try:
             assert connection._db is self
-            connection._opened = None
+            connection.opened = None
 
             am = self._activity_monitor
             if am is not None:
@@ -783,7 +783,7 @@ class DB(object):
 
         def get_info(c):
             # `result`, `time` and `before` are lexically inherited.
-            o = c._opened
+            o = c.opened
             d = c.getDebugInfo()
             if d:
                 if len(d) == 1:
@@ -920,6 +920,28 @@ class DB(object):
             txn = transaction.get()
         txn.register(TransactionalUndo(self, id))
 
+    def transaction(self):
+        return ContextManager(self)
+
+
+class ContextManager:
+    """PEP 343 context manager
+    """
+
+    def __init__(self, db):
+        self.db = db
+
+    def __enter__(self):
+        self.tm = transaction.TransactionManager()
+        self.conn = self.db.open(self.tm)
+        return self.conn
+
+    def __exit__(self, t, v, tb):
+        if t is None:
+            self.tm.commit()
+        else:
+            self.tm.abort()
+        self.conn.close()
 
 resource_counter_lock = threading.Lock()
 resource_counter = 0

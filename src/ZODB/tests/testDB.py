@@ -16,6 +16,7 @@ from ZODB.tests.MinPO import MinPO
 from zope.testing import doctest
 import datetime
 import os
+import sys
 import time
 import transaction
 import unittest
@@ -180,6 +181,62 @@ def open_convenience():
     {'x': 1}
     >>> db.close()
     """
+
+if sys.version_info >= (2, 6):
+    def db_with_transaction():
+        """Using databases with with
+
+        The transaction method returns a context manager that when entered
+        starts a transaction with a private transaction manager.  To
+        illustrate this, we start a trasnaction using a regular connection
+        and see that it isn't automatically committed or aborted as we use
+        the transaction context manager.
+
+        >>> db = ZODB.DB('data.fs')
+        >>> conn = db.open()
+        >>> conn.root()['x'] = conn.root().__class__()
+        >>> transaction.commit()
+        >>> conn.root()['x']['x'] = 1
+
+        >>> with db.transaction() as conn2:
+        ...     conn2.root()['y'] = 1
+
+        >>> conn2.opened
+
+    Now, we'll open a 3rd connection a verify that
+
+        >>> conn3 = db.open()
+        >>> conn3.root()['x']
+        {}
+        >>> conn3.root()['y']
+        1
+        >>> conn3.close()
+
+    Let's try again, but this time, we'll have an exception:
+
+        >>> with db.transaction() as conn2:
+        ...     conn2.root()['y'] = 2
+        ...     XXX
+        Traceback (most recent call last):
+        ...
+        NameError: name 'XXX' is not defined
+
+        >>> conn2.opened
+
+        >>> conn3 = db.open()
+        >>> conn3.root()['x']
+        {}
+        >>> conn3.root()['y']
+        1
+        >>> conn3.close()
+
+        >>> transaction.commit()
+
+        >>> conn3 = db.open()
+        >>> conn3.root()['x']
+        {'x': 1}
+
+        """
 
 def test_suite():
     s = unittest.makeSuite(DBTests)

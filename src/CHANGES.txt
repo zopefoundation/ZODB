@@ -14,6 +14,17 @@ New Features
 New Features
 ------------
 
+- Databases have a new method, transaction, that can be used with the
+  Python (2.5 and later) with statement::
+
+     db = ZODB.DB(...)
+     with db.transaction() as conn:
+          # ... do stuff with conn
+
+  This uses a private transaction manager for the connection.
+  If control exists the block without an error, the transaction is
+  committed, otherwise, it is aborted.
+
 - Convenience methods ZODB.DB.open and ZEO.DB.open provide a
   convenient way to open a connection to a database.  They open a
   database and return a connection to it. When the connection is
@@ -47,6 +58,13 @@ New Features
   based on the total estimated size".
   There are corresponding methods to read and set the new configuration
   parameters.
+
+- Connections now have a public ``opened`` attribute that is true when
+  the connection is open, and false otherwise.  When true, it is the
+  seconds since the epoch (time.time()) when the connection was
+  opened. This is a renaming of the previous ``_opened`` private
+  variable.
+
 
 Bugs Fixed
 ----------

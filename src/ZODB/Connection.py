@@ -101,7 +101,7 @@ class Connection(ExportImport, object):
         # Do we need to join a txn manager?
         self._needs_to_join = True
         self.transaction_manager = None
-        self._opened = None # time.time() when DB.open() opened us
+        self.opened = None # time.time() when DB.open() opened us
 
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
@@ -196,7 +196,7 @@ class Connection(ExportImport, object):
 
     def add(self, obj):
         """Add a new object 'obj' to the database and assign it an oid."""
-        if self._opened is None:
+        if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
 
         marker = object()
@@ -220,7 +220,7 @@ class Connection(ExportImport, object):
 
     def get(self, oid):
         """Return the persistent object with oid 'oid'."""
-        if self._opened is None:
+        if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
 
         obj = self._cache.get(oid, None)
@@ -292,7 +292,7 @@ class Connection(ExportImport, object):
 
         self._debug_info = ()
 
-        if self._opened:
+        if self.opened:
             self.transaction_manager.unregisterSynch(self)
 
         if primary:
@@ -301,15 +301,15 @@ class Connection(ExportImport, object):
                     connection.close(False)
 
             # Return the connection to the pool.
-            if self._opened is not None:
+            if self.opened is not None:
                 self._db._returnToPool(self)
 
-                # _returnToPool() set self._opened to None.
+                # _returnToPool() set self.opened to None.
                 # However, we can't assert that here, because self may
                 # have been reused (by another thread) by the time we
                 # get back here.
         else:
-            self._opened = None
+            self.opened = None
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
@@ -317,7 +317,7 @@ class Connection(ExportImport, object):
 
     def isReadOnly(self):
         """Returns True if this connection is read only."""
-        if self._opened is None:
+        if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
         return self.before is not None or self._storage.isReadOnly()
 
@@ -798,7 +798,7 @@ class Connection(ExportImport, object):
         the database."""
         oid = obj._p_oid
 
-        if self._opened is None:
+        if self.opened is None:
             msg = ("Shouldn't load state for %s "
                    "when the connection is closed" % oid_repr(oid))
             self._log.error(msg)
@@ -1010,7 +1010,7 @@ class Connection(ExportImport, object):
         register for afterCompletion() calls.
         """
 
-        self._opened = time.time()
+        self.opened = time.time()
 
         if transaction_manager is None:
             transaction_manager = transaction.manager
