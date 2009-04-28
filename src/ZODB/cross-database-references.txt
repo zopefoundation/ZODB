@@ -186,32 +186,38 @@ no _p_check_xref method:
     >>> hasattr(main_obj, 'someattr')
     False
 
-A reference from `session_obj` to `main_obj` is allowed, however.
+A reference from `session_obj` to `main_obj` is allowed, however, because
+the seat belt is disabled in session_db.
 
     >>> session_obj.someattr = main_obj
     >>> tm.commit()
     >>> hasattr(session_obj, 'someattr')
     True
 
-The reference from `main_obj` can be allowed by its _p_check_xref method:
+Create an object that has a _p_check_xref method.  Allow the object to
+refer to session_obj.
 
-    >>> def _p_check_xref(obj):
-    ...     return obj is session_obj
-    >>> main_obj._p_check_xref = _p_check_xref
+    >>> main_obj = MyClass_w__p_check_xref()
+    >>> main_conn.root()['p'] = main_obj
+    >>> main_obj.allowed_xrefs = [session_obj]
     >>> main_obj.someattr = session_obj
     >>> tm.commit()
 
-The _p_check_xref method can also disallow a reference:
+The _p_check_xref method can disallow a reference.
 
-    >>> def _p_check_xref(obj):
-    ...     return False
-    >>> main_obj._p_check_xref = _p_check_xref
-    >>> main_obj.someattr = session_obj
+    >>> main_obj.allowed_xrefs = ()
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
     Traceback (most recent call last):
     ...
     InvalidObjectReference: A cross database reference was disallowed by a _p_check_xref method
     >>> tm.abort()
+
+Verify the right _p_check_xref method is called:
+
+    >>> main_obj.second = MyClass_w__p_check_xref()
+    >>> main_obj.second.allowed_xrefs = [session_obj]
+    >>> main_obj.second.someattr = session_obj
+    >>> tm.commit()
 
 NOTE
 ----

@@ -26,6 +26,15 @@ class MyClass_w_getnewargs(persistent.Persistent):
     def __getnewargs__(self):
         return ()
 
+class MyClass_w__p_check_xref(persistent.Persistent):
+
+    def __init__(self):
+        allowed_xrefs = ()
+
+    def _p_check_xref(self, obj):
+        return obj in self.allowed_xrefs
+
+
 def test_must_use_consistent_connections():
     """
 
@@ -179,11 +188,13 @@ def tearDownDbs(test):
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite('../cross-database-references.txt',
-                             globs=dict(MyClass=MyClass),
+                             globs=dict(MyClass=MyClass,
+                             MyClass_w__p_check_xref=MyClass_w__p_check_xref),
                              tearDown=tearDownDbs,
                              ),
         doctest.DocFileSuite('../cross-database-references.txt',
-                             globs=dict(MyClass=MyClass_w_getnewargs),
+                             globs=dict(MyClass=MyClass_w_getnewargs,
+                             MyClass_w__p_check_xref=MyClass_w__p_check_xref),
                              tearDown=tearDownDbs,
                              ),
         doctest.DocTestSuite(),

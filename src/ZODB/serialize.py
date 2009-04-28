@@ -175,7 +175,6 @@ class ObjectWriter:
         self._p = cPickle.Pickler(self._file, 1)
         self._p.inst_persistent_id = self.persistent_id
         self._stack = []
-        self._obj = obj
         if obj is not None:
             self._stack.append(obj)
             jar = obj._p_jar
@@ -354,8 +353,10 @@ class ObjectWriter:
                     "Won't try to guess which one was correct!"
                     )
 
+        if database_name is not None:
             if self._jar.db().check_xrefs:
-                method = getattr(self._obj, '_p_check_xref', None)
+                # Apply cross-database reference policy
+                method = getattr(self._serializing, '_p_check_xref', None)
                 if method is None:
                     raise InvalidObjectReference(
                         "Attempt to store a cross database reference "
@@ -391,6 +392,9 @@ class ObjectWriter:
         return oid, klass
 
     def serialize(self, obj):
+        # Keep a record of which persistent object is being serialized
+        self._serializing = obj
+
         # We don't use __class__ here, because obj could be a persistent proxy.
         # We don't want to be fooled by proxies.
         klass = type(obj)
