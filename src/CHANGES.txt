@@ -14,6 +14,10 @@ New Features
 New Features
 ------------
 
+- As a convenience, the connection root method for returning teh root
+  object can now *also* be used as an object with attributes mapped to
+  the root-object keys.
+
 - Databases have a new method, transaction, that can be used with the
   Python (2.5 and later) with statement::
 

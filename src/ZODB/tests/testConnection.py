@@ -519,6 +519,43 @@ def test_invalidateCache():
         >>> db.close()
     """
 
+def connection_root_convenience():
+    """Connection root attributes can now be used as objects with attributes
+
+    >>> db = ZODB.tests.util.DB()
+    >>> conn = db.open()
+    >>> conn.root.x
+    Traceback (most recent call last):
+    ...
+    AttributeError: x
+
+    >>> del conn.root.x
+    Traceback (most recent call last):
+    ...
+    AttributeError: x
+
+    >>> conn.root()['x'] = 1
+    >>> conn.root.x
+    1
+    >>> conn.root.y = 2
+    >>> sorted(conn.root().items())
+    [('x', 1), ('y', 2)]
+
+    >>> conn.root
+    <root: x y>
+
+    >>> del conn.root.x
+    >>> sorted(conn.root().items())
+    [('y', 2)]
+
+    >>> conn.root.rather_long_name = 1
+    >>> conn.root.rather_long_name2 = 1
+    >>> conn.root.rather_long_name4 = 1
+    >>> conn.root.rather_long_name5 = 1
+    >>> conn.root
+    <root: rather_long_name rather_long_name2 rather_long_name4 ...>
+    """
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize

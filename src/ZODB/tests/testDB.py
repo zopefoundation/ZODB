@@ -192,7 +192,7 @@ if sys.version_info >= (2, 6):
         and see that it isn't automatically committed or aborted as we use
         the transaction context manager.
 
-        >>> db = ZODB.DB('data.fs')
+        >>> db = ZODB.tests.util.DB()
         >>> conn = db.open()
         >>> conn.root()['x'] = conn.root().__class__()
         >>> transaction.commit()
@@ -236,6 +236,8 @@ if sys.version_info >= (2, 6):
         >>> conn3.root()['x']
         {'x': 1}
 
+
+        >>> db.close()
         """
 
 def test_suite():

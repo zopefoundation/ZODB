@@ -356,9 +356,10 @@ class Connection(ExportImport, object):
         finally:
             self._inv_lock.release()
 
+    @property
     def root(self):
         """Return the database root object."""
-        return self.get(z64)
+        return RootConvenience(self.get(z64))
 
     def get_connection(self, database_name):
         """Return a Connection for the named database."""
@@ -1333,3 +1334,32 @@ class TmpStore:
         # a copy of the index here.  An alternative would be to ensure that
         # all callers pass copies.  As is, our callers do not make copies.
         self.index = index.copy()
+
+class RootConvenience(object):
+
+    def __init__(self, root):
+        self.__dict__['_root'] = root
+
+    def __getattr__(self, name):
+        try:
+            return self._root[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name, v):
+        self._root[name] = v
+
+    def __delattr__(self, name):
+        try:
+            del self._root[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __call__(self):
+        return self._root
+
+    def __repr__(self):
+        names = " ".join(sorted(self._root))
+        if len(names) > 60:
+            names = names[:57].rsplit(' ', 1)[0] + ' ...'
+        return "<root: %s>" % names
