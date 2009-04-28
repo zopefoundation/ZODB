@@ -133,6 +133,86 @@ to explicitly say what database an object belongs to:
 This the most explicit and thus the best way, when practical, to avoid
 the ambiguity.
 
+Cross-database reference seat belt
+----------------------------------
+
+Some applications create unintentional cross-database references when
+they move objects between containers stored in ZODB. For example, an
+object might be created in a session container located in a volatile
+database, then later moved (rather than copied) to the main database.
+In that case, the reference will break when the session expires or the
+server restarts.
+
+ZODB provides an optional seat belt that prevents unintentional
+cross-database references. The seat belt is disabled by default, but
+can be enabled by passing "check_xrefs=True" to the DB constructor.
+
+When the seat belt is enabled, every cross-database reference is
+checked by the _p_check_xref method of the persistent object holding
+the reference; objects that do not have a _p_check_xref method are
+not allowed to hold any cross-database references.
+
+Lets set up a multi-database with 2 databases, this time checking
+cross-database references from `main_db` but not from `session_db`:
+
+    >>> import ZODB.tests.util, transaction, persistent
+    >>> databases = {}
+    >>> main_db = ZODB.tests.util.DB(databases=databases, database_name='main',
+    ...     check_xrefs=True)
+    >>> session_db = ZODB.tests.util.DB(databases=databases,
+    ...     database_name='sessions')
+
+Create a persistent object in both databases:
+
+    >>> tm = transaction.TransactionManager()
+    >>> main_conn = main_db.open(transaction_manager=tm)
+    >>> main_obj = MyClass()
+    >>> main_conn.root()['p'] = main_obj
+    >>> session_conn = main_conn.get_connection('sessions')
+    >>> session_obj = MyClass()
+    >>> session_conn.root()['p'] = session_obj
+    >>> tm.commit()
+
+Try to create a reference from `main_obj` to `session_obj`, which is not
+allowed because the seat belt is enabled in `main_db` and `main_obj` has
+no _p_check_xref method:
+
+    >>> main_obj.someattr = session_obj
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    Traceback (most recent call last):
+    ...
+    InvalidObjectReference: Attempt to store a cross database reference from an object that does not have a _p_check_xref method
+    >>> tm.abort()
+    >>> hasattr(main_obj, 'someattr')
+    False
+
+A reference from `session_obj` to `main_obj` is allowed, however.
+
+    >>> session_obj.someattr = main_obj
+    >>> tm.commit()
+    >>> hasattr(session_obj, 'someattr')
+    True
+
+The reference from `main_obj` can be allowed by its _p_check_xref method:
+
+    >>> def _p_check_xref(obj):
+    ...     return obj is session_obj
+    >>> main_obj._p_check_xref = _p_check_xref
+    >>> main_obj.someattr = session_obj
+    >>> tm.commit()
+
+The _p_check_xref method can also disallow a reference:
+
+    >>> def _p_check_xref(obj):
+    ...     return False
+    >>> main_obj._p_check_xref = _p_check_xref
+    >>> main_obj.someattr = session_obj
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    Traceback (most recent call last):
+    ...
+    InvalidObjectReference: A cross database reference was disallowed by a _p_check_xref method
+    >>> tm.abort()
+
 NOTE
 ----
 

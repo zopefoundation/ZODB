@@ -175,6 +175,7 @@ class ObjectWriter:
         self._p = cPickle.Pickler(self._file, 1)
         self._p.inst_persistent_id = self.persistent_id
         self._stack = []
+        self._obj = obj
         if obj is not None:
             self._stack.append(obj)
             jar = obj._p_jar
@@ -352,7 +353,18 @@ class ObjectWriter:
                     "A new object is reachable from multiple databases. "
                     "Won't try to guess which one was correct!"
                     )
-                
+
+            if self._jar.db().check_xrefs:
+                method = getattr(self._obj, '_p_check_xref', None)
+                if method is None:
+                    raise InvalidObjectReference(
+                        "Attempt to store a cross database reference "
+                        "from an object that does not have a _p_check_xref "
+                        "method")
+                elif not method(obj):
+                    raise InvalidObjectReference(
+                        "A cross database reference was disallowed "
+                        "by a _p_check_xref method")
 
         klass = type(obj)
         if hasattr(klass, '__getnewargs__'):

@@ -399,6 +399,7 @@ class DB(object):
                  historical_cache_size=1000,
                  historical_cache_size_bytes=0,
                  historical_timeout=300,
+                 check_xrefs=False,
                  database_name='unnamed',
                  databases=None,
                  ):
@@ -419,6 +420,10 @@ class DB(object):
             the historical connection.
           - `historical_timeout`: minimum number of seconds that
             an unused historical connection will be kept, or None.
+          - `check_xrefs`: if true, cross-database references will only
+            be allowed from objects whose _p_check_xref method allows
+            them. If false (the default), cross-database references
+            will be allowed implicitly.
         """
         if isinstance(storage, basestring):
             from ZODB import FileStorage
@@ -437,6 +442,7 @@ class DB(object):
         self._cache_size_bytes = cache_size_bytes
         self._historical_cache_size = historical_cache_size
         self._historical_cache_size_bytes = historical_cache_size_bytes
+        self.check_xrefs = check_xrefs
 
         # Setup storage
         self.storage = storage
