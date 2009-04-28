@@ -38,23 +38,23 @@ class MVCCTests:
         # This will fail if the Connection doesn't poll for changes.
         db = DB(self._storage)
         try:
-            c1 = db.open()
+            c1 = db.open(transaction.TransactionManager())
             r1 = c1.root()
             r1['myobj'] = 'yes'
-            c2 = db.open()
+            c2 = db.open(transaction.TransactionManager())
             r2 = c2.root()
             self.assert_('myobj' not in r2)
 
-            storage = c1._storage
-            t = transaction.Transaction()
-            t.description = 'invalidation test'
-            storage.tpc_begin(t)
-            c1.commit(t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
+            old_tid = c1._storage._polled_tid
+            c1.transaction_manager.commit()
+            new_tid = c1._storage._polled_tid
+
+            self.assertNotEqual(new_tid, old_tid)
+            self.assertEqual(c2._storage._polled_tid, old_tid)
 
             self.assert_('myobj' not in r2)
             c2.sync()
+            self.assertEqual(new_tid, c2._storage._polled_tid)
             self.assert_('myobj' in r2)
             self.assert_(r2['myobj'] == 'yes')
         finally:
