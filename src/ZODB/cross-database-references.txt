@@ -181,7 +181,8 @@ no _p_check_xref method:
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: Attempt to store a cross database reference from an object that does not have a _p_check_xref method
+    InvalidObjectReference: Attempt to store a cross database reference
+    from an object that does not have a _p_check_xref method
     >>> tm.abort()
     >>> hasattr(main_obj, 'someattr')
     False
@@ -209,7 +210,8 @@ The _p_check_xref method can disallow a reference.
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: A cross database reference was disallowed by a _p_check_xref method
+    InvalidObjectReference: A cross database reference was disallowed
+    by a _p_check_xref method
     >>> tm.abort()
 
 Verify the right _p_check_xref method is called:
