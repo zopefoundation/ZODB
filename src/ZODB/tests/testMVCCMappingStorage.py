@@ -45,16 +45,10 @@ class MVCCTests:
             r2 = c2.root()
             self.assert_('myobj' not in r2)
 
-            old_tid = c1._storage._polled_tid
             c1.transaction_manager.commit()
-            new_tid = c1._storage._polled_tid
-
-            self.assertNotEqual(new_tid, old_tid)
-            self.assertEqual(c2._storage._polled_tid, old_tid)
-
             self.assert_('myobj' not in r2)
+
             c2.sync()
-            self.assertEqual(new_tid, c2._storage._polled_tid)
             self.assert_('myobj' in r2)
             self.assert_(r2['myobj'] == 'yes')
         finally:
@@ -152,6 +146,26 @@ class MVCCMappingStorageTests(
     def checkLoadBeforeUndo(self):
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
+
+    def checkTransactionIdIncreases(self):
+        import time
+        from ZODB.utils import newTid
+        from ZODB.TimeStamp import TimeStamp
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        # Add a fake transaction
+        transactions = self._storage._transactions
+        self.assertEqual(1, len(transactions))
+        fake_timestamp = 'zzzzzzzy'  # the year 5735 ;-)
+        transactions[fake_timestamp] = transactions.values()[0]
+
+        # Verify the next transaction comes after the fake transaction
+        t = transaction.Transaction()
+        self._storage.tpc_begin(t)
+        self.assertEqual(self._storage._tid, 'zzzzzzzz')
 
 
 def test_suite():

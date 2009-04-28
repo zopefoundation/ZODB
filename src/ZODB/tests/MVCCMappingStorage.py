@@ -50,7 +50,10 @@ class MVCCMappingStorage(MappingStorage):
     def poll_invalidations(self):
         """Poll the storage for changes by other connections.
         """
-        new_tid = self._transactions.maxKey()
+        if self._transactions:
+            new_tid = self._transactions.maxKey()
+        else:
+            new_tid = ''
 
         if self._polled_tid:
             if not self._transactions.has_key(self._polled_tid):

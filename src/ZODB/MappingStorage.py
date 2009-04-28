@@ -280,7 +280,11 @@ class MappingStorage(object):
         self._transaction = transaction
         self._tdata = {}
         if tid is None:
-            tid = ZODB.utils.newTid(self._ltid)
+            if self._transactions:
+                old_tid = self._transactions.maxKey()
+            else:
+                old_tid = None
+            tid = ZODB.utils.newTid(old_tid)
         self._tid = tid
 
     # ZODB.interfaces.IStorage
