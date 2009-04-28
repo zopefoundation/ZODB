@@ -225,7 +225,7 @@ class ClientStorage(object):
             Maximum size of the ZEO blob cache, in bytes.  If not set, then
             the cache size isn't checked and the blob directory will
             grow without bound.
-            
+
             This option is ignored if shared_blob_dir is true.
 
         blob_cache_size_check
@@ -241,7 +241,7 @@ class ClientStorage(object):
         """
 
         self.__name__ = name or str(addr) # Standard convention for storages
-        
+
         logger.info(
             "%s %s (pid=%d) created %s/%s for storage: %r",
             self.__name__,
@@ -315,7 +315,7 @@ class ClientStorage(object):
         self._server_addr = None
 
         self._pickler = self._tfile = None
-        
+
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo': 0, 'interfaces': ()}
 
@@ -369,7 +369,7 @@ class ClientStorage(object):
         # XXX need to check for POSIX-ness here
         self.blob_dir = blob_dir
         self.shared_blob_dir = shared_blob_dir
-        
+
         if blob_dir is not None:
             # Avoid doing this import unless we need it, as it
             # currently requires pywin32 on Windows.
@@ -415,7 +415,7 @@ class ClientStorage(object):
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
 
-        
+
 
     def _wait(self, timeout=None):
         if timeout is not None:
@@ -470,11 +470,11 @@ class ClientStorage(object):
 
         if (bytes is not None) and (bytes < self._blob_cache_size_check):
             return
-        
+
         self._blob_data_bytes_loaded = 0
 
         target = max(self._blob_cache_size - self._blob_cache_size_check, 0)
-        
+
         check_blob_size_thread = threading.Thread(
             target=_check_blob_cache_size,
             args=(self.blob_dir, self._blob_cache_size),
@@ -623,7 +623,7 @@ class ClientStorage(object):
         # If we end up doing a full-verification, we need to wait till
         # it's done.  By doing a synchonous call, we are guarenteed
         # that the verification will be done because operations are
-        # handled in order.        
+        # handled in order.
         self._info.update(stub.get_info())
 
         self._handle_extensions()
@@ -992,11 +992,11 @@ class ClientStorage(object):
                 # We're using a server shared cache.  If the file isn't
                 # here, it's not anywhere.
                 raise POSException.POSKeyError("No blob file", oid, serial)
-        
+
         if os.path.exists(blob_filename):
             return _accessed(blob_filename)
 
-        # First, we'll create the directory for this oid, if it doesn't exist. 
+        # First, we'll create the directory for this oid, if it doesn't exist.
         self.fshelper.createPathForOID(oid)
 
         # OK, it's not here and we (or someone) needs to get it.  We
@@ -1046,7 +1046,7 @@ class ClientStorage(object):
             # The file got removed while we were opening.
             # Fall through and try again with the protection of the lock.
             pass
-        
+
         lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
         while 1:
             try:
@@ -1074,7 +1074,7 @@ class ClientStorage(object):
                 return ZODB.blob.BlobFile(blob_filename, 'r', blob)
         finally:
             lock.close()
-        
+
 
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
@@ -1405,7 +1405,7 @@ class ClientStorage(object):
             if catch_up:
                 # process catch-up invalidations
                 self._process_invalidations(*catch_up)
-            
+
             if self._pickler is None:
                 return
             # write end-of-data marker
@@ -1509,7 +1509,7 @@ class ClientStorage(object):
 class TransactionIterator(object):
 
     def __init__(self, storage, iid, *args):
-        self._storage = storage 
+        self._storage = storage
         self._iid = iid
         self._ended = False
 
@@ -1621,7 +1621,7 @@ def _check_blob_cache_size(blob_dir, target):
 
     logger = logging.getLogger(__name__+'.check_blob_cache')
     logger.info("Checking blob cache size")
-    
+
     layout = open(os.path.join(blob_dir, ZODB.blob.LAYOUT_MARKER)
                   ).read().strip()
     if not layout == 'zeocache':
@@ -1635,7 +1635,7 @@ def _check_blob_cache_size(blob_dir, target):
         # Someone is already cleaning up, so don't bother
         logger.info("Another thread is checking the blob cache size")
         return
-    
+
     try:
         size = 0
         blob_suffix = ZODB.blob.BLOB_SUFFIX
