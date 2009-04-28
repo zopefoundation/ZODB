@@ -128,7 +128,7 @@ class Blob(persistent.Persistent):
                 or
                 self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
                 ):
-                raise BlobError('Uncommitted changes')            
+                raise BlobError('Uncommitted changes')
             return self._p_jar._storage.openCommittedBlobFile(
                 self._p_oid, self._p_serial)
 
@@ -203,7 +203,7 @@ class Blob(persistent.Persistent):
             raise BlobError('Uncommitted changes')
 
         result = self._p_blob_committed
-        
+
         # We do this to make sure we have the file and to let the
         # storage know we're accessing the file.
         n = self._p_jar._storage.loadBlob(self._p_oid, self._p_serial)
@@ -252,7 +252,7 @@ class Blob(persistent.Persistent):
             raise
         else:
             if previous_uncommitted:
-                # The relinking worked so we can remove the data that we had 
+                # The relinking worked so we can remove the data that we had
                 # set aside.
                 os.remove(target_aside)
 
@@ -333,7 +333,7 @@ class FilesystemHelper:
             log('The `lawn` blob directory layout is deprecated due to '
                 'scalability issues on some file systems, please consider '
                 'migrating to the `bushy` layout.', level=logging.WARN)
-        self.layout_name = layout_name 
+        self.layout_name = layout_name
         self.layout = LAYOUTS[layout_name]
 
     def create(self):
@@ -454,7 +454,7 @@ class FilesystemHelper:
 
         serial = filename[:-len(BLOB_SUFFIX)]
         serial = utils.repr_to_oid(serial)
-        return oid, serial 
+        return oid, serial
 
     def getOIDsForSerial(self, search_serial):
         """Return all oids related to a particular tid that exist in
@@ -671,7 +671,7 @@ class BlobStorageMixin(object):
             self.dirty_oids.append((oid, serial))
         finally:
             self._lock_release()
-            
+
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
         """Stores data that has a BLOB attached."""
@@ -725,7 +725,7 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def tpc_finish(self, *arg, **kw):
         # We need to override the base storage's tpc_finish instead of
-        # providing a _finish method because methods found on the proxied 
+        # providing a _finish method because methods found on the proxied
         # object aren't rebound to the proxy
         getProxiedObject(self).tpc_finish(*arg, **kw)
         self._blob_tpc_finish()
@@ -919,7 +919,7 @@ def is_blob_record(record):
 
     This is primarily intended to be used when copying data from one
     storage to another.
-    
+
     """
     try:
         return cPickle.loads(record) is ZODB.blob.Blob
