@@ -164,7 +164,7 @@ def passing_a_file_name_to_DB():
 def open_convenience():
     """Often, we just want to open a single connection.
 
-    >>> conn = ZODB.DB.open('data.fs')
+    >>> conn = ZODB.connection('data.fs')
     >>> conn.root()
     {}
 

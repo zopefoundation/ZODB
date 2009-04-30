@@ -25,4 +25,4 @@ sys.modules['ZODB.PersistentList'] = sys.modules['persistent.list']
 
 del mapping, list, sys
 
-from DB import DB
+from DB import DB, connection

@@ -1156,7 +1156,7 @@ def open_convenience():
     """Often, we just want to open a single connection.
 
     >>> addr, _ = start_server(path='data.fs')
-    >>> conn = ZEO.DB.open(addr)
+    >>> conn = ZEO.connection(addr)
     >>> conn.root()
     {}
 
