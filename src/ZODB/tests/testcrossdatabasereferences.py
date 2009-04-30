@@ -52,11 +52,14 @@ database open function, but this doesn't work:
     >>> p2 = MyClass()
     >>> conn2.root()['p'] = p2
     >>> p2.p1 = p1
-    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: Attempt to store a reference to an object
-    from a separate connection to the same database or multidatabase
+    InvalidObjectReference:
+    ('Attempt to store a reference to an object from a separate connection to
+    the same database or multidatabase',
+    <Connection at ...>,
+    <ZODB.tests.testcrossdatabasereferences.MyClass object at ...>)
 
     >>> tm.abort()
 
@@ -68,11 +71,14 @@ different connections to the same database.
     >>> p2 = MyClass()
     >>> conn2.root()['p'] = p2
     >>> p2.p1 = p1
-    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: Attempt to store a reference to an object
-    from a separate connection to the same database or multidatabase
+    InvalidObjectReference:
+    ('Attempt to store a reference to an object from a separate connection
+    to the same database or multidatabase',
+    <Connection at ...>,
+    <ZODB.tests.testcrossdatabasereferences.MyClass object at ...>)
 
     >>> tm.abort()
 
