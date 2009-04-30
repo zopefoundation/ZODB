@@ -331,20 +331,6 @@ def getTID(at, before):
     return before
 
 
-class Methods(object):
-
-    def __init__(self, name, ifunc, cfunc=None):
-        self.__name__ = name
-        self.im_func = ifunc
-        self.cm_func = cfunc
-
-    def __get__(self, inst, class_):
-        if inst is None:
-            if self.cm_func is None:
-                raise AttributeError("Only in instances", self.__name__)
-            return self.cm_func.__get__(class_, type(class_))
-        return self.im_func.__get__(inst, class_)
-
 class DB(object):
     """The Object Database
     -------------------
@@ -401,7 +387,7 @@ class DB(object):
                  historical_timeout=300,
                  database_name='unnamed',
                  databases=None,
-                 ):
+                 xrefs=True):
         """Create an object database.
 
         :Parameters:
@@ -419,6 +405,8 @@ class DB(object):
             the historical connection.
           - `historical_timeout`: minimum number of seconds that
             an unused historical connection will be kept, or None.
+          - `xrefs` - Boolian flag indicating whether implicit cross-database
+            references are allowed
         """
         if isinstance(storage, basestring):
             from ZODB import FileStorage
@@ -490,6 +478,7 @@ class DB(object):
             raise ValueError("database_name %r already in databases" %
                              database_name)
         databases[database_name] = self
+        self.xrefs = xrefs
 
         self._setupUndoMethods()
         self.history = storage.history
@@ -779,14 +768,6 @@ class DB(object):
         finally:
             self._r()
 
-    def class_open(class_, *args, **kw):
-        db = class_(*args, **kw)
-        conn = db.open()
-        conn.onCloseCallback(db.close)
-        return conn
-
-    open = Methods('open', open, class_open)
-
     def connectionDebugInfo(self):
         result = []
         t = time.time()
@@ -1010,3 +991,9 @@ class TransactionalUndo(ResourceManager):
         # XXX see XXX in ResourceManager
         tid, oids = self._db.storage.undo(self._tid, t)
         self._db.invalidate(tid, dict.fromkeys(oids, 1))
+
+def connection(*args, **kw):
+    db = DB(*args, **kw)
+    conn = db.open()
+    conn.onCloseCallback(db.close)
+    return conn
