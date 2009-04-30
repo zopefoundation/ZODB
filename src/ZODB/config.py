@@ -49,8 +49,15 @@ def databaseFromURL(url):
     config, handler = ZConfig.loadConfig(getDbSchema(), url)
     return databaseFromConfig(config.database)
 
-def databaseFromConfig(section):
-    return section.open()
+def databaseFromConfig(database_factories):
+    databases = {}
+    first = None
+    for factory in database_factories:
+        db = factory.open(databases)
+        if first is None:
+            first = db
+
+    return first
 
 def storageFromString(s):
     return storageFromFile(StringIO(s))
@@ -93,8 +100,16 @@ class ZODBDatabase(BaseConfig):
         section = self.config
         storage = section.storage.open()
         options = {}
-        if section.pool_timeout is not None:
-            options['pool_timeout'] = section.pool_timeout
+
+        def _option(name, oname=None):
+            v = getattr(section, name)
+            if v is not None:
+                if oname is None:
+                    oname = name
+                options[oname] = v
+
+        _option('pool_timeout')
+        _option('allow_implicit_cross_references', 'xrefs')
 
         try:
             return ZODB.DB(
@@ -106,7 +121,7 @@ class ZODBDatabase(BaseConfig):
                 historical_cache_size=section.historical_cache_size,
                 historical_cache_size_bytes=section.historical_cache_size_bytes,
                 historical_timeout=section.historical_timeout,
-                database_name=section.database_name,
+                database_name=section.database_name or self.name or '',
                 databases=databases,
                 **options)
         except:
