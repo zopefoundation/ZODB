@@ -186,6 +186,7 @@ class ObjectWriter:
 
         >>> from ZODB.tests.util import P
         >>> class DummyJar:
+        ...     xrefs = True
         ...     def new_oid(self):
         ...         return 42
         ...     def db(self):
@@ -229,11 +230,13 @@ class ObjectWriter:
         If the jar doesn't match that of the writer, an error is raised:
 
         >>> bob._p_jar = DummyJar()
-        >>> writer.persistent_id(bob)   # doctest: +NORMALIZE_WHITESPACE
+        >>> writer.persistent_id(bob)
+        ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
         Traceback (most recent call last):
           ...
-        InvalidObjectReference: Attempt to store an object from a
-            foreign database connection
+        InvalidObjectReference:
+        ('Attempt to store an object from a foreign database connection',
+        <ZODB.serialize.DummyJar instance at ...>, P(bob))
 
         Constructor arguments used by __new__(), as returned by
         __getnewargs__(), can affect memory allocation, but may also
@@ -322,8 +325,13 @@ class ObjectWriter:
             oid = obj._p_oid = self._jar.new_oid()
             obj._p_jar = self._jar
             self._stack.append(obj)
-            
+
         elif obj._p_jar is not self._jar:
+            if not self._jar.db().xrefs:
+                raise InvalidObjectReference(
+                    "Database %r doesn't allow implicit cross-database "
+                    "references" % self._jar.db().database_name,
+                    self._jar, obj)
 
             try:
                 otherdb = obj._p_jar.db()
@@ -334,14 +342,14 @@ class ObjectWriter:
             if self._jar.db().databases.get(database_name) is not otherdb:
                 raise InvalidObjectReference(
                     "Attempt to store an object from a foreign "
-                    "database connection"
+                    "database connection", self._jar, obj,
                     )
 
             if self._jar.get_connection(database_name) is not obj._p_jar:
                 raise InvalidObjectReference(
                     "Attempt to store a reference to an object from "
                     "a separate connection to the same database or "
-                    "multidatabase"
+                    "multidatabase", self._jar, obj,
                     )
 
             # OK, we have an object from another database.
@@ -350,9 +358,9 @@ class ObjectWriter:
             if obj._p_jar._implicitlyAdding(oid):
                 raise InvalidObjectReference(
                     "A new object is reachable from multiple databases. "
-                    "Won't try to guess which one was correct!"
+                    "Won't try to guess which one was correct!",
+                    self._jar, obj,
                     )
-                
 
         klass = type(obj)
         if hasattr(klass, '__getnewargs__'):

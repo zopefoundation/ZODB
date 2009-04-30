@@ -113,7 +113,7 @@
             Maximum size of the ZEO blob cache, in bytes.  If not set, then
             the cache size isn't checked and the blob directory will
             grow without bound.
-            
+
             This option is ignored if shared_blob_dir is true.
       </description>
     </key>
@@ -125,7 +125,6 @@
             size.   This option is ignored if shared_blob_dir is true.
       </description>
     </key>
-    
     <key name="storage" default="1">
       <description>
         The name of the storage that the client wants to use.  If the
@@ -272,12 +271,13 @@
       </description>
     </key>
     <key name="historical-timeout" datatype="time-interval"
-         default="5m"/>
+         default="5m">
       <description>
         The minimum interval that an unused historical connection should be
         kept.
       </description>
-    <key name="database-name" default="unnamed"/>
+    </key>
+    <key name="database-name">
       <description>
         When multidatabases are in use, this is the name given to this
         database in the collection.  The name must be unique across all
@@ -288,6 +288,14 @@
         their own config files, using the "databases" parameter of a DB
         constructor.
       </description>
+    </key>
+    <key name="allow-implicit-cross-references" datatype="boolean">
+      <description>
+        If set to false, implicit cross references (the only kind
+        currently possible) are disallowed.
+      </description>
+    </key>
+
   </sectiontype>
 
   <sectiontype name="blobstorage" datatype=".BlobStorage"
@@ -300,8 +308,6 @@
     <section type="ZODB.storage" name="*" attribute="base"/>
   </sectiontype>
 
-
-    
 
 
 </component>

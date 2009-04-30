@@ -58,11 +58,13 @@ It isn't valid to create references outside a multi database:
     >>> tm.commit()
 
     >>> p2.p3 = p3
-    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
     InvalidObjectReference:
-    Attempt to store an object from a foreign database connection
+      ('Attempt to store an object from a foreign database connection',
+       <Connection at ...>,
+       <ZODB.tests.testcrossdatabasereferences.MyClass...>)
 
     >>> tm.abort()
 
@@ -84,11 +86,14 @@ in?  This sort of ambiguity could lead to subtle bugs.  For that reason,
 an error is generated if we commit changes when new objects are
 reachable from multiple databases:
 
-    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: A new object is reachable from multiple
-    databases. Won't try to guess which one was correct!
+    InvalidObjectReference:
+    ("A new object is reachable from multiple databases. Won't try to
+    guess which one was correct!",
+    <Connection at ...>,
+    <ZODB.tests.testcrossdatabasereferences.MyClass...>)
 
     >>> tm.abort()
 
@@ -109,11 +114,14 @@ This doesn't work with a savepoint:
     >>> p1.p5 = p5
     >>> s = tm.savepoint()
     >>> p2.p5 = p5
-    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE
+    >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference: A new object is reachable from multiple
-    databases. Won't try to guess which one was correct!
+    InvalidObjectReference:
+    ("A new object is reachable from multiple databases. Won't try to guess
+    which one was correct!",
+    <Connection at ...>,
+    <ZODB.tests.testcrossdatabasereferences.MyClass...>)
 
     >>> tm.abort()
 
@@ -132,6 +140,37 @@ to explicitly say what database an object belongs to:
 
 This the most explicit and thus the best way, when practical, to avoid
 the ambiguity.
+
+Dissallowing implicit cross-database references
+-----------------------------------------------
+
+The database contructor accepts a xrefs keyword argument that defaults
+to True.  If False is passed, the implicit cross database references
+are disallowed. (Note that currently, implicit cross references are
+the only kind of cross references allowed.)
+
+    >>> databases = {}
+    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
+    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2',
+    ...                          xrefs=False)
+
+In this example, we allow cross-references from db1 to db2, but not
+the other way around.
+
+    >>> c1 = db1.open()
+    >>> c2 = c1.get_connection('2')
+    >>> c1.root.x = c2.root()
+    >>> transaction.commit()
+    >>> c2.root.x = c1.root()
+    >>> transaction.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    InvalidObjectReference:
+    ("Database '2' doesn't allow implicit cross-database references",
+    <Connection at ...>,
+    {'x': {}})
+
+    >>> transaction.abort()
 
 NOTE
 ----
