@@ -8,11 +8,16 @@
 New Features
 ------------
 
-3.9.0a13 (2009-??-??)
+3.9.0b1 (2009-??-??)
 =====================
 
 New Features
 ------------
+
+- The Database class now has an ``xrefs`` keyword argument and a
+  corresponding allow-implicit-cross-references configuration option.
+  which default to true.  When set to false, cross-database references
+  are disallowed.
 
 - As a convenience, the connection root method for returning teh root
   object can now *also* be used as an object with attributes mapped to
@@ -29,10 +34,15 @@ New Features
   If control exists the block without an error, the transaction is
   committed, otherwise, it is aborted.
 
-- Convenience methods ZODB.DB.open and ZEO.DB.open provide a
+- Convenience functions ZODB.connection and ZEO.connection provide a
   convenient way to open a connection to a database.  They open a
   database and return a connection to it. When the connection is
   closed, the database is closed as well.
+
+- The ZODB.config databaseFrom... methods now support
+  multi-databases. If multiple zodb sections are used to define
+  multiple databases, the databases are connected in a multi-database
+  arrangement and the first of the defined databases is returned.
 
 - The zeopack script has gotten a number of improvements:
 
