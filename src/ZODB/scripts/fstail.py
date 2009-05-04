@@ -19,8 +19,12 @@ from ZODB.fstools import prev_txn
 
 import binascii
 import getopt
-import sha
 import sys
+
+try:
+    from hashlib import sha1
+except ImportError:
+    from sha import sha as sha1
 
 def main(path, ntxn):
     f = open(path, "rb")
@@ -28,7 +32,7 @@ def main(path, ntxn):
     th = prev_txn(f)
     i = ntxn
     while th and i > 0:
-        hash = sha.sha(th.get_raw_data()).digest()
+        hash = sha1(th.get_raw_data()).digest()
         l = len(str(th.get_timestamp())) + 1
         th.read_meta()
         print "%s: hash=%s" % (th.get_timestamp(),
@@ -47,7 +51,6 @@ def Main():
         if k == '-n':
             ntxn = int(v)
     main(path, ntxn)
-    
 
 if __name__ == "__main__":
     Main()
