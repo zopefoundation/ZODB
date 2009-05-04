@@ -25,12 +25,10 @@ Compatibility
 =============
 
 
-ZODB 3.8 requires Python 2.4.2 or later.
+ZODB 3.9 requires Python 2.4.2 or later.
 
-ZEO servers and clients are wholly compatible among 3.3, 3.4, 3.5, 3.6 and
-3.7; a ZEO client from any of those versions can talk with a ZEO server from
-any.  ZODB 3.8 ZEO clients require ZODB 3.8 servers and later.  ZODB
-3.8 ZEO Servers will work with ZODB 3.2 clients and later.
+ZODB ZEO clients from ZODB 3.2 on can talk to ZODB 3.9 servers.  ZODB
+ZEO Clients can talk to ZODB 3.8 and 3.9 ZEO servers.
 
 Prerequisites
 =============
@@ -40,9 +38,10 @@ be sure that you've installed the development RPMs too, since ZODB
 builds Python extensions.  If you have the source release of ZODB,
 you will need a C compiler.
 
-You also need the ZConfig, zdaemon, zope.interface, zope.proxy and
-zope.testing packages.  If you are using easy_install or zc.buildout to
-install ZODB, then these will be installed for you automatically.
+You also need the transaction, zc.lockfile, ZConfig, zdaemon,
+zope.event, zope.interface, zope.proxy and zope.testing packages.  If
+you are using easy_install or zc.buildout to install ZODB, then these
+will be installed for you automatically.
 
 Installation
 ============
@@ -89,7 +88,7 @@ to initialize the buildout:
     % python bootstrap.py
 
 and then use the buildout script to build ZODB and gather the dependencies:
- 
+
     % bin/buildout
 
 This creates a test script:
@@ -162,8 +161,6 @@ release "ZODB". We also worked on a ZODB4 package for a while and
 made a couple of alpha releases.  We've now abandoned that effort,
 because we didn't have the resources to pursue ot while also maintaining
 ZODB(3).
-
-
 
 License
 =======
