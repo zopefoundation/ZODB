@@ -124,7 +124,7 @@ class ZEOConfigTest(ConfigTestBase):
         cfg = """
         <zodb>
           <zeoclient>
-            blob-dir /tmp
+            blob-dir blobs
             server localhost:56897
             wait false
           </zeoclient>
@@ -132,7 +132,7 @@ class ZEOConfigTest(ConfigTestBase):
         """
         config, handle = ZConfig.loadConfigFile(getDbSchema(), StringIO(cfg))
         self.assertEqual(config.database[0].config.storage.config.blob_dir,
-                         '/tmp')
+                         'blobs')
         self.assertRaises(ClientDisconnected, self._test, cfg)
 
 def database_xrefs_config():
