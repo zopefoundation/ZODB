@@ -18,14 +18,16 @@ import unittest
 
 import transaction
 import ZODB.config
+import ZODB.tests.util
 from ZODB.POSException import ReadOnlyError
 
 
-class ConfigTestBase(unittest.TestCase):
+class ConfigTestBase(ZODB.tests.util.TestCase):
     def _opendb(self, s):
         return ZODB.config.databaseFromString(s)
 
     def tearDown(self):
+        ZODB.tests.util.TestCase.tearDown(self)
         if getattr(self, "storage", None) is not None:
             self.storage.cleanup()
 
@@ -222,7 +224,8 @@ def multi_atabases():
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(doctest.DocTestSuite())
+    suite.addTest(doctest.DocTestSuite(
+        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown))
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
     suite.addTest(unittest.makeSuite(ZEOConfigTest))
     return suite
