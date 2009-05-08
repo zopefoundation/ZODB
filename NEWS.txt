@@ -11,6 +11,9 @@ Whats new in ZODB 3.8.1
 
 Bugs Fixed:
 
+- (3.8.1) Fixed ``NameError`` in cases where a directory cannot be created,
+  e.g. when the necessary permissions are missing.
+
 - (3.8.1) Reset ``_cache`` on a connection's ``_reader`` object when
   resetting the cache, to prevent reads from the old cache object, e.g.
   during Zope2's auto-refresh of products.
