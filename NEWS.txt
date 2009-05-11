@@ -3,6 +3,9 @@ Next Release
 
 Bugs Fixed:
 
+- Fixed ``NameError`` in cases where a directory cannot be created,
+  e.g. when the necessary permissions are missing.
+
 - Fixed a pack test that was not compatible with storages that always
   return an object count of 0.
 
@@ -10,9 +13,6 @@ Whats new in ZODB 3.8.1
 =======================
 
 Bugs Fixed:
-
-- (3.8.1) Fixed ``NameError`` in cases where a directory cannot be created,
-  e.g. when the necessary permissions are missing.
 
 - (3.8.1) Reset ``_cache`` on a connection's ``_reader`` object when
   resetting the cache, to prevent reads from the old cache object, e.g.
