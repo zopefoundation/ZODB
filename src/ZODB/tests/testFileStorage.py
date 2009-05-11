@@ -587,7 +587,8 @@ def test_suite():
         test_packing=True,
         ))
     suite.addTest(PackableStorage.IExternalGC_suite(
-        lambda : ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')))
+        lambda : ZODB.FileStorage.FileStorage(
+            'data.fs', blob_dir='blobs', pack_gc=False)))
     return suite
 
 if __name__=='__main__':

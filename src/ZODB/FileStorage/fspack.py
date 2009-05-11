@@ -219,7 +219,11 @@ class GC(FileStorageFormatter):
             while pos < end:
                 dh = self._read_data_header(pos)
                 self.checkData(th, tpos, dh, pos)
-                self.oid2curpos[dh.oid] = pos
+                if dh.plen or dh.back:
+                    self.oid2curpos[dh.oid] = pos
+                else:
+                    if dh.oid in self.oid2curpos:
+                        del self.oid2curpos[dh.oid]
                 pos += dh.recordlen()
 
             tlen = self._read_num(pos)

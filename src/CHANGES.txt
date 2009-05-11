@@ -2,6 +2,14 @@
  Change History
 ================
 
+3.9.0b2 (2009-05-??)
+====================
+
+Bugs Fixed
+----------
+
+- Deleted records weren't removed when packing file storages.
+
 3.9.0b1 (2009-05-04)
 ====================
 

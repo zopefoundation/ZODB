@@ -1193,7 +1193,7 @@ class ServerManagingClientStorage(ClientStorage):
         def tpc_abort(self, id):
             self.rpc.call('tpc_abort', id)
 
-    def __init__(self, name, blob_dir, shared=False):
+    def __init__(self, name, blob_dir, shared=False, extrafsoptions=''):
         if shared:
             server_blob_dir = blob_dir
         else:
@@ -1206,9 +1206,10 @@ class ServerManagingClientStorage(ClientStorage):
                 blob-dir %s
                 <filestorage>
                    path %s
+                   %s
                 </filestorage>
             </blobstorage>
-            """ % (server_blob_dir, name+'.fs'),
+            """ % (server_blob_dir, name+'.fs', extrafsoptions),
             port=port,
             )
         os.remove(config)
@@ -1260,7 +1261,8 @@ def test_suite():
         )
     zeo.addTest(PackableStorage.IExternalGC_suite(
         lambda :
-        ServerManagingClientStorageForIExternalGCTest('data.fs', 'blobs')
+        ServerManagingClientStorageForIExternalGCTest(
+            'data.fs', 'blobs', extrafsoptions='pack-gc false')
         ))
     for klass in quick_test_classes:
         zeo.addTest(unittest.makeSuite(klass, "check"))
