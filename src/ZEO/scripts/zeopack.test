@@ -73,11 +73,13 @@ Options:
   -U UNIX               Deprecated: Used with the -S option, Unix-domain
                         socket to connect to.
 
-Since packing involved time, we'd better have our way with it:
+Since packing involves time, we'd better have our way with it.  Replace
+time.time() with a function that always returns the same value.  The
+value is timezone dependent.
 
     >>> import time
     >>> time_orig = time.time
-    >>> time.time = lambda : 1237906517.0
+    >>> time.time = lambda : time.mktime((2009, 3, 24, 10, 55, 17, 1, 83, -1))
     >>> sleep_orig = time.sleep
     >>> def sleep(t):
     ...     print 'sleep(%r)' % t
