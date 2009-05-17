@@ -231,7 +231,8 @@ class MappingStorage(object):
                     if transactions[tid].pack(oid):
                         del transactions[tid]
 
-            self._data = new_data
+            self._data.clear()
+            self._data.update(new_data)
 
     # ZODB.interfaces.IStorage
     def registerDB(self, db):
@@ -307,6 +308,7 @@ class MappingStorage(object):
         self._ltid = tid
         self._transactions[tid] = TransactionRecord(tid, transaction, tdata)
         self._transaction = None
+        del self._tdata
         self._commit_lock.release()
  
     # ZEO.interfaces.IServeable
