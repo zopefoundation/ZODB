@@ -10,6 +10,8 @@ Bugs Fixed
 
 - Deleted records weren't removed when packing file storages.
 
+- Fixed intermittent failures in the MVCCMappingStorage tests.
+
 3.9.0b1 (2009-05-04)
 ====================
 
@@ -21,7 +23,9 @@ New Features (in more or less reverse chronological order)
   which default to true.  When set to false, cross-database references
   are disallowed.
 
-- As a convenience, the connection root method for returning teh root
+- Added support for RelStorage.
+
+- As a convenience, the connection root method for returning the root
   object can now *also* be used as an object with attributes mapped to
   the root-object keys.
 
