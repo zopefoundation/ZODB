@@ -336,6 +336,72 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         pass
 
 
+class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
+
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
+
+    def checkanalyze(self):
+        import new, sys, pickle
+        from BTrees.OOBTree import OOBTree
+        from ZODB.scripts import analyze
+        
+        # Set up a module to act as a broken import
+        module_name = 'brokenmodule'
+        module = new.module(module_name)
+        sys.modules[module_name] = module
+        
+        class Broken(MinPO):
+            __module__ = module_name
+        module.Broken = Broken
+        
+        oids = [[self._storage.new_oid(), None] for i in range(3)]
+        for i in range(2):
+            t = transaction.Transaction()
+            self._storage.tpc_begin(t)
+            
+            # sometimes data is in this format
+            j = 0
+            oid, revid = oids[j]
+            serial = self._storage.store(oid, revid, pickle.dumps(OOBTree, 1), "", t) 
+            oids[j][1] = serial
+            
+            # and it could be from a broken module
+            j = 1
+            oid, revid = oids[j]
+            serial = self._storage.store(oid, revid, pickle.dumps(Broken, 1), "", t) 
+            oids[j][1] = serial
+            
+            # but mostly it looks like this
+            j = 2
+            o = MinPO(j)
+            oid, revid = oids[j]
+            serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
+            oids[j][1] = serial
+
+            self._storage.tpc_vote(t)
+            self._storage.tpc_finish(t)
+            
+        # now break the import of the Broken class
+        del sys.modules[module_name]
+        
+        # from ZODB.scripts.analyze.analyze
+        fsi = self._storage.iterator()
+        rep = analyze.Report()
+        for txn in fsi:
+            analyze.analyze_trans(rep, txn)
+        
+        # from ZODB.scripts.analyze.report
+        typemap = rep.TYPEMAP.keys()
+        typemap.sort()
+        cumpct = 0.0
+        for t in typemap:
+            pct = rep.TYPESIZE[t] * 100.0 / rep.DBYTES
+            cumpct += pct
+       
+        self.assertAlmostEqual(cumpct, 100.0, 0, "Failed to analyze some records")
+
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
 def checkIncreasingTids(fs):
@@ -573,7 +639,7 @@ def test_suite():
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
                   FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
-                  FileStorageTestsWithBlobsEnabled,
+                  FileStorageTestsWithBlobsEnabled, AnalyzeDotPyTest,
                   ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(

@@ -12,6 +12,8 @@ Bugs Fixed
 
 - Fixed intermittent failures in the MVCCMappingStorage tests.
 
+- Fixed analyze.py and added test.
+
 3.9.0b1 (2009-05-04)
 ====================
 

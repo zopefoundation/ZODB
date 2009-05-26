@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.3
+#!/usr/bin/env python2.4
 
 # Based on a transaction analyzer by Matt Kromer.
 
@@ -7,6 +7,17 @@ import re
 import sys
 import types
 from ZODB.FileStorage import FileStorage
+from cStringIO import StringIO
+
+class FakeError(Exception):
+    def __init__(self, module, name):
+        Exception.__init__(self)
+        self.module = module
+        self.name = name
+
+class FakeUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        raise FakeError(module, name)
 
 class Report:
     def __init__(self):
@@ -87,15 +98,12 @@ def analyze_trans(report, txn):
 
 def get_type(record):
     try:
-        classinfo = pickle.loads(record.data)[0]
-    except SystemError, err:
-        s = str(err)
-        mo = re.match('Failed to import class (\S+) from module (\S+)', s)
-        if mo is None:
-            raise
-        else:
-            klass, mod = mo.group(1, 2)
-            return "%s.%s" % (mod, klass)
+        unpickled = FakeUnpickler(StringIO(record.data)).load()
+    except FakeError, err:
+        return "%s.%s" % (err.module, err.name)
+    except:
+        raise
+    classinfo = unpickled[0]
     if isinstance(classinfo, types.TupleType):
         mod, klass = classinfo
         return "%s.%s" % (mod, klass)
@@ -130,9 +138,6 @@ def analyze_rec(report, record):
     except Exception, err:
         print err
 
-def main():
+if __name__ == "__main__":
     path = sys.argv[1]
     report(analyze(path))
-
-if __name__ == "__main__":
-    main()
