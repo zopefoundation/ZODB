@@ -110,7 +110,6 @@ class AbstractConnectionPool(object):
 
 class ConnectionPool(AbstractConnectionPool):
 
-    # XXX WTF, passing time.time() as a default?
     def __init__(self, size, timeout=1<<31):
         super(ConnectionPool, self).__init__(size, timeout)
 
