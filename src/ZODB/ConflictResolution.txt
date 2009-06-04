@@ -56,8 +56,9 @@ use:
                 This method should compute a new state by merging changes
                 reflected in savedState and newState, relative to oldState.
 
-                If the method cannot resolve the changes, then it should
-                return None.    
+            If the method cannot resolve the changes, then it should raise
+            ZODB.POSException.ConflictError.
+            
 
     Consider an extremely simple example, a counter::
 
