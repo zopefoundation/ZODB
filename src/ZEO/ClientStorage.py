@@ -38,6 +38,7 @@ import socket
 import stat
 import sys
 import tempfile
+import thread
 import threading
 import time
 import types
@@ -398,6 +399,7 @@ class ClientStorage(object):
         self._blob_cache_size = blob_cache_size
         self._blob_data_bytes_loaded = 0
         if blob_cache_size is not None:
+            assert blob_cache_size_check < 100
             self._blob_cache_size_check = (
                 blob_cache_size * blob_cache_size_check / 100)
             self._check_blob_size()
@@ -477,7 +479,7 @@ class ClientStorage(object):
 
         check_blob_size_thread = threading.Thread(
             target=_check_blob_cache_size,
-            args=(self.blob_dir, self._blob_cache_size),
+            args=(self.blob_dir, target),
             )
         check_blob_size_thread.setDaemon(True)
         check_blob_size_thread.start()
@@ -1620,7 +1622,6 @@ cache_file_name = re.compile(r'\d+$').match
 def _check_blob_cache_size(blob_dir, target):
 
     logger = logging.getLogger(__name__+'.check_blob_cache')
-    logger.info("Checking blob cache size")
 
     layout = open(os.path.join(blob_dir, ZODB.blob.LAYOUT_MARKER)
                   ).read().strip()
@@ -1628,63 +1629,89 @@ def _check_blob_cache_size(blob_dir, target):
         logger.critical("Invalid blob directory layout %s", layout)
         raise ValueError("Invalid blob directory layout", layout)
 
+    attempt_path = os.path.join(blob_dir, 'check_size.attempt')
+
     try:
         check_lock = zc.lockfile.LockFile(
             os.path.join(blob_dir, 'check_size.lock'))
     except zc.lockfile.LockError:
-        # Someone is already cleaning up, so don't bother
-        logger.info("Another thread is checking the blob cache size")
-        return
+        try:
+            time.sleep(1)
+            check_lock = zc.lockfile.LockFile(
+                os.path.join(blob_dir, 'check_size.lock'))
+        except zc.lockfile.LockError:
+            # Someone is already cleaning up, so don't bother
+            logger.debug("%s Another thread is checking the blob cache size.",
+                         thread.get_ident())
+            open(attempt_path, 'w').close() # Mark that we tried
+            return
+
+    logger.debug("%s Checking blob cache size. (target: %s)",
+                 thread.get_ident(), target)
 
     try:
-        size = 0
-        blob_suffix = ZODB.blob.BLOB_SUFFIX
-        files_by_atime = BTrees.IOBTree.BTree()
+        while 1:
+            size = 0
+            blob_suffix = ZODB.blob.BLOB_SUFFIX
+            files_by_atime = BTrees.OOBTree.BTree()
 
-        for dirname in os.listdir(blob_dir):
-            if not cache_file_name(dirname):
-                continue
-            base = os.path.join(blob_dir, dirname)
-            if not os.path.isdir(base):
-                continue
-            for file_name in os.listdir(base):
-                if not file_name.endswith(blob_suffix):
+            for dirname in os.listdir(blob_dir):
+                if not cache_file_name(dirname):
                     continue
-                file_name = os.path.join(base, file_name)
-                if not os.path.isfile(file_name):
+                base = os.path.join(blob_dir, dirname)
+                if not os.path.isdir(base):
                     continue
-                stat = os.stat(file_name)
-                size += stat.st_size
-                t = int(stat.st_atime)
-                if t not in files_by_atime:
-                    files_by_atime[t] = []
-                files_by_atime[t].append(file_name)
+                for file_name in os.listdir(base):
+                    if not file_name.endswith(blob_suffix):
+                        continue
+                    file_path = os.path.join(base, file_name)
+                    if not os.path.isfile(file_path):
+                        continue
+                    stat = os.stat(file_path)
+                    size += stat.st_size
+                    t = stat.st_atime
+                    if t not in files_by_atime:
+                        files_by_atime[t] = []
+                    files_by_atime[t].append(os.path.join(dirname, file_name))
 
-        logger.info("blob cache size: %s", size)
+            logger.debug("%s   blob cache size: %s", thread.get_ident(), size)
 
-        while size > target and files_by_atime:
-            for file_name in files_by_atime.pop(files_by_atime.minKey()):
-                lockfilename = os.path.join(os.path.dirname(file_name),
-                                            '.lock')
-                try:
-                    lock = zc.lockfile.LockFile(lockfilename)
-                except zc.lockfile.LockError:
-                    logger.info("Skipping locked %s",
-                                os.path.basename(file_name))
-                    continue  # In use, skip
+            if size <= target:
+                if os.path.isfile(attempt_path):
+                    os.remove(attempt_path)
+                    continue
+                logger.debug("%s   -->", thread.get_ident())
+                break
 
-                try:
-                    fsize = os.stat(file_name).st_size
+            while size > target and files_by_atime:
+                for file_name in files_by_atime.pop(files_by_atime.minKey()):
+                    file_name = os.path.join(blob_dir, file_name)
+                    lockfilename = os.path.join(os.path.dirname(file_name),
+                                                '.lock')
                     try:
-                        ZODB.blob.remove_committed(file_name)
-                    except OSError, v:
-                        pass # probably open on windows
-                    else:
-                        size -= fsize
-                finally:
-                    lock.close()
+                        lock = zc.lockfile.LockFile(lockfilename)
+                    except zc.lockfile.LockError:
+                        logger.debug("%s Skipping locked %s",
+                                     thread.get_ident(),
+                                     os.path.basename(file_name))
+                        continue  # In use, skip
 
-        logger.info("reduced blob cache size: %s", size)
+                    try:
+                        fsize = os.stat(file_name).st_size
+                        try:
+                            ZODB.blob.remove_committed(file_name)
+                        except OSError, v:
+                            pass # probably open on windows
+                        else:
+                            size -= fsize
+                    finally:
+                        lock.close()
+
+                    if size <= target:
+                        break
+
+            logger.debug("%s   reduced blob cache size: %s",
+                         thread.get_ident(), size)
 
     finally:
         check_lock.close()
