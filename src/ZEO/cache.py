@@ -24,7 +24,6 @@ FileCache.
 
 from struct import pack, unpack
 
-import bisect
 import BTrees.LLBTree
 import BTrees.LOBTree
 import logging
