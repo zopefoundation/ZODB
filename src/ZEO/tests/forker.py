@@ -137,7 +137,7 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
         args.append("-S")
     if protocol:
         args.extend(["-v", protocol])
-        
+
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
 
@@ -222,7 +222,7 @@ def get_port(test=None):
 
     if test is not None:
         return get_port2(test)
-    
+
     for i in range(10):
         port = random.randrange(20000, 30000)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -281,7 +281,7 @@ def can_connect(port):
     else:
         c.close()
         return True
-    
+
 def setUp(test):
     ZODB.tests.util.setUp(test)
 
@@ -330,13 +330,14 @@ def setUp(test):
     test.globs['wait_disconnected'] = wait_disconnected
 
 
-def wait_until(label, func, timeout=30):
-    now = time.time()
-    giveup = now + 30
+def wait_until(label, func, timeout=30, onfail=None):
+    giveup = time.time() + timeout
     while not func():
-        now = time.time()
         if time.time() > giveup:
-            raise AssertionError("Timed out waiting for: ", label)
+            if onfail is None:
+                raise AssertionError("Timed out waiting for: ", label)
+            else:
+                return onfail()
         time.sleep(0.01)
 
 def wait_connected(storage):
