@@ -656,10 +656,7 @@ class Connection(ExportImport, object):
                 obj._p_invalidate()
             else:
                 s = self._storage.store(oid, serial, p, '', transaction)
-            self._cache.update_object_size_estimation(oid,
-                                                   len(p)
-                                                   )
-            obj._p_estimated_size = len(p)
+
             self._store_count += 1
             # Put the object in the cache before handling the
             # response, just in case the response contains the
@@ -673,6 +670,9 @@ class Connection(ExportImport, object):
                     self._cache[oid] = obj.aq_base
                 else:
                     raise
+
+            self._cache.update_object_size_estimation(oid, len(p))
+            obj._p_estimated_size = len(p)
 
             self._handle_serial(s, oid)
 
@@ -901,9 +901,7 @@ class Connection(ExportImport, object):
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
-        self._cache.update_object_size_estimation(obj._p_oid,
-                                               len(p)
-                                               )
+        self._cache.update_object_size_estimation(obj._p_oid, len(p))
         obj._p_estimated_size = len(p)
 
         # Blob support
@@ -1162,9 +1160,7 @@ class Connection(ExportImport, object):
             data, serial = src.load(oid, src)
             obj = self._cache.get(oid, None)
             if obj is not None:
-                self._cache.update_object_size_estimation(obj._p_oid,
-                                                       len(data)
-                                                       )
+                self._cache.update_object_size_estimation(obj._p_oid, len(data))
                 obj._p_estimated_size = len(data)
             if isinstance(self._reader.getGhost(data), Blob):
                 blobfilename = src.loadBlob(oid, serial)

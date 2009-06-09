@@ -8,6 +8,10 @@
 Bugs Fixed
 ----------
 
+- Sizes of new objects weren't added to the object cache size
+  estimation, causing the object-cache size limiting feature to let
+  the cache grow too large when many objects were added.
+
 - Deleted records weren't removed when packing file storages.
 
 - Fixed intermittent failures in the MVCCMappingStorage tests.

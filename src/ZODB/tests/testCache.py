@@ -18,21 +18,20 @@ purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
 
-import gc
-import time
-import unittest
-import threading
-
 from persistent.cPickleCache import PickleCache
+from persistent import Persistent
 from persistent.mapping import PersistentMapping
+from ZODB.tests.MinPO import MinPO
+from ZODB.utils import p64
+from zope.testing import doctest
+import gc
+import threading
+import time
 import transaction
+import unittest
 import ZODB
 import ZODB.MappingStorage
-from ZODB.tests.MinPO import MinPO
 import ZODB.tests.util
-from ZODB.utils import p64
-
-from persistent import Persistent
 
 class CacheTestBase(ZODB.tests.util.TestCase):
 
@@ -418,8 +417,64 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("two objects with the same oid should have failed")
 
+def check_basic_cache_size_estimation():
+    """Make sure the basic accounting is correct:
+
+    >>> import ZODB.MappingStorage
+    >>> db = ZODB.MappingStorage.DB()
+    >>> conn = db.open()
+
+The cache is empty initially:
+
+    >>> conn._cache.total_estimated_size
+    0
+
+We force the root to be loaded and the cache grows:
+
+    >>> getattr(conn.root, 'z', None)
+    >>> conn._cache.total_estimated_size
+    128
+
+We add some data and the cache grows:
+
+    >>> conn.root.z = ZODB.tests.util.P('x'*100)
+    >>> import transaction
+    >>> transaction.commit()
+    >>> conn._cache.total_estimated_size
+    320
+
+Loading the objects in another connection gets the same sizes:
+
+    >>> conn2 = db.open()
+    >>> conn2._cache.total_estimated_size
+    0
+    >>> getattr(conn2.root, 'x', None)
+    >>> conn2._cache.total_estimated_size
+    128
+    >>> _ = conn2.root.z.name
+    >>> conn2._cache.total_estimated_size
+    320
+
+If we deactivate, the size goes down:
+
+    >>> conn2.root.z._p_deactivate()
+    >>> conn2._cache.total_estimated_size
+    128
+
+Loading data directly, rather than through traversal updates the cache
+size correctly:
+
+    >>> conn3 = db.open()
+    >>> _ = conn3.get(conn2.root.z._p_oid).name
+    >>> conn3._cache.total_estimated_size
+    192
+
+    """
+
+
 def test_suite():
     s = unittest.makeSuite(DBMethods, 'check')
     s.addTest(unittest.makeSuite(LRUCacheTests, 'check'))
     s.addTest(unittest.makeSuite(CacheErrors, 'check'))
+    s.addTest(doctest.DocTestSuite())
     return s
