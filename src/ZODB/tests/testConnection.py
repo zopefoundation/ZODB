@@ -594,7 +594,8 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         transaction.savepoint()
         new_size = obj._p_estimated_size
         self.assert_(new_size > size)
-        self.assertEqual(cache.total_estimated_size, cache_size + new_size - size)
+        self.assertEqual(cache.total_estimated_size,
+                         cache_size + new_size - size)
 
     def test_size_set_on_load(self):
         c = self.db.open() # new connection
@@ -607,10 +608,10 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         size = obj._p_estimated_size
         self.assert_(size > 0)
         self.assertEqual(cache.total_estimated_size, cache_size + size)
-        # we test here as well that the deactivation works reduced the cache size
+        # we test here as well that the deactivation works reduced the cache
+        # size
         obj._p_deactivate()
         self.assertEqual(cache.total_estimated_size, cache_size)
-
 
     def test_configuration(self):
         # verify defaults ....
