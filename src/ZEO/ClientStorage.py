@@ -1006,15 +1006,7 @@ class ClientStorage(object):
         # getting it multiple times even accross separate client
         # processes on the same machine. We'll use file locking.
 
-        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
-        while 1:
-            try:
-                lock = zc.lockfile.LockFile(lockfilename)
-            except zc.lockfile.LockError:
-                time.sleep(0.01)
-            else:
-                break
-
+        lock = _lock_blob(blob_filename)
         try:
             # We got the lock, so it's our job to download it.  First,
             # we'll double check that someone didn't download it while we
@@ -1049,15 +1041,7 @@ class ClientStorage(object):
             # Fall through and try again with the protection of the lock.
             pass
 
-        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
-        while 1:
-            try:
-                lock = zc.lockfile.LockFile(lockfilename)
-            except zc.lockfile.LockError:
-                time.sleep(.01)
-            else:
-                break
-
+        lock = _lock_blob(blob_filename)
         try:
             blob_filename = self.fshelper.getBlobFilename(oid, serial)
             if not os.path.exists(blob_filename):
@@ -1216,14 +1200,23 @@ class ClientStorage(object):
 
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
+            had_blobs = False
             while blobs:
                 oid, blobfilename = blobs.pop()
                 self._blob_data_bytes_loaded += os.stat(blobfilename).st_size
                 targetpath = self.fshelper.getPathForOID(oid, create=True)
-                ZODB.blob.rename_or_copy_blob(
-                    blobfilename,
-                    self.fshelper.getBlobFilename(oid, tid),
-                    )
+                target_blob_file_name = self.fshelper.getBlobFilename(oid, tid)
+                lock = _lock_blob(target_blob_file_name)
+                try:
+                    ZODB.blob.rename_or_copy_blob(
+                        blobfilename,
+                        target_blob_file_name,
+                        )
+                finally:
+                    lock.close()
+                had_blobs = True
+
+            if had_blobs:
                 self._check_blob_size(self._blob_data_bytes_loaded)
 
         self._tbuf.clear()
@@ -1724,3 +1717,17 @@ def check_blob_size_script(args=None):
         args = sys.argv[1:]
     blob_dir, target = args
     _check_blob_cache_size(blob_dir, int(target))
+
+def _lock_blob(path):
+    lockfilename = os.path.join(os.path.dirname(path), '.lock')
+    n = 0
+    while 1:
+        try:
+            return zc.lockfile.LockFile(lockfilename)
+        except zc.lockfile.LockError:
+            time.sleep(0.01)
+            n += 1
+            if n > 60000:
+                raise
+        else:
+            break
