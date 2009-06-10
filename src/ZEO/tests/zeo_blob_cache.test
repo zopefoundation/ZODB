@@ -103,13 +103,6 @@ target:
 
     >>> wait_until("size is reduced", check, 99, onfail)
 
-    >>> for i in range(1, 101):
-    ...     data = open(conn.root()[i].committed(), 'rb').read()
-    ...     if data != chr(i)*100:
-    ...         print 'bad data', `chr(i)`, `data`
-
-    >>> wait_until("size is reduced", check, 99, onfail)
-
 Now let see if we can stress things a bit.  We'll create many clients
 and get them to pound on the blobs all at once to see if we can
 provoke problems:
