@@ -161,6 +161,7 @@ Make sure we can restore:
 
 cleanup
 
+    >>> fs.close()
     >>> logger.setLevel(logging.NOTSET)
     >>> logger.removeHandler(handler)
     >>> sys.setrecursionlimit(old_limit)
