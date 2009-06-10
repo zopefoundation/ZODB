@@ -33,6 +33,7 @@ from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.utils import p64, u64, z64
 
 import base64
+import BTrees.OOBTree
 import errno
 import logging
 import os
@@ -248,7 +249,16 @@ class FileStorage(
         f=open(tmp_name,'wb')
         p=Pickler(f,1)
 
-        info={'index': self._index, 'pos': self._pos}
+        # Pickle the index buckets first to avoid deep recursion:
+        buckets = []
+        bucket = self._index._data._firstbucket
+        while bucket is not None:
+            buckets.append(bucket)
+            bucket = bucket._next
+        buckets.reverse()
+
+        info=BTrees.OOBTree.Bucket(dict(
+            _buckets=buckets, index=self._index, pos=self._pos))
 
         p.dump(info)
         f.flush()

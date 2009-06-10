@@ -8,6 +8,11 @@
 Bugs Fixed
 ----------
 
+- Saving indexes for large file storages failed (with the error:
+  RuntimeError: maximum recursion depth exceeded).  This can cause a
+  FileStorage to fail to start because it gets an error trying to save
+  its index.
+
 - Sizes of new objects weren't added to the object cache size
   estimation, causing the object-cache size limiting feature to let
   the cache grow too large when many objects were added.

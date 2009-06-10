@@ -125,6 +125,49 @@ def pack_with_repeated_blob_records():
     >>> db.close()
     """
 
+def _save_index():
+    """
+
+_save_index can fail for large indexes.
+
+    >>> import ZODB.utils
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+
+    >>> t = transaction.begin()
+    >>> fs.tpc_begin(t)
+    >>> oid = 0
+    >>> for i in range(5000):
+    ...     oid += (1<<16)
+    ...     _ = fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, 'x', '', t)
+    >>> fs.tpc_vote(t)
+    >>> fs.tpc_finish(t)
+
+    >>> import sys
+    >>> old_limit = sys.getrecursionlimit()
+    >>> sys.setrecursionlimit(50)
+    >>> fs._save_index()
+
+Make sure we can restore:
+
+    >>> import logging
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> logger = logging.getLogger('ZODB.FileStorage')
+    >>> logger.setLevel(logging.DEBUG)
+    >>> logger.addHandler(handler)
+    >>> index, pos, tid = fs._restore_index()
+    >>> index.items() == fs._index.items()
+    True
+    >>> pos, tid = fs._pos, fs._tid
+
+cleanup
+
+    >>> logger.setLevel(logging.NOTSET)
+    >>> logger.removeHandler(handler)
+    >>> sys.setrecursionlimit(old_limit)
+
+    """
+
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
