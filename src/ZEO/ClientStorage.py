@@ -1678,7 +1678,10 @@ def _check_blob_cache_size(blob_dir, target):
 
             if size <= target:
                 if os.path.isfile(attempt_path):
-                    os.remove(attempt_path)
+                    try:
+                        os.remove(attempt_path)
+                    except OSError:
+                        pass # Sigh, windows
                     continue
                 logger.debug("%s   -->", thread.get_ident())
                 break
