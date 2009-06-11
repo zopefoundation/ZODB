@@ -121,7 +121,7 @@ provoke problems:
     ...         data = conn.root()[i].open('c').read()
     ...         if data != chr(i)*100:
     ...             print 'bad data', `chr(i)`, `data`
-    ...     db.close()
+    ...     conn.close()
 
     >>> threads = [threading.Thread(target=run) for i in range(10)]
     >>> for thread in threads:
