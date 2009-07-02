@@ -47,7 +47,7 @@ def client_exit():
     global client_running
     client_running = False
     client_trigger.pull_trigger()
-    client_exit_event.wait()
+    client_exit_event.wait(99)
 
 atexit.register(client_exit)
 
@@ -61,10 +61,10 @@ def client_loop():
     client_exit_event.clear()
     global client_running
     client_running = True
-    
+
     while client_running and map:
         try:
-            
+
             # The next two lines intentionally don't use
             # iterators. Other threads can close dispatchers, causeing
             # the socket map to shrink.
@@ -87,7 +87,7 @@ def client_loop():
                             continue
                         if [fd for fd in w if fd not in map]:
                             continue
-                        
+
                     raise
                 else:
                     continue
@@ -153,7 +153,7 @@ def client_loop():
 
     client_exit_event.set()
 
-client_thread = threading.Thread(target=client_loop)
+client_thread = threading.Thread(target=client_loop, name=__name__)
 client_thread.setDaemon(True)
 client_thread.start()
 #
@@ -344,7 +344,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             restorea, iterator_start, iterator_next,
     #             iterator_record_start, iterator_record_next,
     #             iterator_gc
-    
+
     # Protocol variables:
     # Our preferred protocol.
     current_protocol = "Z309"
@@ -548,7 +548,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def handle_request(self, msgid, flags, name, args):
         obj = self.obj
-        
+
         if name.startswith('_') or not hasattr(obj, name):
             if obj is None:
                 if __debug__:
@@ -556,7 +556,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                              % (name, short_repr(args)),
                              level=logging.DEBUG)
                 return
-                
+
             msg = "Invalid method name: %s on %s" % (name, repr(obj))
             raise ZRPCError(msg)
         if __debug__:
@@ -781,7 +781,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.trigger.pull_trigger()
 
 
-        
+
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
 

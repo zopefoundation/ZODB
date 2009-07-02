@@ -2,6 +2,16 @@
  Change History
 ================
 
+3.9.0b2 (2009-07-02)
+====================
+
+Bugs Fixed
+----------
+
+- ZEO client threads were unnamed, making it hard to debug thread
+  management.
+
+
 3.9.0b2 (2009-06-11)
 ====================
 

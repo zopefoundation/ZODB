@@ -1174,6 +1174,12 @@ def open_convenience():
     >>> db.close()
     """
 
+def client_asyncore_thread_has_name():
+    """
+    >>> len([t for t in threading.enumerate()
+    ...      if t.getName() == 'ZEO.zrpc.connection'])
+    1
+    """
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
