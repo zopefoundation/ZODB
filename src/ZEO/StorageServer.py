@@ -1408,7 +1408,7 @@ class ZEOStorage308Adapter:
     abortVersion = commitVersion
 
     def zeoLoad(self, oid):             # Z200
-        p, s = self.storage,loadEx(oid)
+        p, s = self.storage.loadEx(oid)
         return p, s, '', None, None
 
     def __getattr__(self, name):
