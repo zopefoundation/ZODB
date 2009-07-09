@@ -2,7 +2,7 @@
  Change History
 ================
 
-3.9.0b2 (2009-07-??)
+3.9.0b3 (2009-07-??)
 ====================
 
 Bugs Fixed
@@ -13,6 +13,9 @@ Bugs Fixed
 
 - ZEO protocol 2 support was broken.  This caused very old clients to
   be unable to use new servers.
+
+- zeopack was less flexible than it was before.  -h should default to
+  local host.
 
 3.9.0b2 (2009-06-11)
 ====================

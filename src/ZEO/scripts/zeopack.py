@@ -104,8 +104,7 @@ def _main(args=None, prog=None):
                   "specified as well.")
         servers.append(((options.host, options.port), options.name))
     elif options.port:
-        error("If port (-p) is specified then a host (-h) must be "
-              "specified as well.")
+        servers.append(((socket.gethostname(), options.port), options.name))
 
     if options.unix:
         servers.append((options.unix, options.name))

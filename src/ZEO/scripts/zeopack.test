@@ -214,6 +214,16 @@ Legacy support
     pack(384917.0, wait=True)
     close()
 
+    >>> import socket
+    >>> old_gethostname = socket.gethostname
+    >>> socket.gethostname = lambda : 'test.host.com'
+    >>> main(["-d3", "-p", "8100"])
+    ClientStorage(('test.host.com', 8100), read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+    >>> socket.gethostname = old_gethostname
+
     >>> main(["-d3", "-U", "foo/bar", "-S", "2"])
     ClientStorage('foo/bar', read_only=1, storage='2', wait=False)
     is_connected True
