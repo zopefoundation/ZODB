@@ -106,14 +106,22 @@ already been used to create a lawn structure.
 'lawn'
 >>> shutil.rmtree('blobs')
 
-4. If the directory does not contain a marker but other files, we assume that
-it was created with an earlier version of the blob implementation and uses our
-`lawn` layout:
+4. If the directory does not contain a marker but other files that are
+not hidden, we assume that it was created with an earlier version of
+the blob implementation and uses our `lawn` layout:
 
 >>> os.mkdir('blobs')
 >>> open(os.path.join('blobs', '0x0101'), 'wb').write('foo')
 >>> auto_layout_select('blobs')
 'lawn'
+>>> shutil.rmtree('blobs')
+
+5. If the directory contains only hidden files, use the bushy layout:
+
+>>> os.mkdir('blobs')
+>>> open(os.path.join('blobs', '.svn'), 'wb').write('blah')
+>>> auto_layout_select('blobs')
+'bushy'
 >>> shutil.rmtree('blobs')
 
 

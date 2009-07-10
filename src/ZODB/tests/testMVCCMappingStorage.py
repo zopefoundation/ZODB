@@ -18,7 +18,8 @@ from persistent.mapping import PersistentMapping
 import transaction
 from ZODB.DB import DB
 from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
-
+import ZODB.blob
+import ZODB.tests.testblob
 
 from ZODB.tests import (
     BasicStorage,
@@ -167,9 +168,20 @@ class MVCCMappingStorageTests(
         self._storage.tpc_begin(t)
         self.assertEqual(self._storage._tid, 'zzzzzzzz')
 
+def create_blob_storage(name, blob_dir):
+    s = MVCCMappingStorage(name)
+    return ZODB.blob.BlobStorage(blob_dir, s)
 
 def test_suite():
     suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')
+    # Note: test_packing doesn't work because even though MVCCMappingStorage
+    # retains history, it does not provide undo methods, so the
+    # BlobStorage wrapper calls _packNonUndoing instead of _packUndoing,
+    # causing blobs to get deleted even though object states are retained.
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'MVCCMapping', create_blob_storage,
+        test_undo=False,
+        ))
     return suite
 
 if __name__ == "__main__":

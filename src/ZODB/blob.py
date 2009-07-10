@@ -502,23 +502,30 @@ def auto_layout_select(path):
     # A heuristic to look at a path and determine which directory layout to
     # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
-    if not os.path.exists(path):
-        log('Blob directory %s does not exist. '
-            'Selected `bushy` layout. ' % path)
-        layout = 'bushy'
-    elif len(os.listdir(path)) == 0:
-        log('Blob directory `%s` is unused and has no layout marker set. '
-            'Selected `bushy` layout. ' % path)
-        layout = 'bushy'
-    elif LAYOUT_MARKER not in os.listdir(path):
-        log('Blob directory `%s` is used but has no layout marker set. '
-            'Selected `lawn` layout. ' % path)
-        layout = 'lawn'
-    else:
+    if os.path.exists(layout_marker):
         layout = open(layout_marker, 'rb').read()
         layout = layout.strip()
         log('Blob directory `%s` has layout marker set. '
             'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
+    elif not os.path.exists(path):
+        log('Blob directory %s does not exist. '
+            'Selected `bushy` layout. ' % path)
+        layout = 'bushy'
+    else:
+        # look for a non-hidden file in the directory
+        has_files = False
+        for name in os.listdir(path):
+            if not name.startswith('.'):
+                has_files = True
+                break
+        if not has_files:
+            log('Blob directory `%s` is unused and has no layout marker set. '
+                'Selected `bushy` layout. ' % path)
+            layout = 'bushy'
+        else:
+            log('Blob directory `%s` is used but has no layout marker set. '
+                'Selected `lawn` layout. ' % path)
+            layout = 'lawn'
     return layout
 
 
@@ -860,6 +867,18 @@ class BlobStorage(SpecificationDecoratorBase):
         finally:
             self._lock_release()
         return undo_serial, keys
+
+    @non_overridable
+    def new_instance(self):
+        """Implementation of IMVCCStorage.new_instance.
+
+        This method causes all storage instances to be wrapped with
+        a blob storage wrapper.
+        """
+        base_dir = self.fshelper.base_dir
+        s = getProxiedObject(self).new_instance()
+        res = BlobStorage(base_dir, s)
+        return res
 
 
 for name, v in BlobStorageMixin.__dict__.items():

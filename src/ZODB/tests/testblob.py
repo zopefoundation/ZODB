@@ -476,7 +476,7 @@ def loadblob_tmpstore():
     >>> import transaction
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
-    >>> tid = blob_storage.lastTransaction()
+    >>> tid = connection._storage.lastTransaction()
 
     Now we open a database with a TmpStore in front:
 
@@ -556,6 +556,7 @@ def setUpBlobAdaptedFileStorage(test):
 def storage_reusable_suite(prefix, factory,
                            test_blob_storage_recovery=False,
                            test_packing=False,
+                           test_undo=True,
                            ):
     """Return a test suite for a generic IBlobStorage.
 
@@ -605,7 +606,8 @@ def storage_reusable_suite(prefix, factory,
 
     if test_blob_storage_recovery:
         add_test_based_on_test_class(RecoveryBlobStorage)
-    add_test_based_on_test_class(BlobUndoTests)
+    if test_undo:
+        add_test_based_on_test_class(BlobUndoTests)
 
     suite.layer = ZODB.tests.util.MininalTestLayer(prefix+'BlobTests')
 

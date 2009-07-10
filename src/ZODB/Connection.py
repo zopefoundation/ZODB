@@ -334,10 +334,6 @@ class Connection(ExportImport, object):
 
     def invalidate(self, tid, oids):
         """Notify the Connection that transaction 'tid' invalidated oids."""
-        if self._mvcc_storage:
-            # Inter-connection invalidation is not needed when the
-            # storage provides MVCC.
-            return
         if self.before is not None:
             # this is an historical connection.  Invalidations are irrelevant.
             return
@@ -771,6 +767,10 @@ class Connection(ExportImport, object):
         """Indicate confirmation that the transaction is done."""
 
         def callback(tid):
+            if self._mvcc_storage:
+                # Inter-connection invalidation is not needed when the
+                # storage provides MVCC.
+                return
             d = dict.fromkeys(self._modified)
             self._db.invalidate(tid, d, self)
 #       It's important that the storage calls the passed function

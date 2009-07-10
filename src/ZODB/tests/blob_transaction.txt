@@ -174,7 +174,7 @@ connections should result in a write conflict error::
     >>> tm2.commit()
     Traceback (most recent call last):
         ...
-    ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob)
+    ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob...)
 
 After the conflict, the winning transaction's result is visible on both
 connections::

@@ -37,7 +37,7 @@ Put some revisions of a blob object in our database and on the filesystem:
     >>> blob.open('w').write('this is blob data 0')
     >>> root['blob'] = blob
     >>> transaction.commit()
-    >>> tids.append(blob_storage._tid)
+    >>> tids.append(blob._p_serial)
 
     >>> nothing = transaction.begin()
     >>> times.append(new_time())

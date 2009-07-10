@@ -22,6 +22,14 @@ Bugs Fixed
 - zeopack was less flexible than it was before.  -h should default to
   local host.
 
+- The "lawn" layout was being selected by default if the root of
+  the blob directory happened to contain a hidden file or directory
+  such as ".svn".  Now hidden files and directories are ignored
+  when choosing the default layout.
+
+- BlobStorage was not compatible with MVCC storages because the
+  wrappers were being removed by each database connection.  Fixed.
+
 3.9.0b2 (2009-06-11)
 ====================
 
