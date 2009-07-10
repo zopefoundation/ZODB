@@ -36,7 +36,6 @@ from zope.interface import implements
 from ZODB.interfaces import IDatabase
 from ZODB.interfaces import IMVCCStorage
 
-import BTrees.OOBTree
 import transaction
 
 from persistent.TimeStamp import TimeStamp
