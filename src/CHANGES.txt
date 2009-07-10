@@ -8,6 +8,11 @@
 Bugs Fixed
 ----------
 
+- Simplified the setup script in hopes of working with bdist_rpm.
+
+- Fixed the setup test command.  It previously depended on private
+  functions in zope.testing.testrunner that don't exist any more.
+
 - ZEO client threads were unnamed, making it hard to debug thread
   management.
 
