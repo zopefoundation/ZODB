@@ -235,7 +235,7 @@ Savepoints store the blobs in the `savepoints` directory in the temporary
 directory of the blob storage:
 
     >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
-    ['0x03-0x....spb']
+    ['0x...-0x....spb']
     >>> transaction.commit()
 
 After committing the transaction, the temporary savepoint files are moved to
@@ -255,7 +255,7 @@ Again, the savepoint creates a new file for the blob state in the savepoints
 directory:
 
     >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
-    ['0x03-0x....spb']
+    ['0x...-0x....spb']
 
     >>> root5['blob'].open("w").write(" And the weather is beautiful.")
     >>> savepoint.rollback()
@@ -263,7 +263,7 @@ directory:
 XXX Currently, savepoint state of blobs remains after a rollback:
 
     >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
-    ['0x03-0x....spb']
+    ['0x...-0x....spb']
 
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing. And I'm dancing."
@@ -272,7 +272,7 @@ XXX Currently, savepoint state of blobs remains after a rollback:
 XXX Currently, savepoint state of blobs remains even after an abort:
 
     >>> os.listdir(os.path.join(blob_dir, 'tmp', 'savepoints'))
-    ['0x03-0x....spb']
+    ['0x...-0x....spb']
 
 Reading Blobs outside of a transaction
 --------------------------------------
@@ -408,7 +408,7 @@ Similarly, the new object wasn't added to the storage:
     >>> blob_storage.load(new_oid, '')
     Traceback (most recent call last):
     ...
-    POSKeyError: 0x06
+    POSKeyError: 0x...
 
     >>> blob_storage.loadBlob(blob._p_oid, s2)
     Traceback (most recent call last):
