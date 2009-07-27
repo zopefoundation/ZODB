@@ -109,7 +109,7 @@ class BaseStorage(UndoLogCompatible):
     ########################################################################
     # The following methods are normally overridden on instances,
     # except when debugging:
-    
+
     def _lock_acquire(self, *args):
         f = sys._getframe(1)
         sys.stdout.write("[la(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
