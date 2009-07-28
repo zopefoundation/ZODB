@@ -34,12 +34,9 @@ except ImportError:
 import socket
 import struct
 import threading
-import logging
 from types import StringType
 
-from ZODB.loglevels import TRACE
-
-from ZEO.zrpc.log import log, short_repr
+from ZEO.zrpc.log import log
 from ZEO.zrpc.error import DisconnectedError
 import ZEO.hash
 

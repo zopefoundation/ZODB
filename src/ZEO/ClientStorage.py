@@ -28,7 +28,6 @@ from ZEO.TransactionBuffer import TransactionBuffer
 from ZEO.zrpc.client import ConnectionManager
 from ZODB import POSException
 from ZODB import utils
-from ZODB.loglevels import BLATHER
 import BTrees.IOBTree
 import cPickle
 import logging

@@ -11,11 +11,9 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import asyncore
 import errno
 import select
 import socket
-import sys
 import threading
 import time
 import types
