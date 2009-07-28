@@ -39,9 +39,10 @@ args
 After making a connection and negotiating the protocol, the following
 interactions occur:
 
-- The client requests the athentication protocol by calling .  For this
-  discussion, we'll assume the server returns None. Note that if the
-  server doesn't require authentication, this step is optional.
+- The client requests the athentication protocol by calling
+  getAuthProtocol.  For this discussion, we'll assume the server
+  returns None. Note that if the server doesn't require
+  authentication, this step is optional.
 
 - The client calls register passing a storage identifier and a
   read-only flag.  The server doesn't return a value, but it may raise
