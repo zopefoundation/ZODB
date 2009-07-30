@@ -240,6 +240,23 @@ if sys.version_info >= (2, 6):
         >>> db.close()
         """
 
+def connection_allows_empty_version_for_idiots():
+    r"""
+    >>> import sys, StringIO
+    >>> stderr = sys.stderr
+    >>> sys.stderr = StringIO.StringIO()
+    >>> db = ZODB.DB('t.fs')
+    >>> c = db.open('')
+    >>> sys.stderr.getvalue() # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    '...: DeprecationWarning: A version string was passed to
+    open.\nThe first argument is a transaction manager...
+
+    >>> sys.stderr = stderr
+    >>> c.root()
+    {}
+    >>> db.close()
+    """
+
 def test_suite():
     s = unittest.makeSuite(DBTests)
     s.addTest(doctest.DocTestSuite(

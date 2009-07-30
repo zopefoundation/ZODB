@@ -14,8 +14,6 @@
 """Database objects
 """
 
-import warnings
-
 import cPickle
 import cStringIO
 import sys
@@ -24,6 +22,7 @@ import logging
 import datetime
 import calendar
 import time
+import warnings
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
@@ -727,6 +726,15 @@ class DB(object):
             before > getTID(self.lastTransaction(), None)):
             raise ValueError(
                 'cannot open an historical connection in the future.')
+
+        if isinstance(transaction_manager, basestring):
+            if transaction_manager:
+                raise TypeError("Versions aren't supported.")
+            warnings.warn(
+                "A version string was passed to open.\n"
+                "The first argument is a transaction manager.",
+                DeprecationWarning, 2)
+            transaction_manager = None
 
         self._a()
         try:

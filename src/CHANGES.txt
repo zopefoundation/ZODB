@@ -30,6 +30,13 @@ Bugs Fixed
 - BlobStorage was not compatible with MVCC storages because the
   wrappers were being removed by each database connection.  Fixed.
 
+Features added back
+-------------------
+
+- Warn rather than fail if DB.open is called with an empty version
+  string.
+
+
 3.9.0b2 (2009-06-11)
 ====================
 
