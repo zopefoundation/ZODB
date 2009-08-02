@@ -688,7 +688,7 @@ static PyObject *
 Bucket_maxminKey(Bucket *self, PyObject *args, int min)
 {
   PyObject *key=0;
-  int rc, offset;
+  int rc, offset = 0;
   int empty_bucket = 1;
 
   if (args && ! PyArg_ParseTuple(args, "|O", &key)) return NULL;
