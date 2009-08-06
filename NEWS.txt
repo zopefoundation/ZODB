@@ -1,6 +1,12 @@
 What's new in ZODB3 3.6.5?
 ==========================
-Release date: DD-MMM-YYYY 
+Release date: 06-Aug-2009
+
+ZEO
+---
+
+- Fixed vulnerabilities in the ZEO network protocol 
+  affecting ZEO storage servers.
 
 
 What's new in ZODB3 3.6.4?
