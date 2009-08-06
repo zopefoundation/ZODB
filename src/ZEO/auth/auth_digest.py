@@ -121,7 +121,7 @@ class StorageClass(ZEOStorage):
         check = hexdigest("%s:%s" % (h_up, challenge))
         if check == response:
             self.connection.setSessionKey(session_key(h_up, self._key_nonce))
-        return self.finish_auth(check == response)
+        return self._finish_auth(check == response)
 
     extensions = [auth_get_challenge, auth_response]
 

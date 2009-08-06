@@ -22,7 +22,7 @@ import logging
 import ThreadedAsync
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
-from ZEO.zrpc.marshal import Marshaller
+from ZEO.zrpc.marshal import Marshaller, ServerMarshaller
 from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.log import short_repr, log
 from ZODB.loglevels import BLATHER, TRACE
@@ -724,6 +724,7 @@ class ManagedServerConnection(Connection):
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
         self.__super_init(sock, addr, obj, 'S')
+        self.marshal = ServerMarshaller()
         self.obj.notifyConnected(self)
 
     def handshake(self):
