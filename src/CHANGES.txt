@@ -2,6 +2,29 @@
  Change History
 ================
 
+3.9.0b5 (2009-08-06)
+====================
+
+Bugs Fixed
+----------
+
+- Fixed vulnerabilities in the ZEO network protocol that allow:
+
+  - CVE-2009-0668 Arbitrary Python code execution in ZODB ZEO storage servers
+  - CVE-2009-0669 Authentication bypass in ZODB ZEO storage servers
+
+  The vulnerabilities only apply if you are using ZEO to share a
+  database among multiple applications or application instances and if
+  untrusted clients are able to connect to your ZEO servers.
+
+3.9.0b4 (2009-07-30)
+====================
+
+Bugs Fixed
+----------
+
+- Sources were ommitted due to setup script problems.
+
 3.9.0b3 (2009-07-30)
 ====================
 
