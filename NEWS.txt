@@ -1,4 +1,21 @@
 
+Whats new in ZODB 3.8.2
+=======================
+
+Bugs Fixed:
+
+- Fixed vulnerabilities in the ZEO network protocol that allow:
+
+  - CVE-2009-0668 Arbitrary Python code execution in ZODB ZEO storage servers
+  - CVE-2009-0669 Authentication bypass in ZODB ZEO storage servers
+
+  The vulnerabilities only apply if you are using ZEO to share a
+  database among multiple applications or application instances and if
+  untrusted clients are able to connect to your ZEO servers.
+
+- Limit the number of object ids that can be allocated at once to
+  avoid running out of memory.
+
 Whats new in ZODB 3.8.1
 =======================
 
