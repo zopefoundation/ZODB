@@ -114,7 +114,7 @@ class ZEOStorage:
         # transaction iterator.
         self._txn_iterators_last = {}
 
-    def finish_auth(self, authenticated):
+    def _finish_auth(self, authenticated):
         if not self.auth_realm:
             return 1
         self.authenticated = authenticated
@@ -381,6 +381,7 @@ class ZEOStorage:
 
     def new_oids(self, n=100):
         """Return a sequence of n new oids, where n defaults to 100"""
+        n = min(n, 100)
         if self.read_only:
             raise ReadOnlyError()
         if n <= 0:
