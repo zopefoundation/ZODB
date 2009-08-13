@@ -52,6 +52,20 @@ class Marshaller:
                 level=logging.ERROR)
             raise
 
+class ServerMarshaller(Marshaller):
+
+    def decode(self, msg):
+        """Decodes msg and returns its parts"""
+        unpickler = cPickle.Unpickler(StringIO(msg))
+        unpickler.find_global = server_find_global
+
+        try:
+            return unpickler.load() # msgid, flags, name, args
+        except:
+            log("can't decode message: %s" % short_repr(msg),
+                level=logging.ERROR)
+            raise
+
 _globals = globals()
 _silly = ('__doc__',)
 
@@ -75,6 +89,24 @@ def find_global(module, name):
 
     # TODO:  is there a better way to do this?
     if type(r) == exception_type_type and issubclass(r, Exception):
+        return r
+
+    raise ZRPCError("Unsafe global: %s.%s" % (module, name))
+
+def server_find_global(module, name):
+    """Helper for message unpickler"""
+    try:
+        m = __import__(module, _globals, _globals, _silly)
+    except ImportError, msg:
+        raise ZRPCError("import error %s: %s" % (module, msg))
+
+    try:
+        r = getattr(m, name)
+    except AttributeError:
+        raise ZRPCError("module %s has no global %s" % (module, name))
+
+    safe = getattr(r, '__no_side_effects__', 0)
+    if safe:
         return r
 
     raise ZRPCError("Unsafe global: %s.%s" % (module, name))
