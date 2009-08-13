@@ -23,15 +23,9 @@ interface, rich transaction support, and undo.
 VERSION = "3.9.0dev"
 
 from setuptools import setup, find_packages
-import glob
+from setuptools.extension import Extension
 import os
 import sys
-from setuptools.extension import Extension
-from distutils import dir_util
-from setuptools.dist import Distribution
-from setuptools.command.install_lib import install_lib
-from setuptools.command.build_py import build_py
-from distutils.util import convert_path
 
 if sys.version_info < (2, 4, 2):
     print "This version of ZODB requires Python 2.4.2 or higher"
