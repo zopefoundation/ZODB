@@ -56,6 +56,7 @@ except ImportError:
                    "src/ZODB/scripts/fstail.py",
                    "src/ZODB/scripts/fstest.py",
                    "src/ZODB/scripts/repozo.py",
+                   "src/ZODB/scripts/strip_versions.py",
                    "src/ZEO/scripts/zeopack.py",
                    "src/ZEO/scripts/runzeo.py",
                    "src/ZEO/scripts/zeopasswd.py",
@@ -71,6 +72,7 @@ else:
     fsrefs = ZODB.scripts.fsrefs:main
     fstail = ZODB.scripts.fstail:Main
     repozo = ZODB.scripts.repozo:main
+    strip_versions =  ZODB.scripts.strip_versions:main
     zeopack = ZEO.scripts.zeopack:main
     runzeo = ZEO.runzeo:main
     zeopasswd = ZEO.zeopasswd:main

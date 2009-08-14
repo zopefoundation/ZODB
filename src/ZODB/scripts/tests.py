@@ -17,9 +17,12 @@ $Id$
 """
 import unittest
 from zope.testing import doctest
+import ZODB.tests.util
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('referrers.txt'),
+        doctest.DocFileSuite('referrers.txt', 'strip_versions.test',
+            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            ),
         ))
 

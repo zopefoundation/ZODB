@@ -1,5 +1,12 @@
-Next Release
-===========
+Whats new in ZODB 3.8.2
+=======================
+
+New Feature:
+
+- There's a new utility script, strip_versions that strips version
+  data from storages. This is needed to prepare databases containing
+  version records for using ZODB 3.9, which no-longer supports
+  versions.
 
 Bugs Fixed:
 

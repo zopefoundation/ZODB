@@ -1,0 +1,119 @@
+Strip version records from a FileStorage database.
+==================================================
+
+Older releases of ZODB supported versions.  ZODB versions 3.9 and
+later do not.  The strip_versions script strips version records from
+old data files.
+
+We have a demo data file that has some version data in it:
+
+>>> open('old.fs', 'wb').write("""\
+... RlMyMQOAAADPZRciAAAAAAAAAJwgAAAAGQAAaW5pdGlhbCBkYXRhYmFzZSBjcmVhdGlvbgAAAAAA
+... AAAAA4AAAM9lFyIAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAQihjcGVyc2lzdGVudC5tYXBwaW5n
+... ClBlcnNpc3RlbnRNYXBwaW5nCnEBTnQufXECVQpfY29udGFpbmVycQN9cQRzLgAAAAAAAACcA4AA
+... AM9mXgAAAAAAAAAA/iAAAAAAAAAAAAAAAAAAAAOAAADPZl4AAAAAAAAAADQAAAAAAAAAqAAAAAAA
+... AAAAAFRjcGVyc2lzdGVudC5tYXBwaW5nClBlcnNpc3RlbnRNYXBwaW5nCnEBLn1xAihVAWEoVQgA
+... AAAAAAAAAXEDaAF0UVUKX2NvbnRhaW5lcnEEfXEFdS4AAAAAAAAAAQOAAADPZl4AAAAAAAAAAAAA
+... AAAAAAAAqAAAAAAAAAAAAD9jcGVyc2lzdGVudC5tYXBwaW5nClBlcnNpc3RlbnRNYXBwaW5nCnEB
+... Ln1xAlUKX2NvbnRhaW5lcnEDfXEEcy4AAAAAAAAA/gOAAADPZ30zAAAAAAAAARIgAAAAAAAAAAAA
+... AAAAAAADgAAAz2d9MwAAAAAAAAC/AAAAAAAAAa4AAAAAAAAAAABoY3BlcnNpc3RlbnQubWFwcGlu
+... ZwpQZXJzaXN0ZW50TWFwcGluZwpxAS59cQIoVQFhKFUIAAAAAAAAAAFxA2gBdFFVCl9jb250YWlu
+... ZXJxBH1xBVUBYihVCAAAAAAAAAACcQZoAXRRdS4AAAAAAAAAAgOAAADPZ30zAAAAAAAAAAAAAAAA
+... AAABrgAAAAAAAAAAAD9jcGVyc2lzdGVudC5tYXBwaW5nClBlcnNpc3RlbnRNYXBwaW5nCnEBLn1x
+... AlUKX2NvbnRhaW5lcnEDfXEEcy4AAAAAAAABEgOAAADPaWndAAAAAAAAAJggAAAAAAAAAAAAAAAA
+... AAEDgAAAz2lp3QAAAAAAAAE9AAAAAAAAAsgAAgAAAAAAAABFAAAAAAAAAT0AAAAAAAAAAHYxY3Bl
+... cnNpc3RlbnQubWFwcGluZwpQZXJzaXN0ZW50TWFwcGluZwpxAS59cQJVCl9jb250YWluZXJxA31x
+... BFUBMUsBc3MuAAAAAAAAAJgDgAAAz2p4zAAAAAAAAAEoIAAAAAAAAAAAAAAAAAABA4AAAM9qeMwA
+... AAAAAAAC3wAAAAAAAANoAAIAAAAAAAAAWgAAAAAAAAE9AAAAAAAAAt92MWNwZXJzaXN0ZW50Lm1h
+... cHBpbmcKUGVyc2lzdGVudE1hcHBpbmcKcQEufXECKFUBYShVCAAAAAAAAAADcQNoAXRRVQpfY29u
+... dGFpbmVycQR9cQVVATFLAXN1LgAAAAAAAAADA4AAAM9qeMwAAAAAAAAAAAAAAAAAAANoAAIAAAAA
+... AAAAPwAAAAAAAAAAAAAAAAAAA392MWNwZXJzaXN0ZW50Lm1hcHBpbmcKUGVyc2lzdGVudE1hcHBp
+... bmcKcQEufXECVQpfY29udGFpbmVycQN9cQRzLgAAAAAAAAEoA4AAAM9sJXcAAAAAAAAAmCAAAAAA
+... AAAAAAAAAAAAAgOAAADPbCV3AAAAAAAAAlcAAAAAAAAEmAACAAAAAAAAAEUAAAAAAAACVwAAAAAA
+... AAAAdjJjcGVyc2lzdGVudC5tYXBwaW5nClBlcnNpc3RlbnRNYXBwaW5nCnEBLn1xAlUKX2NvbnRh
+... aW5lcnEDfXEEVQExSwFzcy4AAAAAAAAAmAOAAADPbTXMAAAAAAAAASggAAAAAAAAAAAAAAAAAAID
+... gAAAz201zAAAAAAAAASvAAAAAAAABTgAAgAAAAAAAABaAAAAAAAAAlcAAAAAAAAEr3YyY3BlcnNp
+... c3RlbnQubWFwcGluZwpQZXJzaXN0ZW50TWFwcGluZwpxAS59cQIoVQpfY29udGFpbmVycQN9cQRV
+... ATFLAXNVAWIoVQgAAAAAAAAABHEFaAF0UXUuAAAAAAAAAAQDgAAAz201zAAAAAAAAAAAAAAAAAAA
+... BTgAAgAAAAAAAAA/AAAAAAAAAAAAAAAAAAAFT3YyY3BlcnNpc3RlbnQubWFwcGluZwpQZXJzaXN0
+... ZW50TWFwcGluZwpxAS59cQJVCl9jb250YWluZXJxA31xBHMuAAAAAAAAASgDgAAAz26rZgAAAAAA
+... AAB7IAAAAAAAAAAAAAAAAAAEA4AAAM9uq2YAAAAAAAAF5QAAAAAAAAZoAAAAAAAAAAAAAAAAAAAA
+... AAXlAAAAAAAAAAIDgAAAz26rZgAAAAAAAAVPAAAAAAAABmgAAAAAAAAAAAAAAAAAAAAABU8AAAAA
+... AAAAewOAAADPcGhEAAAAAAAAAK0gAAAAAAAAAAAAAAAAAAIDgAAAz3BoRAAAAAAAAAaxAAAAAAAA
+... BusAAgAAAAAAAABaAAAAAAAABrEAAAAAAAAAAHYzY3BlcnNpc3RlbnQubWFwcGluZwpQZXJzaXN0
+... ZW50TWFwcGluZwpxAS59cQIoVQpfY29udGFpbmVycQN9cQRVATFLAnNVAWIoVQgAAAAAAAAABHEF
+... aAF0UXUuAAAAAAAAAK0DgAAAz3GSVQAAAAAAAAE8IAAAAAAAAAAAAAAAAAACA4AAAM9xklUAAAAA
+... AAAHAgAAAAAAAAegAAIAAAAAAAAAbgAAAAAAAAaxAAAAAAAABwJ2M2NwZXJzaXN0ZW50Lm1hcHBp
+... bmcKUGVyc2lzdGVudE1hcHBpbmcKcQEufXECKFUBYyhVCAAAAAAAAAAFcQNoAXRRVQFiKFUIAAAA
+... AAAAAARxBGgBdFFVCl9jb250YWluZXJxBX1xBlUBMUsCc3UuAAAAAAAAAAUDgAAAz3GSVQAAAAAA
+... AAAAAAAAAAAAB6AAAgAAAAAAAAA/AAAAAAAAAAAAAAAAAAAHt3YzY3BlcnNpc3RlbnQubWFwcGlu
+... ZwpQZXJzaXN0ZW50TWFwcGluZwpxAS59cQJVCl9jb250YWluZXJxA31xBHMuAAAAAAAAATwDgAAA
+... z3L6MwAAAAAAAAB7IAAAAAAAAAAAAAAAAAAFA4AAAM9y+jMAAAAAAAAIYQAAAAAAAAjkAAAAAAAA
+... AAAAAAAAAAAAAAAAAAAAAAAAAAIDgAAAz3L6MwAAAAAAAAe3AAAAAAAACOQAAAAAAAAAAAAAAAAA
+... AAAABrEAAAAAAAAAew==""".decode('base64'))
+
+Let's strip the versions:
+
+    >>> import ZODB.scripts.strip_versions
+    >>> ZODB.scripts.strip_versions.main('old.fs new.fs'.split())
+    Copied 9 records.
+    Removed 9 versioned records.
+
+    >>> import ZODB.FileStorage
+    >>> db = ZODB.DB(ZODB.FileStorage.FileStorage('new.fs'))
+
+    >>> conn = db.open()
+    >>> oids = sorted(db._storage._index)
+    >>> import ZODB.utils
+    >>> for oid in oids:
+    ...     try:
+    ...         ob = conn.get(oid)
+    ...     except ZODB.POSException.POSKeyError:
+    ...         continue
+    ...     print ZODB.utils.u64(oid), sorted(ob.items())
+    0 []
+    1 []
+    2 [('1', 1)]
+    4 []
+
+    >>> db.close()
+
+The example above assumed the old and new databases were both file
+storages. If we want to use some other storage formats, we need to
+specify the old and new databases using storage configuration files.
+If the -c (--config) option is used, then the arguments are treated as
+configuration file names.
+
+    >>> import os
+    >>> open('old.conf', 'w').write("""
+    ... <filestorage>
+    ...    path old.fs
+    ...    read-only true
+    ... </filestorage>
+    ... """)
+    >>> open('new.conf', 'w').write("""
+    ... <filestorage>
+    ...    path new2.fs
+    ... </filestorage>
+    ... """)
+
+    >>> ZODB.scripts.strip_versions.main('-c old.conf new.conf'.split())
+    Copied 9 records.
+    Removed 9 versioned records.
+
+    >>> db = ZODB.DB(ZODB.FileStorage.FileStorage('new.fs'))
+    >>> conn = db.open()
+    >>> oids = sorted(db._storage._index)
+    >>> import ZODB.utils
+    >>> for oid in oids:
+    ...     try:
+    ...         ob = conn.get(oid)
+    ...     except ZODB.POSException.POSKeyError:
+    ...         continue
+    ...     print ZODB.utils.u64(oid), sorted(ob.items())
+    0 []
+    1 []
+    2 [('1', 1)]
+    4 []
+
+    >>> db.close()
