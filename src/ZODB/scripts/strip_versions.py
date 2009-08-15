@@ -25,7 +25,15 @@ version records seen in input.
 
 The input and output arguments are file-storage file names.  If the -c
 option is used, then the input and output arguments must be storage
-configuration files.
+configuration files.  The -c option is provided to support use of
+storages other than file storages.
+
+Notes:
+
+- Blobs aren't copied. If you have a storage with *both* versions and
+  blobs, you'll need to copy the blob data separately.
+
+- The input storage must support iteration via the iterator method.
 """)
 parser.add_option(
     "-c", "--config", dest="config", action="store_true",
