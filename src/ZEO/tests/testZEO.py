@@ -33,6 +33,7 @@ import persistent
 import shutil
 import signal
 import stat
+import sys
 import tempfile
 import threading
 import time
@@ -1179,6 +1180,31 @@ def client_asyncore_thread_has_name():
     >>> len([t for t in threading.enumerate()
     ...      if t.getName() == 'ZEO.zrpc.connection'])
     1
+    """
+
+def runzeo_without_configfile():
+    """
+    >>> open('runzeo', 'w').write('''
+    ... import sys
+    ... sys.path[:] = %r
+    ... import ZEO.runzeo
+    ... ZEO.runzeo.main(sys.argv[1:])
+    ... ''' % sys.path)
+
+    >>> import subprocess, re
+    >>> print re.sub('\d\d+|[:]', '', subprocess.Popen(
+    ...     [sys.executable, 'runzeo', '-a./s', '-ft', '--test'],
+    ...     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    ...     ).stdout.read()),
+    ------
+    --T INFO ZEO.runzeo () opening storage '1' using FileStorage
+    ------
+    --T INFO ZEO.StorageServer () StorageServer created RW with storages 1RWt
+    ------
+    --T INFO ZEO.zrpc () listening on ./s
+    ------
+    --T INFO ZEO.runzeo () closing storage '1'
+    testing exit immediately
     """
 
 slow_test_classes = [

@@ -2,6 +2,14 @@
  Change History
 ================
 
+3.9.0c1 (2009-08-06)
+====================
+
+Bugs Fixed
+----------
+
+- The runzeo script didn't work without a configuration file.
+
 3.9.0b5 (2009-08-06)
 ====================
 

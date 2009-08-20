@@ -79,10 +79,7 @@ class ZEOOptionsMixin:
             def __init__(self, name, path):
                 self._name = name
                 self.path = path
-                self.create = 0
-                self.read_only = 0
                 self.stop = None
-                self.quota = None
             def getSectionName(self):
                 return self._name
         if not self.storages:
@@ -91,7 +88,12 @@ class ZEOOptionsMixin:
         conf = FileStorage(FSConfig(name, arg))
         self.storages.append(conf)
 
+    testing_exit_immediately = False
+    def handle_test(self, *args):
+        self.testing_exit_immediately = True
+
     def add_zeo_options(self):
+        self.add(None, None, None, "test", self.handle_test)
         self.add(None, None, "a:", "address=", self.handle_address)
         self.add(None, None, "f:", "filename=", self.handle_filename)
         self.add("family", "zeo.address.family")
@@ -249,7 +251,10 @@ class ZEOServer:
         self.server = create_server(self.storages, self.options)
 
     def loop_forever(self):
-        asyncore.loop()
+        if self.options.testing_exit_immediately:
+            print "testing exit immediately"
+        else:
+            asyncore.loop()
 
     def handle_sigterm(self):
         log("terminated by SIGTERM")

@@ -23,13 +23,13 @@
         use a BlobStorage to provide blob support.)
       </description>
     </key>
-    <key name="create" datatype="boolean" default="false">
+    <key name="create" datatype="boolean">
       <description>
         Flag that indicates whether the storage should be truncated if
         it already exists.
       </description>
     </key>
-    <key name="read-only" datatype="boolean" default="false">
+    <key name="read-only" datatype="boolean">
       <description>
         If true, only reads may be executed against the storage.  Note
         that the "pack" operation is not considered a write operation
