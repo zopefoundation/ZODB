@@ -108,6 +108,12 @@ _set_setstate(Bucket *self, PyObject *args)
   UNLESS (PyArg_ParseTuple(args, "O|O", &items, &next))
     return -1;
 
+  if (!PyTuple_Check(items)) {
+    PyErr_SetString(PyExc_TypeError,
+                    "tuple required for first state element");
+    return -1;
+  }
+
   if ((l=PyTuple_Size(items)) < 0) return -1;
 
   for (i=self->len; --i >= 0; )

@@ -1001,6 +1001,12 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
     if (!PyArg_ParseTuple(state, "O|O:__setstate__", &items, &firstbucket))
 	return -1;
 
+    if (!PyTuple_Check(items)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "tuple required for first state element");
+	return -1;
+    }
+
     len = PyTuple_Size(items);
     if (len < 0)
 	return -1;

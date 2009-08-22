@@ -83,6 +83,13 @@ class Base(TestCase):
             self._closeRoot(root)
             self._closeRoot(root2)
 
+    def testSetstateArgumentChecking(self):
+        try: self.t.__class__().__setstate__(('',))
+        except TypeError, v:
+            self.assertEqual(str(v), 'tuple required for first state element')
+        else:
+            raise AssertionError("Expected exception")
+
     def testGhostUnghost(self):
         for i in 0, 10, 1000:
             t = self.t.__class__()
