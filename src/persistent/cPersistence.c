@@ -474,23 +474,23 @@ pickle___setstate__(PyObject *self, PyObject *state)
       PyObject **dict;
 
       dict = _PyObject_GetDictPtr(self);
-      if (dict)
+      
+      if (!dict)
         {
-          if (!*dict)
-            {
-              *dict = PyDict_New();
-              if (!*dict)
-                return NULL;
-            }
+          PyErr_SetString(PyExc_TypeError,
+                          "this object has no instance dictionary");
+          return NULL;
         }
 
-      if (*dict)
+      if (!*dict)
         {
-          PyDict_Clear(*dict);
-          if (PyDict_Update(*dict, state) < 0)
+          *dict = PyDict_New();
+          if (!*dict)
             return NULL;
         }
-      else if (pickle_setattrs_from_dict(self, state) < 0)
+
+      PyDict_Clear(*dict);
+      if (PyDict_Update(*dict, state) < 0)
         return NULL;
     }
 
