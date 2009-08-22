@@ -24,10 +24,10 @@ Now lets have a look at the last transactions of this FileStorage:
   >>> from ZODB.scripts.fstail import main
   >>> main(storagefile, 5)
   2007-11-10 15:18:48.543001: hash=b16422d09fabdb45d4e4325e4b42d7d6f021d3c3
-  user='' description='' length=138 offset=191
+  user='' description='' length=132 offset=185
   <BLANKLINE>
   2007-11-10 15:18:48.543001: hash=b16422d09fabdb45d4e4325e4b42d7d6f021d3c3
-  user='' description='initial database creation' length=156 offset=52
+  user='' description='initial database creation' length=150 offset=52
   <BLANKLINE>
 
 Now clean up the storage again:

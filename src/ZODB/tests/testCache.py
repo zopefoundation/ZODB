@@ -433,7 +433,7 @@ We force the root to be loaded and the cache grows:
 
     >>> getattr(conn.root, 'z', None)
     >>> conn._cache.total_estimated_size
-    128
+    64
 
 We add some data and the cache grows:
 

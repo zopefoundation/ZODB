@@ -509,10 +509,10 @@ track of the transactions along the way:
     >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
     >>> db = DB(fs)
     >>> conn = db.open()
-    >>> from persistent.dict import PersistentDict
+    >>> from persistent.mapping import PersistentMapping
     >>> last = []
     >>> for i in range(100):
-    ...     conn.root()[i] = PersistentDict()
+    ...     conn.root()[i] = PersistentMapping()
     ...     transaction.commit()
     ...     last.append(fs.lastTransaction())
 

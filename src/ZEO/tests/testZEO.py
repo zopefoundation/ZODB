@@ -774,7 +774,7 @@ def multiple_storages_invalidation_queue_is_not_insane():
     >>> from ZEO.StorageServer import StorageServer, ZEOStorage
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.DB import DB
-    >>> from persistent.dict import PersistentDict
+    >>> from persistent.mapping import PersistentMapping
     >>> from transaction import commit
     >>> fs1 = FileStorage('t1.fs')
     >>> fs2 = FileStorage('t2.fs')
@@ -789,17 +789,17 @@ def multiple_storages_invalidation_queue_is_not_insane():
     >>> commit()
     >>> o1 = conn1.root()
     >>> for i in range(10):
-    ...     o1.x = PersistentDict(); o1 = o1.x
+    ...     o1.x = PersistentMapping(); o1 = o1.x
     ...     commit()
 
     >>> last = fs1.lastTransaction()
     >>> for i in range(5):
-    ...     o1.x = PersistentDict(); o1 = o1.x
+    ...     o1.x = PersistentMapping(); o1 = o1.x
     ...     commit()
 
     >>> o2 = conn2.root()
     >>> for i in range(20):
-    ...     o2.x = PersistentDict(); o2 = o2.x
+    ...     o2.x = PersistentMapping(); o2 = o2.x
     ...     commit()
 
     >>> trans, oids = s1.getInvalidations(last)
@@ -822,14 +822,14 @@ Let's create a file storage and stuff some data into it:
     >>> from ZEO.StorageServer import StorageServer, ZEOStorage
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.DB import DB
-    >>> from persistent.dict import PersistentDict
+    >>> from persistent.mapping import PersistentMapping
     >>> fs = FileStorage('t.fs')
     >>> db = DB(fs)
     >>> conn = db.open()
     >>> from transaction import commit
     >>> last = []
     >>> for i in range(100):
-    ...     conn.root()[i] = PersistentDict()
+    ...     conn.root()[i] = PersistentMapping()
     ...     commit()
     ...     last.append(fs.lastTransaction())
     >>> db.close()
@@ -898,7 +898,7 @@ transaction, we'll get a result:
     >>> db = DB(st); conn = db.open()
     >>> ob = conn.root()
     >>> for i in range(5):
-    ...     ob.x = PersistentDict(); ob = ob.x
+    ...     ob.x = PersistentMapping(); ob = ob.x
     ...     commit()
     ...     last.append(fs.lastTransaction())
 

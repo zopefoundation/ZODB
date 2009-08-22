@@ -17,7 +17,7 @@ $Id$
 """
 import unittest
 from zope.testing import doctest
-import persistent.dict
+import persistent.mapping
 import transaction
 
 def testAddingThenModifyThenAbort():
@@ -39,7 +39,7 @@ savepoint.
     >>> connection = db.open()
     >>> root = connection.root()
 
-    >>> ob = persistent.dict.PersistentDict()
+    >>> ob = persistent.mapping.PersistentMapping()
     >>> root['ob'] = ob
     >>> sp = transaction.savepoint()
     >>> ob.x = 1

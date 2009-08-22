@@ -9,6 +9,10 @@ Bugs Fixed
 ----------
 
 - The runzeo script didn't work without a configuration file.
+  (https://bugs.launchpad.net/zodb/+bug/410571)
+
+- Officially deprecated PersistentDict
+  (https://bugs.launchpad.net/zodb/+bug/400775)
 
 3.9.0b5 (2009-08-06)
 ====================

@@ -1,20 +1,24 @@
 ##############################################################################
 #
-# Copyright (c) 2006 Zope Corporation and Contributors.
+# Copyright (c) Zope Foundation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
-# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Test PersistentMapping
-"""
-
 import unittest
+from zope.testing import doctest, setupstack
+
+def test_suite():
+    return unittest.TestSuite((
+        doctest.DocFileSuite('README.txt'),
+        ))
+
 
 l0 = {}
 l1 = {0:0}
@@ -164,8 +168,54 @@ class MappingTests(unittest.TestCase):
         u2.clear()
         eq(u2, {}, "u2 == {}")
 
-def test_suite():
-    return unittest.makeSuite(MappingTests)
+def test_legacy_data():
+    """
+We've deprecated PersistentDict.  If you import
+persistent.dict.PersistentDict, you'll get
+persistent.mapping.PersistentMapping.
 
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    >>> import persistent.dict, persistent.mapping
+    >>> persistent.dict.PersistentDict is persistent.mapping.PersistentMapping
+    True
+
+PersistentMapping uses a data attribute for it's mapping data:
+
+    >>> m = persistent.mapping.PersistentMapping()
+    >>> m.__dict__
+    {'data': {}}
+
+In the past, it used a _container attribute. For some time, the
+implementation continued to use a _container attribute in pickles
+(__get/setstate__) to be compatible with older releases.  This isn't
+really necessary any more. In fact, releases for which this might
+matter can no longer share databases with current releases.  Because
+releases as recent as 3.9.0b5 still use _container in saved state, we
+need to accept such state, but we stop producing it.
+
+If we reset it's __dict__ with legacy data:
+
+    >>> m.__dict__.clear()
+    >>> m.__dict__['_container'] = {'a': 1}
+    >>> m.__dict__
+    {'_container': {'a': 1}}
+    >>> m._p_changed = 0
+
+But when we perform any operations on it, the data will be converted
+without marking the object as changed:
+
+    >>> m
+    {'a': 1}
+    >>> m.__dict__
+    {'data': {'a': 1}}
+    >>> m._p_changed
+    0
+
+    >>> m.__getstate__()
+    {'data': {'a': 1}}
+    """
+
+def test_suite():
+    return unittest.TestSuite((
+        doctest.DocTestSuite(),
+        unittest.makeSuite(MappingTests),
+        ))

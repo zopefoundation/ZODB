@@ -66,12 +66,12 @@ seems best and set the next record to that:
     True
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[70])
-    Scan backward data.fs:118274 looking for '\x03z\xbd\xd8\xed\xa7>\xcc'
+    Scan backward data.fs:117080 looking for '\x03z\xbd\xd8\xed\xa7>\xcc'
     >>> it.next().tid == tids[70]
     True
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[-2])
-    Scan backward data.fs:118274 looking for '\x03z\xbd\xd8\xfa\x06\xd0\xcc'
+    Scan backward data.fs:117080 looking for '\x03z\xbd\xd8\xfa\x06\xd0\xcc'
     >>> it.next().tid == tids[-2]
     True
 
@@ -95,12 +95,12 @@ starting point, or just pick up where another iterator left off:
     True
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[50], pos=poss[50])
-    Scan backward data.fs:36542 looking for '\x03z\xbd\xd8\xe5\x1e\xb6\xcc'
+    Scan backward data.fs:35936 looking for '\x03z\xbd\xd8\xe5\x1e\xb6\xcc'
     >>> it.next().tid == tids[50]
     True
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[49], pos=poss[50])
-    Scan backward data.fs:36542 looking for '\x03z\xbd\xd8\xe4\xb1|\xcc'
+    Scan backward data.fs:35936 looking for '\x03z\xbd\xd8\xe4\xb1|\xcc'
     >>> it.next().tid == tids[49]
     True
 

@@ -87,17 +87,17 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='initial database creation'
         new revision persistent.mapping.PersistentMapping at 52
-    tid 0x... offset=168 ...
+    tid 0x... offset=162 ...
         tid user=''
         tid description='added an OOBTree'
-        new revision persistent.mapping.PersistentMapping at 207
-        references 0x01 BTrees.OOBTree.OOBTree at 207
+        new revision persistent.mapping.PersistentMapping at 201
+        references 0x01 BTrees.OOBTree.OOBTree at 201
 oid 0x01 BTrees.OOBTree.OOBTree 1 revision
-    tid 0x... offset=168 ...
+    tid 0x... offset=162 ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees.OOBTree.OOBTree at 362
-        referenced by 0x00 persistent.mapping.PersistentMapping at 207
+        new revision BTrees.OOBTree.OOBTree at 350
+        referenced by 0x00 persistent.mapping.PersistentMapping at 201
 
 So there are two revisions of oid 0 now, and the second references oid 1.
 
@@ -115,26 +115,26 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='initial database creation'
         new revision persistent.mapping.PersistentMapping at 52
-    tid 0x... offset=168 ...
+    tid 0x... offset=162 ...
         tid user=''
         tid description='added an OOBTree'
-        new revision persistent.mapping.PersistentMapping at 207
-        references 0x01 BTrees.OOBTree.OOBTree at 207
-    tid 0x... offset=441 ...
+        new revision persistent.mapping.PersistentMapping at 201
+        references 0x01 BTrees.OOBTree.OOBTree at 201
+    tid 0x... offset=429 ...
         tid user=''
         tid description='circling back to the root'
-        referenced by 0x01 BTrees.OOBTree.OOBTree at 489
+        referenced by 0x01 BTrees.OOBTree.OOBTree at 477
 oid 0x01 BTrees.OOBTree.OOBTree 2 revisions
-    tid 0x... offset=168 ...
+    tid 0x... offset=162 ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees.OOBTree.OOBTree at 362
-        referenced by 0x00 persistent.mapping.PersistentMapping at 207
-    tid 0x... offset=441 ...
+        new revision BTrees.OOBTree.OOBTree at 350
+        referenced by 0x00 persistent.mapping.PersistentMapping at 201
+    tid 0x... offset=429 ...
         tid user=''
         tid description='circling back to the root'
-        new revision BTrees.OOBTree.OOBTree at 489
-        references 0x00 persistent.mapping.PersistentMapping at 489
+        new revision BTrees.OOBTree.OOBTree at 477
+        references 0x00 persistent.mapping.PersistentMapping at 477
 oid 0x02 <unknown> 0 revisions
     this oid was not defined (no data record for it found)
 
