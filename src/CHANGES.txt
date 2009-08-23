@@ -2,7 +2,7 @@
  Change History
 ================
 
-3.9.0c1 (2009-08-06)
+3.9.0c1 (2009-08-??)
 ====================
 
 Bugs Fixed
@@ -16,6 +16,8 @@ Bugs Fixed
 
 - Small optimization of packing file storages with blobs.
 
+- Calling __setstate__ on a persistent object could under certain
+  uncommon cause the process to crash.
 
 3.9.0b5 (2009-08-06)
 ====================
