@@ -280,6 +280,12 @@ pickle_slotnames(PyTypeObject *cls)
   slotnames = PyDict_GetItem(cls->tp_dict, py___slotnames__);
   if (slotnames)
     {
+      int n = PyObject_Not(slotnames);
+      if (n < 0)
+        return NULL;
+      if (n)
+        slotnames = Py_None;
+      
       Py_INCREF(slotnames);
       return slotnames;
     }
