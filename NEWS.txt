@@ -1,4 +1,4 @@
-Whats new in ZODB 3.8.2
+Whats new in ZODB 3.8.3
 =======================
 
 New Feature:
@@ -15,6 +15,10 @@ Bugs Fixed:
 
 - Fixed a pack test that was not compatible with storages that always
   return an object count of 0.
+
+- Calling __setstate__ on a persistent object could under certain
+  uncommon cause the process to crash.
+
 
 Whats new in ZODB 3.8.2
 =======================

@@ -446,43 +446,47 @@ static char pickle___setstate__doc[] =
 "  will be cleared and updated with the value.\n\n"
 "  The items in the second element will be assigned as attributes.\n"
 ;
-
 static PyObject *
 pickle___setstate__(PyObject *self, PyObject *state)
 {
-    PyObject *slots=NULL;
+  PyObject *slots=NULL;
 
-    if (PyTuple_Check(state)) {
-	if (!PyArg_ParseTuple(state, "OO:__setstate__", &state, &slots))
-	    return NULL;
+  if (PyTuple_Check(state))
+    {
+      if (!PyArg_ParseTuple(state, "OO:__setstate__", &state, &slots))
+        return NULL;
     }
 
-    if (state != Py_None) {
-	PyObject **dict;
+  if (state != Py_None)
+    {
+      PyObject **dict;
 
-	dict = _PyObject_GetDictPtr(self);
-	if (dict) {
-	    if (!*dict) {
-		*dict = PyDict_New();
-		if (!*dict)
-		    return NULL;
-            }
+      dict = _PyObject_GetDictPtr(self);
+      
+      if (!dict)
+        {
+          PyErr_SetString(PyExc_TypeError,
+                          "this object has no instance dictionary");
+          return NULL;
         }
 
-	if (*dict) {
-	    PyDict_Clear(*dict);
-	    if (PyDict_Update(*dict, state) < 0)
-		return NULL;
+      if (!*dict)
+        {
+          *dict = PyDict_New();
+          if (!*dict)
+            return NULL;
         }
-	else if (pickle_setattrs_from_dict(self, state) < 0)
-	    return NULL;
+
+      PyDict_Clear(*dict);
+      if (PyDict_Update(*dict, state) < 0)
+        return NULL;
     }
 
-    if (slots && pickle_setattrs_from_dict(self, slots) < 0)
-	return NULL;
+  if (slots && pickle_setattrs_from_dict(self, slots) < 0)
+    return NULL;
 
-    Py_INCREF(Py_None);
-    return Py_None;
+  Py_INCREF(Py_None);
+  return Py_None;
 }
 
 static char pickle___reduce__doc[] =
