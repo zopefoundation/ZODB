@@ -14,6 +14,9 @@ Bugs Fixed
 - Officially deprecated PersistentDict
   (https://bugs.launchpad.net/zodb/+bug/400775)
 
+- Small optimization of packing file storages with blobs.
+
+
 3.9.0b5 (2009-08-06)
 ====================
 

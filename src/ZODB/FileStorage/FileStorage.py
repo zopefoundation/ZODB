@@ -1148,7 +1148,9 @@ class FileStorage(
                 self._save_index()
 
                 if self.blob_dir:
-                    self._move_unpacked_blobs()
+                    self._commit_lock_release()
+                    have_commit_lock = False
+                    self._remove_blob_files_tagged_for_removal_during_pack()
             finally:
                 self._lock_release()
         finally:
@@ -1158,9 +1160,8 @@ class FileStorage(
             self._pack_is_in_progress = False
             self._lock_release()
 
-    def _move_unpacked_blobs(self):
-        # Move any blobs linked or copied while packing to the
-        # pack dir, which will become the old dir
+
+    def _remove_blob_files_tagged_for_removal_during_pack(self):
         lblob_dir = len(self.blob_dir)
         fshelper = self.fshelper
         old = self.blob_dir+'.old'
@@ -1181,10 +1182,11 @@ class FileStorage(
             link_or_copy(os.path.join(self.blob_dir, '.layout'),
                          os.path.join(old, '.layout'))
             def handle_file(path):
-                dest = os.path.dirname(old+path[lblob_dir:])
+                newpath = old+path[lblob_dir:]
+                dest = os.path.dirname(newpath)
                 if not os.path.exists(dest):
                     os.makedirs(dest, 0700)
-                os.rename(path, old+path[lblob_dir:])
+                os.rename(path, newpath)
             handle_dir = handle_file
         else:
             # Helpers that remove an oid dir or revision file.
