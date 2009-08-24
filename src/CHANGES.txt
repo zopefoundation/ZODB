@@ -22,6 +22,18 @@ Bugs Fixed
 - Objects defining _p_deactivate methods that didn't call base methods
   weren't loaded properly. https://bugs.launchpad.net/zodb/+bug/185066
 
+- When committing transactions involving blobs to ClientStorages with
+  non-shared blob directories, a failure could occur in tpc_finish if
+  there was insufficient disk space to copy the blob file or if the
+  file wasn't available.  https://bugs.launchpad.net/zodb/+bug/224169
+
+- Savepoint blob data wasn't properly isolated. If multiple
+  simultaneous savepoints in separate transactions modified the same
+  blob, data from one savepoint would overwrite data for another.
+
+- Savepoint blob data wasn't cleaned up after a transaction abort.
+  https://bugs.launchpad.net/zodb/+bug/323067
+
 - Opening a blob with modes 'r+' or 'a' would fail when the blob had no
   committed changes.
 
