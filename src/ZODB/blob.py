@@ -15,6 +15,7 @@
 """
 
 import cPickle
+import cStringIO
 import base64
 import binascii
 import logging
@@ -934,6 +935,10 @@ else:
     link_or_copy = os.link
 
 
+def find_global_Blob(module, class_):
+    if module == 'ZODB.blob' and class_ == 'Blob':
+        return Blob
+
 def is_blob_record(record):
     """Check whether a database record is a blob record.
 
@@ -941,9 +946,15 @@ def is_blob_record(record):
     storage to another.
 
     """
-    try:
-        return cPickle.loads(record) is ZODB.blob.Blob
-    except (MemoryError, KeyboardInterrupt, SystemExit):
-        raise
-    except Exception:
-        return False
+    if 'ZODB.blob' in record:
+        unpickler = cPickle.Unpickler(cStringIO.StringIO(record))
+        unpickler.find_global = find_global_Blob
+
+        try:
+            return unpickler.load() is Blob
+        except (MemoryError, KeyboardInterrupt, SystemExit):
+            raise
+        except Exception:
+            pass
+
+    return False
