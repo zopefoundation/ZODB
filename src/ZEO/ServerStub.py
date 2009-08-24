@@ -164,7 +164,6 @@ class StorageServer:
         return self.rpc.call('zeoLoad', oid)[:2]
 
     ##
-    
     # Return current data for oid, and the tid of the
     # transaction that wrote the most recent revision.
     # @param oid object id
@@ -321,7 +320,7 @@ class StorageServer308(StorageServer):
 
     def verify(self, oid, serial):
         self.rpc.callAsync('verify', oid, '', serial)
-    
+
     def loadEx(self, oid):
         return self.rpc.call("loadEx", oid, '')[:2]
 
@@ -348,7 +347,7 @@ class StorageServer308(StorageServer):
         self.rpc.callAsyncIterator(store())
 
     def storeBlobShared(self, oid, serial, data, filename, id):
-        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
+        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename,
                            '', id)
 
     def zeoVerify(self, oid, s):
@@ -371,7 +370,7 @@ class StorageServer308(StorageServer):
 
 
 def stub(client, connection):
-        
+
     # Wait until we know what version the other side is using.
     while connection.peer_protocol_version is None:
         time.sleep(0.1)
