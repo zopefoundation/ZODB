@@ -15,22 +15,16 @@
 from pickle import Pickler
 from pickle import Unpickler
 from StringIO import StringIO
-from ZConfig import ConfigurationSyntaxError
-from ZODB.blob import Blob, BlobStorage
+from ZODB.blob import Blob
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
-from ZODB import utils
 from ZODB.tests.testConfig import ConfigTestBase
 from zope.testing import doctest
 
-import base64
 import os
 import random
 import re
-import shutil
-import stat
 import struct
-import sys
 import sys
 import time
 import transaction
@@ -537,6 +531,59 @@ def do_not_depend_on_cwd():
 
     >>> bs.close()
     """
+
+def savepoint_isolation():
+    """Make sure savepoint data is distinct accross transactions
+
+    >>> bs = create_storage()
+    >>> db = DB(bs)
+    >>> conn = db.open()
+    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> transaction.commit()
+    >>> conn.root.b.open('w').write('1')
+    >>> _ = transaction.savepoint()
+    >>> tm = transaction.TransactionManager()
+    >>> conn2 = db.open(transaction_manager=tm)
+    >>> conn2.root.b.open('w').write('2')
+    >>> _ = tm.savepoint()
+    >>> conn.root.b.open().read()
+    '1'
+    >>> conn2.root.b.open().read()
+    '2'
+    >>> transaction.abort()
+    >>> tm.commit()
+    >>> conn.sync()
+    >>> conn.root.b.open().read()
+    '2'
+    >>> db.close()
+    """
+
+def savepoint_cleanup():
+    """Make sure savepoint data gets cleaned up.
+
+    >>> bs = create_storage()
+    >>> tdir = bs.temporaryDirectory()
+    >>> os.listdir(tdir)
+    []
+
+    >>> db = DB(bs)
+    >>> conn = db.open()
+    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> _ = transaction.savepoint()
+    >>> len(os.listdir(tdir))
+    1
+    >>> transaction.abort()
+    >>> os.listdir(tdir)
+    []
+    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> transaction.commit()
+    >>> conn.root.b.open('w').write('1')
+    >>> _ = transaction.savepoint()
+    >>> transaction.abort()
+    >>> os.listdir(tdir)
+    []
+    """
+
 
 def setUp(test):
     ZODB.tests.util.setUp(test)

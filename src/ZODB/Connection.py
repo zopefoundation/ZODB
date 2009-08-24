@@ -31,7 +31,7 @@ from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
 from ZODB.interfaces import IBlobStorage
 from ZODB.interfaces import IMVCCStorage
-from ZODB.blob import Blob, rename_or_copy_blob
+from ZODB.blob import Blob, rename_or_copy_blob, remove_committed_dir
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
@@ -1239,11 +1239,16 @@ class TmpStore:
         self.index = {}
         self.creating = {}
 
+        self._blob_dir = None
+
     def __len__(self):
         return len(self.index)
 
     def close(self):
         self._file.close()
+        if self._blob_dir is not None:
+            remove_committed_dir(self._blob_dir)
+            self._blob_dir = None
 
     def load(self, oid, version):
         pos = self.index.get(oid)
@@ -1307,12 +1312,19 @@ class TmpStore:
             return ZODB.blob.BlobFile(blob_filename, 'r', blob)
 
     def _getBlobPath(self):
-        return os.path.join(self.temporaryDirectory(), 'savepoints')
+        blob_dir = self._blob_dir
+        if blob_dir is None:
+            blob_dir = tempfile.mkdtemp(dir=self.temporaryDirectory(),
+                                        prefix='savepoints')
+            self._blob_dir = blob_dir
+        return blob_dir
 
     def _getCleanFilename(self, oid, tid):
-        return os.path.join(self._getBlobPath(),
-                            "%s-%s%s" % (utils.oid_repr(oid), utils.tid_repr(tid), SAVEPOINT_SUFFIX,)
-                            )
+        return os.path.join(
+            self._getBlobPath(),
+            "%s-%s%s" % (utils.oid_repr(oid), utils.tid_repr(tid),
+                         SAVEPOINT_SUFFIX,)
+            )
 
     def temporaryDirectory(self):
         return self._storage.temporaryDirectory()
