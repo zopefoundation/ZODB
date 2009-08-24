@@ -217,6 +217,24 @@ class TestPList(unittest.TestCase):
         u.sort()
         eq(u, u2, "u == u2")
 
+        # Test keyword arguments to sort
+        u.sort(cmp=lambda x,y: cmp(y, x))
+        eq(u, [1, 0], "u == [1, 0]")
+
+        u.sort(key=lambda x:-x)
+        eq(u, [1, 0], "u == [1, 0]")
+
+        u.sort(reverse=True)
+        eq(u, [1, 0], "u == [1, 0]")
+
+        # Passing any other keyword arguments results in a TypeError
+        try:
+            u.sort(blah=True)
+        except TypeError:
+            pass
+        else:
+            raise TestFailed("expected TypeError")
+
         # Test extend
 
         u = u1[:]

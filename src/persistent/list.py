@@ -81,8 +81,8 @@ class PersistentList(UserList, persistent.Persistent):
         self.__super_reverse()
         self._p_changed = 1
 
-    def sort(self, *args):
-        self.__super_sort(*args)
+    def sort(self, *args, **kwargs):
+        self.__super_sort(*args, **kwargs)
         self._p_changed = 1
 
     def extend(self, other):
