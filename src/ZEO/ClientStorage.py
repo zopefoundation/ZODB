@@ -918,33 +918,29 @@ class ClientStorage(object):
     def storeBlob(self, oid, serial, data, blobfilename, version, txn):
         """Storage API: store a blob object."""
         assert not version
-        serials = self.store(oid, serial, data, '', txn)
-        if self.shared_blob_dir:
-            self._storeBlob_shared(oid, serial, data, blobfilename, txn)
-        else:
-            self._server.storeBlob(oid, serial, data, blobfilename, txn)
-            self._tbuf.storeBlob(oid, blobfilename)
-        return serials
 
-    def _storeBlob_shared(self, oid, serial, data, filename, txn):
-        # First, move the blob into the blob directory
+        # Grab the file right away. That way, if we don't have enough
+        # room for a copy, we'll know now rather than in tpc_finish.
+        # Also, this releaves the client of having to manage the file
+        # (or the directory contianing it).
         self.fshelper.getPathForOID(oid, create=True)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
 
-        if sys.platform == 'win32':
-            # On windows, we can't rename to an existing file.  We'll
-            # use a slightly different file name. We keep the old one
-            # until we're done to avoid conflicts. Then remove the old name.
-            target += 'w'
-            ZODB.blob.rename_or_copy_blob(filename, target)
-            os.remove(target[:-1])
-        else:
-            ZODB.blob.rename_or_copy_blob(filename, target)
+        # It's a bit odd (and impossible on windows) to rename over
+        # an existing file.  We'll use the temporary file name as a base.
+        target += '-'
+        ZODB.blob.rename_or_copy_blob(blobfilename, target)
+        os.remove(target[:-1])
 
-        # Now tell the server where we put it
-        self._server.storeBlobShared(
-            oid, serial, data, os.path.basename(target), id(txn))
+        serials = self.store(oid, serial, data, '', txn)
+        if self.shared_blob_dir:
+            self._server.storeBlobShared(
+                oid, serial, data, os.path.basename(target), id(txn))
+        else:
+            self._server.storeBlob(oid, serial, data, target, txn)
+            self._tbuf.storeBlob(oid, target)
+        return serials
 
     def receiveBlobStart(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
