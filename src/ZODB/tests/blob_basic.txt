@@ -156,6 +156,19 @@ Blobs are always opened in binary mode::
     'rb'
     >>> f9.close()
 
+Blobs that have not been committed can be opened using any mode,
+except for "c"::
+
+    >>> from ZODB.blob import BlobError, valid_modes
+    >>> for mode in valid_modes:
+    ...     try:
+    ...         f10 = Blob().open(mode)
+    ...     except BlobError:
+    ...         print 'open failed with mode "%s"' % mode
+    ...     else:
+    ...         f10.close()
+    open failed with mode "c"
+
 Some cleanup in this test is needed::
 
     >>> import transaction

@@ -169,14 +169,15 @@ class Blob(persistent.Persistent):
                 if self._p_blob_uncommitted is None:
                     self._create_uncommitted_file()
                 result = BlobFile(self._p_blob_uncommitted, mode, self)
-            else:
+            else: # 'r+' and 'a'
                 if self._p_blob_uncommitted is None:
                     # Create a new working copy
                     self._create_uncommitted_file()
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
-                    utils.cp(file(self._p_blob_committed), result)
-                    if mode == 'r+':
-                        result.seek(0)
+                    if self._p_blob_committed:
+                        utils.cp(open(self._p_blob_committed), result)
+                        if mode == 'r+':
+                            result.seek(0)
                 else:
                     # Re-use existing working copy
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
