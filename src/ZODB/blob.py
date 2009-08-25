@@ -593,7 +593,7 @@ class LawnLayout(BushyLayout):
 LAYOUTS['lawn'] = LawnLayout()
 
 class BlobStorageMixin(object):
-    """A mix-in to help storages support blobssupport blobs."""
+    """A mix-in to help storages support blobs."""
 
     def _blob_init(self, blob_dir, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
