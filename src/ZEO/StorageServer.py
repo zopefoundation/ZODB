@@ -407,7 +407,7 @@ class ZEOStorage:
                 raise StorageTransactionError("Multiple simultaneous tpc_begin"
                                               " requests from one client.")
 
-        self.transaction = t = transaction.Transaction()
+        t = transaction.Transaction()
         t.id = id
         t.user = user
         t.description = description
@@ -420,6 +420,16 @@ class ZEOStorage:
         self.status = status
         self.store_failed = 0
         self.stats.active_txns += 1
+
+        # Assign the transaction attribute last. This is so we don't
+        # think we've entered TPC until everything is set.  Why?
+        # Because if we have an error after this, the server will
+        # think it is in TPC and the client will think it isn't.  At
+        # that point, the client will keep trying to enter TPC and
+        # server won't let it.  Errors *after* the tpc_begin call will
+        # cause the client to abort the transaction.
+        # (Also see https://bugs.launchpad.net/zodb/+bug/374737.)
+        self.transaction = t
 
     def tpc_finish(self, id):
         if not self._check_tid(id):

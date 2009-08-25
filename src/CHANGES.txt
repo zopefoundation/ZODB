@@ -41,6 +41,10 @@ Bugs Fixed
   Changed its sort parameter list to match that of its (Python 2.4+)
   UserList base class.
 
+- Certain ZEO server errors could cause a client to get into a state
+  where it couldn't commit transactions.
+  https://bugs.launchpad.net/zodb/+bug/374737
+
 3.9.0b5 (2009-08-06)
 ====================
 
