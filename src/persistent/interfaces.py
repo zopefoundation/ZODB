@@ -235,15 +235,25 @@ class IPersistent(Interface):
         ghost state.  It may not be possible to make some persistent
         objects ghosts, and, for optimization reasons, the implementation
         may choose to keep an object in the saved state.
+
+        This method must be a no-op if the object is not in the saved
+        state, which implies that _p_jar is not None.
         """
 
     def _p_invalidate():
         """Invalidate the object.
 
         Invalidate the object.  This causes any data to be thrown
-        away, even if the object is in the changed state.  The object
-        is moved to the ghost state; further accesses will cause
-        object data to be reloaded.
+        away, even if the object is in the changed state.
+
+        An implementation of this method must either discard state
+        data and go to the ghost state, or load current data (by
+        calling _p_jat.setstate(self) to reload data and enter the
+        saved state.
+
+        This method must be a no-op if the object is already in the
+        ghost state or if _p_jar isn't set.  It must not be ignored
+        otherwise.
         """
 
 class IPersistentNoReadConflicts(IPersistent):

@@ -28,7 +28,7 @@ static PyObject *TimeStamp, *py_simple_new;
 
 /* Strings initialized by init_strings() below. */
 static PyObject *py_keys, *py_setstate, *py___dict__, *py_timeTime;
-static PyObject *py__p_changed, *py__p_deactivate;
+static PyObject *py__p_changed, *py__p_deactivate, *py__p_invalidate;
 static PyObject *py___getattr__, *py___setattr__, *py___delattr__;
 static PyObject *py___slotnames__, *copy_reg_slotnames, *__newobj__;
 static PyObject *py___getnewargs__, *py___getstate__;
@@ -46,6 +46,7 @@ init_strings(void)
   INIT_STRING(__dict__);
   INIT_STRING(_p_changed);
   INIT_STRING(_p_deactivate);
+  INIT_STRING(_p_invalidate);
   INIT_STRING(__getattr__);
   INIT_STRING(__setattr__);
   INIT_STRING(__delattr__);
@@ -254,18 +255,20 @@ Per__p_activate(cPersistentObject *self)
   return Py_None;
 }
 
-static int Per_set_changed(cPersistentObject *self, PyObject *v);
-
 static PyObject *
 Per__p_invalidate(cPersistentObject *self)
 {
-  signed char old_state = self->state;
-
-  if (old_state != cPersistent_GHOST_STATE)
+  if (self->state != cPersistent_GHOST_STATE && self->jar)
     {
-      if (Per_set_changed(self, NULL) < 0)
-        return NULL;
-      ghostify(self);
+      PyObject *r;
+
+      self->state = cPersistent_UPTODATE_STATE;      
+      r = PyObject_CallMethodObjArgs((PyObject *)self, py__p_deactivate,
+                                     NULL);
+      if (r != NULL)
+        /* Make sure we're a ghost, even if _p_deactivate is a pass */
+        ghostify(self);
+      return r;
     }
   Py_INCREF(Py_None);
   return Py_None;
@@ -884,47 +887,32 @@ Per_get_changed(cPersistentObject *self)
 static int
 Per_set_changed(cPersistentObject *self, PyObject *v)
 {
-  int deactivate = 0;
   int true;
 
   if (!v)
     {
       /* delattr is used to invalidate an object even if it has changed. */
-      if (self->state != cPersistent_GHOST_STATE)
-        self->state = cPersistent_UPTODATE_STATE;
-      deactivate = 1;
-    }
-  else if (v == Py_None)
-    deactivate = 1;
-
-  if (deactivate)
-    {
-      PyObject *res, *meth;
-      meth = PyObject_GetAttr((PyObject *)self, py__p_deactivate);
-      if (meth == NULL)
+      if (self->state == cPersistent_GHOST_STATE || self->jar == NULL)
+        return 0;  /* noop if already ghost or no jar */
+      v = PyObject_CallMethodObjArgs((PyObject *)self, py__p_invalidate, NULL);
+      if (! v)
         return -1;
-      res = PyObject_CallObject(meth, NULL);
-      if (res)
-        Py_DECREF(res);
-      else
-        {
-          /* an error occured in _p_deactivate().
-
-             It's not clear what we should do here.  The code is
-             obviously ignoring the exception, but it shouldn't return
-             0 for a getattr and set an exception.  The simplest change
-             is to clear the exception, but that simply masks the
-             error.
-
-             This prints an error to stderr just like exceptions in
-             __del__().  It would probably be better to log it but that
-             would be painful from C.
-          */
-          PyErr_WriteUnraisable(meth);
-        }
-      Py_DECREF(meth);
+      Py_DECREF(v);
       return 0;
     }
+
+  if (v == Py_None)
+    {
+      /* Setting to None deactivates */
+      if (self->state != cPersistent_UPTODATE_STATE || self->jar == NULL)
+        return 0;  /* noop if not in saved state */
+      v = PyObject_CallMethodObjArgs((PyObject *)self, py__p_deactivate, NULL);
+      if (! v)
+        return -1;
+      Py_DECREF(v);
+      return 0;
+    }
+
   /* !deactivate.  If passed a true argument, mark self as changed (starting
    * with ZODB 3.6, that includes activating the object if it's a ghost).
    * If passed a false argument, and the object isn't a ghost, set the

@@ -480,3 +480,137 @@ problem is that the assert statements won't do anything if you run with `-O`.
   ...     assert IPersistent.implementedBy(P)
   ...     p = P()
   ...     assert IPersistent.providedBy(p)
+
+Overridden _p_deactivate and _p_invalidate
+------------------------------------------
+
+These methods are distinct.  The default implementations must not be
+implemented in terms of each other.
+
+    >>> class OverrideDeactivate(Persistent):
+    ...     def __init__(self):
+    ...         self.x = 1
+    ...     def _p_deactivate(self):
+    ...         if (self._p_jar is None or
+    ...             self._p_changed is None or self._p_changed):
+    ...             print 'ignore deactivate'
+    ...             return
+    ...         print 'deactivate'
+    ...         Persistent._p_deactivate(self)
+
+    >>> o = OverrideDeactivate()
+    >>> o._p_deactivate()
+    ignore deactivate
+
+    >>> o._p_invalidate()
+    >>> o._p_changed
+    0
+    >>> o.__dict__
+    {'x': 1}
+
+    >>> o._p_changed = None
+    >>> del o._p_changed
+    >>> o._p_changed
+    0
+    >>> o.__dict__
+    {'x': 1}
+
+    >>> o._p_jar = dm
+    >>> o._p_deactivate()
+    deactivate
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> o = OverrideDeactivate()
+    >>> o._p_jar = dm
+    >>> o._p_changed = None
+    deactivate
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> o = OverrideDeactivate()
+    >>> o._p_jar = dm
+
+The following is suprizing:
+
+    >>> o._p_invalidate()
+    deactivate
+
+This is due to the fact that, historically, the default implementation
+of _p_invalidate called _p_deactivate.  This isn't really quite right,
+but it's possible there are persistent implementations that rely on
+this, so we're not going to change it for now.
+
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> o = OverrideDeactivate()
+    >>> o._p_jar = dm
+    >>> del o._p_changed
+    deactivate
+
+ditto :)
+
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> class OverrideInvalidate(Persistent):
+    ...     def __init__(self):
+    ...         self.x = 1
+    ...     def _p_invalidate(self):
+    ...         if (self._p_jar is None or self._p_changed is None):
+    ...             print 'ignore invalidate'
+    ...             return
+    ...         print 'invalidate'
+    ...         Persistent._p_invalidate(self)
+
+    >>> o = OverrideInvalidate()
+    >>> o._p_deactivate()
+    >>> o._p_changed
+    0
+    >>> o.__dict__
+    {'x': 1}
+
+    >>> o._p_invalidate()
+    ignore invalidate
+
+    >>> o._p_changed = None
+
+    >>> del o._p_changed
+    >>> o._p_changed
+    0
+    >>> o.__dict__
+    {'x': 1}
+
+    >>> o._p_jar = dm
+    >>> o._p_deactivate()
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> o = OverrideInvalidate()
+    >>> o._p_jar = dm
+    >>> o._p_changed = None
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> o = OverrideInvalidate()
+    >>> o._p_jar = dm
+    >>> o._p_invalidate()
+    invalidate
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
+
+    >>> o = OverrideInvalidate()
+    >>> o._p_jar = dm
+    >>> del o._p_changed
+    invalidate
+    >>> o._p_changed
+    >>> o.__dict__
+    {}
