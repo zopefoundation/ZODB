@@ -237,8 +237,6 @@ directory of the blob storage:
     >>> len([name for name in os.listdir(os.path.join(blob_dir, 'tmp'))
     ...      if name.startswith('savepoint')])
     1
-    >>> os.listdir(os.path.join(blob_dir, 'tmp'))[0].startswith('savepoint')
-    True
 
 After committing the transaction, the temporary savepoint files are moved to
 the committed location again:
