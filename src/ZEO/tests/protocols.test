@@ -1,0 +1,187 @@
+Test that multiple protocols are supported
+==========================================
+
+A full test of all protocols isn't practical.  But we'll do a limited
+test that at least the current and previous protocols are supported in
+both directions.
+
+Let's start a Z308 server
+
+    >>> storage_conf = '''
+    ... <blobstorage>
+    ...    blob-dir server-blobs
+    ...    <filestorage>
+    ...       path Data.fs
+    ...    </filestorage>
+    ... </blobstorage>
+    ... '''
+
+    >>> addr, admin = start_server(
+    ...    storage_conf, dict(invalidation_queue_size=5), protocol='Z308')
+
+A current client should be able to connect to a old server:
+
+    >>> import ZEO, ZODB.blob, transaction
+    >>> db = ZEO.DB(addr, client='client', blob_dir='blobs')
+    >>> wait_connected(db.storage)
+    >>> db.storage._connection.peer_protocol_version
+    'Z308'
+
+    >>> conn = db.open()
+    >>> conn.root().x = 0
+    >>> transaction.commit()
+    >>> len(db.history(conn.root()._p_oid, 99))
+    2
+
+    >>> conn.root()['blob1'] = ZODB.blob.Blob()
+    >>> conn.root()['blob1'].open('w').write('blob data 1')
+    >>> transaction.commit()
+
+    >>> db2 = ZEO.DB(addr, blob_dir='server-blobs', shared_blob_dir=True)
+    >>> wait_connected(db2.storage)
+    >>> conn2 = db2.open()
+    >>> for i in range(5):
+    ...     conn2.root().x += 1
+    ...     transaction.commit()
+    >>> conn2.root()['blob2'] = ZODB.blob.Blob()
+    >>> conn2.root()['blob2'].open('w').write('blob data 2')
+    >>> transaction.commit()
+
+
+    >>> conn.sync()
+    >>> conn.root().x
+    5
+
+    >>> db.close()
+
+    >>> for i in range(2):
+    ...     conn2.root().x += 1
+    ...     transaction.commit()
+
+    >>> db = ZEO.DB(addr, client='client', blob_dir='blobs')
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x
+    7
+
+    >>> db.close()
+
+    >>> for i in range(10):
+    ...     conn2.root().x += 1
+    ...     transaction.commit()
+
+    >>> db = ZEO.DB(addr, client='client', blob_dir='blobs')
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x
+    17
+
+    >>> conn.root()['blob1'].open().read()
+    'blob data 1'
+    >>> conn.root()['blob2'].open().read()
+    'blob data 2'
+
+Note that when taking to a 3.8 server, iteration won't work:
+
+    >>> db.storage.iterator()
+    Traceback (most recent call last):
+    ...
+    NotImplementedError
+
+    >>> db2.close()
+    >>> db.close()
+    >>> stop_server(admin)
+
+    >>> import os, zope.testing.setupstack
+    >>> os.remove('client-1.zec')
+    >>> zope.testing.setupstack.rmtree('blobs')
+    >>> zope.testing.setupstack.rmtree('server-blobs')
+
+And the other way around:
+
+    >>> addr, _ = start_server(storage_conf, dict(invalidation_queue_size=5))
+
+Note that we'll have to pull some hijinks:
+
+    >>> import ZEO.zrpc.connection
+    >>> old_current_protocol = ZEO.zrpc.connection.Connection.current_protocol
+    >>> ZEO.zrpc.connection.Connection.current_protocol = 'Z308'
+
+    >>> db = ZEO.DB(addr, client='client', blob_dir='blobs')
+    >>> db.storage._connection.peer_protocol_version
+    'Z308'
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x = 0
+    >>> transaction.commit()
+    >>> len(db.history(conn.root()._p_oid, 99))
+    2
+
+    >>> conn.root()['blob1'] = ZODB.blob.Blob()
+    >>> conn.root()['blob1'].open('w').write('blob data 1')
+    >>> transaction.commit()
+
+    >>> db2 = ZEO.DB(addr, blob_dir='server-blobs', shared_blob_dir=True)
+    >>> wait_connected(db2.storage)
+    >>> conn2 = db2.open()
+    >>> for i in range(5):
+    ...     conn2.root().x += 1
+    ...     transaction.commit()
+    >>> conn2.root()['blob2'] = ZODB.blob.Blob()
+    >>> conn2.root()['blob2'].open('w').write('blob data 2')
+    >>> transaction.commit()
+
+
+    >>> conn.sync()
+    >>> conn.root().x
+    5
+
+    >>> db.close()
+
+    >>> for i in range(2):
+    ...     conn2.root().x += 1
+    ...     transaction.commit()
+
+    >>> db = ZEO.DB(addr, client='client', blob_dir='blobs')
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x
+    7
+
+    >>> db.close()
+
+    >>> for i in range(10):
+    ...     conn2.root().x += 1
+    ...     transaction.commit()
+
+    >>> db = ZEO.DB(addr, client='client', blob_dir='blobs')
+    >>> wait_connected(db.storage)
+    >>> conn = db.open()
+    >>> conn.root().x
+    17
+
+    >>> conn.root()['blob1'].open().read()
+    'blob data 1'
+    >>> conn.root()['blob2'].open().read()
+    'blob data 2'
+
+Make some old protocol calls:
+
+    >>> db.storage._server.rpc.call('getSerial', conn.root()._p_oid
+    ...      ) == conn.root()._p_serial
+    True
+
+    >>> p, s, v, x, y = db.storage._server.rpc.call('zeoLoad',
+    ...                                             conn.root()._p_oid)
+    >>> (v, x, y) == ('', None, None)
+    True
+    >>> db.storage.load(conn.root()._p_oid) == (p, s)
+    True
+
+
+    >>> db2.close()
+    >>> db.close()
+
+Undo the hijinks:
+
+    >>> ZEO.zrpc.connection.Connection.current_protocol = old_current_protocol

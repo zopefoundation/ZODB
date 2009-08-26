@@ -1,0 +1,8 @@
+<schema prefix="ZODB.config">
+
+  <import package="ZODB"/>
+
+  <multisection type="ZODB.database" name="*" attribute="database"
+                required="yes" />
+
+</schema>

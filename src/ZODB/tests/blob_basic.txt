@@ -1,0 +1,197 @@
+##############################################################################
+#
+# Copyright (c) 2005 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+ZODB Blob support
+=================
+
+You create a blob like this::
+
+    >>> from ZODB.blob import Blob
+    >>> myblob = Blob()
+
+A blob implements the IBlob interface::
+
+    >>> from ZODB.interfaces import IBlob
+    >>> IBlob.providedBy(myblob)
+    True
+
+We can open a new blob file for reading, but it won't have any data::
+
+    >>> myblob.open("r").read()
+    ''
+
+But we can write data to a new Blob by opening it for writing::
+
+    >>> f = myblob.open("w")
+    >>> f.write("Hi, Blob!")
+
+If we try to open a Blob again while it is open for writing, we get an error::
+
+    >>> myblob.open("r")
+    Traceback (most recent call last):
+        ...
+    BlobError: Already opened for writing.
+
+We can close the file::
+
+    >>> f.close()
+
+Now we can open it for reading::
+
+    >>> f2 = myblob.open("r")
+
+And we get the data back::
+
+    >>> f2.read()
+    'Hi, Blob!'
+
+If we want to, we can open it again::
+
+    >>> f3 = myblob.open("r")
+    >>> f3.read()
+    'Hi, Blob!'
+
+But we can't open it for writing, while it is opened for reading::
+
+    >>> myblob.open("a")
+    Traceback (most recent call last):
+        ...
+    BlobError: Already opened for reading.
+
+Before we can write, we have to close the readers::
+
+    >>> f2.close()
+    >>> f3.close()
+
+Now we can open it for writing again and e.g. append data::
+
+    >>> f4 = myblob.open("a")
+    >>> f4.write("\nBlob is fine.")
+
+We can't open a blob while it is open for writing:
+
+    >>> myblob.open("w")
+    Traceback (most recent call last):
+    ...
+    BlobError: Already opened for writing.
+
+    >>> myblob.open("r")
+    Traceback (most recent call last):
+    ...
+    BlobError: Already opened for writing.
+
+    >>> f4.close()
+
+Now we can read it::
+
+    >>> f4a = myblob.open("r")
+    >>> f4a.read()
+    'Hi, Blob!\nBlob is fine.'
+    >>> f4a.close()
+
+You shouldn't need to explicitly close a blob unless you hold a reference
+to it via a name.  If the first line in the following test kept a reference
+around via a name, the second call to open it in a writable mode would fail
+with a BlobError, but it doesn't::
+
+    >>> myblob.open("r+").read()
+    'Hi, Blob!\nBlob is fine.'
+    >>> f4b = myblob.open("a")
+    >>> f4b.close()
+
+We can read lines out of the blob too::
+
+    >>> f5 = myblob.open("r")
+    >>> f5.readline()
+    'Hi, Blob!\n'
+    >>> f5.readline()
+    'Blob is fine.'
+    >>> f5.close()
+
+We can seek to certain positions in a blob and read portions of it::
+
+    >>> f6 = myblob.open('r')
+    >>> f6.seek(4)
+    >>> int(f6.tell())
+    4
+    >>> f6.read(5)
+    'Blob!'
+    >>> f6.close()
+
+We can use the object returned by a blob open call as an iterable::
+
+    >>> f7 = myblob.open('r')
+    >>> for line in f7:
+    ...     print line
+    Hi, Blob!
+    <BLANKLINE>
+    Blob is fine.
+    >>> f7.close()
+
+We can truncate a blob::
+
+    >>> f8 = myblob.open('a')
+    >>> f8.truncate(0)
+    >>> f8.close()
+    >>> f8 = myblob.open('r')
+    >>> f8.read()
+    ''
+    >>> f8.close()
+
+Blobs are always opened in binary mode::
+
+    >>> f9 = myblob.open("r")
+    >>> f9.mode
+    'rb'
+    >>> f9.close()
+
+Blobs that have not been committed can be opened using any mode,
+except for "c"::
+
+    >>> from ZODB.blob import BlobError, valid_modes
+    >>> for mode in valid_modes:
+    ...     try:
+    ...         f10 = Blob().open(mode)
+    ...     except BlobError:
+    ...         print 'open failed with mode "%s"' % mode
+    ...     else:
+    ...         f10.close()
+    open failed with mode "c"
+
+Some cleanup in this test is needed::
+
+    >>> import transaction
+    >>> transaction.get().abort()
+
+Subclassing Blobs
+-----------------
+
+Blobs are not subclassable::
+
+    >>> class SubBlob(Blob):
+    ...     pass
+    >>> my_sub_blob = SubBlob()
+    Traceback (most recent call last):
+        ...
+    TypeError: Blobs do not support subclassing.
+
+Passing data to the blob constructor
+------------------------------------
+
+If you have a small amount of data, you can pass it to the blob
+constructor.  (This is a convenience, mostly for writing tests.)
+
+    >>> myblob = Blob('some data')
+    >>> myblob.open().read()
+    'some data'

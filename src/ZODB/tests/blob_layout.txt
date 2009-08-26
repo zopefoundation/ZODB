@@ -1,0 +1,291 @@
+======================
+Blob directory layouts
+======================
+
+The internal structure of the blob directories is governed by so called
+`layouts`. The current default layout is called `bushy`.
+
+The original blob implementation used a layout that we now call `lawn` and
+which is still available for backwards compatibility.
+
+Layouts implement two methods: one for computing a relative path for an
+OID and one for turning a relative path back into an OID.
+
+Our terminology is roughly the same as used in `DirectoryStorage`.
+
+The `bushy` layout
+==================
+
+The bushy layout splits the OID into the 8 byte parts, reverses them and
+creates one directory level for each part, named by the hexlified
+representation of the byte value. This results in 8 levels of directories, the
+leaf directories being used for the revisions of the blobs and at most 256
+entries per directory level:
+
+>>> from ZODB.blob import BushyLayout
+>>> bushy = BushyLayout()
+>>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x00')
+'0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x00'
+>>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
+'0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x01'
+
+>>> import os
+>>> bushy.path_to_oid(os.path.join(
+...     '0x01', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00'))
+'\x01\x00\x00\x00\x00\x00\x00\x00'
+>>> bushy.path_to_oid(os.path.join(
+...     '0xff', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00'))
+'\xff\x00\x00\x00\x00\x00\x00\x00'
+
+Paths that do not represent an OID will cause a ValueError:
+
+>>> bushy.path_to_oid('tmp')
+Traceback (most recent call last):
+ValueError: Not a valid OID path: `tmp`
+
+
+The `lawn` layout
+=================
+
+The lawn layout creates on directory for each blob named by the blob's hex
+representation of its OID. This has some limitations on various file systems
+like performance penalties or the inability to store more than a given number
+of blobs at the same time (e.g. 32k on ext3).
+
+>>> from ZODB.blob import LawnLayout
+>>> lawn = LawnLayout()
+>>> lawn.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x00')
+'0x00'
+>>> lawn.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
+'0x01'
+
+>>> lawn.path_to_oid('0x01')
+'\x00\x00\x00\x00\x00\x00\x00\x01'
+
+Paths that do not represent an OID will cause a ValueError:
+
+>>> lawn.path_to_oid('tmp')
+Traceback (most recent call last):
+ValueError: Not a valid OID path: `tmp`
+>>> lawn.path_to_oid('')
+Traceback (most recent call last):
+ValueError: Not a valid OID path: ``
+
+
+Auto-detecting the layout of a directory
+========================================
+
+To allow easier migration, we provide an auto-detection feature that analyses a
+blob directory and decides for a strategy to use. In general it prefers to
+choose the `bushy` layout, except if it determines that the directory has
+already been used to create a lawn structure.
+
+>>> from ZODB.blob import auto_layout_select
+
+1. Non-existing directories will trigger a bushy layout:
+
+>>> import os, shutil
+>>> auto_layout_select('blobs')
+'bushy'
+
+2. Empty directories will trigger a bushy layout too:
+
+>>> os.mkdir('blobs')
+>>> auto_layout_select('blobs')
+'bushy'
+
+3. If the directory contains a marker for the strategy it will be used:
+
+>>> from ZODB.blob import LAYOUT_MARKER
+>>> import os.path
+>>> open(os.path.join('blobs', LAYOUT_MARKER), 'wb').write('bushy')
+>>> auto_layout_select('blobs')
+'bushy'
+>>> open(os.path.join('blobs', LAYOUT_MARKER), 'wb').write('lawn')
+>>> auto_layout_select('blobs')
+'lawn'
+>>> shutil.rmtree('blobs')
+
+4. If the directory does not contain a marker but other files that are
+not hidden, we assume that it was created with an earlier version of
+the blob implementation and uses our `lawn` layout:
+
+>>> os.mkdir('blobs')
+>>> open(os.path.join('blobs', '0x0101'), 'wb').write('foo')
+>>> auto_layout_select('blobs')
+'lawn'
+>>> shutil.rmtree('blobs')
+
+5. If the directory contains only hidden files, use the bushy layout:
+
+>>> os.mkdir('blobs')
+>>> open(os.path.join('blobs', '.svn'), 'wb').write('blah')
+>>> auto_layout_select('blobs')
+'bushy'
+>>> shutil.rmtree('blobs')
+
+
+Directory layout markers
+========================
+
+When the file system helper (FSH) is asked to create the directory structure,
+it will leave a marker with the choosen layout if no marker exists yet:
+
+>>> from ZODB.blob import FilesystemHelper
+>>> blobs = 'blobs'
+>>> fsh = FilesystemHelper(blobs)
+>>> fsh.layout_name
+'bushy'
+>>> fsh.create()
+>>> open(os.path.join(blobs, LAYOUT_MARKER), 'rb').read()
+'bushy'
+
+If the FSH finds a marker, then it verifies whether its content matches the
+strategy that was chosen. It will raise an exception if we try to work with a
+directory that has a different marker than the chosen strategy:
+
+>>> fsh = FilesystemHelper(blobs, 'lawn')
+>>> fsh.layout_name
+'lawn'
+>>> fsh.create() # doctest: +ELLIPSIS
+Traceback (most recent call last):
+ValueError: Directory layout `lawn` selected for blob directory .../blobs/, but marker found for layout `bushy`
+>>> rmtree(blobs)
+
+This function interacts with the automatic detection in the way, that an
+unmarked directory will be marked the first time when it is auto-guessed and
+the marker will be used in the future:
+
+>>> import ZODB.FileStorage
+>>> from ZODB.blob import BlobStorage
+>>> datafs = 'data.fs'
+>>> base_storage = ZODB.FileStorage.FileStorage(datafs)
+
+>>> os.mkdir(blobs)
+>>> open(os.path.join(blobs, 'foo'), 'wb').write('foo')
+>>> blob_storage = BlobStorage(blobs, base_storage)
+>>> blob_storage.fshelper.layout_name
+'lawn'
+>>> open(os.path.join(blobs, LAYOUT_MARKER), 'rb').read()
+'lawn'
+>>> blob_storage = BlobStorage('blobs', base_storage, layout='bushy')
+... # doctest: +ELLIPSIS
+Traceback (most recent call last):
+ValueError: Directory layout `bushy` selected for blob directory .../blobs/, but marker found for layout `lawn`
+
+
+>>> base_storage.close()
+>>> rmtree('blobs')
+
+
+Migrating between directory layouts
+===================================
+
+A script called `migrateblobs.py` is distributed with the ZODB for offline
+migration capabilities between different directory layouts. It can migrate any
+blob directory layout to any other layout. It leaves the original blob
+directory untouched (except from eventually creating a temporary directory and
+the storage layout marker).
+
+The migration is accessible as a library function:
+
+>>> from ZODB.scripts.migrateblobs import migrate
+
+Create a `lawn` directory structure and migrate it to the new `bushy` one:
+
+>>> from ZODB.blob import FilesystemHelper
+>>> d = 'd'
+>>> os.mkdir(d)
+>>> old = os.path.join(d, 'old')
+>>> old_fsh = FilesystemHelper(old, 'lawn')
+>>> old_fsh.create()
+>>> blob1 = old_fsh.getPathForOID(7039, create=True)
+>>> blob2 = old_fsh.getPathForOID(10, create=True)
+>>> blob3 = old_fsh.getPathForOID(7034, create=True)
+>>> open(os.path.join(blob1, 'foo'), 'wb').write('foo')
+>>> open(os.path.join(blob1, 'foo2'), 'wb').write('bar')
+>>> open(os.path.join(blob2, 'foo3'), 'wb').write('baz')
+>>> open(os.path.join(blob2, 'foo4'), 'wb').write('qux')
+>>> open(os.path.join(blob3, 'foo5'), 'wb').write('quux')
+>>> open(os.path.join(blob3, 'foo6'), 'wb').write('corge')
+
+Committed blobs have their permissions set to 000
+
+The migration function is called with the old and the new path and the layout
+that shall be used for the new directory:
+
+>>> bushy = os.path.join(d, 'bushy')
+>>> migrate(old, bushy, 'bushy')  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+Migrating blob data from `.../old` (lawn) to `.../bushy` (bushy)
+    OID: 0x0a - 2 files
+    OID: 0x1b7a - 2 files
+    OID: 0x1b7f - 2 files
+
+The new directory now contains the same files in different directories, but
+with the same sizes and permissions:
+
+>>> lawn_files = {}
+>>> for base, dirs, files in os.walk(old):
+...     for file_name in files:
+...         lawn_files[file_name] = os.path.join(base, file_name)
+
+>>> bushy_files = {}
+>>> for base, dirs, files in os.walk(bushy):
+...     for file_name in files:
+...         bushy_files[file_name] = os.path.join(base, file_name)
+
+>>> len(lawn_files) == len(bushy_files)
+True
+
+>>> for file_name, lawn_path in sorted(lawn_files.items()):
+...     if file_name == '.layout':
+...         continue
+...     lawn_stat = os.stat(lawn_path)
+...     bushy_path = bushy_files[file_name]
+...     bushy_stat = os.stat(bushy_path)
+...     print lawn_path, '-->', bushy_path
+...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
+...         (bushy_stat.st_mode, bushy_stat.st_size)):
+...         print 'oops'
+old/0x1b7f/foo --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo
+old/0x1b7f/foo2 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2
+old/0x0a/foo3 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3
+old/0x0a/foo4 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo4
+old/0x1b7a/foo5 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo5
+old/0x1b7a/foo6 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo6
+
+We can also migrate the bushy layout back to the lawn layout:
+
+>>> lawn = os.path.join(d, 'lawn')
+>>> migrate(bushy, lawn, 'lawn')
+Migrating blob data from `.../bushy` (bushy) to `.../lawn` (lawn)
+   OID: 0x0a - 2 files
+   OID: 0x1b7a - 2 files
+   OID: 0x1b7f - 2 files
+
+>>> lawn_files = {}
+>>> for base, dirs, files in os.walk(lawn):
+...     for file_name in files:
+...         lawn_files[file_name] = os.path.join(base, file_name)
+
+>>> len(lawn_files) == len(bushy_files)
+True
+
+>>> for file_name, lawn_path in sorted(lawn_files.items()):
+...     if file_name == '.layout':
+...         continue
+...     lawn_stat = os.stat(lawn_path)
+...     bushy_path = bushy_files[file_name]
+...     bushy_stat = os.stat(bushy_path)
+...     print bushy_path, '-->', lawn_path
+...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
+...         (bushy_stat.st_mode, bushy_stat.st_size)):
+...         print 'oops'
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo --> lawn/0x1b7f/foo
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2 --> lawn/0x1b7f/foo2
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3 --> lawn/0x0a/foo3
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo4 --> lawn/0x0a/foo4
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo5 --> lawn/0x1b7a/foo5
+bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7a/foo6 --> lawn/0x1b7a/foo6
+
+>>> rmtree(d)

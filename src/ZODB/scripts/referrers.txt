@@ -1,0 +1,43 @@
+Getting Object Referrers
+========================
+
+The referrers module provides a way to get object referrers.  It
+provides a referrers method that takes an iterable storage object.  It
+returns a dictionary mapping object ids to lists of referrer object
+versions, which each version is a tuple an object id nd serial
+nummber.
+
+To see how this works, we'll create a small database:
+
+    >>> import transaction
+    >>> from persistent.mapping import PersistentMapping
+    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.DB import DB
+    >>> import os, tempfile
+    >>> dest = tempfile.mkdtemp()
+    >>> fs = FileStorage(os.path.join(dest, 'Data.fs'))
+    >>> db = DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()['a'] = PersistentMapping()
+    >>> conn.root()['b'] = PersistentMapping()
+    >>> transaction.commit()
+    >>> roid = conn.root()._p_oid
+    >>> aoid = conn.root()['a']._p_oid
+    >>> boid = conn.root()['b']._p_oid
+    >>> s1 = conn.root()['b']._p_serial
+
+    >>> conn.root()['a']['b'] = conn.root()['b']
+    >>> transaction.commit()
+    >>> s2 = conn.root()['a']._p_serial
+
+Now we'll get the storage and compute the referrers:
+
+    >>> import ZODB.scripts.referrers
+    >>> referrers = ZODB.scripts.referrers.referrers(fs)
+
+    >>> referrers[boid] == [(roid, s1), (aoid, s2)]
+    True
+
+.. Cleanup
+
+    >>> db.close()

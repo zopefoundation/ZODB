@@ -1,0 +1,78 @@
+##############################################################################
+#
+# Copyright (c) 2005 Zope Corporation and Contributors.
+# All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE.
+#
+##############################################################################
+
+Import/export support for blob data
+===================================
+
+Set up:
+
+    >>> import ZODB.blob, transaction
+    >>> from persistent.mapping import PersistentMapping
+
+We need an database with an undoing blob supporting storage:
+
+    >>> database1 = ZODB.DB(create_storage('1'))
+    >>> database2 = ZODB.DB(create_storage('2'))
+
+Create our root object for database1:
+
+    >>> connection1 = database1.open()
+    >>> root1 = connection1.root()
+
+Put a couple blob objects in our database1 and on the filesystem:
+
+    >>> import time, os
+    >>> nothing = transaction.begin()
+    >>> data1 = 'x'*100000
+    >>> blob1 = ZODB.blob.Blob()
+    >>> blob1.open('w').write(data1)
+    >>> data2 = 'y'*100000
+    >>> blob2 = ZODB.blob.Blob()
+    >>> blob2.open('w').write(data2)
+    >>> d = PersistentMapping({'blob1':blob1, 'blob2':blob2})
+    >>> root1['blobdata'] = d
+    >>> transaction.commit()
+
+Export our blobs from a database1 connection:
+
+    >>> conn = root1['blobdata']._p_jar
+    >>> oid = root1['blobdata']._p_oid
+    >>> exportfile = 'export'
+    >>> nothing = connection1.exportFile(oid, exportfile)
+
+Import our exported data into database2:
+
+    >>> connection2 = database2.open()
+    >>> root2 = connection2.root()
+    >>> nothing = transaction.begin()
+    >>> data = root2._p_jar.importFile(exportfile)
+    >>> root2['blobdata'] = data
+    >>> transaction.commit()
+
+Make sure our data exists:
+
+    >>> items1 = root1['blobdata']
+    >>> items2 = root2['blobdata']
+    >>> bool(items1.keys() == items2.keys())
+    True
+    >>> items1['blob1'].open().read() == items2['blob1'].open().read()
+    True
+    >>> items1['blob2'].open().read() == items2['blob2'].open().read()
+    True
+    >>> transaction.get().abort()
+
+.. cleanup
+
+    >>> database1.close()
+    >>> database2.close()
