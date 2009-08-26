@@ -582,6 +582,8 @@ def savepoint_cleanup():
     >>> transaction.abort()
     >>> os.listdir(tdir)
     []
+
+    >>> db.close()
     """
 
 
