@@ -662,9 +662,10 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # sanity check
         self.assert_(cache.total_estimated_size >= 0)
 
-
 class class_that_ignores_deactivate(Persistent):
-    def _p_deactivate(self): pass
+
+    def _p_deactivate(self):
+        pass
 
 def loading_objects_that_ignore_deactivate_bug_185066():
     """See https://bugs.launchpad.net/bugs/185066
@@ -676,6 +677,11 @@ def loading_objects_that_ignore_deactivate_bug_185066():
     >>> transaction.commit()
     >>> conn2 = db.open()
     >>> conn2.root.c.x
+    1
+    >>> oid = conn2.root.c._p_oid
+
+    >>> conn3 = db.open()
+    >>> conn3.get(oid).x
     1
 
     """

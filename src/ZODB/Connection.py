@@ -255,7 +255,7 @@ class Connection(ExportImport, object):
         self._pre_cache[oid] = obj
         obj._p_oid = oid
         obj._p_jar = self
-        obj._p_changed = None
+        obj._p_invalidate()
         obj._p_serial = serial
         self._pre_cache.pop(oid)
         self._cache[oid] = obj
@@ -702,7 +702,7 @@ class Connection(ExportImport, object):
         if obj is None:
             return
         if serial == ResolvedSerial:
-            del obj._p_changed # transition from changed to ghost
+            obj._p_invalidate() # transition from changed to ghost
         else:
             if change:
                 obj._p_changed = 0 # transition from changed to up-to-date
