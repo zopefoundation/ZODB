@@ -22,6 +22,9 @@ interface, rich transaction support, and undo.
 
 VERSION = "3.9.0dev"
 
+from ez_setup import use_setuptools
+use_setuptools()
+
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
 import os
