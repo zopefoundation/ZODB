@@ -514,9 +514,9 @@ class ObjectReader:
         obj._p_oid = oid
         obj._p_jar = self._conn
         # When an object is created, it is put in the UPTODATE
-        # state.  We must explicitly invalidate it to turn it into
+        # state.  We must explicitly deactivate it to turn it into
         # a ghost.
-        obj._p_invalidate()
+        obj._p_changed = None
 
         self._cache[oid] = obj
         return obj

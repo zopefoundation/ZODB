@@ -19,9 +19,6 @@ Bugs Fixed
 - Calling __setstate__ on a persistent object could under certain
   uncommon cause the process to crash.
 
-- Objects defining _p_deactivate methods that didn't call base methods
-  weren't loaded properly. https://bugs.launchpad.net/zodb/+bug/185066
-
 - When committing transactions involving blobs to ClientStorages with
   non-shared blob directories, a failure could occur in tpc_finish if
   there was insufficient disk space to copy the blob file or if the
