@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import gc
 import pickle
 import random
 import StringIO
@@ -1572,6 +1573,25 @@ class DegenerateBTree(TestCase):
             # at some unrelated line.
             del t   # trigger destructor
 
+LP294788_ids = {}
+
+class ToBeDeleted(object):
+    def __init__(self, id):
+        assert type(id) is int #we don't want to store any object ref here
+        self.id = id
+
+        global LP294788_ids
+        LP294788_ids[id] = 1
+
+    def __del__(self):
+        global LP294788_ids
+        LP294788_ids.pop(self.id, None)
+
+    def __cmp__(self, other):
+        return cmp(self.id, other.id)
+
+    def __hash__(self):
+        return hash(self.id)
 
 class BugFixes(TestCase):
 
@@ -1584,6 +1604,160 @@ class BugFixes(TestCase):
         self.assertRaises(TypeError, t.keys, "")
         # This one used to segfault.
         self.assertRaises(TypeError, t.keys, 0, "")
+
+    def test_LP294788(self):
+        # https://bugs.launchpad.net/bugs/294788
+        # BTree keeps some deleted objects referenced
+
+        # The logic here together with the ToBeDeleted class is that
+        # a separate reference dict is populated on object creation
+        # and removed in __del__
+        # That means what's left in the reference dict is never GC'ed
+        # therefore referenced somewhere
+        # To simulate real life, some random data is used to exercise the tree
+
+        t = OOBTree()
+
+        random.seed('OOBTree')
+
+        global LP294788_ids
+
+        # /// BTree keys are integers, value is an object
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if random.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = random.randint(0,1000000)
+
+                ids[id] = 1
+                t[id] = ToBeDeleted(id)
+            else:
+                #del
+                id = random.choice(ids.keys())
+                del t[id]
+                del ids[id]
+
+        ids = ids.keys()
+        random.shuffle(ids)
+        for id in ids:
+            del t[id]
+        ids = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
+        # \\\
+
+        # /// BTree keys are integers, value is a tuple having an object
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if random.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = random.randint(0,1000000)
+
+                ids[id] = 1
+                t[id] = (id, ToBeDeleted(id), u'somename')
+            else:
+                #del
+                id = random.choice(ids.keys())
+                del t[id]
+                del ids[id]
+
+        ids = ids.keys()
+        random.shuffle(ids)
+        for id in ids:
+            del t[id]
+        ids = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
+        # \\\
+
+
+        # /// BTree keys are objects, value is an int
+        t = OOBTree()
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if random.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = random.randint(0,1000000)
+
+                obj = ToBeDeleted(id)
+                ids[obj] = 1
+                t[obj] = 1
+            else:
+                #del
+                obj = random.choice(ids.keys())
+                del ids[obj]
+                del t[obj]
+
+        ids = ids.keys()
+        random.shuffle(ids)
+        for id in ids:
+            del t[id]
+        #release all refs
+        ids = obj = id = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
+
+        # /// BTree keys are tuples having objects, value is an int
+        t = OOBTree()
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if random.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = random.randint(0,1000000)
+
+                key = (id, ToBeDeleted(id), u'somename')
+                ids[key] = 1
+                t[key] = 1
+            else:
+                #del
+                key = random.choice(ids.keys())
+                del ids[key]
+                del t[key]
+
+        ids = ids.keys()
+        random.shuffle(ids)
+        for id in ids:
+            del t[id]
+        #release all refs
+        ids = id = obj = key = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
 
 
 class IIBTreeTest(BTreeTests):
@@ -1621,7 +1795,7 @@ if using64bits:
             self.t = OIBTree()
         def getTwoKeys(self):
             return object(), object()
-    
+
 class LLBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
     def setUp(self):
         self.t = LLBTree()
