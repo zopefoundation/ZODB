@@ -502,7 +502,7 @@ class NastyConfict(Base, TestCase):
         # The next block is still verifying preconditions.
         self.assertEqual(len(state) , 2)
         self.assertEqual(len(state[0]), 5)
-        self.assertEqual(state[0][1], 60)
+        self.assertEqual(state[0][1], 92)
         self.assertEqual(state[0][3], 120)
 
         tm1.commit()

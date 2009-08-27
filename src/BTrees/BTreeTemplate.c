@@ -692,6 +692,37 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   /* A bucket got smaller.  This is much harder, and despite that we
    * don't try to rebalance the tree.
    */
+
+  if (min && childlength)
+    {  /* We removed a key. but the node child is non-empty.  If the
+          deleted key is the node key, then update the node key using
+          the smallest key of the node child.
+
+          This doesn't apply to the 0th node, whos key is unused.
+        */
+      int _cmp = 1;
+      TEST_KEY_SET_OR(_cmp, key, d->key) goto Error;
+      if (_cmp == 0)
+        { /* Need to replace key with first key from child */
+          Bucket *bucket;
+
+          if (SameType_Check(self, d->child))
+            {
+              UNLESS(PER_USE(d->child)) goto Error;
+              bucket = BTREE(d->child)->firstbucket;
+              PER_UNUSE(d->child);
+            }
+          else
+            bucket = BUCKET(d->child);
+
+          UNLESS(PER_USE(bucket)) goto Error;
+          DECREF_KEY(d->key);
+          COPY_KEY(d->key, bucket->keys[0]);
+          INCREF_KEY(d->key);
+          PER_UNUSE(bucket);
+        }
+    }
+
   if (status == 2) {  /*  this is the last reference to child status */
     /* Two problems to solve:  May have to adjust our own firstbucket,
      * and the bucket that went away needs to get unlinked.

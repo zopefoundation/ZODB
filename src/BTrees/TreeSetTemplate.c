@@ -147,8 +147,11 @@ static struct PyMethodDef TreeSet_methods[] = {
   {"clear",	(PyCFunction) BTree_clear,	METH_NOARGS,
    "clear()\n\nRemove all of the items from the BTree."},
 
+  {"add",	(PyCFunction)TreeSet_insert,	METH_VARARGS,
+   "add(id) -- Add an item to the set"},
+
   {"insert",	(PyCFunction)TreeSet_insert,	METH_VARARGS,
-   "insert(id,[ignored]) -- Add an id to the set"},
+   "insert(id) -- Add an item to the set"},
 
   {"update",	(PyCFunction)TreeSet_update,	METH_VARARGS,
    "update(collection)\n\n Add the items from the given collection."},

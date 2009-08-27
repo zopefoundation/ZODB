@@ -2,7 +2,20 @@
  Change History
 ================
 
-3.9.0c1 (2009-08-??)
+3.9.0c2 (2009-08-??)
+====================
+
+Bugs Fixed
+----------
+
+- BTrees (and TreeSets) kept references to internal keys.
+  https://bugs.launchpad.net/zope3/+bug/294788
+
+- BTree Sets and TreeSets don't support the standard set add method.
+  (Now either add or the original insert method can be used to add an
+  object to a BTree-based set.)
+
+3.9.0c1 (2009-08-26)
 ====================
 
 Bugs Fixed

@@ -697,11 +697,13 @@ class NormalSetTests(Base):
     def testInsertReturnsValue(self):
         t = self.t
         self.assertEqual(t.insert(5) , 1)
+        self.assertEqual(t.add(4) , 1)
 
     def testDuplicateInsert(self):
         t = self.t
         t.insert(5)
         self.assertEqual(t.insert(5) , 0)
+        self.assertEqual(t.add(5) , 0)
 
     def testInsert(self):
         t = self.t
@@ -1089,7 +1091,8 @@ class BTreeTests(MappingBase):
         for x in delete_order:
             try: del self.t[x]
             except KeyError:
-                if self.t.has_key(x): self.assertEqual(1,2,"failed to delete %s" % x)
+                if self.t.has_key(x):
+                    self.assertEqual(1,2,"failed to delete %s" % x)
 
     def testRangeSearchAfterSequentialInsert(self):
         r = range(100)
@@ -1783,6 +1786,60 @@ class FamilyTest(TestCase):
         self.failUnless(f1 is family)
         self.failUnless(f2 is family)
 
+class InternalKeysMappingTest(TestCase):
+    """There must not be any internal keys not in the BTree
+    """
+
+    def add_key(self, tree, key):
+        tree[key] = key
+
+    def test_internal_keys_after_deletion(self):
+        """Make sure when a key's deleted, it's not an internal key
+
+        We'll leverage __getstate__ to introspect the internal structures.
+
+        We need to check BTrees with BTree children as well as BTrees
+        with bucket children.
+        """
+
+        tree = self.t_class()
+        i = 0
+
+        # Grow the btree until we have multiple buckets
+        while 1:
+            i += 1
+            self.add_key(tree, i)
+            data = tree.__getstate__()[0]
+            if len(data) >= 3:
+                break
+
+        # Now, delete the internal key and make sure it's really gone
+        key = data[1]
+        del tree[key]
+        data = tree.__getstate__()[0]
+        self.assert_(data[1] != key)
+
+        # Grow the btree until we have multiple levels
+        while 1:
+            i += 1
+            self.add_key(tree, i)
+            data = tree.__getstate__()[0]
+            if data[0].__class__ == tree.__class__:
+                assert len(data[2].__getstate__()[0]) >= 3
+                break
+
+        # Now, delete the internal key and make sure it's really gone
+        key = data[1]
+        del tree[key]
+        data = tree.__getstate__()[0]
+        self.assert_(data[1] != key)
+
+class InternalKeysSetTest:
+    """There must not be any internal keys not in the TreeSet
+    """
+
+    def add_key(self, tree, key):
+        tree.add(key)
 
 def test_suite():
     s = TestSuite()
@@ -1791,13 +1848,27 @@ def test_suite():
                'II', 'IO', 'OI', 'IF',
                'LL', 'LO', 'OL', 'LF',
                ):
-        for name, bases in (('Bucket', (MappingBase,)),
-                            ('TreeSet', (NormalSetTests,)),
-                            ('Set', (ExtendedSetTests,)),
-                            ):
+        for name, bases in (
+            ('BTree', (InternalKeysMappingTest,)),
+            ('TreeSet', (InternalKeysSetTest,)),
+            ):
+            klass = ClassType(kv + name + 'InternalKeyTest', bases,
+                              dict(t_class=globals()[kv+name]))
+            s.addTest(makeSuite(klass))
+
+    for kv in ('OO', 
+               'II', 'IO', 'OI', 'IF',
+               'LL', 'LO', 'OL', 'LF',
+               ):
+        for name, bases in (
+            ('Bucket', (MappingBase,)),
+            ('TreeSet', (NormalSetTests,)),
+            ('Set', (ExtendedSetTests,)),
+            ):
             klass = ClassType(kv + name + 'Test', bases,
                               dict(t_class=globals()[kv+name]))
             s.addTest(makeSuite(klass))
+
     for kv, iface in (
         ('OO', BTrees.Interfaces.IObjectObjectBTreeModule),
         ('IO', BTrees.Interfaces.IIntegerObjectBTreeModule),

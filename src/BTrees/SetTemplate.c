@@ -202,8 +202,11 @@ static struct PyMethodDef Set_methods[] = {
    "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
 
+  {"add",	(PyCFunction)Set_insert,	METH_VARARGS,
+   "add(id) -- Add a key to the set"},
+
   {"insert",	(PyCFunction)Set_insert,	METH_VARARGS,
-   "insert(id,[ignored]) -- Add a key to the set"},
+   "insert(id) -- Add a key to the set"},
 
   {"update",	(PyCFunction)Set_update,	METH_VARARGS,
    "update(seq) -- Add the items from the given sequence to the set"},
