@@ -1618,7 +1618,7 @@ class BugFixes(TestCase):
 
         t = OOBTree()
 
-        random.seed('OOBTree')
+        trandom = random.Random('OOBTree')
 
         global LP294788_ids
 
@@ -1626,22 +1626,22 @@ class BugFixes(TestCase):
         LP294788_ids = {}
         ids = {}
         for i in xrange(1024):
-            if random.random() > 0.1:
+            if trandom.random() > 0.1:
                 #add
                 id = None
                 while id is None or id in ids:
-                    id = random.randint(0,1000000)
+                    id = trandom.randint(0,1000000)
 
                 ids[id] = 1
                 t[id] = ToBeDeleted(id)
             else:
                 #del
-                id = random.choice(ids.keys())
+                id = trandom.choice(ids.keys())
                 del t[id]
                 del ids[id]
 
         ids = ids.keys()
-        random.shuffle(ids)
+        trandom.shuffle(ids)
         for id in ids:
             del t[id]
         ids = None
@@ -1659,22 +1659,22 @@ class BugFixes(TestCase):
         LP294788_ids = {}
         ids = {}
         for i in xrange(1024):
-            if random.random() > 0.1:
+            if trandom.random() > 0.1:
                 #add
                 id = None
                 while id is None or id in ids:
-                    id = random.randint(0,1000000)
+                    id = trandom.randint(0,1000000)
 
                 ids[id] = 1
                 t[id] = (id, ToBeDeleted(id), u'somename')
             else:
                 #del
-                id = random.choice(ids.keys())
+                id = trandom.choice(ids.keys())
                 del t[id]
                 del ids[id]
 
         ids = ids.keys()
-        random.shuffle(ids)
+        trandom.shuffle(ids)
         for id in ids:
             del t[id]
         ids = None
@@ -1694,23 +1694,22 @@ class BugFixes(TestCase):
         LP294788_ids = {}
         ids = {}
         for i in xrange(1024):
-            if random.random() > 0.1:
+            if trandom.random() > 0.1:
                 #add
                 id = None
                 while id is None or id in ids:
-                    id = random.randint(0,1000000)
+                    id = ToBeDeleted(trandom.randint(0,1000000))
 
-                obj = ToBeDeleted(id)
-                ids[obj] = 1
-                t[obj] = 1
+                ids[id] = 1
+                t[id] = 1
             else:
                 #del
-                obj = random.choice(ids.keys())
-                del ids[obj]
-                del t[obj]
+                id = trandom.choice(ids.keys())
+                del ids[id]
+                del t[id]
 
         ids = ids.keys()
-        random.shuffle(ids)
+        trandom.shuffle(ids)
         for id in ids:
             del t[id]
         #release all refs
@@ -1729,23 +1728,23 @@ class BugFixes(TestCase):
         LP294788_ids = {}
         ids = {}
         for i in xrange(1024):
-            if random.random() > 0.1:
+            if trandom.random() > 0.1:
                 #add
                 id = None
                 while id is None or id in ids:
-                    id = random.randint(0,1000000)
+                    id = trandom.randint(0,1000000)
+                    id = (id, ToBeDeleted(id), u'somename')
 
-                key = (id, ToBeDeleted(id), u'somename')
-                ids[key] = 1
-                t[key] = 1
+                ids[id] = 1
+                t[id] = 1
             else:
                 #del
-                key = random.choice(ids.keys())
-                del ids[key]
-                del t[key]
+                id = trandom.choice(ids.keys())
+                del ids[id]
+                del t[id]
 
         ids = ids.keys()
-        random.shuffle(ids)
+        trandom.shuffle(ids)
         for id in ids:
             del t[id]
         #release all refs
