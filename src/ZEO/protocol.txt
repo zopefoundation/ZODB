@@ -4,7 +4,7 @@ ZEO Network Protocol (sans authentication)
 This document describes the ZEO network protocol.  It assumes that the
 optional authentication protocol isn't used.  At the lowest
 level, the protocol consists of sized messages.  All communication
-btween the client and server consists of sized messages.  A sized
+between the client and server consists of sized messages.  A sized
 message consists of a 4-byte unsigned big-endian content length,
 followed by the content.  There are two subprotocols, for protocol
 negotiation, and for normal operation.  The normal operation protocol
@@ -19,7 +19,7 @@ strings, the client and server switch to RPC mode.
 The RPC protocol uses messages that are pickled tuples consisting of:
 
 message_id
-   The message id is used to match replys with requests, allowing
+   The message id is used to match replies with requests, allowing
    multiple outstanding synchronous requests.
 
 async_flag
@@ -39,15 +39,15 @@ args
 After making a connection and negotiating the protocol, the following
 interactions occur:
 
-- The client requests the athentication protocol by calling
+- The client requests the authentication protocol by calling
   getAuthProtocol.  For this discussion, we'll assume the server
   returns None. Note that if the server doesn't require
   authentication, this step is optional.
 
 - The client calls register passing a storage identifier and a
   read-only flag.  The server doesn't return a value, but it may raise
-  an exception either if the storage doesn't exist, or if the the
-  stroage is readonly and the read-only flag passed by the client is
+  an exception either if the storage doesn't exist, or if the
+  storage is readonly and the read-only flag passed by the client is
   false.
 
 At this point, the client and server send each other messages as
