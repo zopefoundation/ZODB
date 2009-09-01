@@ -10,6 +10,12 @@ New Feature:
 
 Bugs Fixed:
 
+- CVE-2009-2701: Fixed a vulnerability in ZEO storage servers when
+  blobs are available. Someone with write access to a ZEO server
+  configured to support blobs could read any file on the system
+  readable by the server process and remove any file removable by the
+  server process.
+
 - Fixed ``NameError`` in cases where a directory cannot be created,
   e.g. when the necessary permissions are missing.
 

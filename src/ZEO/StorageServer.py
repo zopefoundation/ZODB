@@ -530,7 +530,7 @@ class ZEOStorage:
         assert self.blob_tempfile is None
         self.blob_tempfile = tempfile.mkstemp(
             dir=self.storage.temporaryDirectory())
-        
+
     def storeBlobChunk(self, chunk):
         os.write(self.blob_tempfile[0], chunk)
 
@@ -542,6 +542,16 @@ class ZEOStorage:
 
     def storeBlobShared(self, oid, serial, data, filename, version, id):
         # Reconstruct the full path from the filename in the OID directory
+        if (os.path.sep in filename
+            or not (filename.endswith('.tmp')
+                    or filename[:-1].endswith('.tmp')
+                    )
+            ):
+            logger.critical(
+                "We're under attack! (bad filename to storeBlobShared, %r)",
+                filename)
+            raise ValueError(filename)
+
         filename = os.path.join(self.storage.fshelper.getPathForOID(oid),
                                 filename)
         self.blob_log.append((oid, serial, data, filename, version))
