@@ -511,6 +511,11 @@ def is_blob_record():
     >>> ZODB.blob.is_blob_record('cWaaaa\nC\nq\x01.')
     False
 
+    As does None, which may occur in delete records:
+
+    >>> ZODB.blob.is_blob_record(None)
+    False
+
     >>> db.close()
     """
 

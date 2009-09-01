@@ -946,7 +946,7 @@ def is_blob_record(record):
     storage to another.
 
     """
-    if 'ZODB.blob' in record:
+    if record and ('ZODB.blob' in record):
         unpickler = cPickle.Unpickler(cStringIO.StringIO(record))
         unpickler.find_global = find_global_Blob
 

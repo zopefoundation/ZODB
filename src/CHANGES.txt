@@ -2,6 +2,17 @@
  Change History
 ================
 
+3.9.0c3 (2009-09-01)
+====================
+
+Bugs Fixed
+----------
+
+- The helper function ZODB.blob.is_blob_record didn't handle having
+  None passed to it, but database "delete" records have None for their
+  data.
+
+
 3.9.0c2 (2009-09-01)
 ====================
 
