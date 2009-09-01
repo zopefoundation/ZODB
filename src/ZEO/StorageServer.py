@@ -28,7 +28,6 @@ import sys
 import tempfile
 import threading
 import time
-import warnings
 import itertools
 
 import transaction
@@ -609,6 +608,17 @@ class ZEOStorage:
 
     def storeBlobShared(self, oid, serial, data, filename, id):
         # Reconstruct the full path from the filename in the OID directory
+
+        if (os.path.sep in filename
+            or not (filename.endswith('.tmp')
+                    or filename[:-1].endswith('.tmp')
+                    )
+            ):
+            logger.critical(
+                "We're under attack! (bad filename to storeBlobShared, %r)",
+                filename)
+            raise ValueError(filename)
+
         filename = os.path.join(self.storage.fshelper.getPathForOID(oid),
                                 filename)
         self.blob_log.append((oid, serial, data, filename))

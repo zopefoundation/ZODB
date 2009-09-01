@@ -2,11 +2,17 @@
  Change History
 ================
 
-3.9.0c2 (2009-08-??)
+3.9.0c2 (2009-09-01)
 ====================
 
 Bugs Fixed
 ----------
+
+- CVE-2009-2701: Fixed a vulnerability in ZEO storage servers when
+  blobs are available. Someone with write access to a ZEO server
+  configured to support blobs could read any file on the system
+  readable by the server process and remove any file removable by the
+  server process.
 
 - BTrees (and TreeSets) kept references to internal keys.
   https://bugs.launchpad.net/zope3/+bug/294788
