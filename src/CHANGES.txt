@@ -2,159 +2,8 @@
  Change History
 ================
 
-3.9.0c3 (2009-09-02)
-====================
-
-Bugs Fixed
-----------
-
-- The helper function ZODB.blob.is_blob_record didn't handle having
-  None passed to it, but database "delete" records have None for their
-  data.
-
-
-3.9.0c2 (2009-09-01)
-====================
-
-Bugs Fixed
-----------
-
-- CVE-2009-2701: Fixed a vulnerability in ZEO storage servers when
-  blobs are available. Someone with write access to a ZEO server
-  configured to support blobs could read any file on the system
-  readable by the server process and remove any file removable by the
-  server process.
-
-- BTrees (and TreeSets) kept references to internal keys.
-  https://bugs.launchpad.net/zope3/+bug/294788
-
-- BTree Sets and TreeSets don't support the standard set add method.
-  (Now either add or the original insert method can be used to add an
-  object to a BTree-based set.)
-
-3.9.0c1 (2009-08-26)
-====================
-
-Bugs Fixed
-----------
-
-- The runzeo script didn't work without a configuration file.
-  (https://bugs.launchpad.net/zodb/+bug/410571)
-
-- Officially deprecated PersistentDict
-  (https://bugs.launchpad.net/zodb/+bug/400775)
-
-- Small optimization of packing file storages with blobs.
-
-- Calling __setstate__ on a persistent object could under certain
-  uncommon cause the process to crash.
-
-- When committing transactions involving blobs to ClientStorages with
-  non-shared blob directories, a failure could occur in tpc_finish if
-  there was insufficient disk space to copy the blob file or if the
-  file wasn't available.  https://bugs.launchpad.net/zodb/+bug/224169
-
-- Savepoint blob data wasn't properly isolated. If multiple
-  simultaneous savepoints in separate transactions modified the same
-  blob, data from one savepoint would overwrite data for another.
-
-- Savepoint blob data wasn't cleaned up after a transaction abort.
-  https://bugs.launchpad.net/zodb/+bug/323067
-
-- Opening a blob with modes 'r+' or 'a' would fail when the blob had no
-  committed changes.
-
-- PersistentList's sort method did not allow passing of keyword parameters.
-  Changed its sort parameter list to match that of its (Python 2.4+)
-  UserList base class.
-
-- Certain ZEO server errors could cause a client to get into a state
-  where it couldn't commit transactions.
-  https://bugs.launchpad.net/zodb/+bug/374737
-
-3.9.0b5 (2009-08-06)
-====================
-
-Bugs Fixed
-----------
-
-- Fixed vulnerabilities in the ZEO network protocol that allow:
-
-  - CVE-2009-0668 Arbitrary Python code execution in ZODB ZEO storage servers
-  - CVE-2009-0669 Authentication bypass in ZODB ZEO storage servers
-
-  The vulnerabilities only apply if you are using ZEO to share a
-  database among multiple applications or application instances and if
-  untrusted clients are able to connect to your ZEO servers.
-
-3.9.0b4 (2009-07-30)
-====================
-
-Bugs Fixed
-----------
-
-- Sources were ommitted due to setup script problems.
-
-3.9.0b3 (2009-07-30)
-====================
-
-Bugs Fixed
-----------
-
-- Simplified the setup script in hopes of working with bdist_rpm.
-
-- Fixed the setup test command.  It previously depended on private
-  functions in zope.testing.testrunner that don't exist any more.
-
-- ZEO client threads were unnamed, making it hard to debug thread
-  management.
-
-- ZEO protocol 2 support was broken.  This caused very old clients to
-  be unable to use new servers.
-
-- zeopack was less flexible than it was before.  -h should default to
-  local host.
-
-- The "lawn" layout was being selected by default if the root of
-  the blob directory happened to contain a hidden file or directory
-  such as ".svn".  Now hidden files and directories are ignored
-  when choosing the default layout.
-
-- BlobStorage was not compatible with MVCC storages because the
-  wrappers were being removed by each database connection.  Fixed.
-
-Features added back
--------------------
-
-- Warn rather than fail if DB.open is called with an empty version
-  string.
-
-
-3.9.0b2 (2009-06-11)
-====================
-
-Bugs Fixed
-----------
-
-- Saving indexes for large file storages failed (with the error:
-  RuntimeError: maximum recursion depth exceeded).  This can cause a
-  FileStorage to fail to start because it gets an error trying to save
-  its index.
-
-- Sizes of new objects weren't added to the object cache size
-  estimation, causing the object-cache size limiting feature to let
-  the cache grow too large when many objects were added.
-
-- Deleted records weren't removed when packing file storages.
-
-- Fixed intermittent failures in the MVCCMappingStorage tests.
-
-- Fixed analyze.py and added test.
-
-- ZEO client blob cache size management is a little bit more robust.
-
-3.9.0b1 (2009-05-04)
-====================
+3.9.0 (2009-09-08)
+==================
 
 New Features (in more or less reverse chronological order)
 ----------------------------------------------------------
@@ -388,6 +237,93 @@ New Features (in more or less reverse chronological order)
 
 Bugs Fixed
 ----------
+
+- CVE-2009-2701: Fixed a vulnerability in ZEO storage servers when
+  blobs are available. Someone with write access to a ZEO server
+  configured to support blobs could read any file on the system
+  readable by the server process and remove any file removable by the
+  server process.
+
+- BTrees (and TreeSets) kept references to internal keys.
+  https://bugs.launchpad.net/zope3/+bug/294788
+
+- BTree Sets and TreeSets don't support the standard set add method.
+  (Now either add or the original insert method can be used to add an
+  object to a BTree-based set.)
+
+- The runzeo script didn't work without a configuration file.
+  (https://bugs.launchpad.net/zodb/+bug/410571)
+
+- Officially deprecated PersistentDict
+  (https://bugs.launchpad.net/zodb/+bug/400775)
+
+- Calling __setstate__ on a persistent object could under certain
+  uncommon cause the process to crash.
+
+- When committing transactions involving blobs to ClientStorages with
+  non-shared blob directories, a failure could occur in tpc_finish if
+  there was insufficient disk space to copy the blob file or if the
+  file wasn't available.  https://bugs.launchpad.net/zodb/+bug/224169
+
+- Savepoint blob data wasn't properly isolated. If multiple
+  simultaneous savepoints in separate transactions modified the same
+  blob, data from one savepoint would overwrite data for another.
+
+- Savepoint blob data wasn't cleaned up after a transaction abort.
+  https://bugs.launchpad.net/zodb/+bug/323067
+
+- Opening a blob with modes 'r+' or 'a' would fail when the blob had no
+  committed changes.
+
+- PersistentList's sort method did not allow passing of keyword parameters.
+  Changed its sort parameter list to match that of its (Python 2.4+)
+  UserList base class.
+
+- Certain ZEO server errors could cause a client to get into a state
+  where it couldn't commit transactions.
+  https://bugs.launchpad.net/zodb/+bug/374737
+
+- Fixed vulnerabilities in the ZEO network protocol that allow:
+
+  - CVE-2009-0668 Arbitrary Python code execution in ZODB ZEO storage servers
+  - CVE-2009-0669 Authentication bypass in ZODB ZEO storage servers
+
+  The vulnerabilities only apply if you are using ZEO to share a
+  database among multiple applications or application instances and if
+  untrusted clients are able to connect to your ZEO servers.
+
+- Fixed the setup test command.  It previously depended on private
+  functions in zope.testing.testrunner that don't exist any more.
+
+- ZEO client threads were unnamed, making it hard to debug thread
+  management.
+
+- ZEO protocol 2 support was broken.  This caused very old clients to
+  be unable to use new servers.
+
+- zeopack was less flexible than it was before.  -h should default to
+  local host.
+
+- The "lawn" layout was being selected by default if the root of
+  the blob directory happened to contain a hidden file or directory
+  such as ".svn".  Now hidden files and directories are ignored
+  when choosing the default layout.
+
+- BlobStorage was not compatible with MVCC storages because the
+  wrappers were being removed by each database connection.  Fixed.
+
+- Saving indexes for large file storages failed (with the error:
+  RuntimeError: maximum recursion depth exceeded).  This can cause a
+  FileStorage to fail to start because it gets an error trying to save
+  its index.
+
+- Sizes of new objects weren't added to the object cache size
+  estimation, causing the object-cache size limiting feature to let
+  the cache grow too large when many objects were added.
+
+- Deleted records weren't removed when packing file storages.
+
+- Fixed analyze.py and added test.
 
 - fixed Python 2.6 compatibility issue with ZEO/zeoserverlog.py
 
