@@ -42,6 +42,7 @@ import unittest
 import ZEO.ServerStub
 import ZEO.StorageServer
 import ZEO.tests.ConnectionTests
+import ZEO.thready
 import ZEO.zrpc.connection
 import ZODB
 import ZODB.blob
@@ -776,6 +777,11 @@ def multiple_storages_invalidation_queue_is_not_insane():
     >>> from ZODB.DB import DB
     >>> from persistent.mapping import PersistentMapping
     >>> from transaction import commit
+
+    >>> delayed = ZEO.thready.delayed
+    >>> ZEO.thready.delayed = lambda func: func
+
+
     >>> fs1 = FileStorage('t1.fs')
     >>> fs2 = FileStorage('t2.fs')
     >>> server = StorageServer(('', get_port()), dict(fs1=fs1, fs2=fs2))
@@ -808,6 +814,7 @@ def multiple_storages_invalidation_queue_is_not_insane():
     [10, 11, 12, 13, 14]
 
     >>> server.close_server()
+    >>> ZEO.thready.delayed = delayed
     """
 
 def getInvalidationsAfterServerRestart():
@@ -823,6 +830,10 @@ Let's create a file storage and stuff some data into it:
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.DB import DB
     >>> from persistent.mapping import PersistentMapping
+    >>> delayed = ZEO.thready.delayed
+    >>> ZEO.thready.delayed = lambda func: func
+
+
     >>> fs = FileStorage('t.fs')
     >>> db = DB(fs)
     >>> conn = db.open()
@@ -910,6 +921,9 @@ transaction, we'll get a result:
     [0, 101, 102, 103, 104]
 
     >>> fs.close()
+
+    >>> ZEO.thready.delayed = delayed
+
     """
 
 def tpc_finish_error():
@@ -1288,6 +1302,7 @@ def test_suite():
             'zeo-fan-out.test', 'zdoptions.test',
             'drop_cache_rather_than_verify.txt', 'client-config.test',
             'protocols.test', 'zeo_blob_cache.test', 'invalidation-age.txt',
+            '../thready.test',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )

@@ -34,6 +34,8 @@ import transaction
 
 import ZODB.serialize
 import ZODB.TimeStamp
+
+import ZEO.thready
 import ZEO.zrpc.error
 
 import zope.interface
@@ -187,10 +189,24 @@ class ZEOStorage:
                 raise NotImplementedError
             self.undo = undo
 
-        self.getTid = storage.getTid
-        self.history = storage.history
-        self.load = storage.load
-        self.loadSerial = storage.loadSerial
+        self._getTid = storage.getTid
+        if (self.connection is None or
+            self.connection.peer_protocol_version <  'Z309'
+            ):
+            self.getTid = storage.getTid
+            self.history = storage.history
+            self.load = storage.load
+            self.loadSerial = storage.loadSerial
+            if hasattr(storage, 'loadBefore'):
+                self._loadBefore = storage.loadBefore
+        else:
+            self.getTid = ZEO.thready.delayed(storage.getTid)
+            self.history = ZEO.thready.delayed(storage.history)
+            self.load = ZEO.thready.delayed(storage.load)
+            self.loadSerial = ZEO.thready.delayed(storage.loadSerial)
+            if hasattr(storage, 'loadBefore'):
+                self._loadBefore = ZEO.thready.delayed(storage.loadBefore)
+
         record_iternext = getattr(storage, 'record_iternext', None)
         if record_iternext is not None:
             self.record_iternext = record_iternext
@@ -314,11 +330,11 @@ class ZEOStorage:
 
     def loadEx(self, oid):
         self.stats.loads += 1
-        return self.storage.load(oid, '')
+        return self.load(oid, '')
 
     def loadBefore(self, oid, tid):
         self.stats.loads += 1
-        return self.storage.loadBefore(oid, tid)
+        return self._loadBefore(oid, tid)
 
     def getInvalidations(self, tid):
         invtid, invlist = self.server.get_invalidations(self.storage_id, tid)
@@ -330,7 +346,7 @@ class ZEOStorage:
 
     def verify(self, oid, tid):
         try:
-            t = self.getTid(oid)
+            t = self._getTid(oid)
         except KeyError:
             self.client.invalidateVerify(oid)
         else:
@@ -342,7 +358,7 @@ class ZEOStorage:
             self.verifying = 1
             self.stats.verifying_clients += 1
         try:
-            os = self.getTid(oid)
+            os = self._getTid(oid)
         except KeyError:
             self.client.invalidateVerify((oid, ''))
             # It's not clear what we should do now.  The KeyError

@@ -1,0 +1,119 @@
+thready support
+===============
+
+The experimental thready module provides a decorator that causes
+methods to be run by a thread pool.
+
+    >>> import logging, sys, ZEO.thready
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> ZEO.thready.logger.addHandler(handler)
+    >>> ZEO.thready.logger.setLevel(logging.INFO)
+
+By default there are 4 threads.  We process jobs by adding them to the queue:
+
+    >>> import time
+    >>> def sleep():
+    ...     time.sleep(.1)
+    ...     print 'slept'
+
+    >>> for i in range(5):
+    ...     ZEO.thready.queue.put(sleep)
+
+    >>> time.sleep(.11)
+    slept
+    slept
+    slept
+    slept
+
+    >>> time.sleep(.1)
+    slept
+
+We can cause threads to stop (if they aren't busy):
+
+    >>> ZEO.thready.stop_thread()
+
+    >>> for i in range(5):
+    ...     ZEO.thready.queue.put(sleep)
+
+    >>> time.sleep(.11)
+    slept
+    slept
+    slept
+
+    >>> time.sleep(.1)
+    slept
+    slept
+
+And we can start new threads:
+
+    >>> ZEO.thready.start_thread()
+
+    >>> for i in range(5):
+    ...     ZEO.thready.queue.put(sleep)
+
+    >>> time.sleep(.15)
+    slept
+    slept
+    slept
+    slept
+
+    >>> time.sleep(.1)
+    slept
+
+Errors don't kill threads, but errors are logged:
+
+    >>> ZEO.thready.queue.put(lambda: XXX); time.sleep(.1) # doctest: +ELLIPSIS
+    Error in thready job <function <lambda> at ...>
+    Traceback (most recent call last):
+    ...
+    NameError: global name 'XXX' is not defined
+
+    >>> for i in range(5):
+    ...     ZEO.thready.queue.put(sleep)
+
+    >>> time.sleep(.11)
+    slept
+    slept
+    slept
+    slept
+
+    >>> time.sleep(.1)
+    slept
+
+There's a decorator that causes methods to be delayed:
+
+    >>> class C:
+    ...
+    ...     @ZEO.thready.delayed
+    ...     def foo(self, fail=0):
+    ...         time.sleep(0.1)
+    ...         if fail:
+    ...             raise ValueError()
+    ...         print 'foo', fail
+
+    >>> c = C()
+
+    >>> d = c.foo()
+
+We get back a delay object. Nothing happens until we call set_sender on the
+delay to tell it where to send results:
+
+    >>> def win(*args):
+    ...     print 'win', args
+    >>> def lose(*args):
+    ...     print 'lose', args
+
+    >>> d.set_sender(42, win, lose)
+    >>> time.sleep(.15)
+    foo 0
+    win (42, None)
+
+    >>> d = c.foo(1)
+    >>> d.set_sender(42, win, lose)
+    >>> time.sleep(.15)
+    lose (42, 0, <type 'exceptions.ValueError'>, ValueError())
+
+Cleanup:
+
+    >>> ZEO.thready.logger.removeHandler(handler)
+    >>> ZEO.thready.logger.setLevel(logging.NOTSET)

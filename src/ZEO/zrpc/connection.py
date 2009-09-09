@@ -34,6 +34,9 @@ ASYNC = 1
 
 exception_type_type = type(Exception)
 
+# Exception types that should not be logged:
+unlogged_exception_types = (ZODB.POSException.POSKeyError, )
+
 ##############################################################################
 # Dedicated Client select loop:
 client_timeout = 30.0
@@ -176,7 +179,8 @@ class Delay:
         self.send_reply(self.msgid, obj)
 
     def error(self, exc_info):
-        log("Error raised in delayed method", logging.ERROR, exc_info=True)
+        if not isinstance(exc_info[1], unlogged_exception_types):
+            log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.return_error(self.msgid, 0, *exc_info[:2])
 
 class MTDelay(Delay):
@@ -378,9 +382,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #         sends Z303 to server
     #     OK, because Z303 is in the server's clients_we_can_talk_to
 
-    # Exception types that should not be logged:
-    unlogged_exception_types = ()
-
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
@@ -573,7 +574,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, msg:
-            if not isinstance(msg, self.unlogged_exception_types):
+            if not isinstance(msg, unlogged_exception_types):
                 self.log("%s() raised exception: %s" % (name, msg),
                          logging.INFO, exc_info=True)
             error = sys.exc_info()[:2]
@@ -784,9 +785,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
-
-    # Exception types that should not be logged:
-    unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
     # Servers use a shared server trigger that uses the asyncore socket map
     trigger = trigger()
