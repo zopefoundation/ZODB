@@ -19,8 +19,8 @@ New Features (in more or less reverse chronological order)
   object can now *also* be used as an object with attributes mapped to
   the root-object keys.
 
-- Databases have a new method, transaction, that can be used with the
-  Python (2.5 and later) with statement::
+- Databases have a new method, ``transaction``, that can be used with the
+  Python (2.5 and later) ``with`` statement::
 
      db = ZODB.DB(...)
      with db.transaction() as conn:
