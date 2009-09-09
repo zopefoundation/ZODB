@@ -27,7 +27,7 @@ New Features (in more or less reverse chronological order)
           # ... do stuff with conn
 
   This uses a private transaction manager for the connection.
-  If control exists the block without an error, the transaction is
+  If control exits the block without an error, the transaction is
   committed, otherwise, it is aborted.
 
 - Convenience functions ZODB.connection and ZEO.connection provide a
@@ -93,18 +93,18 @@ New Features (in more or less reverse chronological order)
   quick verification of ZEO clients less than a given age even if the
   number of transactions the client hasn't seen exceeds the
   invalidation queue size. This is only recommended if the storage
-  being served  supports effecient iteration from a point near the end
+  being served  supports efficient iteration from a point near the end
   of the transaction history.
 
 - The FileStorage iterator now handles large files better.  When
-  iteratng from a starting transaction near the end of the file, the
+  iterating from a starting transaction near the end of the file, the
   iterator will scan backward from the end of the file to find the
   starting point.  This enhancement makes it practical to take
   advantage of the new storage server invalidation-age option.
 
 - Previously, database connections were managed as a stack.  This
   tended to cause the same connection(s) to be used over and over.
-  For example, the most used conection would typically be the onlyt
+  For example, the most used connection would typically be the only
   connection used.  In some rare situations, extra connections could
   be opened and end up on the top of the stack, causing extreme memory
   wastage.  Now, when connections are placed on the stack, they sink
@@ -112,7 +112,7 @@ New Features (in more or less reverse chronological order)
 
 - There is a new pool-timeout database configuration option to specify that
   connections unused after the given time interval should be garbage
-  colection.  This will provide a means of dealing with extra
+  collection.  This will provide a means of dealing with extra
   connections that are created in rare circumstances and that would
   consume an unreasonable amount of memory.
 
@@ -147,7 +147,7 @@ New Features (in more or less reverse chronological order)
 
 - When configuring storages in a storage server, the storage name now
   defaults to "1".  In the overwhelmingly common case that a single
-  storage, the name can now be ommitted.
+  storage, the name can now be omitted.
 
 - FileStorage now provides optional garbage collection.  A 'gc'
   keyword option can be passed to the pack method.  A false value
@@ -179,7 +179,7 @@ New Features (in more or less reverse chronological order)
 
   - Multi-version concurrency control and iteration
 
-  - Explicit support dfor demo-storage stacking via push and pop methods.
+  - Explicit support for demo-storage stacking via push and pop methods.
 
 - Wen calling ZODB.DB to create a database, you can now pass a file
   name, rather than a storage to use a file storage.
@@ -204,7 +204,7 @@ New Features (in more or less reverse chronological order)
 - New `ClientStorage` configuration option `drop_cache_rather_verify`.
   If this option is true then the ZEO client cache is dropped instead of
   the long (unoptimized) verification. For large caches, setting this
-  option can avoid effective downtimes in the order of hours when
+  option can avoid effective down times in the order of hours when
   the connection to the ZEO server was interrupted for a longer time.
 
 - Cleaned-up the storage iteration API and provided an iterator implementation
@@ -214,7 +214,7 @@ New Features (in more or less reverse chronological order)
 
 - Document conflict resolution (see ZODB/ConflictResolution.txt).
 
-- Support multidatabase references in conflict resolution.
+- Support multi-database references in conflict resolution.
 
 - Make it possible to examine oid and (in some situations) database
   name of persistent object references during conflict resolution.
@@ -361,7 +361,7 @@ Bugs Fixed
 - Fix for bug #181712: Make ClientStorage update `lastTransaction` directly
   after connecting to a server, even when no cache verification is necessary.
 
-- Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
+- Fixed bug in blob filesystem helper: the `isSecure` check was inverted.
 
 - Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
   `clear`.
@@ -381,7 +381,7 @@ Bugs Fixed
   versions of objects.
 
 - Fixed a serious bug that could cause client I/O to stop
-  (hang). This was accomonied by a critical log message along the
+  (hang). This was accompanied by a critical log message along the
   lines of: "RuntimeError: dictionary changed size during iteration".
 
 - Fixed bug #127182: Blobs were subclassable which was not desired.
@@ -446,7 +446,7 @@ Bugs Fixed
 
   - Cache records are written in several steps.  If a process exits
     after writing begins and before it is finishes, the cache will be
-    corrupt on restart.  The way records are writted was changed to
+    corrupt on restart.  The way records are written was changed to
     make cache record updates atomic.
 
   - There was no lock file to prevent opening a cache multiple times
@@ -459,13 +459,13 @@ Bugs Fixed
 - When using ZEO Client Storages, Errors occured when trying to store
   objects too big to fit in the ZEO cache file.
 
-- Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
+- Fixed bug in blob filesystem helper: the `isSecure` check was inverted.
 
 - Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
   `clear`.
 
 - Fixed bug in Connection.TmpStore: load() would not defer to the
-  backend storage for loading blobs.
+  back-end storage for loading blobs.
 
 - Fixed bug #190884: Wrong reference to `POSKeyError` caused NameError.
 
