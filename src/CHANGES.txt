@@ -90,11 +90,11 @@ New Features (in more or less reverse chronological order)
   initial data as a string argument to the Blob constructor.
 
 - ZEO Servers now provide an option, invalidation-age, that allows
-  quick verification of ZEO clients less than a given age even if the
-  number of transactions the client hasn't seen exceeds the
-  invalidation queue size. This is only recommended if the storage
-  being served  supports efficient iteration from a point near the end
-  of the transaction history.
+  quick verification of ZEO clients have been disconnected for less
+  than a given time even if the number of transactions the client
+  hasn't seen exceeds the invalidation queue size. This is only
+  recommended if the storage being served supports efficient iteration
+  from a point near the end of the transaction history.
 
 - The FileStorage iterator now handles large files better.  When
   iterating from a starting transaction near the end of the file, the
