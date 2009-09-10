@@ -733,6 +733,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         client.
         """
         self.message_output(self.__outputIterator(iterator))
+        self.poll()
 
     def __outputIterator(self, iterator):
         for method, args in iterator:

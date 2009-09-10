@@ -640,7 +640,8 @@ class ZEOStorage:
         self.blob_log.append((oid, serial, data, filename))
 
     def sendBlob(self, oid, serial):
-        self.client.storeBlob(oid, serial, self.storage.loadBlob(oid, serial))
+        return self.client.storeBlob(
+            oid, serial, self.storage.loadBlob(oid, serial))
 
     def _delete(self, oid, serial):
         err = None
@@ -1369,7 +1370,6 @@ class ClientStub:
 
     @ZEO.thready.delayed
     def storeBlob(self, oid, serial, blobfilename):
-
         self.rpc.callAsync('receiveBlobStart', oid, serial)
 
         f = open(blobfilename, 'rb')
