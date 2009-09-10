@@ -19,8 +19,6 @@ import sys
 import threading
 import logging
 
-import traceback, time
-
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller, ServerMarshaller
