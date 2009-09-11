@@ -14,6 +14,7 @@
 import asyncore
 import atexit
 import errno
+import Queue
 import select
 import sys
 import threading
@@ -780,8 +781,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.log("poll()", level=TRACE)
         self.trigger.pull_trigger()
 
-
-
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
 
@@ -790,8 +789,26 @@ class ManagedServerConnection(Connection):
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
+        self.queue = Queue.Queue()
+        self.thread = threading.Thread(target=self.server_thread)
+        self.thread.setDaemon(True)
+        self.thread.start()
         Connection.__init__(self, sock, addr, obj, 'S')
         self.marshal = ServerMarshaller()
+
+    def server_thread(self):
+        while 1:
+            try:
+                req = self.queue.get()
+                if not req:
+                    break
+                Connection.handle_request(self, *req)
+            except:
+                logger.critical('Error in thready job %r', delay,
+                                exc_info=sys.exc_info())
+
+    def handle_request(self, *args):
+        self.queue.put(args)
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
@@ -802,6 +819,8 @@ class ManagedServerConnection(Connection):
         self.obj.notifyConnected(self)
 
     def close(self):
+        self.queue.put(None)
+        self.thread.join(1)
         self.obj.notifyDisconnected()
         Connection.close(self)
 
