@@ -1349,25 +1349,6 @@ class ClientStub:
     def info(self, arg):
         self.rpc.callAsync('info', arg)
 
-# original:
-#     def storeBlob(self, oid, serial, blobfilename):
-
-#         # This "returns" after the data are sent because the result
-#         # message will be added to the output queue after the iterator.
-
-#         def store():
-#             yield ('receiveBlobStart', (oid, serial))
-#             f = open(blobfilename, 'rb')
-#             while 1:
-#                 chunk = f.read(59000)
-#                 if not chunk:
-#                     break
-#                 yield ('receiveBlobChunk', (oid, serial, chunk, ))
-#             f.close()
-#             yield ('receiveBlobStop', (oid, serial))
-
-#         self.rpc.callAsyncIterator(store())
-
     @ZEO.thready.delayed
     def storeBlob(self, oid, serial, blobfilename):
         self.rpc.callAsync('receiveBlobStart', oid, serial)
