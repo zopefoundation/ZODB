@@ -48,7 +48,7 @@ from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
-from ZODB.utils import u64, p64, oid_repr, mktemp
+from ZODB.utils import u64, p64, oid_repr
 from ZODB.loglevels import BLATHER
 
 
@@ -1324,7 +1324,7 @@ class ClientStub:
         self.rpc.callAsync('endVerify')
 
     def invalidateTransaction(self, tid, args):
-        self.rpc.callAsyncNoPoll('invalidateTransaction', tid, args)
+        self.rpc.callAsync('invalidateTransaction', tid, args)
 
     def serialnos(self, arg):
         self.rpc.callAsync('serialnos', arg)
@@ -1350,7 +1350,7 @@ class ClientStub:
 class ClientStub308(ClientStub):
 
     def invalidateTransaction(self, tid, args):
-        self.rpc.callAsyncNoPoll(
+        self.rpc.callAsync(
             'invalidateTransaction', tid, [(arg, '') for arg in args])
 
     def invalidateVerify(self, oid):
