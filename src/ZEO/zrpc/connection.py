@@ -789,12 +789,18 @@ class ManagedServerConnection(Connection):
     unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
     # Servers use a shared server trigger that uses the asyncore socket map
-    trigger = trigger()
+    #trigger = trigger()
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
-        Connection.__init__(self, sock, addr, obj, 'S')
+        map={}
+        Connection.__init__(self, sock, addr, obj, 'S', map=map)
         self.marshal = ServerMarshaller()
+        self.trigger = trigger(map)
+
+        thread = threading.Thread(target=server_loop, args=(map,))
+        thread.setDaemon(True)
+        thread.start()
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
@@ -807,6 +813,12 @@ class ManagedServerConnection(Connection):
     def close(self):
         self.obj.notifyDisconnected()
         Connection.close(self)
+
+def server_loop(map):
+    while len(map) > 1:
+        asyncore.poll(30.0, map)
+    for o in map.values():
+        o.close()
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""
