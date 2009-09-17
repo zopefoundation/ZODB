@@ -16,6 +16,7 @@ import atexit
 import errno
 import select
 import sys
+import thread
 import threading
 import logging
 
@@ -381,6 +382,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Exception types that should not be logged:
     unlogged_exception_types = ()
 
+    thread_ident = None
+
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
@@ -618,7 +621,12 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             err = ZRPCError("Couldn't pickle return %.100s" % r)
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
-        self.poll()
+        if thread.get_ident() == self.thread_ident:
+            # we're being called by the async loop, we can try to write and
+            # we don't need to poll.
+            self.handle_write()
+        else:
+            self.poll()
 
     def return_error(self, msgid, flags, err_type, err_value):
         if flags & ASYNC:
@@ -798,7 +806,7 @@ class ManagedServerConnection(Connection):
         self.marshal = ServerMarshaller()
         self.trigger = trigger(map)
 
-        thread = threading.Thread(target=server_loop, args=(map,))
+        thread = threading.Thread(target=server_loop, args=(map, self))
         thread.setDaemon(True)
         thread.start()
 
@@ -814,11 +822,27 @@ class ManagedServerConnection(Connection):
         self.obj.notifyDisconnected()
         Connection.close(self)
 
-def server_loop(map):
+def server_loop(map, conn):
+    conn.thread_ident = thread.get_ident()
     while len(map) > 1:
         asyncore.poll(30.0, map)
     for o in map.values():
         o.close()
+
+# def server_loop(map, conn):
+#     conn.thread_ident = thread.get_ident()
+#     import cProfile
+#     cProfile.runctx('_loop(map)', globals(), locals(),
+#                     "stats/%s" % thread.get_ident())
+# #     while len(map) > 1:
+# #         asyncore.poll(30.0, map)
+#     for o in map.values():
+#         o.close()
+
+def _loop(map):
+    while len(map) > 1:
+        asyncore.poll(30.0, map)
+
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""
