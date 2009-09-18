@@ -528,20 +528,12 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # result in asycnore calling handle_error(), which will
         # close the connection.
         msgid, flags, name, args = self.marshal.decode(message)
-
-        if __debug__:
-            self.log("recv msg: %s, %s, %s, %s" % (msgid, flags, name,
-                                                   short_repr(args)),
-                     level=TRACE)
         if name == REPLY:
             self.handle_reply(msgid, flags, args)
         else:
             self.handle_request(msgid, flags, name, args)
 
     def handle_reply(self, msgid, flags, args):
-        if __debug__:
-            self.log("recv reply: %s, %s, %s"
-                     % (msgid, flags, short_repr(args)), level=TRACE)
         self.replies_cond.acquire()
         try:
             self.replies[msgid] = flags, args
@@ -554,17 +546,10 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
         if name.startswith('_') or not hasattr(obj, name):
             if obj is None:
-                if __debug__:
-                    self.log("no object calling %s%s"
-                             % (name, short_repr(args)),
-                             level=logging.DEBUG)
                 return
 
             msg = "Invalid method name: %s on %s" % (name, repr(obj))
             raise ZRPCError(msg)
-        if __debug__:
-            self.log("calling %s%s" % (name, short_repr(args)),
-                     level=logging.DEBUG)
 
         meth = getattr(obj, name)
         try:
@@ -587,9 +572,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                 raise ZRPCError("async method %s returned value %s" %
                                 (name, short_repr(ret)))
         else:
-            if __debug__:
-                self.log("%s returns %s" % (name, short_repr(ret)),
-                         logging.DEBUG)
             if isinstance(ret, Delay):
                 ret.set_sender(msgid, self.send_reply, self.return_error)
             else:
@@ -673,17 +655,11 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def __call_message(self, method, args, flags):
         # compute a message and return it
         msgid = self.__new_msgid()
-        if __debug__:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
-                     level=TRACE)
         return self.marshal.encode(msgid, flags, method, args)
 
     def send_call(self, method, args, flags):
         # send a message and return its msgid
         msgid = self.__new_msgid()
-        if __debug__:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
-                     level=TRACE)
         buf = self.marshal.encode(msgid, flags, method, args)
         self.message_output(buf)
         return msgid
@@ -750,8 +726,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def wait(self, msgid):
         """Invoke asyncore mainloop and wait for reply."""
-        if __debug__:
-            self.log("wait(%d)" % msgid, level=TRACE)
 
         self.trigger.pull_trigger()
 
@@ -767,9 +741,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                 reply = self.replies.get(msgid)
                 if reply is not None:
                     del self.replies[msgid]
-                    if __debug__:
-                        self.log("wait(%d): reply=%s" %
-                                 (msgid, short_repr(reply)), level=TRACE)
                     return reply
                 self.replies_cond.wait()
         finally:
@@ -777,15 +748,11 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def flush(self):
         """Invoke poll() until the output buffer is empty."""
-        if __debug__:
-            self.log("flush")
         while self.writable():
             self.poll()
 
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
-        if __debug__:
-            self.log("poll()", level=TRACE)
         self.trigger.pull_trigger()
 
 
