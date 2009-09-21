@@ -137,13 +137,15 @@ if os.name == 'posix':
 
         def __init__(self, map=None):
             _triggerbase.__init__(self)
-            r, self.trigger = self._fds = os.pipe()
+            r, self.trigger = os.pipe()
             asyncore.file_dispatcher.__init__(self, r, map)
 
+            # file_dispatcher dups r, so we don't need it any more
+            os.close(r)
+
         def _close(self):
-            for fd in self._fds:
-                os.close(fd)
-            self._fds = []
+            os.close(self.trigger)
+            asyncore.file_dispatcher.close(self)
 
         def _physical_pull(self):
             os.write(self.trigger, 'x')
