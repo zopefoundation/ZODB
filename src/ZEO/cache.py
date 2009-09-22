@@ -379,10 +379,12 @@ class ClientCache(object):
     # Close the underlying file.  No methods accessing the cache should be
     # used after this.
     def close(self):
-        if self.f:
-            sync(self.f)
-            self.f.close()
-            self.f = None
+        f = self.f
+        self.f = None
+        if f is not None:
+            sync(f)
+            f.close()
+
         if hasattr(self,'_lock_file'):
             self._lock_file.close()
 

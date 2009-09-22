@@ -13,6 +13,7 @@
 ##############################################################################
 import unittest
 from zope.testing import doctest
+import ZEO.zrpc.connection
 
 class FakeStorageBase:
 
@@ -50,6 +51,12 @@ class FakeServer:
     def register_connection(*args):
         return None, None
 
+class FauxConn:
+    addr = 'x'
+    thread_ident = unregistered_thread_ident = None
+    peer_protocol_version = (
+        ZEO.zrpc.connection.Connection.current_protocol)
+
 def test_server_record_iternext():
     """
     
@@ -59,6 +66,7 @@ underlying storage.
     >>> import ZEO.StorageServer
 
     >>> zeo = ZEO.StorageServer.ZEOStorage(FakeServer(), False)
+    >>> zeo.notifyConnected(FauxConn())
     >>> zeo.register('1', False)
 
     >>> next = None
@@ -78,6 +86,7 @@ The storage info also reflects the fact that record_iternext is supported.
     True
 
     >>> zeo = ZEO.StorageServer.ZEOStorage(FakeServer(), False)
+    >>> zeo.notifyConnected(FauxConn())
     >>> zeo.register('2', False)
 
     >>> zeo.get_info()['supports_record_iternext']

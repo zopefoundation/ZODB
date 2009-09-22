@@ -88,7 +88,6 @@ class ZEOStorage:
     def __init__(self, server, read_only=0, auth_realm=None):
         self.server = server
         # timeout and stats will be initialized in register()
-        self.timeout = None
         self.stats = None
         self.connection = None
         self.client = None
@@ -277,6 +276,7 @@ class ZEOStorage:
         if self.storage is not None:
             self.log("duplicate register() call")
             raise ValueError("duplicate register() call")
+
         storage = self.server.storages.get(storage_id)
         if storage is None:
             self.log("unknown storage_id: %s" % storage_id)
@@ -289,8 +289,8 @@ class ZEOStorage:
         self.storage_id = storage_id
         self.storage = storage
         self.setup_delegation()
-        self.timeout, self.stats = self.server.register_connection(storage_id,
-                                                                   self)
+        self.stats = self.server.register_connection(storage_id, self)
+        self.connection.thread_ident = self.connection.unregistered_thread_ident
 
     def get_info(self):
         storage = self.storage
@@ -1048,7 +1048,7 @@ class StorageServer:
         Returns the timeout and stats objects for the appropriate storage.
         """
         self.connections[storage_id].append(conn)
-        return self.timeouts[storage_id], self.stats[storage_id]
+        return self.stats[storage_id]
 
     def _invalidateCache(self, storage_id):
         """We need to invalidate any caches we have.

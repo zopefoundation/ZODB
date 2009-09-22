@@ -142,7 +142,7 @@ def client_loop():
                     if obj is client_trigger:
                         continue
                     try:
-                        obj.mgr.client.close()
+                        obj.mgr.client.close(True)
                     except:
                         map.pop(fd, None)
                         try:
@@ -382,8 +382,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     # Exception types that should not be logged:
     unlogged_exception_types = ()
 
-    thread_ident = None
-
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
     # our peer.
@@ -603,12 +601,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             err = ZRPCError("Couldn't pickle return %.100s" % r)
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
-        if thread.get_ident() == self.thread_ident:
-            # we're being called by the async loop, we can try to write and
-            # we don't need to poll.
-            self.handle_write()
-        else:
-            self.poll()
+        self.poll()
 
     def return_error(self, msgid, flags, err_type, err_value):
         if flags & ASYNC:
@@ -756,7 +749,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.trigger.pull_trigger()
 
 
-
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
 
@@ -773,9 +765,9 @@ class ManagedServerConnection(Connection):
         self.marshal = ServerMarshaller()
         self.trigger = trigger(map)
 
-        thread = threading.Thread(target=server_loop, args=(map, self))
-        thread.setDaemon(True)
-        thread.start()
+        t = threading.Thread(target=server_loop, args=(map, self))
+        t.setDaemon(True)
+        t.start()
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
@@ -789,27 +781,21 @@ class ManagedServerConnection(Connection):
         self.obj.notifyDisconnected()
         Connection.close(self)
 
+    thread_ident = unregistered_thread_ident = None
+    def poll(self):
+        "Invoke asyncore mainloop to get pending message out."
+        ident = self.thread_ident
+        if ident is not None and thread.get_ident() == ident:
+            self.handle_write()
+        else:
+            self.trigger.pull_trigger()
+
 def server_loop(map, conn):
-    conn.thread_ident = thread.get_ident()
+    conn.unregistered_thread_ident = thread.get_ident()
     while len(map) > 1:
         asyncore.poll(30.0, map)
     for o in map.values():
         o.close()
-
-# def server_loop(map, conn):
-#     conn.thread_ident = thread.get_ident()
-#     import cProfile
-#     cProfile.runctx('_loop(map)', globals(), locals(),
-#                     "stats/%s" % thread.get_ident())
-# #     while len(map) > 1:
-# #         asyncore.poll(30.0, map)
-#     for o in map.values():
-#         o.close()
-
-def _loop(map):
-    while len(map) > 1:
-        asyncore.poll(30.0, map)
-
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""

@@ -25,7 +25,6 @@ from ZODB.tests import StorageTestBase, BasicStorage,  \
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-import asyncore
 import doctest
 import logging
 import os
@@ -464,7 +463,11 @@ class CatastrophicClientLoopFailure(
             pass
 
         time.sleep(.1)
-        self.failIf(self._storage.is_connected())
+        try:
+            self.failIf(self._storage.is_connected())
+        except:
+            print log
+            raise
         self.assertEqual(len(ZEO.zrpc.connection.client_map), 1)
         del ZEO.zrpc.connection.client_logger.critical
         self.assertEqual(log[0][0], 'The ZEO client loop failed.')
@@ -717,6 +720,12 @@ class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
     blob_cache_dir = 'blobs'
     shared_blob_dir = True
 
+class FauxConn:
+    addr = 'x'
+    thread_ident = unregistered_thread_ident = None
+    peer_protocol_version = (
+        ZEO.zrpc.connection.Connection.current_protocol)
+
 class StorageServerClientWrapper:
 
     def __init__(self):
@@ -733,6 +742,7 @@ class StorageServerWrapper:
     def __init__(self, server, storage_id):
         self.storage_id = storage_id
         self.server = ZEO.StorageServer.ZEOStorage(server, server.read_only)
+        self.server.notifyConnected(FauxConn())
         self.server.register(storage_id, False)
         self.server.client = StorageServerClientWrapper()
 
@@ -837,6 +847,8 @@ Now we'll open a storage server on the data, simulating a restart:
     >>> fs = FileStorage('t.fs')
     >>> sv = StorageServer(('', get_port()), dict(fs=fs))
     >>> s = ZEOStorage(sv, sv.read_only)
+
+    >>> s.notifyConnected(FauxConn())
     >>> s.register('fs', False)
 
 If we ask for the last transaction, we should get the last transaction
@@ -928,6 +940,11 @@ def tpc_finish_error():
     ...         pass
     ...     def close(self):
     ...         print 'connection closed'
+    ...     @property
+    ...     def trigger(self):
+    ...         return self
+    ...     def pull_trigger(self, f):
+    ...         f()
 
     >>> class ConnectionManager:
     ...     def __init__(self, addr, client, tmin, tmax):
@@ -1203,6 +1220,34 @@ def runzeo_without_configfile():
     ------
     --T INFO ZEO.runzeo () closing storage '1'
     testing exit immediately
+    """
+
+def close_client_storage_w_invalidations():
+    r"""
+Invalidations could cause errors when closing client storages,
+
+    >>> addr, _ = start_server()
+    >>> writing = threading.Event()
+    >>> def mad_write_thread():
+    ...     global writing
+    ...     conn = ZEO.connection(addr)
+    ...     writing.set()
+    ...     while writing.isSet():
+    ...         conn.root.x = 1
+    ...         transaction.commit()
+
+    >>> thread = threading.Thread(target=mad_write_thread)
+    >>> thread.setDaemon(True)
+    >>> thread.start()
+    >>> writing.wait()
+    >>> time.sleep(.01)
+    >>> for i in range(10):
+    ...     conn = ZEO.connection(addr)
+    ...     _ = conn._storage.load('\0'*8)
+    ...     conn.close()
+
+    >>> writing.clear()
+    >>> thread.join(1)
     """
 
 slow_test_classes = [

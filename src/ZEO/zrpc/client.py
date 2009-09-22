@@ -83,7 +83,6 @@ class ConnectionManager(object):
         try:
             t = self.thread
             self.thread = None
-            conn = self.connection
         finally:
             self.cond.release()
         if t is not None:
@@ -93,9 +92,6 @@ class ConnectionManager(object):
             if t.isAlive():
                 log("CM.close(): self.thread.join() timed out",
                     level=logging.WARNING)
-        if conn is not None:
-            # This will call close_conn() below which clears self.connection
-            conn.close()
 
     def attempt_connect(self):
         """Attempt a connection to the server without blocking too long.
