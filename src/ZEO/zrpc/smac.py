@@ -150,7 +150,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 yield ''
 
         self.message_output(hack())
-        
+
     def get_addr(self):
         return self.addr
 
@@ -309,7 +309,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 if err[0] in expected_socket_write_errors:
                     break # we couldn't write anything
                 raise
-            
+
             if n < l:
                 output.insert(0, v[n:])
                 break # we can't write any more
@@ -325,7 +325,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     def __message_output(self, message, output):
         # do two separate appends to avoid copying the message string
-        size = 4        
+        size = 4
         if self.__hmac_send:
             output.append(struct.pack(">I", len(message) | MAC_BIT))
             self.__hmac_send.update(message)
