@@ -20,14 +20,12 @@ import thread
 import threading
 import logging
 
-import traceback, time
-
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller, ServerMarshaller
 from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.log import short_repr, log
-from ZODB.loglevels import BLATHER, TRACE
+from ZODB.loglevels import BLATHER
 import ZODB.POSException
 
 REPLY = ".reply" # message name used for replies
@@ -721,11 +719,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         """Invoke asyncore mainloop and wait for reply."""
 
         self.trigger.pull_trigger()
-
-        # Delay used when we call asyncore.poll() directly.
-        # Start with a 1 msec delay, double until 1 sec.
-        delay = 0.001
-
         self.replies_cond.acquire()
         try:
             while 1:
