@@ -91,9 +91,8 @@ Now, whem we abort the transaction for the first client. the second
 client will be restarted.  It will get a conflict error, that is
 handled correctly:
 
-    >>> zs1.tpc_abort('0') # doctest: +NORMALIZE_WHITESPACE
-    2 callAsync serialnos ([('\x00\x00\x00\x00\x00\x00\x00\x01',
-                             ConflictError())],)
+    >>> zs1.tpc_abort('0') # doctest: +ELLIPSIS
+    2 callAsync serialnos ...
     reply 1 None
     (511/test-addr) Blocked transaction restarted.
 
