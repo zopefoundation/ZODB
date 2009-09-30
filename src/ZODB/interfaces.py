@@ -316,7 +316,7 @@ class IStorageDB(Interface):
 
         This can be necessary if there have been major changes to
         stored data and it is either impractical to enumerate them or
-        there would be so many that it would be inefficient to do so.        
+        there would be so many that it would be inefficient to do so.
         """
 
     def invalidate(transaction_id, oids, version=''):
@@ -326,7 +326,7 @@ class IStorageDB(Interface):
 
         The version argument is provided for backward
         compatibility. If passed, it must be an empty string.
-        
+
         """
 
     def references(record, oids=None):
@@ -343,7 +343,7 @@ class IDatabase(IStorageDB):
     """
 
     # TODO: This interface is incomplete.
-    # XXX how is it incomplete? 
+    # XXX how is it incomplete?
 
     databases = Attribute(
         """A mapping from database name to DB (database) object.
@@ -362,7 +362,7 @@ class IDatabase(IStorageDB):
         application code should rarely, if ever, have a need to use
         this attribute.
         """)
-    
+
 
     def open(transaction_manager=None, serial=''):
         """Return an IConnection object for use by application code.
@@ -451,7 +451,7 @@ class IStorage(Interface):
 
     def getSize():
         """An approximate size of the database, in bytes.
-        
+
         This is used soley for informational purposes.
         """
 
@@ -459,7 +459,7 @@ class IStorage(Interface):
         """Return a sequence of history information dictionaries.
 
         Up to size objects (including no objects) may be returned.
-        
+
         The information provides a log of the changes made to the
         object. Data are reported in reverse chronological order.
 
@@ -468,7 +468,7 @@ class IStorage(Interface):
         time
             UTC seconds since the epoch (as in time.time) that the
             object revision was committed.
-            
+
         tid
             The transaction identifier of the transaction that
             committed the version.
@@ -489,7 +489,7 @@ class IStorage(Interface):
 
         If the transaction had extension items, then these items are
         also included if they don't conflict with the keys above.
-        
+
         """
 
     def isReadOnly():
@@ -510,7 +510,7 @@ class IStorage(Interface):
 
     def __len__():
         """The approximate number of objects in the storage
-        
+
         This is used soley for informational purposes.
         """
 
@@ -623,7 +623,7 @@ class IStorage(Interface):
         oid
             The object identifier.  This is either a string
             consisting of 8 nulls or a string previously returned by
-            new_oid. 
+            new_oid.
 
         serial
             The serial of the data that was read when the object was
@@ -673,7 +673,7 @@ class IStorage(Interface):
         StorageError or, more often, a subclass of it
           is raised when an internal error occurs while the storage is
           handling the store() call.
-        
+
         """
 
     def tpc_abort(transaction):
@@ -771,7 +771,7 @@ class IStorageRestoreable(IStorage):
         # - Incorrect pack garbage-collection algorithms (possibly
         #   including the existing FileStorage implementation), that
         #   failed to take into account records after the pack time.
-        
+
 
     def restore(oid, serial, data, version, prev_txn, transaction):
         """Write data already committed in a separate database
@@ -785,7 +785,7 @@ class IStorageRestoreable(IStorage):
 
         oid
              The object id for the record
-        
+
         serial
              The transaction identifier that originally committed this object.
 
@@ -1071,7 +1071,7 @@ class IStorageCurrentRecordIteration(IStorage):
             ...     # do things with oid, tid, and data
             ...     if next is None:
             ...         break
-        
+
         """
 
 class IExternalGC(IStorage):
@@ -1106,7 +1106,7 @@ class IBlob(Interface):
         The mode 'c' is similar to 'r', except that an orinary file
         object is returned and may be used in a separate transaction
         and after the blob's database connection has been closed.
-        
+
         """
 
     def committed():
@@ -1127,12 +1127,12 @@ class IBlob(Interface):
         Replace the current data of the blob with the file given under
         filename.
 
-        The blob must not be opened for reading or writing when consuming a 
+        The blob must not be opened for reading or writing when consuming a
         file.
 
         The blob will take over ownership of the file and will either
         rename or copy and remove it.  The file must not be open.
-        
+
         """
 
 
@@ -1147,13 +1147,45 @@ class IBlobStorage(Interface):
         (or copy and remove it) immediately, or at transaction-commit
         time.  The file must not be open.
 
-        The new serial is returned.
+        The new serial for the object is returned, but not necessarily
+        immediately.  It may be returned directly, or on a subsequent
+        store or tpc_vote call.
+
+        The return value may be:
+
+        - None
+
+        - A new serial (string) for the object, or
+
+        - An iterable of object-id and serial pairs giving new serials
+          for objects.
+
+        A serial, returned as a string or in a sequence of oid/serial
+        pairs, may be the special value
+        ZODB.ConflictResolution.ResolvedSerial to indicate that a
+        conflict occured and that the object should be invalidated.
+
+        Several different exceptions may be raised when an error occurs.
+
+        ConflictError
+          is raised when serial does not match the most recent serial
+          number for object oid and the conflict was not resolved by
+          the storage.
+
+        StorageTransactionError
+          is raised when transaction does not match the current
+          transaction.
+
+        StorageError or, more often, a subclass of it
+          is raised when an internal error occurs while the storage is
+          handling the store() call.
+
         """
 
     def loadBlob(oid, serial):
         """Return the filename of the Blob data for this OID and serial.
 
-        Returns a filename. 
+        Returns a filename.
 
         Raises POSKeyError if the blobfile cannot be found.
         """
