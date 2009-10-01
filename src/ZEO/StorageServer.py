@@ -596,11 +596,15 @@ class ZEOStorage:
         self.stats.lock_time = time.time()
         self.storage.tpc_begin(txn, tid, status)
 
-    def _store(self, oid, serial, data, version):
+    def _store(self, oid, serial, data, version, blobfile=None):
         err = None
         try:
-            newserial = self.storage.store(oid, serial, data, version,
-                                           self.transaction)
+            if blobfile is None:
+                newserial = self.storage.store(oid, serial, data, version,
+                                               self.transaction)
+            else:
+                newserial = self.storage.storeBlob(
+                    oid, serial, data, blobfile, version, self.transaction)
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
@@ -709,17 +713,23 @@ class ZEOStorage:
         self.log(template % (self.txnlog.stores, self.txnlog.size()),
                  level=BLATHER)
         self._tpc_begin(self.transaction, self.tid, self.status)
-        loads, loader = self.txnlog.get_loader()
-        for i in range(loads):
-            # load oid, serial, data, version
-            if not self._store(*loader.load()):
-                break
+        try:
 
-        # Blob support
-        while self.blob_log:
-            oid, oldserial, data, blobfilename, version = self.blob_log.pop()
-            self.storage.storeBlob(oid, oldserial, data, blobfilename, 
-                                   version, self.transaction,)
+            loads, loader = self.txnlog.get_loader()
+            for i in range(loads):
+                # load oid, serial, data, version
+                if not self._store(*loader.load()):
+                    break
+
+            # Blob support
+            while self.blob_log and not self.store_failed:
+                oid, serial, data, blobfilename, version = self.blob_log.pop()
+                self._store(oid, serial, data, version, blobfilename)
+
+        except:
+            self.storage.tpc_abort(self.transaction)
+            self._clear_transaction()
+            raise
 
         resp = self._thunk()
         if delay is not None:
