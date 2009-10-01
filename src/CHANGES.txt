@@ -8,7 +8,7 @@
 Bugs Fixed
 ----------
 
-- Conflict errors committing blobs caused servers to stop committing
+- Conflict errors committing blobs caused ZEO servers to stop committing
   transactuions.
 
 3.9.0 (2009-09-08)
