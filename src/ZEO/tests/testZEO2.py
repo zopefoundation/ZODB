@@ -87,7 +87,7 @@ will conflict. It will be blocked at the vote call.
     >>> logger.setLevel(logging.INFO)
     >>> logger.addHandler(handler)
 
-Now, whem we abort the transaction for the first client. the second
+Now, when we abort the transaction for the first client. the second
 client will be restarted.  It will get a conflict error, that is
 handled correctly:
 
@@ -103,6 +103,7 @@ handled correctly:
 
     >>> logger.setLevel(logging.NOTSET)
     >>> logger.removeHandler(handler)
+    >>> zs2.tpc_abort('1')
     >>> fs.close()
     """
 
