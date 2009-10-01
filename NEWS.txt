@@ -3,7 +3,7 @@ Whats new in ZODB 3.8.4
 
 Bugs Fixed:
 
-- Conflict errors committing blobs caused servers to stop committing
+- Conflict errors committing blobs caused ZEO servers to stop committing
   transactions.
 
 Whats new in ZODB 3.8.3
