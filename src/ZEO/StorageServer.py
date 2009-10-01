@@ -568,6 +568,7 @@ class ZEOStorage:
 
         except:
             self.storage.tpc_abort(self.transaction)
+            self._clear_transaction()
             raise
 
         resp = self._thunk()
