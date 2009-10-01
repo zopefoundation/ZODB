@@ -2,6 +2,15 @@
  Change History
 ================
 
+3.9.1 (2009-10-01)
+==================
+
+Bugs Fixed
+----------
+
+- Conflict errors committing blobs caused servers to stop committing
+  transactuions.
+
 3.9.0 (2009-09-08)
 ==================
 
