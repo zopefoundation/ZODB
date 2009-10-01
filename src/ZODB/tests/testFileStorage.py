@@ -219,6 +219,7 @@ class FileStorageTests(
 
         from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
+        from ZODB.serialize import referencesf
 
         db = DB(self._storage)
         conn = db.open()
@@ -251,7 +252,7 @@ class FileStorageTests(
         # Try to pack.  This used to yield
         #     NameError: global name 's' is not defined
         try:
-            self._storage.pack(time.time(), None)
+            self._storage.pack(time.time(), referencesf)
         except CorruptedError, detail:
             self.assert_("redundant transaction length does not match "
                          "initial transaction length" in str(detail))
