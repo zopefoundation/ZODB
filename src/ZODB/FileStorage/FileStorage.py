@@ -12,8 +12,6 @@
 #
 ##############################################################################
 """Storage implementation using a log written to a single file.
-
-$Revision: 1.16 $
 """
 
 from cPickle import Pickler, Unpickler, loads
@@ -1076,6 +1074,7 @@ class FileStorage(
         # Our default packer is built around the original packer.  We
         # simply adapt the old interface to the new.  We don't really
         # want to invest much in the old packer, at least for now.
+        assert referencesf is not None
         p = FileStoragePacker(storage, referencesf, stop, gc)
         opos = p.pack()
         if opos is None:
