@@ -783,8 +783,13 @@ class ManagedServerConnection(Connection):
         else:
             self.trigger.pull_trigger()
 
+    def auth_done(self):
+        # We're done with the auth dance. We can be fast now.
+        self.thread_ident = self.unregistered_thread_ident
+
 def server_loop(map, conn):
     conn.unregistered_thread_ident = thread.get_ident()
+
     while len(map) > 1:
         asyncore.poll(30.0, map)
     for o in map.values():

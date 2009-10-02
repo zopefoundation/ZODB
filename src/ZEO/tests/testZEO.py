@@ -722,9 +722,11 @@ class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
 
 class FauxConn:
     addr = 'x'
-    thread_ident = unregistered_thread_ident = None
     peer_protocol_version = (
         ZEO.zrpc.connection.Connection.current_protocol)
+
+    def auth_done(self):
+        pass
 
 class StorageServerClientWrapper:
 

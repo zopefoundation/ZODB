@@ -273,6 +273,8 @@ class ZEOStorage:
         if self.auth_realm and not self.authenticated:
             raise AuthError("Client was never authenticated with server!")
 
+        self.connection.auth_done()
+
         if self.storage is not None:
             self.log("duplicate register() call")
             raise ValueError("duplicate register() call")
@@ -290,7 +292,6 @@ class ZEOStorage:
         self.storage = storage
         self.setup_delegation()
         self.stats = self.server.register_connection(storage_id, self)
-        self.connection.thread_ident = self.connection.unregistered_thread_ident
 
     def get_info(self):
         storage = self.storage
@@ -546,28 +547,34 @@ class ZEOStorage:
         else:
             self.storage.tpc_begin(self.transaction)
 
-        loads, loader = self.txnlog.get_loader()
-        for i in range(loads):
-            store = loader.load()
-            store_type = store[0]
-            store_args = store[1:]
+        try:
+            loads, loader = self.txnlog.get_loader()
+            for i in range(loads):
+                store = loader.load()
+                store_type = store[0]
+                store_args = store[1:]
 
-            if store_type == 'd':
-                do_store = self._delete
-            elif store_type == 's':
-                do_store = self._store
-            elif store_type == 'r':
-                do_store = self._restore
-            else:
-                raise ValueError('Invalid store type: %r' % store_type)
+                if store_type == 'd':
+                    do_store = self._delete
+                elif store_type == 's':
+                    do_store = self._store
+                elif store_type == 'r':
+                    do_store = self._restore
+                else:
+                    raise ValueError('Invalid store type: %r' % store_type)
 
-            if not do_store(*store_args):
-                break
+                if not do_store(*store_args):
+                    break
 
-        # Blob support
-        for oid, oldserial, data, blobfilename in self.blob_log:
-            self.storage.storeBlob(oid, oldserial, data, blobfilename,
-                                   '', self.transaction,)
+            # Blob support
+            while self.blob_log and not self.store_failed:
+                oid, oldserial, data, blobfilename = self.blob_log.pop()
+                self._store(oid, oldserial, data, blobfilename)
+
+        except:
+            self.storage.tpc_abort(self.transaction)
+            self._clear_transaction()
+            raise
 
         thunk = self._thunk
         delay = self._delay
@@ -664,11 +671,15 @@ class ZEOStorage:
 
         return err is None
 
-    def _store(self, oid, serial, data):
+    def _store(self, oid, serial, data, blobfile=None):
         err = None
         try:
-            newserial = self.storage.store(oid, serial, data, '',
-                                           self.transaction)
+            if blobfile is None:
+                newserial = self.storage.store(
+                    oid, serial, data, '', self.transaction)
+            else:
+                newserial = self.storage.storeBlob(
+                    oid, serial, data, blobfile, '', self.transaction)
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:

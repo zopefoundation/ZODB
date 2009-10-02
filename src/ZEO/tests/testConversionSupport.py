@@ -57,6 +57,9 @@ class FauxConn:
     peer_protocol_version = (
         ZEO.zrpc.connection.Connection.current_protocol)
 
+    def auth_done(self):
+        pass
+
 def test_server_record_iternext():
     """
     
