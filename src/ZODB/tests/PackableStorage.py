@@ -87,7 +87,7 @@ def pdumps(obj):
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
-    
+
 
 class PackableStorageBase:
     # We keep a cache of object ids to instances so that the unpickler can
@@ -539,8 +539,8 @@ class PackableStorageWithOptionalGC(PackableStorage):
         raises(KeyError, self._storage.loadSerial, oid, revid1)
         raises(KeyError, self._storage.loadSerial, oid, revid2)
         self._storage.loadSerial(oid, revid3)
-        
-        
+
+
 
 class PackableUndoStorage(PackableStorageBase):
 
