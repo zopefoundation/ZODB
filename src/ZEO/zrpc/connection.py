@@ -42,12 +42,13 @@ client_map = {}
 client_trigger = trigger(client_map)
 client_logger = logging.getLogger('ZEO.zrpc.client_loop')
 client_exit_event = threading.Event()
-client_running = True
+client_running = False
 def client_exit():
     global client_running
-    client_running = False
-    client_trigger.pull_trigger()
-    client_exit_event.wait(99)
+    if client_running:
+        client_running = False
+        client_trigger.pull_trigger()
+        client_exit_event.wait(99)
 
 atexit.register(client_exit)
 
