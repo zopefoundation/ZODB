@@ -52,6 +52,8 @@ import zope.testing.setupstack
 
 logger = logging.getLogger('ZEO.tests.testZEO')
 
+ZEO.zrpc.connection.start_client_thread()
+
 class DummyDB:
     def invalidate(self, *args):
         pass

@@ -52,15 +52,15 @@ def client_exit():
 atexit.register(client_exit)
 
 def client_loop():
-    map = client_map
+    global client_running
+    client_running = True
+    client_exit_event.clear()
 
+    map = client_map
     read = asyncore.read
     write = asyncore.write
     _exception = asyncore._exception
     loop_failures = 0
-    client_exit_event.clear()
-    global client_running
-    client_running = True
 
     while client_running and map:
         try:
@@ -153,9 +153,19 @@ def client_loop():
 
     client_exit_event.set()
 
-client_thread = threading.Thread(target=client_loop, name=__name__)
-client_thread.setDaemon(True)
-client_thread.start()
+client_thread_lock = threading.Lock()
+client_thread = None
+def start_client_thread():
+    client_thread_lock.acquire()
+    try:
+        global client_thread
+        if client_thread is None:
+            client_thread = threading.Thread(target=client_loop, name=__name__)
+            client_thread.setDaemon(True)
+            client_thread.start()
+    finally:
+        client_thread_lock.release()
+
 #
 ##############################################################################
 

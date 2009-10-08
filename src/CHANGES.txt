@@ -2,6 +2,17 @@
  Change History
 ================
 
+3.9.2 (2009-10-??)
+==================
+
+Bugs Fixed
+----------
+
+- ZEO manages a separate thread for client network IO.  It created
+  this thread on import, which caused problems for applications that
+  implemented daemon behavior by forking.  Now, the client thread
+  isn't created until needed.
+
 3.9.1 (2009-10-01)
 ==================
 
