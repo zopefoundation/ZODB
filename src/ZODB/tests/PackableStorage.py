@@ -92,7 +92,14 @@ def pdumps(obj):
 class PackableStorageBase:
     # We keep a cache of object ids to instances so that the unpickler can
     # easily return any persistent object.
-    _cache = {}
+
+    @property
+    def _cache(self):
+        try:
+            return self.__cache
+        except AttributeError:
+            self.__cache = {}
+            return self.__cache
 
     def _newobj(self):
         # This is a convenience method to create a new persistent Object
