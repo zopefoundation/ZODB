@@ -13,6 +13,9 @@ Bugs Fixed
   implemented daemon behavior by forking.  Now, the client thread
   isn't created until needed.
 
+- File-storage pack clean-up tasks that can take a long time
+  unnecessarily blocked other activity.
+
 3.9.1 (2009-10-01)
 ==================
 

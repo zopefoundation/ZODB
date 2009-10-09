@@ -1117,6 +1117,8 @@ class FileStorage(
         if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
             ZODB.blob.remove_committed_dir(self.blob_dir + ".old")
 
+        cleanup = []
+
         have_commit_lock = False
         try:
             pack_result = None
@@ -1139,19 +1141,20 @@ class FileStorage(
 
                 # OK, we're beyond the point of no return
                 os.rename(self._file_name + '.pack', self._file_name)
-                if not self.pack_keep_old:
-                    os.remove(oldpath)
                 self._file = open(self._file_name, 'r+b')
                 self._initIndex(index, self._tindex)
                 self._pos = opos
-                self._save_index()
-
-                if self.blob_dir:
-                    self._commit_lock_release()
-                    have_commit_lock = False
-                    self._remove_blob_files_tagged_for_removal_during_pack()
             finally:
                 self._lock_release()
+
+            # We're basically done.  Now we need to deal with removed
+            # blobs and removing the .old file (see further down).
+
+            if self.blob_dir:
+                self._commit_lock_release()
+                have_commit_lock = False
+                self._remove_blob_files_tagged_for_removal_during_pack()
+
         finally:
             if have_commit_lock:
                 self._commit_lock_release()
@@ -1159,6 +1162,14 @@ class FileStorage(
             self._pack_is_in_progress = False
             self._lock_release()
 
+        if not self.pack_keep_old:
+            os.remove(oldpath)
+
+        self._lock_acquire()
+        try:
+            self._save_index()
+        finally:
+            self._lock_release()
 
     def _remove_blob_files_tagged_for_removal_during_pack(self):
         lblob_dir = len(self.blob_dir)
@@ -1167,13 +1178,38 @@ class FileStorage(
         link_or_copy = ZODB.blob.link_or_copy
 
         # Helper to clean up dirs left empty after moving things to old
-        def maybe_remove_empty_dir_containing(path):
+        def maybe_remove_empty_dir_containing(path, level=0):
             path = os.path.dirname(path)
-            if len(path) <= lblob_dir:
+            if len(path) <= lblob_dir or os.listdir(path):
                 return
-            if not os.listdir(path):
-                os.rmdir(path)
-                maybe_remove_empty_dir_containing(path)
+
+            # Path points to an empty dir.  There may be a race.  We
+            # might have just removed the dir for an oid (or a parent
+            # dir) and while we're cleaning up it's parent, another
+            # thread is adding a new entry to it.
+
+            # We don't have to worry about level 0, as this is just a
+            # directory containing an object's revisions. If it is
+            # enmpty, the object must have been garbage.
+
+            # If the level is 1 or higher, we need to be more
+            # careful.  We'll get the storage lock and double check
+            # that the dir is still empty before removing it.
+
+            removed = False
+            if level:
+                self._lock_acquire()
+            try:
+                if not os.listdir(path):
+                    os.rmdir(path)
+                    removed = True
+            finally:
+                if level:
+                    self._lock_release()
+
+            if removed:
+                maybe_remove_empty_dir_containing(path, level+1)
+
 
         if self.pack_keep_old:
             # Helpers that move oid dir or revision file to the old dir.
@@ -1203,7 +1239,7 @@ class FileStorage(
                     # Hm, already gone. Odd.
                     continue
                 handle_dir(path)
-                maybe_remove_empty_dir_containing(path)
+                maybe_remove_empty_dir_containing(path, 1)
                 continue
 
             if len(line) != 16:
