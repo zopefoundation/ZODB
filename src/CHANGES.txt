@@ -16,6 +16,9 @@ Bugs Fixed
 - File-storage pack clean-up tasks that can take a long time
   unnecessarily blocked other activity.
 
+- In certain rare situations, ZEO client connections would hand during
+  the initial connection setup.
+
 3.9.1 (2009-10-01)
 ==================
 
