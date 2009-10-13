@@ -24,12 +24,13 @@ from ZODB.loglevels import BLATHER
 
 from ZEO.zrpc.log import log
 import ZEO.zrpc.trigger
-from ZEO.zrpc.connection import ManagedClientConnection
+from ZEO.zrpc.connection import ManagedClientConnection, start_client_thread
 
 class ConnectionManager(object):
     """Keeps a connection up over time"""
 
     def __init__(self, addrs, client, tmin=1, tmax=180):
+        start_client_thread()
         self.addrlist = self._parse_addrs(addrs)
         self.client = client
         self.tmin = min(tmin, tmax)

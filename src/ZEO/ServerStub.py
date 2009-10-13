@@ -13,6 +13,7 @@
 ##############################################################################
 """RPC stubs for interface exported by StorageServer."""
 
+import os
 import time
 
 ##
@@ -368,11 +369,12 @@ class StorageServer308(StorageServer):
     def iterator_gc(self, iids):
         raise NotImplementedError
 
-
 def stub(client, connection):
-
+    start = time.time()
     # Wait until we know what version the other side is using.
     while connection.peer_protocol_version is None:
+        if time.time()-start > 10:
+            raise ValueError("Timeout waiting for protocol handshake")
         time.sleep(0.1)
 
     if connection.peer_protocol_version < 'Z309':
