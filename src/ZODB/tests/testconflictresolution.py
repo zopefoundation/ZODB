@@ -36,6 +36,9 @@ def test_suite():
                              tearDown=tearDown,
                              optionflags=doctest.INTERPRET_FOOTNOTES,
                              ),
+        doctest.DocFileSuite('conflict_str.txt',
+                             optionflags=doctest.INTERPRET_FOOTNOTES,
+                             ),
         ))
 
 if __name__ == '__main__':

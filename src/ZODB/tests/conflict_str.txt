@@ -1,0 +1,35 @@
+Conflict Error Printing
+=======================
+
+
+We need to make sure ConflictErrors print correctly::
+
+    >>> import ZODB.POSException
+    >>> ce = ZODB.POSException.ConflictError()
+
+    >>> '%s %s' % (u'unicode', ce)
+    u'unicode database conflict error'
+
+    >>> '%s %s' % ('string', ce)
+    'string database conflict error'
+
+    >>> str(ce)
+    'database conflict error'
+
+    >>> unicode(ce)
+    u'database conflict error'
+
+    >>> ce.message = 'new'
+
+    >>> '%s %s' % (u'unicode', ce)
+    u'unicode new'
+
+    >>> '%s %s' % ('string', ce)
+    'string new'
+
+    >>> str(ce)
+    'new'
+
+    >>> unicode(ce)
+    u'new'
+

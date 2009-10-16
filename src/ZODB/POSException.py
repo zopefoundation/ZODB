@@ -99,6 +99,7 @@ class ConflictError(POSError, TransactionError):
             self.message = "database conflict error"
         else:
             self.message = message
+        self.args = (self.message,)
 
         if object is None:
             self.oid = None
@@ -138,6 +139,9 @@ class ConflictError(POSError, TransactionError):
             return "%s (%s)" % (self.message, ", ".join(extras))
         else:
             return self.message
+
+    def __unicode__(self):
+        return unicode(str(self))
 
     def get_oid(self):
         return self.oid
