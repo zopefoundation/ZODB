@@ -49,6 +49,7 @@ class Base:
         n = 'fs_tmp__%s' % os.getpid()
         self.storage = FileStorage(n)
         self.db = DB(self.storage)
+        return self.db
 
 class MappingBase(Base):
     """ Tests common to mappings (buckets, btrees) """
@@ -102,11 +103,11 @@ class MappingBase(Base):
 
     def testMergeDelete(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
-        del b1[items[0][0]]
+        del b1[items[1][0]]
         del b2[items[5][0]]
         del b1[items[-1][0]]
         del b2[items[-2][0]]
-        del bm[items[0][0]]
+        del bm[items[1][0]]
         del bm[items[5][0]]
         del bm[items[-1][0]]
         del bm[items[-2][0]]
@@ -114,11 +115,11 @@ class MappingBase(Base):
 
     def testMergeDeleteAndUpdate(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
-        del b1[items[0][0]]
+        del b1[items[1][0]]
         b2[items[5][0]]=1
         del b1[items[-1][0]]
         b2[items[-2][0]]=2
-        del bm[items[0][0]]
+        del bm[items[1][0]]
         bm[items[5][0]]=1
         del bm[items[-1][0]]
         bm[items[-2][0]]=2
@@ -237,11 +238,11 @@ class SetTests(Base):
 
     def testMergeDelete(self):
         base, b1, b2, bm, e1, e2, items = self._setupConflict()
-        b1.remove(items[0])
+        b1.remove(items[1])
         b2.remove(items[5])
         b1.remove(items[-1])
         b2.remove(items[-2])
-        bm.remove(items[0])
+        bm.remove(items[1])
         bm.remove(items[5])
         bm.remove(items[-1])
         bm.remove(items[-2])
@@ -331,8 +332,8 @@ def test_merge(o1, o2, o3, expect, message='failed to merge', should_fail=0):
         assert merged == expected, message
 
 class NastyConfict(Base, TestCase):
-    def setUp(self):
-        self.t = OOBTree()
+
+    t_type = OOBTree
 
     # This tests a problem that cropped up while trying to write
     # testBucketSplitConflict (below):  conflict resolution wasn't
@@ -765,6 +766,68 @@ class NastyConfict(Base, TestCase):
         else:
             self.fail("expected ConflictError")
 
+    def testConflictOfInsertAndDeleteOfFirstBucketItem(self):
+        """
+        Recently, BTrees became careful about removing internal keys
+        (keys in internal aka BTree nodes) when they were deleted from
+        buckets. This poses a problem for conflict resolution.
+
+        We want to guard against a case in which the first key in a
+        bucket is removed in one transaction while a key is added
+        after that key but before the next key in another transaction
+        with the result that the added key is unreachble
+
+        original:
+
+          Bucket(...), k1, Bucket((k1, v1), (k3, v3), ...)
+
+        tran1
+
+          Bucket(...), k3, Bucket(k3, v3), ...)
+
+        tran2
+
+          Bucket(...), k1, Bucket((k1, v1), (k2, v2), (k3, v3), ...)
+
+          where k1 < k2 < k3
+
+        We don't want:
+
+          Bucket(...), k3, Bucket((k2, v2), (k3, v3), ...)
+
+          as k2 would be unfindable, so we want a conflict.
+
+        """
+        mytype = self.t_type
+        db = self.openDB()
+        tm1 = transaction.TransactionManager()
+        conn1 = db.open(tm1)
+        conn1.root.t = t = mytype()
+        for i in range(0, 200, 2):
+            t[i] = i
+        tm1.commit()
+        k = t.__getstate__()[0][1]
+        assert t.__getstate__()[0][2].keys()[0] == k
+
+        tm2 = transaction.TransactionManager()
+        conn2 = db.open(tm2)
+
+        t[k+1] = k+1
+        del conn2.root.t[k]
+        for i in range(200,300):
+            conn2.root.t[i] = i
+
+        tm1.commit()
+        self.assertRaises(ConflictError, tm2.commit)
+        tm2.abort()
+
+        k = t.__getstate__()[0][1]
+        t[k+1] = k+1
+        del conn2.root.t[k]
+
+        tm2.commit()
+        self.assertRaises(ConflictError, tm1.commit)
+        tm1.abort()
 
 def test_suite():
     suite = TestSuite()

@@ -1975,7 +1975,11 @@ class InternalKeysMappingTest(TestCase):
         with bucket children.
         """
 
-        tree = self.t_class()
+        from ZODB.MappingStorage import DB
+        db = DB()
+        conn = db.open()
+
+        tree = conn.root.tree = self.t_class()
         i = 0
 
         # Grow the btree until we have multiple buckets
@@ -1986,11 +1990,16 @@ class InternalKeysMappingTest(TestCase):
             if len(data) >= 3:
                 break
 
+        transaction.commit()
+
         # Now, delete the internal key and make sure it's really gone
         key = data[1]
         del tree[key]
         data = tree.__getstate__()[0]
         self.assert_(data[1] != key)
+
+        # The tree should have changed:
+        self.assert_(tree._p_changed)
 
         # Grow the btree until we have multiple levels
         while 1:
@@ -2006,6 +2015,9 @@ class InternalKeysMappingTest(TestCase):
         del tree[key]
         data = tree.__getstate__()[0]
         self.assert_(data[1] != key)
+
+        transaction.abort()
+        db.close()
 
 class InternalKeysSetTest:
     """There must not be any internal keys not in the TreeSet
