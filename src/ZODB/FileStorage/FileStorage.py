@@ -51,7 +51,7 @@ logger = logging.getLogger('ZODB.FileStorage')
 
 def panic(message, *data):
     logger.critical(message, *data)
-    raise CorruptedTransactionError(message)
+    raise CorruptedTransactionError(message % data)
 
 class FileStorageError(POSException.StorageError):
     pass
