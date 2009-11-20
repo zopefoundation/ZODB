@@ -45,11 +45,14 @@ class IterationTests:
         self.assertRaises(KeyError, self._storage._server.iterator_next, iid)
 
     def checkIteratorGCSpanTransactions(self):
+        # Keep a hard reference to the iterator so it won't be automatically
+        # garbage collected at the transaction boundary.
         iterator = self._storage.iterator()
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
+        # As the iterator was not garbage collected, we can still use it.
         self.assertEquals([], list(iterator))
 
     def checkIteratorGCStorageCommitting(self):
@@ -99,6 +102,7 @@ class IterationTests:
         self.assertEquals(txn_info1.tid, txn_info2.tid)
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
+
 
 def iterator_sane_after_reconnect():
     r"""Make sure that iterators are invalidated on disconnect.
