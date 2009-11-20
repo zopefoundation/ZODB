@@ -586,7 +586,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         except Exception, msg:
             if not isinstance(msg, self.unlogged_exception_types):
                 self.log("%s() raised exception: %s" % (name, msg),
-                         logging.INFO, exc_info=True)
+                         logging.ERROR, exc_info=True)
             error = sys.exc_info()[:2]
             return self.return_error(msgid, flags, *error)
 
