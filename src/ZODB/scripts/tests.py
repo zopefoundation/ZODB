@@ -33,6 +33,7 @@ class RepozoTests(unittest.TestCase):
 
 def test_suite():
     return unittest.TestSuite((
+        unittest.makeSuite(RepozoTests),
         doctest.DocFileSuite(
             'referrers.txt', 'fstail.txt',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
