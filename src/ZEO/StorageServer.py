@@ -188,7 +188,6 @@ class ZEOStorage:
             self.undo = undo
 
         self.getTid = storage.getTid
-        self.history = storage.history
         self.load = storage.load
         self.loadSerial = storage.loadSerial
         record_iternext = getattr(storage, 'record_iternext', None)
@@ -219,6 +218,11 @@ class ZEOStorage:
                 self.tpc_transaction = lambda : storage._transaction
             else:
                 raise
+
+    def history(self,tid,size=1):
+        # This caters for storages which still accept
+        # a version parameter.
+        return self.storage.history(tid,size=size)
 
     def _check_tid(self, tid, exc=None):
         if self.read_only:
@@ -1379,7 +1383,7 @@ class ZEOStorage308Adapter:
     def history(self, oid, version, size=1):
         if version:
             raise ValueError("Versions aren't supported.")
-        return self.storage.history(oid, size)
+        return self.storage.history(oid, size=size)
 
     def getInvalidations(self, tid):
         result = self.storage.getInvalidations(tid)
