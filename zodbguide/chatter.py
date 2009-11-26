@@ -62,10 +62,10 @@ class ChatSession(Persistent):
                 self._messages[ now ] = message
                 transaction.commit()
             except ConflictError:
-                # Conflict occurred; this process should pause and
+                # Conflict occurred; this process should abort,
                 # wait for a little bit, then try again.
+                transaction.abort()
                 time.sleep(.2)
-                pass
             else:
                 # No ConflictError exception raised, so break
                 # out of the enclosing while loop.

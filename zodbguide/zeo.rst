@@ -155,11 +155,10 @@ Sample Application: chatter.py
 
 For an example application, we'll build a little chat application. What's
 interesting is that none of the application's code deals with network
-programming at all; instead, an object will hold chat messages, and be magically
-shared between all the clients through ZEO. I won't present the complete script
-here; it's included in my ZODB distribution, and you can download it from
-`<http://www.amk.ca/zodb/demos/>`_.  Only the interesting portions of the code
-will be covered here.
+programming at all; instead, an object will hold chat messages, and be
+magically shared between all the clients through ZEO. I won't present the
+complete script here; you can download it from :download:`chatter.py
+<chatter.py>`. Only the interesting portions of the code will be covered here.
 
 The basic data structure is the :class:`ChatSession` object, which provides an
 :meth:`add_message` method that adds a message, and a :meth:`new_messages`
@@ -197,10 +196,10 @@ breaking out of the loop when the commit works without raising an exception. ::
                self._messages[now] = message
                get_transaction().commit()
            except ConflictError:
-               # Conflict occurred; this process should pause and
+               # Conflict occurred; this process should abort,
                # wait for a little bit, then try again.
+               transaction.abort()
                time.sleep(.2)
-               pass
            else:
                # No ConflictError exception raised, so break
                # out of the enclosing while loop.
