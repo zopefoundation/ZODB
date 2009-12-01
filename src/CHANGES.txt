@@ -2,7 +2,17 @@
  Change History
 ================
 
-3.9.2 (2009-10-12)
+3.9.3 (2009-10-23)
+==================
+
+Bugs Fixed
+----------
+
+- 2 BTree bugs, introduced by a bug fix in 3.9.0c2, sometimes caused
+  deletion of keys to be improperly handled, resulting in data being
+  available via iteraation but not item access.
+
+3.9.2 (2009-10-13)
 ==================
 
 Bugs Fixed

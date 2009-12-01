@@ -720,6 +720,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
           COPY_KEY(d->key, bucket->keys[0]);
           INCREF_KEY(d->key);
           PER_UNUSE(bucket);
+          if (PER_CHANGED(self) < 0) goto Error;
         }
     }
 

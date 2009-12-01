@@ -160,6 +160,15 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
             }
           else if (set || (TEST_VALUE(i1.value, i2.value) == 0))
             {                   /* deleted in i3 */
+              if (i3.position == 1)
+                {
+                  /* Deleted the first item.  This will modify the
+                     parent node, so we don't know if merging will be
+                     safe
+                  */
+                  merge_error(i1.position, i2.position, i3.position, 13);
+                  goto err;
+                }
               if (i1.next(&i1) < 0) goto err;
               if (i2.next(&i2) < 0) goto err;
             }
@@ -178,6 +187,15 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
             }
           else if (set || (TEST_VALUE(i1.value, i3.value) == 0))
             {                   /* deleted in i2 */
+              if (i2.position == 1)
+                {
+                  /* Deleted the first item.  This will modify the
+                     parent node, so we don't know if merging will be
+                     safe
+                  */
+                  merge_error(i1.position, i2.position, i3.position, 13);
+                  goto err;
+                }
               if (i1.next(&i1) < 0) goto err;
               if (i3.next(&i3) < 0) goto err;
             }

@@ -214,6 +214,9 @@ class BTreesConflictError(ConflictError):
 
             # 12; i2 or i3 was empty
             'Empty bucket in a transaction',
+
+            # 13; delete of first key, which causes change to parent node
+            'Delete of first key',
             ]
 
     def __init__(self, p1, p2, p3, reason):
