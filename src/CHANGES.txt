@@ -2,6 +2,16 @@
  Change History
 ================
 
+3.9.4 (2009-12-??)
+==================
+
+Bugs Fixed
+----------
+
+- History support was broken when using stprages that work with ZODB
+  3.8 and 3.9
+
+
 3.9.3 (2009-10-23)
 ==================
 

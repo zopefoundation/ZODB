@@ -91,8 +91,8 @@ def test_client_record_iternext():
 
 The client simply delegates record_iternext calls to it's server stub.
 
-There's really no decent way to test ZEO without running to muc crazy
-stuff.  I'd rather to a lame test than a really lame test, so here goes.
+There's really no decent way to test ZEO without running too much crazy
+stuff.  I'd rather do a lame test than a really lame test, so here goes.
 
 First, fake out the connection manager so we can make a connection:
 
@@ -108,7 +108,7 @@ First, fake out the connection manager so we can make a connection:
     >>> client = ClientStorage('', wait=False)
     >>> ClientStorage.ConnectionManagerClass = oldConnectionManagerClass
 
-Now we'll have our way with it's provate _server attr:
+Now we'll have our way with it's private _server attr:
 
     >>> client._server = FakeStorage()
     >>> next = None
@@ -129,8 +129,8 @@ def test_server_stub_record_iternext():
 
 The server stub simply delegates record_iternext calls to it's rpc.
 
-There's really no decent way to test ZEO without running to muc crazy
-stuff.  I'd rather to a lame test than a really lame test, so here goes.
+There's really no decent way to test ZEO without running to much crazy
+stuff.  I'd rather do a lame test than a really lame test, so here goes.
 
     >>> class FauxRPC:
     ...     storage = FakeStorage()
@@ -153,6 +153,41 @@ stuff.  I'd rather to a lame test than a really lame test, so here goes.
 
 """
     
+def history_to_version_compatible_storage():
+    """
+    Some storages work under ZODB <= 3.8 and ZODB >= 3.9.
+    This means they have a history method that accepts a version parameter:
+
+    >>> class VersionCompatibleStorage(FakeStorageBase):
+    ...   def history(self,oid,version='',size=1):
+    ...     return oid,version,size
+
+    A ZEOStorage such as the following should support this type of storage:
+    
+    >>> class OurFakeServer(FakeServer):
+    ...   storages = {'1':VersionCompatibleStorage()}
+    >>> import ZEO.StorageServer
+    >>> zeo = ZEO.StorageServer.ZEOStorage(OurFakeServer(), False)
+    >>> zeo.register('1', False)
+
+    The ZEOStorage should sort out the following call such that the storage gets
+    the correct parameters and so should return the parameters it was called with:
+
+    >>> zeo.history('oid',99)
+    ('oid', '', 99)
+
+    The same problem occurs when a Z308 client connects to a Z309 server,
+    but different code is executed:
+
+    >>> from ZEO.StorageServer import ZEOStorage308Adapter
+    >>> zeo = ZEOStorage308Adapter(VersionCompatibleStorage())
+    
+    The history method should still return the parameters it was called with:
+
+    >>> zeo.history('oid','',99)
+    ('oid', '', 99)
+    """
+
 def test_suite():
     return doctest.DocTestSuite()
 
