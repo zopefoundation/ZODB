@@ -26,14 +26,8 @@ checker = renormalizing.RENormalizing([
     (re.compile('hash=[0-9a-f]{40}'),
      'hash=b16422d09fabdb45d4e4325e4b42d7d6f021d3c3')])
 
-class RepozoTests(unittest.TestCase):
-
-    def test_importability(self):
-        from ZODB.scripts import repozo
-
 def test_suite():
     return unittest.TestSuite((
-        unittest.makeSuite(RepozoTests),
         doctest.DocFileSuite(
             'referrers.txt', 'fstail.txt',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
