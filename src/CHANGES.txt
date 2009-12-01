@@ -13,6 +13,9 @@ Bugs Fixed
 
 - zope.testing was an unnecessary non-testing dependency.
 
+- Internal ZEO errors were logged at the INFO level, rather
+  than at the error level.
+
 3.9.3 (2009-10-23)
 ==================
 

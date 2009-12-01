@@ -438,15 +438,13 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
                      > client_timeout_count)
 
 
-class CatastrophicClientLoopFailure(
-    ZEO.tests.ConnectionTests.CommonSetupTearDown):
-    """Test what happens when the client loop falls over
-    """
+class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
 
     def getConfig(self, path, create, read_only):
         return """<mappingstorage 1/>"""
 
     def checkCatastrophicClientLoopFailure(self):
+        # Test what happens when the client loop falls over
         self._storage = self.openClientStorage()
 
         class Evil:
@@ -474,13 +472,30 @@ class CatastrophicClientLoopFailure(
         self.assertEqual(log[1][0], "Couldn't close a dispatcher.")
         self.assert_('exc_info' in log[1][1])
 
-class ConnectionInvalidationOnReconnect(
-    ZEO.tests.ConnectionTests.CommonSetupTearDown):
-    """Test what happens when the client loop falls over
-    """
+    def checkExceptionLogsAtError(self):
+        # Test the exceptions are logged at error
+        self._storage = self.openClientStorage()
+        conn = self._storage._connection
+        # capture logging
+        log = []
+        conn.logger.log = (
+            lambda l, m, *a, **kw: log.append((l,m % a, kw))
+            )
 
-    def getConfig(self, path, create, read_only):
-        return """<mappingstorage 1/>"""
+        # This is a deliberately bogus call to get an exception
+        # logged
+        self._storage._connection.handle_request('foo',0,'history',(1,2,3,4))
+        # test logging
+        level,message,kw = log[1]
+        self.assertEqual(level,logging.ERROR)
+        self.failUnless(message.endswith(
+                ') history() raised exception: history() takes at'
+                ' most 3 arguments (5 given)'
+                ))
+        self.assertEqual(kw,{'exc_info':True})
+        
+        # cleanup
+        del conn.logger.log
 
     def checkConnectionInvalidationOnReconnect(self):
 
@@ -1216,7 +1231,7 @@ slow_test_classes = [
 
 quick_test_classes = [
     FileStorageRecoveryTests, ConfigurationTests, HeartbeatTests,
-    CatastrophicClientLoopFailure, ConnectionInvalidationOnReconnect,
+    ZRPCConnectionTests,
     ]
 
 class ServerManagingClientStorage(ClientStorage):
