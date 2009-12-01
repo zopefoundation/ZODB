@@ -65,6 +65,7 @@ Options for -R/--recover:
 
 import os
 import sys
+import md5
 import gzip
 import time
 import errno
@@ -81,12 +82,6 @@ COMMASPACE = ', '
 READCHUNK = 16 * 1024
 VERBOSE = False
 
-if sys.version_info[1]>4:
-    # the hashlib package is available from Python 2.5
-    from hashlib import md5
-else:
-    # the md5 package is deprecated in Python 2.6
-    from md5 import new as md5
 
 def usage(code, msg=''):
     outfp = sys.stderr
@@ -215,7 +210,7 @@ def dofile(func, fp, n=None):
 
 def checksum(fp, n):
     # Checksum the first n bytes of the specified file
-    sum = md5()
+    sum = md5.new()
     def func(data):
         sum.update(data)
     dofile(func, fp, n)
@@ -226,7 +221,7 @@ def copyfile(options, dst, start, n):
     # Copy bytes from file src, to file dst, starting at offset start, for n
     # length of bytes.  For robustness, we first write, flush and fsync
     # to a temp file, then rename the temp file at the end.
-    sum = md5()
+    sum = md5.new()
     ifp = open(options.file, 'rb')
     ifp.seek(start)
     tempname = os.path.join(os.path.dirname(dst), 'tmp.tmp')
@@ -253,7 +248,7 @@ def concat(files, ofp=None):
     # Concatenate a bunch of files from the repository, output to `outfile' if
     # given.  Return the number of bytes written and the md5 checksum of the
     # bytes.
-    sum = md5()
+    sum = md5.new()
     def func(data):
         sum.update(data)
         if ofp:
