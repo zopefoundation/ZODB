@@ -31,11 +31,11 @@ eg:
 $ ../../../../bin/py testrepozo.py ../../../../bin/repozo
 """
 
+import unittest
 import os
 import random
 import time
 import glob
-import sys
 import shutil
 
 import ZODB
@@ -155,10 +155,25 @@ def main():
     cleanup()
     print 'Test passed!'
 
+
+
+class RepozoTest(unittest.TestCase):
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def testDummy(self):
+        self.failUnless(True)
+
+
+def test_suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(RepozoTest))
+    return suite
+
+
 if __name__ == '__main__':
-    PYTHON = sys.executable + ' '
-    if len(sys.argv)>1:
-        REPOZO = sys.argv[1]
-    else:
-        REPOZO = '../repozo.py'
-    main()
+    unittest.main(defaultTest='test_suite')
