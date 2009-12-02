@@ -73,8 +73,13 @@ class OurDB:
         self.close()
 
 
-# Do recovery to time 'when', and check that it's identical to correctpath.
-class RepozoTest(unittest.TestCase):
+class BasicRepozoTests(unittest.TestCase):
+
+    def test_importability(self):
+        from ZODB.scripts import repozo
+
+
+class RepozoTests(unittest.TestCase):
 
     def setUp(self):
         # compute directory names
@@ -140,6 +145,7 @@ class RepozoTest(unittest.TestCase):
         self.assertRestored()
 
     def assertRestored(self, correctpath='Data.fs', when=None):
+    # Do recovery to time 'when', and check that it's identical to correctpath.
         if when is None:
             extra = ''
         else:
@@ -171,7 +177,8 @@ class RepozoTest(unittest.TestCase):
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(RepozoTest))
+    suite.addTest(unittest.makeSuite(BasicRepozoTests))
+    suite.addTest(unittest.makeSuite(RepozoTests))
     return suite
 
 
