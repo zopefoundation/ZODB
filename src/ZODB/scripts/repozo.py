@@ -106,10 +106,10 @@ def log(msg, *args):
         print >> sys.stderr, msg % args
 
 
-def parseargs():
+def parseargs(argv):
     global VERBOSE
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'BRvhf:r:FD:o:Qz',
+        opts, args = getopt.getopt(argv, 'BRvhf:r:FD:o:Qz',
                                    ['backup', 'recover', 'verbose', 'help',
                                     'file=', 'repository=', 'full', 'date=',
                                     'output=', 'quick', 'gzip'])
@@ -509,8 +509,10 @@ def do_recover(options):
     log('Recovered %s bytes, md5: %s', reposz, reposum)
 
 
-def main():
-    options = parseargs()
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    options = parseargs(argv)
     if options.mode == BACKUP:
         do_backup(options)
     else:
