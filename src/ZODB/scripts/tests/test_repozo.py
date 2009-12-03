@@ -90,9 +90,9 @@ class RepozoTests(unittest.TestCase):
         self.db = OurDB(self.datadir)
 
     def tearDown(self):
+        os.chdir(self.currdir)
         import shutil
         shutil.rmtree(self.basedir)
-        os.chdir(self.currdir)
 
     def _callRepozoMain(self, argv):
         from ZODB.scripts.repozo import main
