@@ -16,6 +16,9 @@ Bugs Fixed
 - Internal ZEO errors were logged at the INFO level, rather
   than at the error level.
 
+- The FileStorage backup and restore script, repozo, gave a
+  deprecation warning under Python 2.6.
+
 3.9.3 (2009-10-23)
 ==================
 
