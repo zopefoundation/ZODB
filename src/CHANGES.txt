@@ -8,6 +8,9 @@
 Bugs Fixed
 ----------
 
+- DemoStorage.loadBefore sometimes returned invalid data which
+  would trigger AssertionErrors in ZODB.Connection.
+
 - History support was broken when using stprages that work with ZODB
   3.8 and 3.9.
 

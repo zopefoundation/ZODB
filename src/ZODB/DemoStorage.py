@@ -153,11 +153,18 @@ class DemoStorage(object):
             # The oid *was* in the changes, but there aren't any
             # earlier records. Maybe there are in the base.
             try:
-                return self.base.loadBefore(oid, tid)
+                result = self.base.loadBefore(oid, tid)
             except ZODB.POSException.POSKeyError:
                 # The oid isn't in the base, so None will be the right result
                 pass
-
+            else:
+                if result and not result[-1]:
+                    end_tid = None
+                    t = self.changes.load(oid)
+                    while t:
+                        end_tid = t[1]
+                        t = self.changes.loadBefore(oid, end_tid)
+                    result = result[:2] + (end_tid,)
         return result
 
     def loadBlob(self, oid, serial):
