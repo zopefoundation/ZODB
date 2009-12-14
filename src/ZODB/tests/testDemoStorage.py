@@ -177,6 +177,7 @@ def load_before_base_storage_current():
     properly when deferring to a record that is current in the
     base storage.
 
+    >>> import time
     >>> import transaction
     >>> import ZODB.DB
     >>> import ZODB.DemoStorage
@@ -193,6 +194,7 @@ def load_before_base_storage_current():
     >>> db = ZODB.DB(storage)
     >>> conn = db.open()
     >>> conn.root()['foo'] = 'baz'
+    >>> time.sleep(.1) # Windows has a low-resolution clock
     >>> transaction.commit()
 
     >>> oid = ZODB.utils.z64
