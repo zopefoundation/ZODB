@@ -2,11 +2,18 @@
  Change History
 ================
 
-3.9.4 (2009-12-??)
+3.9.4 (2009-12-14)
 ==================
 
 Bugs Fixed
 ----------
+
+- A ZEO threading bug could cause transactions to read inconsistent
+  data.  (This sometimes caused an AssertionError in
+  Connection._setstate_noncurrent.)
+
+- DemoStorage.loadBefore sometimes returned invalid data which
+  would trigger AssertionErrors in ZODB.Connection.
 
 - History support was broken when using stprages that work with ZODB
   3.8 and 3.9.
@@ -15,6 +22,13 @@ Bugs Fixed
 
 - Internal ZEO errors were logged at the INFO level, rather
   than at the error level.
+
+- The FileStorage backup and restore script, repozo, gave a
+  deprecation warning under Python 2.6.
+
+- C Header files weren't installed correctly.
+
+- The repozo backup utility gave deprecation warnings when run.
 
 3.9.3 (2009-10-23)
 ==================
