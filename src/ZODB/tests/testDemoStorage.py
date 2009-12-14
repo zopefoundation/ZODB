@@ -171,6 +171,55 @@ def blob_pos_key_error_with_non_blob_base():
 
     """
 
+def load_before_base_storage_current():
+    """
+    Here we'll exercise that DemoStorage's loadBefore method works
+    properly when deferring to a record that is current in the
+    base storage.
+
+    >>> import time
+    >>> import transaction
+    >>> import ZODB.DB
+    >>> import ZODB.DemoStorage
+    >>> import ZODB.MappingStorage
+    >>> import ZODB.utils
+
+    >>> base = ZODB.MappingStorage.MappingStorage()
+    >>> basedb = ZODB.DB(base)
+    >>> conn = basedb.open()
+    >>> conn.root()['foo'] = 'bar'
+    >>> transaction.commit()
+    >>> conn.close()
+    >>> storage = ZODB.DemoStorage.DemoStorage(base=base)
+    >>> db = ZODB.DB(storage)
+    >>> conn = db.open()
+    >>> conn.root()['foo'] = 'baz'
+    >>> time.sleep(.1) # Windows has a low-resolution clock
+    >>> transaction.commit()
+
+    >>> oid = ZODB.utils.z64
+    >>> base_current = storage.base.load(oid)
+    >>> tid = ZODB.utils.p64(ZODB.utils.u64(base_current[1]) + 1)
+    >>> base_record = storage.base.loadBefore(oid, tid)
+    >>> base_record[-1] is None
+    True
+    >>> base_current == base_record[:2]
+    True
+
+    >>> t = storage.loadBefore(oid, tid)
+
+    The data and tid are the values from the base storage, but the
+    next tid is from changes.
+
+    >>> t[:2] == base_record[:2]
+    True
+    >>> t[-1] == storage.changes.load(oid)[1]
+    True
+
+    >>> conn.close()
+    >>> db.close()
+    >>> base.close()
+    """
 
 def test_suite():
     suite = unittest.TestSuite((
