@@ -1,5 +1,5 @@
 /* Backport type definitions from Python 2.5's object.h */
-#ifndef PERSISTENT_PY24COMPATH_H
+#ifndef PERSISTENT_PY24COMPAT_H
 #define PERSISTENT_PY24COMPAT_H
 #if PY_VERSION_HEX < 0x02050000
 typedef int Py_ssize_t;
