@@ -1143,15 +1143,12 @@ class ClientStorage(object):
                 raise ClientDisconnected(
                        'Calling tpc_finish() on a disconnected transaction')
 
-            # The calls to tpc_finish() and _update_cache() should
-            # never run currently with another thread, because the
-            # tpc_cond condition variable prevents more than one
-            # thread from calling tpc_finish() at a time.
-            tid = self._server.tpc_finish(id(txn))
-
+            finished = 0
             try:
                 self._lock.acquire()  # for atomic processing of invalidations
                 try:
+                    tid = self._server.tpc_finish(id(txn))
+                    finished = 1
                     self._update_cache(tid)
                     if f is not None:
                         f(tid)
@@ -1161,9 +1158,10 @@ class ClientStorage(object):
                 r = self._check_serials()
                 assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
             except:
-                # The server successfully committed.  If we get a failure
-                # here, our own state will be in question, so reconnect.
-                self._connection.close()
+                if finished:
+                    # The server successfully committed.  If we get a failure
+                    # here, our own state will be in question, so reconnect.
+                    self._connection.close()
                 raise
 
             self.end_transaction()
