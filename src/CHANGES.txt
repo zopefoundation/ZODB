@@ -26,6 +26,8 @@ Bugs Fixed
 - The FileStorage backup and restore script, repozo, gave a
   deprecation warning under Python 2.6.
 
+- C Header files weren't installed correctly.
+
 3.9.3 (2009-10-23)
 ==================
 
