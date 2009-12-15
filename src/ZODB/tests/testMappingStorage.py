@@ -37,6 +37,12 @@ class MappingStorageTests(StorageTestBase.StorageTestBase,
         # have this limit, so we inhibit this test here.
         pass
 
+    def checkOmitVersionOnLoadAndHistory(self):
+        db = ZODB.DB(self._storage)
+        self.assertEqual(self._storage.load('\0'*8),
+                         self._storage.load('\0'*8, ''))
+        self._storage.history('\0'*8)
+
 def test_suite():
     suite = unittest.makeSuite(MappingStorageTests, 'check')
     return suite

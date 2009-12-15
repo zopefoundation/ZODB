@@ -679,7 +679,7 @@ class ClientStorage(object):
                 self._tbuf.invalidate(oid, "")
         return tid, oids
 
-    def history(self, oid, version, length=1):
+    def history(self, oid, version='', length=1):
         """Storage API: return a sequence of HistoryEntry objects.
 
         This does not support the optional filter argument defined by
@@ -702,7 +702,7 @@ class ClientStorage(object):
         """Storage API: load a historical revision of an object."""
         return self._server.loadSerial(oid, serial)
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         """Storage API: return the data for a given object.
 
         This returns the pickle data and serial number for the object

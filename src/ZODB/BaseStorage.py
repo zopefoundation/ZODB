@@ -113,7 +113,7 @@ class BaseStorage(UndoLogCompatible):
     def getSize(self):
         return len(self)*300 # WAG!
 
-    def history(self, oid, version, length=1, filter=None):
+    def history(self, oid, version='', length=1, filter=None):
         return ()
 
     def new_oid(self):

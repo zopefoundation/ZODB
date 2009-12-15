@@ -218,7 +218,7 @@ class DemoStorage(BaseStorage):
         finally:
             self._lock_release()
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         self._lock_acquire()
         try:
             try:

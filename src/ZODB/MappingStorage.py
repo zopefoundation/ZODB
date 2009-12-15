@@ -55,7 +55,7 @@ class MappingStorage(BaseStorage):
         finally:
             self._lock_release()
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         self._lock_acquire()
         try:
             p = self._index[oid]

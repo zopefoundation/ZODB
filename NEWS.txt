@@ -1,11 +1,19 @@
 Whats new in ZODB 3.8.5 (2009-12-16)
 ====================================
 
-Bugs Fixed:
+Bug Fixed:
 
 - A ZEO threading bug could cause transactions to read inconsistent
   data.  (This sometimes caused an AssertionError in
   Connection._setstate_noncurrent.)
+
+New Feature:
+
+- The standard storages, FileStorage, ClientStorage, DemoStorage, and
+  MappingStorage now allow the version argument to history and load to
+  be ommitted.  This is to make it easier to write application code
+  that works with ZODB 3.8 and later versions, which don't support
+  versions.
 
 Whats new in ZODB 3.8.4 (2009-10-01)
 ====================================

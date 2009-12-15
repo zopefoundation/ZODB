@@ -463,7 +463,7 @@ class FileStorage(BaseStorage.BaseStorage,
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
         """Return pickle data and serial number."""
         self._lock_acquire()
         try:

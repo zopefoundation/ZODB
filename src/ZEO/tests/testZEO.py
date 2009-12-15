@@ -188,6 +188,12 @@ class GenericTests(
         key = '%s:%s' % (self._storage._storage, self._storage._server_addr)
         self.assertEqual(self._storage.sortKey(), key)
 
+    def checkOmitVersionOnLoadAndHistory(self):
+        db = ZODB.DB(self._storage)
+        self.assertEqual(self._storage.load('\0'*8),
+                         self._storage.load('\0'*8, ''))
+        self._storage.history('\0'*8)
+
 class FullGenericTests(
     GenericTests,
     Cache.StorageWithCache,

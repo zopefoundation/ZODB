@@ -64,6 +64,12 @@ class DemoStorageTests(StorageTestBase.StorageTestBase,
         self.assertEqual(s2.load(ZODB.utils.z64, ''),
                          self._storage.load(ZODB.utils.z64, ''))
 
+    def checkOmitVersionOnLoadAndHistory(self):
+        db = DB(self._storage)
+        self.assertEqual(self._storage.load('\0'*8),
+                         self._storage.load('\0'*8, ''))
+        self._storage.history('\0'*8)
+
 
 class DemoStorageWrappedBase(DemoStorageTests):
 
