@@ -1,3 +1,12 @@
+Whats new in ZODB 3.8.5 (2009-12-16)
+====================================
+
+Bugs Fixed:
+
+- A ZEO threading bug could cause transactions to read inconsistent
+  data.  (This sometimes caused an AssertionError in
+  Connection._setstate_noncurrent.)
+
 Whats new in ZODB 3.8.4 (2009-10-01)
 ====================================
 
