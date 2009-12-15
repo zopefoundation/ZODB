@@ -28,8 +28,6 @@ Bugs Fixed
 
 - C Header files weren't installed correctly.
 
-- The repozo backup utility gave deprecation warnings when run.
-
 3.9.3 (2009-10-23)
 ==================
 
