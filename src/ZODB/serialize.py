@@ -511,14 +511,7 @@ class ObjectReader:
             return self._conn.get(oid)
 
         # TODO: should be done by connection
-        obj._p_oid = oid
-        obj._p_jar = self._conn
-        # When an object is created, it is put in the UPTODATE
-        # state.  We must explicitly deactivate it to turn it into
-        # a ghost.
-        obj._p_changed = None
-
-        self._cache[oid] = obj
+        self._cache.new_ghost(oid, obj)
         return obj
 
     def load_multi_persistent(self, database_name, oid, klass):
@@ -551,16 +544,6 @@ class ObjectReader:
         return reader.load_oid(oid)
 
     loaders['n'] = load_multi_oid
-
-    def _new_object(self, klass, args):
-        if not args and not myhasattr(klass, "__getnewargs__"):
-            obj = klass.__new__(klass)
-        else:
-            obj = klass(*args)
-            if not isinstance(klass, type):
-                obj.__dict__.clear()
-
-        return obj
 
     def getClassName(self, pickle):
         unpickler = self._get_unpickler(pickle)

@@ -2,6 +2,16 @@
  Change History
 ================
 
+3.10.0a1 (2009-12-??)
+=====================
+
+Bugs Fixed
+----------
+
+- Object state management wasn't dome correctly when classes
+  implemented custom _p_deavtivate methods.
+  (https://bugs.launchpad.net/zodb/+bug/185066)
+
 3.9.4 (2009-12-14)
 ==================
 

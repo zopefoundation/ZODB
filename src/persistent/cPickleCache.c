@@ -691,6 +691,103 @@ cc_update_object_size_estimation(ccobject *self, PyObject *args)
   Py_RETURN_NONE;
 }
 
+static PyObject*
+cc_new_ghost(ccobject *self, PyObject *args)
+{
+  PyObject *tmp, *key, *v;
+
+  if (!PyArg_ParseTuple(args, "OO:new_ghost", &key, &v))
+    return NULL;
+
+  /* Sanity check the value given to make sure it is allowed in the cache */
+  if (PyType_Check(v))
+    {
+      /* Its a persistent class, such as a ZClass. Thats ok. */
+    }
+  else if (v->ob_type->tp_basicsize < sizeof(cPersistentObject))
+    {
+      /* If it's not an instance of a persistent class, (ie Python
+         classes that derive from persistent.Persistent, BTrees,
+         etc), report an error.
+
+         TODO:  checking sizeof() seems a poor test.
+      */
+      PyErr_SetString(PyExc_TypeError,
+                      "Cache values must be persistent objects.");
+      return NULL;
+    }
+
+  /* Can't access v->oid directly because the object might be a
+   *  persistent class.
+   */
+  tmp = PyObject_GetAttr(v, py__p_oid);
+  if (tmp == NULL)
+    return NULL;
+  Py_DECREF(tmp);
+  if (tmp != Py_None)
+    {
+      PyErr_SetString(PyExc_AssertionError,
+                      "New ghost object must not have an oid");
+      return NULL;
+    }
+
+  /* useful sanity check, but not strictly an invariant of this class */
+  tmp = PyObject_GetAttr(v, py__p_jar);
+  if (tmp == NULL)
+    return NULL;
+  Py_DECREF(tmp);
+  if (tmp != Py_None)
+    {
+      PyErr_SetString(PyExc_AssertionError,
+                      "New ghost object must not have a jar");
+      return NULL;
+    }
+
+  tmp = PyDict_GetItem(self->data, key);
+  if (tmp)
+    {
+      Py_DECREF(tmp);
+      PyErr_SetString(PyExc_AssertionError,
+                      "The given oid is already in the cache");
+      return NULL;
+    }
+
+  if (PyType_Check(v))
+    {
+      if (PyObject_SetAttr(v, py__p_jar, self->jar) < 0)
+        return NULL;
+      if (PyObject_SetAttr(v, py__p_oid, key) < 0)
+        return NULL;
+      if (PyDict_SetItem(self->data, key, v) < 0)
+        return NULL;
+      self->klass_count++;
+    }
+  else
+    {
+      cPersistentObject *p = (cPersistentObject *)v;
+
+      if(p->cache != NULL)
+        {
+          PyErr_SetString(PyExc_AssertionError, "Already in a cache");
+          return NULL;
+        }
+
+      if (PyDict_SetItem(self->data, key, v) < 0)
+        return NULL;
+      /* the dict should have a borrowed reference */
+      Py_DECREF(v);
+
+      Py_INCREF(self);
+      p->cache = (PerCache *)self;
+      Py_INCREF(self->jar);
+      p->jar = self->jar;
+      Py_INCREF(key);
+      p->oid = key;
+      p->state = cPersistent_GHOST_STATE;
+    }
+
+  Py_RETURN_NONE;
+}
 
 static struct PyMethodDef cc_methods[] = {
   {"items", (PyCFunction)cc_items, METH_NOARGS,
@@ -724,6 +821,8 @@ static struct PyMethodDef cc_methods[] = {
    "update_object_size_estimation(oid, new_size) -- "
    "update the caches size estimation for *oid* "
    "(if this is known to the cache)."},
+  {"new_ghost", (PyCFunction)cc_new_ghost, METH_VARARGS,
+   "new_ghost() -- Initialize a ghost and add it to the cache."},
   {NULL, NULL}		/* sentinel */
 };
 

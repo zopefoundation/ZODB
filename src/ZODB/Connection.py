@@ -241,24 +241,16 @@ class Connection(ExportImport, object):
         if obj is not None:
             return obj
 
-        # This appears to be an MVCC violation because we are loading
-        # the must recent data when perhaps we shouldnt. The key is
-        # that we are only creating a ghost!
-        # A disadvantage to this optimization is that _p_serial cannot be
-        # trusted until the object has been loaded, which affects both MVCC
-        # and historical connections.
         p, serial = self._storage.load(oid, '')
         obj = self._reader.getGhost(p)
 
         # Avoid infiniate loop if obj tries to load its state before
         # it is added to the cache and it's state refers to it.
+        # (This will typically be the case for non-ghostifyable objects,
+        # like persistent caches.)
         self._pre_cache[oid] = obj
-        obj._p_oid = oid
-        obj._p_jar = self
-        obj._p_changed = None
-        obj._p_serial = serial
+        self._cache.new_ghost(oid, obj)
         self._pre_cache.pop(oid)
-        self._cache[oid] = obj
         return obj
 
     def cacheMinimize(self):

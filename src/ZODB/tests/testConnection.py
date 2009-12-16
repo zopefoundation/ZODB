@@ -556,6 +556,29 @@ def connection_root_convenience():
     <root: rather_long_name rather_long_name2 rather_long_name4 ...>
     """
 
+class proper_ghost_initialization_with_empty__p_deactivate_class(Persistent):
+    def _p_deactivate(self):
+        pass
+
+def proper_ghost_initialization_with_empty__p_deactivate():
+    """
+See https://bugs.launchpad.net/zodb/+bug/185066
+
+    >>> db = ZODB.tests.util.DB()
+    >>> conn = db.open()
+    >>> C = proper_ghost_initialization_with_empty__p_deactivate_class
+    >>> conn.root.x = x = C()
+    >>> conn.root.x.y = 1
+    >>> transaction.commit()
+
+    >>> conn2 = db.open()
+    >>> conn2.root.x._p_changed
+
+    >>> conn2.root.x.y
+    1
+
+    """
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
