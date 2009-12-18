@@ -57,7 +57,7 @@ Create the server:
 And an initial client.
 
     >>> zs1 = ZEO.StorageServer.ZEOStorage(server)
-    >>> conn1 = ZEO.tests.servertesting.Conection(1)
+    >>> conn1 = ZEO.tests.servertesting.Connection(1)
     >>> zs1.notifyConnected(conn1)
     >>> zs1.register('1', 0)
     >>> zs1.tpc_begin('0', '', '', {})
@@ -69,7 +69,7 @@ In a second client, we'll try to commit using the old serial. This
 will conflict. It will be blocked at the vote call.
 
     >>> zs2 = ZEO.StorageServer.ZEOStorage(server)
-    >>> conn2 = ZEO.tests.servertesting.Conection(2)
+    >>> conn2 = ZEO.tests.servertesting.Connection(2)
     >>> zs2.notifyConnected(conn2)
     >>> zs2.register('1', 0)
     >>> zs2.tpc_begin('1', '', '', {})
@@ -119,7 +119,7 @@ storage isn't left in tpc.
 And an initial client.
 
     >>> zs1 = ZEO.StorageServer.ZEOStorage(server)
-    >>> conn1 = ZEO.tests.servertesting.Conection(1)
+    >>> conn1 = ZEO.tests.servertesting.Connection(1)
     >>> zs1.notifyConnected(conn1)
     >>> zs1.register('1', 0)
     >>> zs1.tpc_begin('0', '', '', {})
@@ -141,7 +141,7 @@ We're not in a transaction:
 We can start another client and get the storage lock.
 
     >>> zs1 = ZEO.StorageServer.ZEOStorage(server)
-    >>> conn1 = ZEO.tests.servertesting.Conection(1)
+    >>> conn1 = ZEO.tests.servertesting.Connection(1)
     >>> zs1.notifyConnected(conn1)
     >>> zs1.register('1', 0)
     >>> zs1.tpc_begin('1', '', '', {})

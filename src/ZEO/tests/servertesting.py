@@ -37,7 +37,7 @@ class StorageServer(ZEO.StorageServer.StorageServer):
     def DispatcherClass(*args, **kw):
         pass
 
-class Conection:
+class Connection:
 
     peer_protocol_version = ZEO.zrpc.connection.Connection.current_protocol
     connected = True
