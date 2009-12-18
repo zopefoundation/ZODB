@@ -486,14 +486,18 @@ class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
         # logged
         self._storage._connection.handle_request('foo',0,'history',(1,2,3,4))
         # test logging
-        level,message,kw = log[1]
-        self.assertEqual(level,logging.ERROR)
-        self.failUnless(message.endswith(
+
+        for level, message, kw in log:
+            if message.endswith(
                 ') history() raised exception: history() takes at'
                 ' most 3 arguments (5 given)'
-                ))
-        self.assertEqual(kw,{'exc_info':True})
-        
+                ):
+                self.assertEqual(level,logging.ERROR)
+                self.assertEqual(kw,{'exc_info':True})
+                break
+        else:
+            self.fail("error not in log")
+
         # cleanup
         del conn.logger.log
 
