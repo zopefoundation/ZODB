@@ -337,8 +337,6 @@ and base options:
     >>> storage.base.getName()
     'base.fs'
 
-    >>> storage.close()
-
 
 Generating OIDs
 ===============
@@ -393,3 +391,7 @@ We're done with the storage, so "unwrap" the underlying storage.
 .. restore time
 
     >>> time.time = real_time_time
+
+.. clean up
+
+    >>> storage.close()
