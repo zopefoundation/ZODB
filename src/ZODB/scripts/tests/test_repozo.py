@@ -237,6 +237,6 @@ class Test_delete_old_backups(unittest.TestCase):
 
 def test_suite():
     return unittest.TestSuite([
-        #unittest.makeSuite(RepozoTests),
+        unittest.makeSuite(RepozoTests),
         unittest.makeSuite(Test_delete_old_backups),
     ])
