@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2004-2009 Zope Corporation and Contributors.
@@ -12,10 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
 import unittest
 import os
-import ZODB.tests.util
+import ZODB.tests.util  # layer used at class scope
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
 
@@ -172,10 +170,6 @@ class RepozoTests(unittest.TestCase):
 
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(RepozoTests))
-    return suite
-
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    return unittest.TestSuite([
+        unittest.makeSuite(RepozoTests),
+    ])
