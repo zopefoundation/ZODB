@@ -235,6 +235,25 @@ class Test_delete_old_backups(unittest.TestCase):
             fqn = os.path.join(self._repository_directory, name)
             self.failUnless(os.path.isfile(fqn))
 
+    def test_removes_older_repozo_files_zipped(self):
+        OLDER_FULL = ['2009-12-20-00-01-03.fsz', '2009-12-20-00-01-03.dat']
+        DELTAS = ['2009-12-21-00-00-01.deltafsz',
+                  '2009-12-22-00-00-01.deltafsz']
+        CURRENT_FULL = ['2009-12-23-00-00-01.fsz', '2009-12-23-00-00-01.dat']
+        FILENAMES = OLDER_FULL + DELTAS + CURRENT_FULL
+        self._callFUT(filenames=FILENAMES)
+        remaining = os.listdir(self._repository_directory)
+        self.assertEqual(len(remaining), len(CURRENT_FULL))
+        for name in OLDER_FULL:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failIf(os.path.isfile(fqn))
+        for name in DELTAS:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failIf(os.path.isfile(fqn))
+        for name in CURRENT_FULL:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failUnless(os.path.isfile(fqn))
+
 def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(RepozoTests),

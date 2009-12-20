@@ -381,7 +381,7 @@ def delete_old_backups(options):
     full = []
     for fname in all:
         root, ext = os.path.splitext(fname)
-        if ext in ('.fs', 'fsz'):
+        if ext in ('.fs', '.fsz'):
             full.append(fname)
         if ext in ('.fs', '.fsz', '.deltafs', '.deltafsz'):
             deletable.append(fname)
