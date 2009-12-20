@@ -5,6 +5,13 @@
 3.10.0a1 (2009-12-??)
 =====================
 
+New Features
+------------
+
+- Added a '--kill-old-on-full' argument to the backup options:  if passed,
+  remove any older full or incremental backup files from the repository after
+  doing a full backup. (https://bugs.launchpad.net/zope2/+bug/143158)
+
 Bugs Fixed
 ----------
 
