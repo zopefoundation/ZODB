@@ -442,11 +442,20 @@ class ClientStorage(object):
             logger.info("%s Waiting for cache verification to finish",
                         self.__name__)
 
-    def close(self):
-        """Storage API: finalize the storage, releasing external resources."""
+    def close(self, kill=False):
+        "Storage API: finalize the storage, releasing external resources."
         if self._rpc_mgr is not None:
             self._rpc_mgr.close()
             self._rpc_mgr = None
+
+        if (self._connection is not None) and not kill:
+            event = threading.Event()
+            self._connection.trigger.pull_trigger(lambda: self._close(event))
+            event.wait(9)
+        else:
+            self._close()
+
+    def _close(self, event=None):
         if self._connection is not None:
             self._connection.register_object(None) # Don't call me!
             self._connection.close()
@@ -461,6 +470,9 @@ class ClientStorage(object):
 
         if self._check_blob_size_thread is not None:
             self._check_blob_size_thread.join()
+
+        if event is not None:
+            event.set()
 
     _check_blob_size_thread = None
     def _check_blob_size(self, bytes=None):

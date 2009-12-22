@@ -951,6 +951,8 @@ def tpc_finish_error():
     ...         pass
     ...     def close(self):
     ...         print 'connection closed'
+    ...     trigger = property(lambda self: self)
+    ...     pull_trigger = lambda self, func: func()
 
     >>> class ConnectionManager:
     ...     def __init__(self, addr, client, tmin, tmax):
@@ -1226,6 +1228,35 @@ def runzeo_without_configfile():
     ------
     --T INFO ZEO.runzeo () closing storage '1'
     testing exit immediately
+    """
+
+def close_client_storage_w_invalidations():
+    r"""
+Invalidations could cause errors when closing client storages,
+
+    >>> addr, _ = start_server()
+    >>> writing = threading.Event()
+    >>> def mad_write_thread():
+    ...     global writing
+    ...     conn = ZEO.connection(addr)
+    ...     writing.set()
+    ...     while writing.isSet():
+    ...         conn.root.x = 1
+    ...         transaction.commit()
+    ...     conn.close()
+
+    >>> thread = threading.Thread(target=mad_write_thread)
+    >>> thread.setDaemon(True)
+    >>> thread.start()
+    >>> writing.wait()
+    >>> time.sleep(.01)
+    >>> for i in range(10):
+    ...     conn = ZEO.connection(addr)
+    ...     _ = conn._storage.load('\0'*8)
+    ...     conn.close()
+
+    >>> writing.clear()
+    >>> thread.join(1)
     """
 
 slow_test_classes = [
