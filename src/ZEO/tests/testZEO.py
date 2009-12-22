@@ -25,7 +25,6 @@ from ZODB.tests import StorageTestBase, BasicStorage,  \
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-import asyncore
 import doctest
 import logging
 import os
@@ -464,7 +463,11 @@ class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
             pass
 
         time.sleep(.1)
-        self.failIf(self._storage.is_connected())
+        try:
+            self.failIf(self._storage.is_connected())
+        except:
+            print log
+            raise
         self.assertEqual(len(ZEO.zrpc.connection.client_map), 1)
         del ZEO.zrpc.connection.client_logger.critical
         self.assertEqual(log[0][0], 'The ZEO client loop failed.')
@@ -738,6 +741,14 @@ class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
     blob_cache_dir = 'blobs'
     shared_blob_dir = True
 
+class FauxConn:
+    addr = 'x'
+    peer_protocol_version = (
+        ZEO.zrpc.connection.Connection.current_protocol)
+
+    def auth_done(self):
+        pass
+
 class StorageServerClientWrapper:
 
     def __init__(self):
@@ -754,8 +765,8 @@ class StorageServerWrapper:
     def __init__(self, server, storage_id):
         self.storage_id = storage_id
         self.server = ZEO.StorageServer.ZEOStorage(server, server.read_only)
+        self.server.notifyConnected(FauxConn())
         self.server.register(storage_id, False)
-        self.server._thunk = lambda : None
         self.server.client = StorageServerClientWrapper()
 
     def sortKey(self):
@@ -777,7 +788,6 @@ class StorageServerWrapper:
         self.server.tpc_begin(id(transaction), '', '', {}, None, ' ')
 
     def tpc_vote(self, transaction):
-        self.server._restart()
         self.server.vote(id(transaction))
         result = self.server.client.serials[:]
         del self.server.client.serials[:]
@@ -860,6 +870,8 @@ Now we'll open a storage server on the data, simulating a restart:
     >>> fs = FileStorage('t.fs')
     >>> sv = StorageServer(('', get_port()), dict(fs=fs))
     >>> s = ZEOStorage(sv, sv.read_only)
+
+    >>> s.notifyConnected(FauxConn())
     >>> s.register('fs', False)
 
 If we ask for the last transaction, we should get the last transaction

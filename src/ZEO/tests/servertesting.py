@@ -56,3 +56,13 @@ class Connection:
 
     def callAsync(self, meth, *args):
         print self.name, 'callAsync', meth, repr(args)
+
+    @property
+    def trigger(self):
+        return self
+
+    def pull_trigger(self, func):
+        func()
+
+    def auth_done(self):
+        pass
