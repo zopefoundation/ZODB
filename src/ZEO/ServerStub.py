@@ -240,7 +240,7 @@ class StorageServer:
     # @defreturn async
 
     def tpc_begin(self, id, user, descr, ext, tid, status):
-        return self.rpc.call('tpc_begin', id, user, descr, ext, tid, status)
+        self.rpc.callAsync('tpc_begin', id, user, descr, ext, tid, status)
 
     def vote(self, trans_id):
         return self.rpc.call('vote', trans_id)
