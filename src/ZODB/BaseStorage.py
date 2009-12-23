@@ -221,7 +221,8 @@ class BaseStorage(UndoLogCompatible):
         self._lock_acquire()
         try:
             if self._transaction is transaction:
-                return
+                raise POSException.StorageTransactionError(
+                    "Multiple calls to tpc_begin with same transaction")
             self._lock_release()
             self._commit_lock_acquire()
             self._lock_acquire()
@@ -284,7 +285,8 @@ class BaseStorage(UndoLogCompatible):
         self._lock_acquire()
         try:
             if transaction is not self._transaction:
-                return
+                raise POSException.StorageTransactionError(
+                    "tpc_finish called with wrong transaction.")
             try:
                 if f is not None:
                     f(self._tid)

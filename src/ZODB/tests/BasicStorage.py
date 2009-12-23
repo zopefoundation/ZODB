@@ -34,8 +34,8 @@ class BasicStorage:
     def checkBasics(self):
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
-        # This should simply return
-        self._storage.tpc_begin(t)
+        self.assertRaises(POSException.StorageTransactionError,
+                          self._storage.tpc_begin, t)
         # Aborting is easy
         self._storage.tpc_abort(t)
         # Test a few expected exceptions when we're doing operations giving a

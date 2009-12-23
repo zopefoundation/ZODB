@@ -1087,17 +1087,19 @@ class ClientStorage(object):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         self._tpc_cond.acquire()
-        self._midtxn_disconnect = 0
-        while self._transaction is not None:
-            # It is allowable for a client to call two tpc_begins in a
-            # row with the same transaction, and the second of these
-            # must be ignored.
-            if self._transaction == txn:
-                self._tpc_cond.release()
-                return
-            self._tpc_cond.wait(30)
-        self._transaction = txn
-        self._tpc_cond.release()
+        try:
+            self._midtxn_disconnect = 0
+            while self._transaction is not None:
+                # It is allowable for a client to call two tpc_begins in a
+                # row with the same transaction, and the second of these
+                # must be ignored.
+                if self._transaction is txn:
+                    raise POSException.StorageTransactionError(
+                        "Multiple calls to tpc_begin with same transaction")
+                self._tpc_cond.wait(30)
+            self._transaction = txn
+        finally:
+            self._tpc_cond.release()
 
         try:
             self._server.tpc_begin(id(txn), txn.user, txn.description,
@@ -1148,7 +1150,8 @@ class ClientStorage(object):
     def tpc_finish(self, txn, f=None):
         """Storage API: finish a transaction."""
         if txn is not self._transaction:
-            return
+            raise POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction.")
         self._load_lock.acquire()
         try:
             if self._midtxn_disconnect:

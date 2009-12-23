@@ -28,7 +28,7 @@ import ZODB.utils
 import zope.interface
 
 class MappingStorage(object):
-    
+
     zope.interface.implements(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
@@ -50,7 +50,7 @@ class MappingStorage(object):
 
     ######################################################################
     # Preconditions:
-    
+
     def opened(self):
         """The storage is open
         """
@@ -94,7 +94,7 @@ class MappingStorage(object):
         if tid_data:
             return tid_data.maxKey()
         raise ZODB.POSException.POSKeyError(oid)
-        
+
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def history(self, oid, size=1):
@@ -124,7 +124,7 @@ class MappingStorage(object):
     def iterator(self, start=None, end=None):
         for transaction_record in self._transactions.values(start, end):
             yield transaction_record
-        
+
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def lastTransaction(self):
@@ -165,7 +165,7 @@ class MappingStorage(object):
         else:
             raise ZODB.POSException.POSKeyError(oid)
 
-            
+
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def loadSerial(self, oid, serial):
@@ -189,7 +189,7 @@ class MappingStorage(object):
     def pack(self, t, referencesf, gc=True):
         if not self._data:
             return
-        
+
         stop = `ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
         if self._last_pack is not None and self._last_pack >= stop:
             if self._last_pack == stop:
@@ -274,7 +274,8 @@ class MappingStorage(object):
     def tpc_begin(self, transaction, tid=None):
         # The tid argument exists to support testing.
         if transaction is self._transaction:
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "Multiple calls to tpc_begin with same transaction")
         self._lock_release()
         self._commit_lock.acquire()
         self._lock_acquire()
@@ -292,7 +293,8 @@ class MappingStorage(object):
     @ZODB.utils.locked(opened)
     def tpc_finish(self, transaction, func = lambda tid: None):
         if (transaction is not self._transaction):
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction.")
 
         tid = self._tid
         func(tid)
@@ -310,7 +312,7 @@ class MappingStorage(object):
         self._transaction = None
         del self._tdata
         self._commit_lock.release()
- 
+
     # ZEO.interfaces.IServeable
     @ZODB.utils.locked(opened)
     def tpc_transaction(self):
