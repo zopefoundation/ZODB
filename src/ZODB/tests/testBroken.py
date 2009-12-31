@@ -71,6 +71,12 @@ def test_integration():
     >>> a3.__Broken_state__
     {'x': 1}
 
+    Broken objects provide an interface:
+
+    >>> from ZODB.interfaces import IBroken
+    >>> IBroken.providedBy(a3)
+    True
+
     Let's clean up:
 
     >>> db.close()

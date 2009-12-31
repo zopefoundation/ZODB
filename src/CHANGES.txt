@@ -5,6 +5,11 @@
 3.10.0a1 (2009-12-??)
 =====================
 
+New Features
+------------
+
+- Broken objects now provide the IBroken interface.
+
 Bugs Fixed
 ----------
 

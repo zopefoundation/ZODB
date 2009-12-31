@@ -1217,6 +1217,20 @@ class IBlobStorageRestoreable(IBlobStorage, IStorageRestoreable):
         """
 
 
+class IBroken(Interface):
+    """Broken objects are placeholders for objects that can no longer be
+    created because their class has gone away.
+
+    They cannot be modified, but they retain their state. This allows them to
+    be rebuild should the missing class be found again.
+    """
+
+    def __setattr__(name, value):
+        """You cannot modify broken objects. This will raise a
+        ZODB.broken.BrokenModified exception.
+        """
+
+
 class BlobError(Exception):
     pass
 
