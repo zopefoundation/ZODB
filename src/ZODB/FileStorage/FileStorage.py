@@ -705,7 +705,8 @@ class FileStorage(
         self._lock_acquire()
         try:
             if transaction is not self._transaction:
-                return
+                raise POSException.StorageTransactionError(
+                    "tpc_vote called with wrong transaction")
             dlen = self._tfile.tell()
             if not dlen:
                 return # No data in this trans

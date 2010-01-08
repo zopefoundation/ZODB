@@ -309,7 +309,8 @@ class DemoStorage(object):
     def tpc_begin(self, transaction, *a, **k):
         # The tid argument exists to support testing.
         if transaction is self._transaction:
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "Duplicate tpc_begin calls for same transaction")
         self._lock_release()
         self._commit_lock.acquire()
         self._lock_acquire()
@@ -320,7 +321,8 @@ class DemoStorage(object):
     @ZODB.utils.locked
     def tpc_finish(self, transaction, func = lambda tid: None):
         if (transaction is not self._transaction):
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction")
         self._issued_oids.difference_update(self._stored_oids)
         self._stored_oids = set()
         self._transaction = None

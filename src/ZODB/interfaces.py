@@ -690,7 +690,7 @@ class IStorage(Interface):
         """Begin the two-phase commit process.
 
         If storage is already participating in a two-phase commit
-        using the same transaction, the call is ignored.
+        using the same transaction, a StorageTransactionError is raised.
 
         If the storage is already participating in a two-phase commit
         using a different transaction, the call blocks until the
@@ -702,9 +702,10 @@ class IStorage(Interface):
 
         Changes must be made permanent at this point.
 
-        This call is ignored if the storage isn't participating in
-        two-phase commit or if it is committing a different
-        transaction.  Failure of this method is extremely serious.
+        This call raises a StorageTransactionError if the storage
+        isn't participating in two-phase commit or if it is committing
+        a different transaction.  Failure of this method is extremely
+        serious.
 
         The second argument is a call-back function that must be
         called while the storage transaction lock is held.  It takes
@@ -715,9 +716,9 @@ class IStorage(Interface):
     def tpc_vote(transaction):
         """Provide a storage with an opportunity to veto a transaction
 
-        This call is ignored if the storage isn't participating in
-        two-phase commit or if it is commiting a different
-        transaction.  Failure of this method is extremely serious.
+        This call raises a StorageTransactionError if the storage
+        isn't participating in two-phase commit or if it is commiting
+        a different transaction.
 
         If a transaction can be committed by a storage, then the
         method should return.  If a transaction cannot be committed,

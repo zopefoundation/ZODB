@@ -8,6 +8,16 @@
 New Features
 ------------
 
+- The API for undoing multiple transactions has changed.  To undo
+  multiple transactions in a single transaction, pass pass a list of
+  transaction identifiers to a database's undo method. Calling a
+  database's undo method multiple times in the same transaction now
+  raises an exception.
+
+- The storage API (IStorage) has been tightened. Now, storages should
+  raise a StorageTransactionError when invalid transactions are passed
+  to tpc_begin, tpc_vote, or tpc_finish.
+
 - Broken objects now provide the IBroken interface.
 
 Bugs Fixed
@@ -42,6 +52,9 @@ Bugs Fixed
   deprecation warning under Python 2.6.
 
 - C Header files weren't installed correctly.
+
+- The undo implementation was incorrect in ways that could cause
+  subtle missbehaviors.
 
 3.9.3 (2009-10-23)
 ==================

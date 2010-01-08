@@ -1093,7 +1093,8 @@ class TimeoutTests(CommonSetupTearDown):
         self.assertRaises(ConflictError, storage.tpc_vote, t)
         # Even aborting won't help.
         storage.tpc_abort(t)
-        storage.tpc_finish(t)
+        self.assertRaises(ZODB.POSException.StorageTransactionError,
+                          storage.tpc_finish, t)
         # Try again.
         obj.value = 10
         t = Transaction()
@@ -1103,7 +1104,7 @@ class TimeoutTests(CommonSetupTearDown):
         self.assertRaises(ConflictError, storage.tpc_vote, t)
         # Abort this one and try a transaction that should succeed.
         storage.tpc_abort(t)
-        storage.tpc_finish(t)
+        
         # Now do a store.
         obj.value = 11
         t = Transaction()

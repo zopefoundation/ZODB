@@ -896,7 +896,7 @@ class DB(object):
         finally:
             self._r()
 
-    def undo(self, id, txn=None):
+    def undo(self, ids, txn=None):
         """Undo a transaction identified by id.
 
         A transaction can be undone if all of the objects involved in
@@ -909,13 +909,16 @@ class DB(object):
         transaction id used by other methods; it is unique to undo().
 
         :Parameters:
-          - `id`: a storage-specific transaction identifier
+          - `ids`: a sequence of storage-specific transaction identifiers
+                   or a single transaction identifier
           - `txn`: transaction context to use for undo().
             By default, uses the current transaction.
         """
         if txn is None:
             txn = transaction.get()
-        txn.register(TransactionalUndo(self, id))
+        if isinstance(ids, basestring):
+            ids = [ids]
+        txn.join(TransactionalUndo(self, ids))
 
     def transaction(self):
         return ContextManager(self)
@@ -943,60 +946,41 @@ class ContextManager:
 resource_counter_lock = threading.Lock()
 resource_counter = 0
 
-class ResourceManager(object):
-    """Transaction participation for an undo resource."""
+class TransactionalUndo(object):
 
-    # XXX This implementation is broken.  Subclasses invalidate oids
-    # in their commit calls. Invalidations should not be sent until
-    # tpc_finish is called.  In fact, invalidations should be sent to
-    # the db *while* tpc_finish is being called on the storage.
-
-    def __init__(self, db):
+    def __init__(self, db, tids):
         self._db = db
-        # Delegate the actual 2PC methods to the storage
-        self.tpc_vote = self._db.storage.tpc_vote
-        self.tpc_finish = self._db.storage.tpc_finish
-        self.tpc_abort = self._db.storage.tpc_abort
+        self._storage = db.storage
+        self._tids = tids
+        self._oids = set()
 
-        # Get a number from a simple thread-safe counter, then
-        # increment it, for the purpose of sorting ResourceManagers by
-        # creation order.  This ensures that multiple ResourceManagers
-        # within a transaction commit in a predictable sequence.
-        resource_counter_lock.acquire()
-        try:
-            global resource_counter
-            self._count = resource_counter
-            resource_counter += 1
-        finally:
-            resource_counter_lock.release()
+    def abort(self, transaction):
+        pass
+
+    def tpc_begin(self, transaction):
+        self._storage.tpc_begin(transaction)
+
+    def commit(self, transaction):
+        for tid in self._tids:
+            result = self._storage.undo(tid, transaction)
+            if result:
+                self._oids.update(result[1])
+
+    def tpc_vote(self, transaction):
+        for oid, _ in  self._storage.tpc_vote(transaction) or ():
+            self._oids.add(oid)
+
+    def tpc_finish(self, transaction):
+        self._storage.tpc_finish(
+            transaction,
+            lambda tid: self._db.invalidate(tid, self._oids)
+            )
+
+    def tpc_abort(self, transaction):
+        self._storage.tpc_abort(transaction)
 
     def sortKey(self):
-        return "%s:%016x" % (self._db.storage.sortKey(), self._count)
-
-    def tpc_begin(self, txn, sub=False):
-        if sub:
-            raise ValueError("doesn't support sub-transactions")
-        self._db.storage.tpc_begin(txn)
-
-    # The object registers itself with the txn manager, so the ob
-    # argument to the methods below is self.
-
-    def abort(self, obj, txn):
-        raise NotImplementedError
-
-    def commit(self, obj, txn):
-        raise NotImplementedError
-
-class TransactionalUndo(ResourceManager):
-
-    def __init__(self, db, tid):
-        super(TransactionalUndo, self).__init__(db)
-        self._tid = tid
-
-    def commit(self, ob, t):
-        # XXX see XXX in ResourceManager
-        tid, oids = self._db.storage.undo(self._tid, t)
-        self._db.invalidate(tid, dict.fromkeys(oids, 1))
+        return "%s:%s" % (self._storage.sortKey(), id(self))
 
 def connection(*args, **kw):
     db = DB(*args, **kw)

@@ -99,18 +99,19 @@ class SynchronizedStorage:
 
     def checkFinishNotCommitting(self):
         t = Transaction()
-        self._storage.tpc_finish(t)
+        self.assertRaises(StorageTransactionError,
+                          self._storage.tpc_finish, t)
         self._storage.tpc_abort(t)
 
     def checkFinishWrongTrans(self):
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._storage.tpc_finish(Transaction())
+        self.assertRaises(StorageTransactionError,
+                          self._storage.tpc_finish, Transaction())
         self._storage.tpc_abort(t)
 
     def checkBeginCommitting(self):
         t = Transaction()
-        self._storage.tpc_begin(t)
         self._storage.tpc_begin(t)
         self._storage.tpc_abort(t)
 
