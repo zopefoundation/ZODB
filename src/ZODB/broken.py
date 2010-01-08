@@ -19,6 +19,10 @@ $Id$
 import sys
 import persistent
 
+import zope.interface
+
+import ZODB.interfaces
+
 broken_cache = {}
 
 class Broken(object):
@@ -91,6 +95,8 @@ class Broken(object):
 
          >>> broken_cache.clear()
        """
+
+    zope.interface.implements(ZODB.interfaces.IBroken)
 
     __Broken_state__ = __Broken_initargs__ = None
 
