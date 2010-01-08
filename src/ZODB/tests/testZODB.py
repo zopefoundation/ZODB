@@ -420,7 +420,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             # performed yet.
             transaction.begin()
             log = self._db.undoLog()
-            self._db.undo([log[i]['id'] for i in range(5)])
+            self._db.undoMultiple([log[i]['id'] for i in range(5)])
 
             transaction.get().note('undo states 1 through 5')
 
