@@ -32,27 +32,31 @@ class CommitLog:
         self.pickler = cPickle.Pickler(self.file, 1)
         self.pickler.fast = 1
         self.stores = 0
-        self.read = 0
 
     def size(self):
         return self.file.tell()
 
     def delete(self, oid, serial):
-        self.pickler.dump(('d', oid, serial))
+        self.pickler.dump(('_delete', (oid, serial)))
         self.stores += 1
 
     def store(self, oid, serial, data):
-        self.pickler.dump(('s', oid, serial, data))
+        self.pickler.dump(('_store', (oid, serial, data)))
         self.stores += 1
 
     def restore(self, oid, serial, data, prev_txn):
-        self.pickler.dump(('r', oid, serial, data, prev_txn))
+        self.pickler.dump(('_restore', (oid, serial, data, prev_txn)))
         self.stores += 1
 
-    def get_loader(self):
-        self.read = 1
+    def undo(self, transaction_id):
+        self.pickler.dump(('_undo', (transaction_id, )))
+        self.stores += 1
+
+    def __iter__(self):
         self.file.seek(0)
-        return self.stores, cPickle.Unpickler(self.file)
+        unpickler = cPickle.Unpickler(self.file)
+        for i in range(self.stores):
+            yield unpickler.load()
 
     def close(self):
         if self.file:

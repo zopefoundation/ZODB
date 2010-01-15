@@ -122,7 +122,7 @@ class RevisionStorage:
             tid = info[0]["id"]
             # Always undo the most recent txn, so the value will
             # alternate between 3 and 4.
-            self._undo(tid, [oid], note="undo %d" % i)
+            self._undo(tid, note="undo %d" % i)
             revs.append(self._storage.load(oid, ""))
 
         prev_tid = None

@@ -187,7 +187,9 @@ class Delay:
     def reply(self, obj):
         self.send_reply(self.msgid, obj)
 
-    def error(self, exc_info):
+    def error(self, exc_info=None):
+        if exc_info is None:
+            exc_info = sys.exc_info()
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.return_error(self.msgid, 0, *exc_info[:2])
 
@@ -359,15 +361,17 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z309"
+    current_protocol = "Z310"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
-    servers_we_can_talk_to = ["Z308", current_protocol]
+    servers_we_can_talk_to = ["Z308", "Z309", current_protocol]
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", "Z303", "Z308", current_protocol]
+    clients_we_can_talk_to = [
+        "Z200", "Z201", "Z303", "Z308", "Z309",
+        current_protocol]
 
     # This is pretty excruciating.  Details:
     #
