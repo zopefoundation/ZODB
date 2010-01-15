@@ -318,9 +318,9 @@ class InvalidationTests:
         # tearDown then immediately, but if other threads are still
         # running that can lead to a cascade of spurious exceptions.
         for t in threads:
-            t.join(10)
+            t.join(30)
         for t in threads:
-            t.cleanup()
+            t.cleanup(10)
 
     def checkConcurrentUpdates2Storages_emulated(self):
         self._storage = storage1 = self.openClientStorage()
@@ -377,6 +377,34 @@ class InvalidationTests:
         cn.close()
         db1.close()
         db2.close()
+
+    def checkConcurrentUpdates19Storages(self):
+        n = 19
+        dbs = [DB(self.openClientStorage()) for i in range(n)]
+        self._storage = dbs[0].storage
+        stop = threading.Event()
+
+        cn = dbs[0].open()
+        tree = cn.root()["tree"] = OOBTree()
+        transaction.commit()
+        cn.close()
+
+        # Run threads that update the BTree
+        cd = {}
+        threads = [self.StressThread(dbs[i], stop, i, cd, i, n)
+                   for i in range(n)]
+        self.go(stop, cd, *threads)
+
+        while len(set(db.lastTransaction() for db in dbs)) > 1:
+            _ = [db._storage.sync() for db in dbs]
+
+        cn = dbs[0].open()
+        tree = cn.root()["tree"]
+        self._check_tree(cn, tree)
+        self._check_threads(tree, *threads)
+
+        cn.close()
+        _ = [db.close() for db in dbs]
 
     def checkConcurrentUpdates1Storage(self):
         self._storage = storage1 = self.openClientStorage()

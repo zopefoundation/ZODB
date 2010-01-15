@@ -16,17 +16,16 @@ import atexit
 import errno
 import select
 import sys
+import thread
 import threading
 import logging
-
-import traceback, time
 
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller, ServerMarshaller
 from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.log import short_repr, log
-from ZODB.loglevels import BLATHER, TRACE
+from ZODB.loglevels import BLATHER
 import ZODB.POSException
 
 REPLY = ".reply" # message name used for replies
@@ -144,7 +143,7 @@ def client_loop():
                     if obj is client_trigger:
                         continue
                     try:
-                        obj.mgr.client.close()
+                        obj.mgr.client.close(True)
                     except:
                         map.pop(fd, None)
                         try:
@@ -188,7 +187,9 @@ class Delay:
     def reply(self, obj):
         self.send_reply(self.msgid, obj)
 
-    def error(self, exc_info):
+    def error(self, exc_info=None):
+        if exc_info is None:
+            exc_info = sys.exc_info()
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.return_error(self.msgid, 0, *exc_info[:2])
 
@@ -360,15 +361,17 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z309"
+    current_protocol = "Z310"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
-    servers_we_can_talk_to = ["Z308", current_protocol]
+    servers_we_can_talk_to = ["Z308", "Z309", current_protocol]
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", "Z303", "Z308", current_protocol]
+    clients_we_can_talk_to = [
+        "Z200", "Z201", "Z303", "Z308", "Z309",
+        current_protocol]
 
     # This is pretty excruciating.  Details:
     #
@@ -759,11 +762,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             self.log("wait(%d)" % msgid, level=TRACE)
 
         self.trigger.pull_trigger()
-
-        # Delay used when we call asyncore.poll() directly.
-        # Start with a 1 msec delay, double until 1 sec.
-        delay = 0.001
-
         self.replies_cond.acquire()
         try:
             while 1:
@@ -794,7 +792,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.trigger.pull_trigger()
 
 
-
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
 
@@ -802,12 +799,18 @@ class ManagedServerConnection(Connection):
     unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
     # Servers use a shared server trigger that uses the asyncore socket map
-    trigger = trigger()
+    #trigger = trigger()
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
-        Connection.__init__(self, sock, addr, obj, 'S')
+        map={}
+        Connection.__init__(self, sock, addr, obj, 'S', map=map)
         self.marshal = ServerMarshaller()
+        self.trigger = trigger(map)
+
+        t = threading.Thread(target=server_loop, args=(map, self))
+        t.setDaemon(True)
+        t.start()
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
@@ -820,6 +823,27 @@ class ManagedServerConnection(Connection):
     def close(self):
         self.obj.notifyDisconnected()
         Connection.close(self)
+
+    thread_ident = unregistered_thread_ident = None
+    def poll(self):
+        "Invoke asyncore mainloop to get pending message out."
+        ident = self.thread_ident
+        if ident is not None and thread.get_ident() == ident:
+            self.handle_write()
+        else:
+            self.trigger.pull_trigger()
+
+    def auth_done(self):
+        # We're done with the auth dance. We can be fast now.
+        self.thread_ident = self.unregistered_thread_ident
+
+def server_loop(map, conn):
+    conn.unregistered_thread_ident = thread.get_ident()
+
+    while len(map) > 1:
+        asyncore.poll(30.0, map)
+    for o in map.values():
+        o.close()
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""

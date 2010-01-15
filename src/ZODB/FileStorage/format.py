@@ -134,21 +134,24 @@ class FileStorageFormatter(object):
         self._file.seek(pos)
         return u64(self._file.read(8))
 
-    def _read_data_header(self, pos, oid=None):
+    def _read_data_header(self, pos, oid=None, _file=None):
         """Return a DataHeader object for data record at pos.
 
         If ois is not None, raise CorruptedDataError if oid passed
         does not match oid in file.
         """
-        self._file.seek(pos)
-        s = self._file.read(DATA_HDR_LEN)
+        if _file is None:
+            _file = self._file
+
+        _file.seek(pos)
+        s = _file.read(DATA_HDR_LEN)
         if len(s) != DATA_HDR_LEN:
             raise CorruptedDataError(oid, s, pos)
         h = DataHeaderFromString(s)
         if oid is not None and oid != h.oid:
             raise CorruptedDataError(oid, s, pos)
         if not h.plen:
-            h.back = u64(self._file.read(8))
+            h.back = u64(_file.read(8))
         return h
 
     def _read_txn_header(self, pos, tid=None):
@@ -164,20 +167,22 @@ class FileStorageFormatter(object):
         h.ext = self._file.read(h.elen)
         return h
 
-    def _loadBack_impl(self, oid, back, fail=True):
+    def _loadBack_impl(self, oid, back, fail=True, _file=None):
         # shared implementation used by various _loadBack methods
         #
         # If the backpointer ultimately resolves to 0:
         # If fail is True, raise KeyError for zero backpointer.
         # If fail is False, return the empty data from the record
         # with no backpointer.
+        if _file is None:
+            _file = self._file
         while 1:
             if not back:
                 # If backpointer is 0, object does not currently exist.
                 raise POSKeyError(oid)
-            h = self._read_data_header(back)
+            h = self._read_data_header(back, _file=_file)
             if h.plen:
-                return self._file.read(h.plen), h.tid, back, h.tloc
+                return _file.read(h.plen), h.tid, back, h.tloc
             if h.back == 0 and not fail:
                 return None, h.tid, back, h.tloc
             back = h.back

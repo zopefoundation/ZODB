@@ -272,8 +272,8 @@ class StorageServer:
     def new_oid(self):
         return self.rpc.call('new_oid')
 
-    def undo(self, trans_id, trans):
-        return self.rpc.call('undo', trans_id, trans)
+    def undoa(self, trans_id, trans):
+        self.rpc.callAsync('undoa', trans_id, trans)
 
     def undoLog(self, first, last):
         return self.rpc.call('undoLog', first, last)

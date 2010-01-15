@@ -1198,11 +1198,13 @@ class ClientStorage(object):
         if self._cache is None:
             return
 
-        for oid, data in self._tbuf:
+        for oid, tid in self._seriald.iteritems():
             self._cache.invalidate(oid, tid, False)
+
+        for oid, data in self._tbuf:
+            s = self._seriald[oid] # assigning here asserts that oid in seriald
             # If data is None, we just invalidate.
             if data is not None:
-                s = self._seriald[oid]
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, s, None, data)
@@ -1241,10 +1243,7 @@ class ClientStorage(object):
 
         """
         self._check_trans(txn)
-        tid, oids = self._server.undo(trans_id, id(txn))
-        for oid in oids:
-            self._tbuf.invalidate(oid)
-        return tid, oids
+        self._server.undoa(trans_id, id(txn))
 
     def undoInfo(self, first=0, last=-20, specification=None):
         """Storage API: return undo information."""
