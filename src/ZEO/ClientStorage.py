@@ -1075,7 +1075,8 @@ class ClientStorage(object):
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
         if txn is not self._transaction:
-            return
+            raise POSException.StorageTransactionError(
+                "tpc_vote called with wrong transaction")
         self._server.vote(id(txn))
         return self._check_serials()
 
@@ -1094,7 +1095,9 @@ class ClientStorage(object):
             # must be ignored.
             if self._transaction == txn:
                 self._tpc_cond.release()
-                return
+                raise POSException.StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
+
             self._tpc_cond.wait(30)
         self._transaction = txn
         self._tpc_cond.release()
@@ -1148,7 +1151,8 @@ class ClientStorage(object):
     def tpc_finish(self, txn, f=None):
         """Storage API: finish a transaction."""
         if txn is not self._transaction:
-            return
+            raise POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction")
         self._load_lock.acquire()
         try:
             if self._midtxn_disconnect:
@@ -1194,13 +1198,11 @@ class ClientStorage(object):
         if self._cache is None:
             return
 
-        for oid, tid in self._seriald.iteritems():
-            self._cache.invalidate(oid, tid, False)
-
         for oid, data in self._tbuf:
-            s = self._seriald[oid] # assigning here asserts that oid in seriald
+            self._cache.invalidate(oid, tid, False)
             # If data is None, we just invalidate.
             if data is not None:
+                s = self._seriald[oid]
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, s, None, data)
@@ -1239,7 +1241,10 @@ class ClientStorage(object):
 
         """
         self._check_trans(txn)
-        self._server.undoa(trans_id, id(txn))
+        tid, oids = self._server.undo(trans_id, id(txn))
+        for oid in oids:
+            self._tbuf.invalidate(oid)
+        return tid, oids
 
     def undoInfo(self, first=0, last=-20, specification=None):
         """Storage API: return undo information."""

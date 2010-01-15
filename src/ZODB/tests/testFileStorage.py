@@ -587,10 +587,10 @@ def deal_with_finish_failures():
 
     >>> handler.uninstall()
 
-    >>> fs.load('\0'*8, '') # doctest: +ELLIPSIS
+    >>> fs.load('\0'*8, '')
     Traceback (most recent call last):
     ...
-    ValueError: ...
+    ValueError: I/O operation on closed file
 
     >>> db.close()
     >>> fs = ZODB.FileStorage.FileStorage('data.fs')

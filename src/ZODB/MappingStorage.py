@@ -274,7 +274,8 @@ class MappingStorage(object):
     def tpc_begin(self, transaction, tid=None):
         # The tid argument exists to support testing.
         if transaction is self._transaction:
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "Duplicate tpc_begin calls for same transaction")
         self._lock_release()
         self._commit_lock.acquire()
         self._lock_acquire()
@@ -292,7 +293,8 @@ class MappingStorage(object):
     @ZODB.utils.locked(opened)
     def tpc_finish(self, transaction, func = lambda tid: None):
         if (transaction is not self._transaction):
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction")
 
         tid = self._tid
         func(tid)
@@ -318,7 +320,9 @@ class MappingStorage(object):
 
     # ZODB.interfaces.IStorage
     def tpc_vote(self, transaction):
-        pass
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(
+                "tpc_vote called with wrong transaction")
 
 class TransactionRecord:
 

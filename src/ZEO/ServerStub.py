@@ -240,7 +240,7 @@ class StorageServer:
     # @defreturn async
 
     def tpc_begin(self, id, user, descr, ext, tid, status):
-        return self.rpc.call('tpc_begin', id, user, descr, ext, tid, status)
+        self.rpc.callAsync('tpc_begin', id, user, descr, ext, tid, status)
 
     def vote(self, trans_id):
         return self.rpc.call('vote', trans_id)
@@ -272,8 +272,8 @@ class StorageServer:
     def new_oid(self):
         return self.rpc.call('new_oid')
 
-    def undoa(self, trans_id, trans):
-        self.rpc.callAsync('undoa', trans_id, trans)
+    def undo(self, trans_id, trans):
+        return self.rpc.call('undo', trans_id, trans)
 
     def undoLog(self, first, last):
         return self.rpc.call('undoLog', first, last)

@@ -690,7 +690,7 @@ class IStorage(Interface):
         """Begin the two-phase commit process.
 
         If storage is already participating in a two-phase commit
-        using the same transaction, the call is ignored.
+        using the same transaction, a StorageTransactionError is raised.
 
         If the storage is already participating in a two-phase commit
         using a different transaction, the call blocks until the
@@ -702,9 +702,10 @@ class IStorage(Interface):
 
         Changes must be made permanent at this point.
 
-        This call is ignored if the storage isn't participating in
-        two-phase commit or if it is committing a different
-        transaction.  Failure of this method is extremely serious.
+        This call raises a StorageTransactionError if the storage
+        isn't participating in two-phase commit or if it is committing
+        a different transaction.  Failure of this method is extremely
+        serious.
 
         The second argument is a call-back function that must be
         called while the storage transaction lock is held.  It takes
@@ -715,9 +716,9 @@ class IStorage(Interface):
     def tpc_vote(transaction):
         """Provide a storage with an opportunity to veto a transaction
 
-        This call is ignored if the storage isn't participating in
-        two-phase commit or if it is commiting a different
-        transaction.  Failure of this method is extremely serious.
+        This call raises a StorageTransactionError if the storage
+        isn't participating in two-phase commit or if it is commiting
+        a different transaction.
 
         If a transaction can be committed by a storage, then the
         method should return.  If a transaction cannot be committed,
@@ -1215,6 +1216,32 @@ class IBlobStorageRestoreable(IBlobStorage, IStorageRestoreable):
 
         See the restore and storeBlob methods.
         """
+
+
+class IBroken(Interface):
+    """Broken objects are placeholders for objects that can no longer be
+    created because their class has gone away.
+
+    They cannot be modified, but they retain their state. This allows them to
+    be rebuild should the missing class be found again.
+
+    A broken object's __class__ can be used to determine the original
+    class' name (__name__) and module (__module__).
+
+    The original object's state and initialization arguments are
+    available in broken object attributes to aid analysis and
+    reconstruction.
+
+    """
+
+    def __setattr__(name, value):
+        """You cannot modify broken objects. This will raise a
+        ZODB.broken.BrokenModified exception.
+        """
+
+    __Broken_newargs__ = Attribute("Arguments passed to __new__.")
+    __Broken_initargs__ = Attribute("Arguments passed to __init__.")
+    __Broken_state__ = Attribute("Value passed to __setstate__.")
 
 
 class BlobError(Exception):
