@@ -369,6 +369,10 @@ class TransactionalUndoStorage:
         self._iterate()
 
 
+    def __undo_and_vote(self, tid, t):
+        self._storage.undo(tid, t)
+        self._storage.tpc_vote(t)
+
     def checkNotUndoable(self):
         eq = self.assertEqual
         # Set things up so we've got a transaction that can't be undone
@@ -381,9 +385,7 @@ class TransactionalUndoStorage:
         tid = info[1]['id']
         t = Transaction()
         self._storage.tpc_begin(t)
-        self.assertRaises(POSException.UndoError,
-                          self._storage.undo,
-                          tid, t)
+        self.assertRaises(POSException.UndoError, self.__undo_and_vote, tid, t)
         self._storage.tpc_abort(t)
         # Now have more fun: object1 and object2 are in the same transaction,
         # which we'll try to undo to, but one of them has since modified in
@@ -420,9 +422,7 @@ class TransactionalUndoStorage:
         tid = info[1]['id']
         t = Transaction()
         self._storage.tpc_begin(t)
-        self.assertRaises(POSException.UndoError,
-                          self._storage.undo,
-                          tid, t)
+        self.assertRaises(POSException.UndoError, self.__undo_and_vote, tid, t)
         self._storage.tpc_abort(t)
         self._iterate()
 
