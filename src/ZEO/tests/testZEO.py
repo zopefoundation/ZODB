@@ -245,7 +245,6 @@ class GenericTests(
 class FullGenericTests(
     GenericTests,
     Cache.TransUndoStorageWithCache,
-    CommitLockTests.CommitLockUndoTests,
     ConflictResolution.ConflictResolvingStorage,
     ConflictResolution.ConflictResolvingTransUndoStorage,
     PackableStorage.PackableUndoStorage,
