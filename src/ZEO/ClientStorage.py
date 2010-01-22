@@ -1198,7 +1198,7 @@ class ClientStorage(object):
         if self._cache is None:
             return
 
-        for oid, tid in self._seriald.iteritems():
+        for oid, _ in self._seriald.iteritems():
             self._cache.invalidate(oid, tid, False)
 
         for oid, data in self._tbuf:
