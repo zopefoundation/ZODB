@@ -43,7 +43,7 @@ import zope.interface
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.server import Dispatcher
-from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay
+from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay, Result
 from ZEO.zrpc.trigger import trigger
 from ZEO.Exceptions import AuthError
 
@@ -51,7 +51,7 @@ from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
-from ZODB.utils import u64, p64, oid_repr
+from ZODB.utils import oid_repr, p64, u64, z64
 from ZODB.loglevels import BLATHER
 
 
@@ -432,9 +432,8 @@ class ZEOStorage:
         # Note that the tid is still current because we still hold the
         # commit lock. We'll relinquish it in _clear_transaction.
         tid = self.storage.lastTransaction()
-        self._clear_transaction()
         # Return the tid, for cache invalidation optimization
-        return tid
+        return Result(tid, self._clear_transaction)
 
     def _invalidate(self, tid):
         if self.invalidated:
@@ -709,7 +708,7 @@ class ZEOStorage:
                          logging.ERROR, exc_info=True)
             err = self._marshal_error(err)
             # The exception is reported back as newserial for this oid
-            self.serials.append((oid, err))
+            self.serials.append((z64, err))
         else:
             self.invalidated.extend(oids)
             self.serials.extend((oid, ResolvedSerial) for oid in oids)

@@ -179,10 +179,12 @@ class Delay:
     the mainloop from sending a response.
     """
 
+    msgid = None
+
     def set_sender(self, msgid, send_reply, return_error):
-        self.msgid = msgid
         self.send_reply = send_reply
         self.return_error = return_error
+        self.msgid = msgid
 
     def reply(self, obj):
         self.send_reply(self.msgid, obj)
@@ -192,6 +194,19 @@ class Delay:
             exc_info = sys.exc_info()
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.return_error(self.msgid, 0, *exc_info[:2])
+
+    def __repr__(self):
+        return "Delay(%r)" % self.msgid
+
+class Result(Delay):
+
+    def __init__(self, *args):
+        self.args = args
+
+    def set_sender(self, msgid, send_reply, return_error):
+        reply, callback = self.args
+        send_reply(msgid, reply)
+        callback()
 
 class MTDelay(Delay):
 
