@@ -750,7 +750,8 @@ class FileStorage(
             self._lock_acquire()
             try:
                 if transaction is not self._transaction:
-                    return
+                    raise POSException.StorageTransactionError(
+                        "tpc_finish called with wrong transaction")
                 try:
                     if f is not None:
                         f(self._tid)
