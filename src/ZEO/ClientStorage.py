@@ -1202,12 +1202,15 @@ class ClientStorage(object):
             self._cache.invalidate(oid, tid, False)
 
         for oid, data in self._tbuf:
-            s = self._seriald[oid] # assigning here asserts that oid in seriald
             # If data is None, we just invalidate.
             if data is not None:
+                s = self._seriald[oid]
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, s, None, data)
+            else:
+                # object deletion
+                self._cache.invalidate(oid, tid, False)
 
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
