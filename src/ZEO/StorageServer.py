@@ -425,7 +425,7 @@ class ZEOStorage:
     def tpc_finish(self, id):
         if not self._check_tid(id):
             return
-        assert self.locked
+        assert self.locked, "finished called wo lock"
 
         self.stats.commits += 1
         self.storage.tpc_finish(self.transaction, self._invalidate)
@@ -1176,8 +1176,6 @@ class StorageServer:
         self.dispatcher.close()
         if self.monitor is not None:
             self.monitor.close()
-        for storage in self.storages.values():
-            storage.close()
         # Force the asyncore mainloop to exit by hackery, i.e. close
         # every socket in the map.  loop() will return when the map is
         # empty.
@@ -1187,6 +1185,8 @@ class StorageServer:
             except:
                 pass
         asyncore.socket_map.clear()
+        for storage in self.storages.values():
+            storage.close()
 
     def close_conn(self, conn):
         """Internal: remove the given connection from self.connections.
