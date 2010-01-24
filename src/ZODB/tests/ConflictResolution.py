@@ -158,6 +158,7 @@ class ConflictResolvingTransUndoStorage:
         t = Transaction()
         self._storage.tpc_begin(t)
         self._storage.undo(tid, t)
+        self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
     def checkUndoUnresolvable(self):
@@ -177,7 +178,5 @@ class ConflictResolvingTransUndoStorage:
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
-        self._storage.tpc_begin(t)
-        self.assertRaises(UndoError, self._storage.undo,
-                          tid, t)
+        self.assertRaises(UndoError, self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
