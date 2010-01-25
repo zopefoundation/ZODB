@@ -787,7 +787,7 @@ class StorageServerWrapper:
         self.server.tpc_begin(id(transaction), '', '', {}, None, ' ')
 
     def tpc_vote(self, transaction):
-        self.server.vote(id(transaction))
+        assert self.server.vote(id(transaction)) is None
         result = self.server.client.serials[:]
         del self.server.client.serials[:]
         return result
@@ -796,7 +796,8 @@ class StorageServerWrapper:
         self.server.storea(oid, serial, data, id(transaction))
 
     def tpc_finish(self, transaction, func = lambda: None):
-        self.server.tpc_finish(id(transaction))
+        self.server.tpc_finish(id(transaction)).set_sender(
+            0, (lambda msgid, ret: None), None)
 
 
 def multiple_storages_invalidation_queue_is_not_insane():
@@ -963,7 +964,7 @@ def tpc_finish_error():
     ...     def close(self):
     ...         print 'connection closed'
     ...     trigger = property(lambda self: self)
-    ...     pull_trigger = lambda self, func: func()
+    ...     pull_trigger = lambda self, func, *args: func(*args)
 
     >>> class ConnectionManager:
     ...     def __init__(self, addr, client, tmin, tmax):

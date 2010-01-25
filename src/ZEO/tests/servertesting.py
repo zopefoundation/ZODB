@@ -61,8 +61,8 @@ class Connection:
     def trigger(self):
         return self
 
-    def pull_trigger(self, func):
-        func()
+    def pull_trigger(self, func, *args):
+        func(*args)
 
     def auth_done(self):
         pass
