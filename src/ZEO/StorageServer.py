@@ -477,8 +477,6 @@ class ZEOStorage:
             return # We're disconnected
         self.locked = self.server.lock_storage(self)
         if self.locked:
-            self.log("(%r) unlock: transactions waiting: %s"
-                     % (self.storage_id, self.server.waiting(self)))
             try:
                 self._vote()
             except Exception:
