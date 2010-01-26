@@ -797,7 +797,7 @@ class StorageServerWrapper:
 
     def tpc_finish(self, transaction, func = lambda: None):
         self.server.tpc_finish(id(transaction)).set_sender(
-            0, (lambda msgid, ret: None), None)
+            0, (lambda msgid, ret, im=None: None), None)
 
 
 def multiple_storages_invalidation_queue_is_not_insane():

@@ -205,7 +205,7 @@ class Result(Delay):
 
     def set_sender(self, msgid, send_reply, return_error):
         reply, callback = self.args
-        send_reply(msgid, reply)
+        send_reply(msgid, reply, False)
         callback()
 
 class MTDelay(Delay):
@@ -634,7 +634,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                  level=logging.ERROR, exc_info=True)
         self.close()
 
-    def send_reply(self, msgid, ret):
+    def send_reply(self, msgid, ret, poll=True):
         # encode() can pass on a wide variety of exceptions from cPickle.
         # While a bare `except` is generally poor practice, in this case
         # it's acceptable -- we really do want to catch every exception
@@ -649,7 +649,10 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             err = ZRPCError("Couldn't pickle return %.100s" % r)
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
-        self.poll()
+        if poll:
+            self.poll()
+        else:
+            self.trigger.pull_trigger()
 
     def return_error(self, msgid, flags, err_type, err_value):
         if flags & ASYNC:
@@ -748,7 +751,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         self.send_call(method, args, ASYNC)
-        self.poll()
+        self.trigger.pull_trigger()
 
     def callAsyncNoPoll(self, method, *args):
         # Like CallAsync but doesn't poll.  This exists so that we can
@@ -818,7 +821,7 @@ class ManagedServerConnection(Connection):
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
-        map={}
+        map = {}
         Connection.__init__(self, sock, addr, obj, 'S', map=map)
         self.marshal = ServerMarshaller()
         self.trigger = trigger(map)
