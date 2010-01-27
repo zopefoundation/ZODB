@@ -583,7 +583,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                 self.return_error(msgid, *error)
             return
 
-
         if async:
             if ret is not None:
                 raise ZRPCError("async method %s returned value %s" %
@@ -595,7 +594,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             if isinstance(ret, Delay):
                 ret.set_sender(msgid, self)
             else:
-                self.send_reply(msgid, ret)
+                self.send_reply(msgid, ret, not self.delay_sesskey)
 
         if self.delay_sesskey:
             self.__super_setSessionKey(self.delay_sesskey)
@@ -720,7 +719,7 @@ class ManagedServerConnection(Connection):
         self.obj.notifyDisconnected()
         Connection.close(self)
 
-    def send_reply(self, msgid, ret):
+    def send_reply(self, msgid, ret, immediately=True):
         # encode() can pass on a wide variety of exceptions from cPickle.
         # While a bare `except` is generally poor practice, in this case
         # it's acceptable -- we really do want to catch every exception
@@ -735,7 +734,10 @@ class ManagedServerConnection(Connection):
             err = ZRPCError("Couldn't pickle return %.100s" % r)
             msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
         self.message_output(msg)
-        self.poll()
+        if immediately:
+            self.poll()
+
+    poll = smac.SizedMessageAsyncConnection.handle_write
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""
