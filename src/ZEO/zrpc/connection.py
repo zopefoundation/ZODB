@@ -179,34 +179,33 @@ class Delay:
     the mainloop from sending a response.
     """
 
-    def set_sender(self, msgid, send_reply, return_error):
+    def set_sender(self, msgid, conn):
         self.msgid = msgid
-        self.send_reply = send_reply
-        self.return_error = return_error
+        self.conn = conn
 
     def reply(self, obj):
-        self.send_reply(self.msgid, obj)
+        self.conn.send_reply(self.msgid, obj)
 
     def error(self, exc_info):
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
-        self.return_error(self.msgid, *exc_info[:2])
+        self.conn.return_error(self.msgid, *exc_info[:2])
 
 class MTDelay(Delay):
 
     def __init__(self):
         self.ready = threading.Event()
 
-    def set_sender(self, msgid, send_reply, return_error):
-        Delay.set_sender(self, msgid, send_reply, return_error)
+    def set_sender(self, *args):
+        Delay.set_sender(self, *args)
         self.ready.set()
 
     def reply(self, obj):
         self.ready.wait()
-        Delay.reply(self, obj)
+        self.conn.call_from_thread(self.conn.send_reply, self.msgid, obj)
 
     def error(self, exc_info):
         self.ready.wait()
-        Delay.error(self, exc_info)
+        self.conn.call_from_thread(Delay.error, self, exc_info)
 
 # PROTOCOL NEGOTIATION
 #
@@ -594,7 +593,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                 self.log("%s returns %s" % (name, short_repr(ret)),
                          logging.DEBUG)
             if isinstance(ret, Delay):
-                ret.set_sender(msgid, self.send_reply, self.return_error)
+                ret.set_sender(msgid, self)
             else:
                 self.send_reply(msgid, ret)
 
@@ -707,6 +706,7 @@ class ManagedServerConnection(Connection):
 
     # Servers use a shared server trigger that uses the asyncore socket map
     trigger = trigger()
+    call_from_thread = trigger.pull_trigger
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
@@ -749,6 +749,7 @@ class ManagedClientConnection(Connection):
     base_message_output = Connection.message_output
 
     trigger = client_trigger
+    call_from_thread = trigger.pull_trigger
 
     def __init__(self, sock, addr, mgr):
         self.mgr = mgr
