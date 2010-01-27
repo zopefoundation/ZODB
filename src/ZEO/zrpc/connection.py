@@ -30,7 +30,6 @@ from ZODB.loglevels import BLATHER, TRACE
 import ZODB.POSException
 
 REPLY = ".reply" # message name used for replies
-ASYNC = 1
 
 exception_type_type = type(Exception)
 
@@ -304,9 +303,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     client for that particular call.
 
     The protocol also supports asynchronous calls.  The client does
-    not wait for a return value for an asynchronous call.  The only
-    defined flag is ASYNC.  If a method call message has the ASYNC
-    flag set, the server will raise an exception.
+    not wait for a return value for an asynchronous call.
 
     If a method call raises an Exception, the exception is propagated
     back to the client via the REPLY message.  The client side will
@@ -537,29 +534,29 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # will raise an exception.  The exception will ultimately
         # result in asycnore calling handle_error(), which will
         # close the connection.
-        msgid, flags, name, args = self.marshal.decode(message)
+        msgid, async, name, args = self.marshal.decode(message)
 
         if debug_zrpc:
-            self.log("recv msg: %s, %s, %s, %s" % (msgid, flags, name,
+            self.log("recv msg: %s, %s, %s, %s" % (msgid, async, name,
                                                    short_repr(args)),
                      level=TRACE)
         if name == REPLY:
-            self.handle_reply(msgid, flags, args)
+            self.handle_reply(msgid, async, args)
         else:
-            self.handle_request(msgid, flags, name, args)
+            self.handle_request(msgid, async, name, args)
 
-    def handle_reply(self, msgid, flags, args):
+    def handle_reply(self, msgid, async, args):
         if debug_zrpc:
             self.log("recv reply: %s, %s, %s"
-                     % (msgid, flags, short_repr(args)), level=TRACE)
+                     % (msgid, async, short_repr(args)), level=TRACE)
         self.replies_cond.acquire()
         try:
-            self.replies[msgid] = flags, args
+            self.replies[msgid] = args
             self.replies_cond.notifyAll()
         finally:
             self.replies_cond.release()
 
-    def handle_request(self, msgid, flags, name, args):
+    def handle_request(self, msgid, async, name, args):
         obj = self.obj
 
         if name.startswith('_') or not hasattr(obj, name):
@@ -590,9 +587,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
                 self.log("%s() raised exception: %s" % (name, msg),
                          logging.ERROR, exc_info=True)
             error = sys.exc_info()[:2]
-            return self.return_error(msgid, flags, *error)
+            return self.return_error(msgid, async, *error)
 
-        if flags & ASYNC:
+        if async:
             if ret is not None:
                 raise ZRPCError("async method %s returned value %s" %
                                 (name, short_repr(ret)))
@@ -633,8 +630,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.message_output(msg)
         self.poll()
 
-    def return_error(self, msgid, flags, err_type, err_value):
-        if flags & ASYNC:
+    def return_error(self, msgid, async, err_type, err_value):
+        if async:
             self.log("Asynchronous call raised exception: %s" % self,
                      level=logging.ERROR, exc_info=True)
             return
@@ -675,21 +672,21 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         finally:
             self.msgid_lock.release()
 
-    def __call_message(self, method, args, flags):
+    def __call_message(self, method, args, async):
         # compute a message and return it
         msgid = self.__new_msgid()
         if debug_zrpc:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
+            self.log("send msg: %d, %d, %s, ..." % (msgid, async, method),
                      level=TRACE)
-        return self.marshal.encode(msgid, flags, method, args)
+        return self.marshal.encode(msgid, async, method, args)
 
-    def send_call(self, method, args, flags):
+    def send_call(self, method, args, async):
         # send a message and return its msgid
         msgid = self.__new_msgid()
         if debug_zrpc:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
+            self.log("send msg: %d, %d, %s, ..." % (msgid, async, method),
                      level=TRACE)
-        buf = self.marshal.encode(msgid, flags, method, args)
+        buf = self.marshal.encode(msgid, async, method, args)
         self.message_output(buf)
         return msgid
 
@@ -697,7 +694,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         if self.closed:
             raise DisconnectedError()
         msgid = self.send_call(method, args, 0)
-        r_flags, r_args = self.wait(msgid)
+        r_args = self.wait(msgid)
         if (isinstance(r_args, tuple) and len(r_args) > 1
             and type(r_args[0]) == exception_type_type
             and issubclass(r_args[0], Exception)):
@@ -717,7 +714,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         return msgid
 
     def _deferred_wait(self, msgid):
-        r_flags, r_args = self.wait(msgid)
+        r_args = self.wait(msgid)
         if (isinstance(r_args, tuple)
             and type(r_args[0]) == exception_type_type
             and issubclass(r_args[0], Exception)):
@@ -729,7 +726,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     def callAsync(self, method, *args):
         if self.closed:
             raise DisconnectedError()
-        self.send_call(method, args, ASYNC)
+        self.send_call(method, args, 1)
         self.poll()
 
     def callAsyncNoPoll(self, method, *args):
@@ -738,7 +735,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # allowing any client to sneak in a load request.
         if self.closed:
             raise DisconnectedError()
-        self.send_call(method, args, ASYNC)
+        self.send_call(method, args, 1)
 
     def callAsyncIterator(self, iterator):
         """Queue a sequence of calls using an iterator
@@ -750,7 +747,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def __outputIterator(self, iterator):
         for method, args in iterator:
-            yield self.__call_message(method, args, ASYNC)
+            yield self.__call_message(method, args, 1)
 
 
     def wait(self, msgid):
@@ -769,8 +766,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             while 1:
                 if self.closed:
                     raise DisconnectedError()
-                reply = self.replies.get(msgid)
-                if reply is not None:
+                reply = self.replies.get(msgid, self)
+                if reply is not self:
                     del self.replies[msgid]
                     if debug_zrpc:
                         self.log("wait(%d): reply=%s" %
