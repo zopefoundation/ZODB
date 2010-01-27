@@ -424,11 +424,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # The singleton dict is a socket map containing only this object.
         self._singleton = {self._fileno: self}
 
-        # replies_cond is used to block when a synchronous call is
-        # waiting for a response
-        self.replies_cond = threading.Condition()
-        self.replies = {}
-
         # waiting_for_reply is used internally to indicate whether
         # a call is in progress.  setting a session key is deferred
         # until after the call returns.
@@ -480,9 +475,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.closed = True
         self.__super_close()
         self.trigger.pull_trigger()
-        self.replies_cond.acquire()
-        self.replies_cond.notifyAll()
-        self.replies_cond.release()
 
     def register_object(self, obj):
         """Register obj as the true object to invoke methods on."""
@@ -730,7 +722,6 @@ class ManagedServerConnection(Connection):
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""
     __super_init = Connection.__init__
-    __super_close = Connection.close
     base_message_output = Connection.message_output
 
     trigger = client_trigger
@@ -757,8 +748,19 @@ class ManagedClientConnection(Connection):
         self.msgid = 0
         self.msgid_lock = threading.Lock()
 
+        # replies_cond is used to block when a synchronous call is
+        # waiting for a response
+        self.replies_cond = threading.Condition()
+        self.replies = {}
+
         self.__super_init(sock, addr, None, tag='C', map=client_map)
         client_trigger.pull_trigger()
+
+    def close(self):
+        Connection.close(self)
+        self.replies_cond.acquire()
+        self.replies_cond.notifyAll()
+        self.replies_cond.release()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
     # protocol handshake from the server.
