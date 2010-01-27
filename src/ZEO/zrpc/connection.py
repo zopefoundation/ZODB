@@ -651,14 +651,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         finally:
             self.msgid_lock.release()
 
-    def __call_message(self, method, args, async):
-        # compute a message and return it
-        msgid = self.__new_msgid()
-        if debug_zrpc:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, async, method),
-                     level=TRACE)
-        return self.marshal.encode(msgid, async, method, args)
-
     def send_call(self, method, args, async=False):
         # send a message and return its msgid
         msgid = self.__new_msgid()
@@ -693,18 +685,12 @@ class Connection(smac.SizedMessageAsyncConnection, object):
 
     def __outputIterator(self, iterator):
         for method, args in iterator:
-            yield self.__call_message(method, args, 1)
-
+            if debug_zrpc:
+                self.log("__outputIterator: %s, ..." % (method), level=TRACE)
+            yield self.marshal.encode(0, 1, method, args)
 
     def handle_reply(self, msgid, ret):
         assert msgid == -1 and ret is None
-
-    def flush(self):
-        """Invoke poll() until the output buffer is empty."""
-        if debug_zrpc:
-            self.log("flush")
-        while self.writable():
-            self.poll()
 
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
