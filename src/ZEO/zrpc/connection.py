@@ -680,13 +680,8 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         The calls will not be interleaved with other calls from the same
         client.
         """
-        self.message_output(self.__outputIterator(iterator))
-
-    def __outputIterator(self, iterator):
-        for method, args in iterator:
-            if debug_zrpc:
-                self.log("__outputIterator: %s, ..." % (method), level=TRACE)
-            yield self.marshal.encode(0, 1, method, args)
+        self.message_output(self.marshal.encode(0, 1, method, args)
+                            for method, args in iterator)
 
     def handle_reply(self, msgid, ret):
         assert msgid == -1 and ret is None
