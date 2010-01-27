@@ -424,10 +424,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # The singleton dict is a socket map containing only this object.
         self._singleton = {self._fileno: self}
 
-        # msgid_lock guards access to msgid
-        self.msgid = 0
-        self.msgid_lock = threading.Lock()
-
         # replies_cond is used to block when a synchronous call is
         # waiting for a response
         self.replies_cond = threading.Condition()
@@ -637,21 +633,13 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         else:
             self.__super_setSessionKey(key)
 
-    # The next two public methods (call and callAsync) are used by
-    # clients to invoke methods on remote objects
-
-    def __new_msgid(self):
-        self.msgid_lock.acquire()
-        try:
-            msgid = self.msgid
-            self.msgid = self.msgid + 1
-            return msgid
-        finally:
-            self.msgid_lock.release()
-
     def send_call(self, method, args, async=False):
         # send a message and return its msgid
-        msgid = self.__new_msgid()
+        if async:
+            msgid = 0
+        else:
+            msgid = self._new_msgid()
+
         if debug_zrpc:
             self.log("send msg: %d, %d, %s, ..." % (msgid, async, method),
                      level=TRACE)
@@ -765,6 +753,10 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
+        # msgid_lock guards access to msgid
+        self.msgid = 0
+        self.msgid_lock = threading.Lock()
+
         self.__super_init(sock, addr, None, tag='C', map=client_map)
         client_trigger.pull_trigger()
 
@@ -809,6 +801,15 @@ class ManagedClientConnection(Connection):
             self.queue_output = False
         finally:
             self.output_lock.release()
+
+    def _new_msgid(self):
+        self.msgid_lock.acquire()
+        try:
+            msgid = self.msgid
+            self.msgid = self.msgid + 1
+            return msgid
+        finally:
+            self.msgid_lock.release()
 
     def call(self, method, *args):
         if self.closed:
