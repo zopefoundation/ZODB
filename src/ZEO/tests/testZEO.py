@@ -484,7 +484,8 @@ class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
 
         # This is a deliberately bogus call to get an exception
         # logged
-        self._storage._connection.handle_request('foo',0,'history',(1,2,3,4))
+        self._storage._connection.handle_request(
+            'foo', 0, 'history', (1, 2, 3, 4))
         # test logging
 
         for level, message, kw in log:
