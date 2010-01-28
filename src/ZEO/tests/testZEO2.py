@@ -78,9 +78,10 @@ will conflict. It will be blocked at the vote call.
     >>> zs2.storeBlobEnd(oid, serial, data, '1')
     >>> delay = zs2.vote('1')
 
-    >>> def send_reply(id, reply):
-    ...     print 'reply', id, reply
-    >>> delay.set_sender(1, send_reply, None)
+    >>> class Sender:
+    ...     def send_reply(self, id, reply):
+    ...         print 'reply', id, reply
+    >>> delay.set_sender(1, Sender())
 
     >>> logger = logging.getLogger('ZEO')
     >>> handler = logging.StreamHandler(sys.stdout)

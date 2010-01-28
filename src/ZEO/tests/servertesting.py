@@ -56,3 +56,5 @@ class Connection:
 
     def callAsync(self, meth, *args):
         print self.name, 'callAsync', meth, repr(args)
+
+    callAsyncNoPoll = callAsync

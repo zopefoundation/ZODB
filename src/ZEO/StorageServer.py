@@ -1340,10 +1340,10 @@ class ClientStub:
         self.rpc.callAsyncNoPoll('invalidateTransaction', tid, args)
 
     def serialnos(self, arg):
-        self.rpc.callAsync('serialnos', arg)
+        self.rpc.callAsyncNoPoll('serialnos', arg)
 
     def info(self, arg):
-        self.rpc.callAsync('info', arg)
+        self.rpc.callAsyncNoPoll('info', arg)
 
     def storeBlob(self, oid, serial, blobfilename):
 
