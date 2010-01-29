@@ -21,10 +21,11 @@ import logging
 
 import traceback, time
 
+import ZEO.zrpc.trigger
+
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
 from ZEO.zrpc.marshal import Marshaller, ServerMarshaller
-from ZEO.zrpc.trigger import trigger
 from ZEO.zrpc.log import short_repr, log
 from ZODB.loglevels import BLATHER, TRACE
 import ZODB.POSException
@@ -34,142 +35,6 @@ REPLY = ".reply" # message name used for replies
 exception_type_type = type(Exception)
 
 debug_zrpc = False
-
-##############################################################################
-# Dedicated Client select loop:
-client_timeout = 30.0
-client_timeout_count = 0 # for testing
-client_map = {}
-client_trigger = trigger(client_map)
-client_logger = logging.getLogger('ZEO.zrpc.client_loop')
-client_exit_event = threading.Event()
-client_running = False
-def client_exit():
-    global client_running
-    if client_running:
-        client_running = False
-        client_trigger.pull_trigger()
-        client_exit_event.wait(99)
-
-atexit.register(client_exit)
-
-def client_loop():
-    global client_running
-    client_running = True
-    client_exit_event.clear()
-
-    map = client_map
-    read = asyncore.read
-    write = asyncore.write
-    _exception = asyncore._exception
-    loop_failures = 0
-
-    while client_running and map:
-        try:
-
-            # The next two lines intentionally don't use
-            # iterators. Other threads can close dispatchers, causeing
-            # the socket map to shrink.
-            r = e = client_map.keys()
-            w = [fd for (fd, obj) in map.items() if obj.writable()]
-
-            try:
-                r, w, e = select.select(r, w, e, client_timeout)
-            except select.error, err:
-                if err[0] != errno.EINTR:
-                    if err[0] == errno.EBADF:
-
-                        # If a connection is closed while we are
-                        # calling select on it, we can get a bad
-                        # file-descriptor error.  We'll check for this
-                        # case by looking for entries in r and w that
-                        # are not in the socket map.
-
-                        if [fd for fd in r if fd not in map]:
-                            continue
-                        if [fd for fd in w if fd not in map]:
-                            continue
-
-                    raise
-                else:
-                    continue
-
-            if not client_running:
-                break
-
-            if not (r or w or e):
-                # The line intentionally doesn't use iterators. Other
-                # threads can close dispatchers, causeing the socket
-                # map to shrink.
-                for obj in map.values():
-                    if isinstance(obj, Connection):
-                        # Send a heartbeat message as a reply to a
-                        # non-existent message id.
-                        try:
-                            obj.send_reply(-1, None)
-                        except DisconnectedError:
-                            pass
-                global client_timeout_count
-                client_timeout_count += 1
-                continue
-
-            for fd in r:
-                obj = map.get(fd)
-                if obj is None:
-                    continue
-                read(obj)
-
-            for fd in w:
-                obj = map.get(fd)
-                if obj is None:
-                    continue
-                write(obj)
-
-            for fd in e:
-                obj = map.get(fd)
-                if obj is None:
-                    continue
-                _exception(obj)
-
-        except:
-            if map:
-                try:
-                    client_logger.critical('The ZEO client loop failed.',
-                                           exc_info=sys.exc_info())
-                except:
-                    pass
-
-                for fd, obj in map.items():
-                    if obj is client_trigger:
-                        continue
-                    try:
-                        obj.mgr.client.close()
-                    except:
-                        map.pop(fd, None)
-                        try:
-                            client_logger.critical(
-                                "Couldn't close a dispatcher.",
-                                exc_info=sys.exc_info())
-                        except:
-                            pass
-
-    client_exit_event.set()
-
-client_thread_lock = threading.Lock()
-client_thread = None
-def start_client_thread():
-    client_thread_lock.acquire()
-    try:
-        global client_thread
-        if client_thread is None:
-            client_thread = threading.Thread(target=client_loop, name=__name__)
-            client_thread.setDaemon(True)
-            client_thread.start()
-    finally:
-        client_thread_lock.release()
-
-#
-##############################################################################
 
 class Delay:
     """Used to delay response to client for synchronous calls.
@@ -679,7 +544,7 @@ class ManagedServerConnection(Connection):
     unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
     # Servers use a shared server trigger that uses the asyncore socket map
-    trigger = trigger()
+    trigger = ZEO.zrpc.trigger.trigger()
     call_from_thread = trigger.pull_trigger
 
     def __init__(self, sock, addr, obj, mgr):
@@ -724,9 +589,6 @@ class ManagedClientConnection(Connection):
     __super_init = Connection.__init__
     base_message_output = Connection.message_output
 
-    trigger = client_trigger
-    call_from_thread = trigger.pull_trigger
-
     def __init__(self, sock, addr, mgr):
         self.mgr = mgr
 
@@ -753,8 +615,10 @@ class ManagedClientConnection(Connection):
         self.replies_cond = threading.Condition()
         self.replies = {}
 
-        self.__super_init(sock, addr, None, tag='C', map=client_map)
-        client_trigger.pull_trigger()
+        self.__super_init(sock, addr, None, tag='C', map=mgr.map)
+        self.trigger = mgr.trigger
+        self.call_from_thread = self.trigger.pull_trigger
+        self.call_from_thread()
 
     def close(self):
         Connection.close(self)

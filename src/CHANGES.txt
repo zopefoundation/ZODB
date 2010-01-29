@@ -18,6 +18,9 @@ New Features
   raise a StorageTransactionError when invalid transactions are passed
   to tpc_begin, tpc_vote, or tpc_finish.
 
+- ZEO clients (``ClientStorage`` instances) now work in forked processes,
+  including those created via ``multiprocessing.Process`` instances.
+
 - Broken objects now provide the IBroken interface.
 
 Bugs Fixed

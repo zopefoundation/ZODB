@@ -52,8 +52,6 @@ import zope.testing.setupstack
 
 logger = logging.getLogger('ZEO.tests.testZEO')
 
-ZEO.zrpc.connection.start_client_thread()
-
 class DummyDB:
     def invalidate(self, *args):
         pass
@@ -389,14 +387,17 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
 
     def setUp(self):
         # Crank down the select frequency
-        self.__old_client_timeout = ZEO.zrpc.connection.client_timeout
-        ZEO.zrpc.connection.client_timeout = 0.1
-        ZEO.zrpc.connection.client_trigger.pull_trigger()
+        self.__old_client_timeout = ZEO.zrpc.client.client_timeout
+        ZEO.zrpc.client.client_timeout = self.__client_timeout
         ZEO.tests.ConnectionTests.CommonSetupTearDown.setUp(self)
 
+    __client_timeouts = 0
+    def __client_timeout(self):
+        self.__client_timeouts += 1
+        return .1
+
     def tearDown(self):
-        ZEO.zrpc.connection.client_timeout = self.__old_client_timeout
-        ZEO.zrpc.connection.client_trigger.pull_trigger()
+        ZEO.zrpc.client.client_timeout = self.__old_client_timeout
         ZEO.tests.ConnectionTests.CommonSetupTearDown.tearDown(self)
 
     def getConfig(self, path, create, read_only):
@@ -405,11 +406,11 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
     def checkHeartbeatWithServerClose(self):
         # This is a minimal test that mainly tests that the heartbeat
         # function does no harm.
-        client_timeout_count = ZEO.zrpc.connection.client_timeout_count
         self._storage = self.openClientStorage()
-        time.sleep(1) # allow some time for the select loop to fire a few times
-        self.assert_(ZEO.zrpc.connection.client_timeout_count
-                     > client_timeout_count)
+        client_timeouts = self.__client_timeouts
+        forker.wait_until('got a timeout',
+                          lambda : self.__client_timeouts > client_timeouts
+                          )
         self._dostore()
 
         if hasattr(os, 'kill'):
@@ -419,23 +420,10 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
         else:
             self.shutdownServer()
 
-        for i in range(91):
-            # wait for disconnection
-            if not self._storage.is_connected():
-                break
-            time.sleep(0.1)
-        else:
-            raise AssertionError("Didn't detect server shutdown in 5 seconds")
-
-    def checkHeartbeatWithClientClose(self):
-        # This is a minimal test that mainly tests that the heartbeat
-        # function does no harm.
-        client_timeout_count = ZEO.zrpc.connection.client_timeout_count
-        self._storage = self.openClientStorage()
+        forker.wait_until('disconnected',
+                          lambda : not self._storage.is_connected()
+                          )
         self._storage.close()
-        time.sleep(1) # allow some time for the select loop to fire a few times
-        self.assert_(ZEO.zrpc.connection.client_timeout_count
-                     > client_timeout_count)
 
 
 class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
@@ -451,26 +439,26 @@ class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
             def writable(self):
                 raise SystemError("I'm evil")
 
-        log = []
-        ZEO.zrpc.connection.client_logger.critical = (
-            lambda m, *a, **kw: log.append((m % a, kw))
-            )
+        import zope.testing.loggingsupport
+        handler = zope.testing.loggingsupport.InstalledHandler(
+            'ZEO.zrpc.client')
 
-        ZEO.zrpc.connection.client_map[None] = Evil()
+        self._storage._rpc_mgr.map[None] = Evil()
 
         try:
-            ZEO.zrpc.connection.client_trigger.pull_trigger()
+            self._storage._rpc_mgr.trigger.pull_trigger()
         except DisconnectedError:
             pass
 
-        time.sleep(.1)
-        self.failIf(self._storage.is_connected())
-        self.assertEqual(len(ZEO.zrpc.connection.client_map), 1)
-        del ZEO.zrpc.connection.client_logger.critical
-        self.assertEqual(log[0][0], 'The ZEO client loop failed.')
-        self.assert_('exc_info' in log[0][1])
-        self.assertEqual(log[1][0], "Couldn't close a dispatcher.")
-        self.assert_('exc_info' in log[1][1])
+        forker.wait_until(
+            'disconnected',
+            lambda : not self._storage.is_connected()
+            )
+
+        log = str(handler)
+        handler.uninstall()
+        self.assert_("ZEO client loop failed" in log)
+        self.assert_("Couldn't close a dispatcher." in log)
 
     def checkExceptionLogsAtError(self):
         # Test the exceptions are logged at error
@@ -1201,9 +1189,12 @@ def open_convenience():
 
 def client_asyncore_thread_has_name():
     """
+    >>> addr, _ = start_server()
+    >>> db = ZEO.DB(addr)
     >>> len([t for t in threading.enumerate()
-    ...      if t.getName() == 'ZEO.zrpc.connection'])
+    ...      if ' zeo client networking thread' in t.getName()])
     1
+    >>> db.close()
     """
 
 def runzeo_without_configfile():
@@ -1259,6 +1250,37 @@ Invalidations could cause errors when closing client storages,
     >>> writing.clear()
     >>> thread.join(1)
     """
+
+if sys.version_info >= (2, 6):
+    import multiprocessing
+
+    def work_with_multiprocessing_process(name, addr, q):
+        conn = ZEO.connection(addr)
+        q.put((name, conn.root.x))
+        conn.close()
+
+    def work_with_multiprocessing():
+        """Client storage should work with multi-processing.
+
+        >>> import StringIO
+        >>> sys.stdin = StringIO.StringIO()
+        >>> addr, _ = start_server()
+        >>> conn = ZEO.connection(addr)
+        >>> conn.root.x = 1
+        >>> transaction.commit()
+        >>> q = multiprocessing.Queue()
+        >>> processes = [multiprocessing.Process(
+        ...     target=work_with_multiprocessing_process,
+        ...     args=(i, addr, q))
+        ...     for i in range(3)]
+        >>> _ = [p.start() for p in processes]
+        >>> sorted(q.get(timeout=60) for p in processes)
+        [(0, 1), (1, 1), (2, 1)]
+
+        >>> _ = [p.join(30) for p in processes]
+        >>> conn.close()
+        """
+
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,

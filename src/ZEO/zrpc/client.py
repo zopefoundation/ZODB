@@ -11,11 +11,15 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import asyncore
 import errno
+import logging
 import select
 import socket
+import sys
 import threading
 import time
+import traceback
 import types
 import logging
 
@@ -24,15 +28,113 @@ from ZODB.loglevels import BLATHER
 
 from ZEO.zrpc.log import log
 import ZEO.zrpc.trigger
-from ZEO.zrpc.connection import ManagedClientConnection, start_client_thread
+from ZEO.zrpc.connection import ManagedClientConnection
+
+def client_timeout():
+    return 30.0
+
+def client_loop(map):
+    read = asyncore.read
+    write = asyncore.write
+    _exception = asyncore._exception
+
+    while map:
+        try:
+
+            # The next two lines intentionally don't use
+            # iterators. Other threads can close dispatchers, causeing
+            # the socket map to shrink.
+            r = e = map.keys()
+            w = [fd for (fd, obj) in map.items() if obj.writable()]
+
+            try:
+                r, w, e = select.select(r, w, e, client_timeout())
+            except select.error, err:
+                if err[0] != errno.EINTR:
+                    if err[0] == errno.EBADF:
+
+                        # If a connection is closed while we are
+                        # calling select on it, we can get a bad
+                        # file-descriptor error.  We'll check for this
+                        # case by looking for entries in r and w that
+                        # are not in the socket map.
+
+                        if [fd for fd in r if fd not in map]:
+                            continue
+                        if [fd for fd in w if fd not in map]:
+                            continue
+
+                    raise
+                else:
+                    continue
+
+            if not map:
+                break
+
+            if not (r or w or e):
+                # The line intentionally doesn't use iterators. Other
+                # threads can close dispatchers, causeing the socket
+                # map to shrink.
+                for obj in map.values():
+                    if isinstance(obj, ManagedClientConnection):
+                        # Send a heartbeat message as a reply to a
+                        # non-existent message id.
+                        try:
+                            obj.send_reply(-1, None)
+                        except DisconnectedError:
+                            pass
+                continue
+
+            for fd in r:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                read(obj)
+
+            for fd in w:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                write(obj)
+
+            for fd in e:
+                obj = map.get(fd)
+                if obj is None:
+                    continue
+                _exception(obj)
+
+        except:
+            if map:
+                try:
+                    logging.getLogger(__name__+'.client_loop').critical(
+                        'A ZEO client loop failed.',
+                        exc_info=sys.exc_info())
+                except:
+                    pass
+
+                for fd, obj in map.items():
+                    if not hasattr(obj, 'mgr'):
+                        continue
+                    try:
+                        obj.mgr.client.close()
+                    except:
+                        map.pop(fd, None)
+                        try:
+                            logging.getLogger(__name__+'.client_loop'
+                                              ).critical(
+                                "Couldn't close a dispatcher.",
+                                exc_info=sys.exc_info())
+                        except:
+                            pass
+
 
 class ConnectionManager(object):
     """Keeps a connection up over time"""
 
     def __init__(self, addrs, client, tmin=1, tmax=180):
-        start_client_thread()
-        self.addrlist = self._parse_addrs(addrs)
         self.client = client
+        self._start_asyncore_loop()
+        self.addrlist = self._parse_addrs(addrs)
         self.tmin = min(tmin, tmax)
         self.tmax = tmax
         self.cond = threading.Condition(threading.Lock())
@@ -41,6 +143,15 @@ class ConnectionManager(object):
         # If thread is not None, then there is a helper thread
         # attempting to connect.
         self.thread = None # Protected by self.cond
+
+    def _start_asyncore_loop(self):
+        self.map = {}
+        self.trigger = ZEO.zrpc.trigger.trigger(self.map)
+        self.loop_thread = threading.Thread(
+            name="%s zeo client networking thread" % self.client.__name__,
+            target=client_loop, args=(self.map,))
+        self.loop_thread.setDaemon(True)
+        self.loop_thread.start()
 
     def __repr__(self):
         return "<%s for %s>" % (self.__class__.__name__, self.addrlist)
@@ -84,7 +195,6 @@ class ConnectionManager(object):
         try:
             t = self.thread
             self.thread = None
-            conn = self.connection
         finally:
             self.cond.release()
         if t is not None:
@@ -94,9 +204,21 @@ class ConnectionManager(object):
             if t.isAlive():
                 log("CM.close(): self.thread.join() timed out",
                     level=logging.WARNING)
-        if conn is not None:
-            # This will call close_conn() below which clears self.connection
-            conn.close()
+
+        for fd, obj in self.map.items():
+            if obj is not self.trigger:
+                try:
+                    obj.close()
+                except:
+                    logging.getLogger(__name__+'.'+self.__class__.__name__
+                                      ).critical(
+                        "Couldn't close a dispatcher.",
+                        exc_info=sys.exc_info())
+
+        self.map.clear()
+        self.trigger.pull_trigger()
+        self.loop_thread.join(9)
+        self.trigger.close()
 
     def attempt_connect(self):
         """Attempt a connection to the server without blocking too long.
