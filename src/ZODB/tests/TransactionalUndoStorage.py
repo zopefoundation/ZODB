@@ -101,12 +101,20 @@ class TransactionalUndoStorage:
             for rec in txn:
                 pass
 
+    def _begin_undos_vote(self, t, *tids):
+        self._storage.tpc_begin(t)
+        oids = []
+        for tid in tids:
+            undo_result = self._storage.undo(tid, t)
+            if undo_result:
+                oids.extend(undo_result[1])
+        oids.extend(oid for (oid, _) in self._storage.tpc_vote(t) or ())
+        return oids
+
     def undo(self, tid, note):
         t = Transaction()
         t.note(note)
-        self._storage.tpc_begin(t)
-        oids = self._storage.undo(tid, t)
-        self._storage.tpc_vote(t)
+        oids = self._begin_undos_vote(t, tid)
         self._storage.tpc_finish(t)
         return oids
 
@@ -152,9 +160,7 @@ class TransactionalUndoStorage:
         tid = info[0]['id']
         t = Transaction()
         t.note('undo1')
-        self._storage.tpc_begin(t)
-        self._storage.undo(tid, t)
-        self._storage.tpc_vote(t)
+        self._begin_undos_vote(t, tid)
         self._storage.tpc_finish(t)
         # Check that calling getTid on an uncreated object raises a KeyError
         # The current version of FileStorage fails this test
@@ -281,14 +287,10 @@ class TransactionalUndoStorage:
         tid = info[0]['id']
         tid1 = info[1]['id']
         t = Transaction()
-        self._storage.tpc_begin(t)
-        tid, oids = self._storage.undo(tid, t)
-        tid, oids1 = self._storage.undo(tid1, t)
-        self._storage.tpc_vote(t)
+        oids = self._begin_undos_vote(t, tid, tid1)
         self._storage.tpc_finish(t)
         # We get the finalization stuff called an extra time:
-        eq(len(oids), 2)
-        eq(len(oids1), 2)
+        eq(len(oids), 4)
         unless(oid1 in oids)
         unless(oid2 in oids)
         data, revid1 = self._storage.load(oid1, '')
@@ -355,9 +357,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
-        self._storage.tpc_begin(t)
-        tid, oids = self._storage.undo(tid, t)
-        self._storage.tpc_vote(t)
+        oids = self._begin_undos_vote(t, tid)
         self._storage.tpc_finish(t)
         eq(len(oids), 1)
         self.failUnless(oid1 in oids)
@@ -367,7 +367,6 @@ class TransactionalUndoStorage:
         data, revid2 = self._storage.load(oid2, '')
         eq(zodb_unpickle(data), MinPO(54))
         self._iterate()
-
 
     def checkNotUndoable(self):
         eq = self.assertEqual
@@ -380,10 +379,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
-        self._storage.tpc_begin(t)
-        self.assertRaises(POSException.UndoError,
-                          self._storage.undo,
-                          tid, t)
+        self.assertRaises(POSException.UndoError, self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
         # Now have more fun: object1 and object2 are in the same transaction,
         # which we'll try to undo to, but one of them has since modified in
@@ -419,10 +415,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
-        self._storage.tpc_begin(t)
-        self.assertRaises(POSException.UndoError,
-                          self._storage.undo,
-                          tid, t)
+        self.assertRaises(POSException.UndoError, self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
         self._iterate()
 
@@ -439,7 +432,7 @@ class TransactionalUndoStorage:
         # So, basically, this makes sure that undo info doesn't depend
         # on file positions.  We change the file positions in an undo
         # record by packing.
-        
+
         # Add a few object revisions
         oid = '\0'*8
         revid0 = self._dostore(oid, data=MinPO(50))
@@ -462,9 +455,7 @@ class TransactionalUndoStorage:
         self.assertEqual(len(info2), 2)
         # And now attempt to undo the last transaction
         t = Transaction()
-        self._storage.tpc_begin(t)
-        tid, oids = self._storage.undo(tid, t)
-        self._storage.tpc_vote(t)
+        oids = self._begin_undos_vote(t, tid)
         self._storage.tpc_finish(t)
         self.assertEqual(len(oids), 1)
         self.assertEqual(oids[0], oid)

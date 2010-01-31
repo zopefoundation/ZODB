@@ -14,6 +14,10 @@ New Features
   database's undo method multiple times in the same transaction now
   raises an exception.
 
+- The ZEO protocol for undo has changed.  The only user-visible
+  consequence of this is that when ZODB 3.10 ZEO servers won't support
+  undo for older clients.
+
 - The storage API (IStorage) has been tightened. Now, storages should
   raise a StorageTransactionError when invalid transactions are passed
   to tpc_begin, tpc_vote, or tpc_finish.

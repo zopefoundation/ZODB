@@ -20,6 +20,8 @@ TODO:  Need some basic access control-- a declaration of the methods
 exported for invocation by the server.
 """
 
+from __future__ import with_statement
+
 import asyncore
 import cPickle
 import logging
@@ -32,6 +34,7 @@ import itertools
 
 import transaction
 
+import ZODB.blob
 import ZODB.serialize
 import ZODB.TimeStamp
 import ZEO.zrpc.error
@@ -40,7 +43,7 @@ import zope.interface
 from ZEO.CommitLog import CommitLog
 from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.server import Dispatcher
-from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay
+from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay, Result
 from ZEO.zrpc.trigger import trigger
 from ZEO.Exceptions import AuthError
 
@@ -48,7 +51,7 @@ from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.POSException import StorageError, StorageTransactionError
 from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
 from ZODB.serialize import referencesf
-from ZODB.utils import u64, p64, oid_repr, mktemp
+from ZODB.utils import oid_repr, p64, u64, z64
 from ZODB.loglevels import BLATHER
 
 
@@ -87,7 +90,6 @@ class ZEOStorage:
     def __init__(self, server, read_only=0, auth_realm=None):
         self.server = server
         # timeout and stats will be initialized in register()
-        self.timeout = None
         self.stats = None
         self.connection = None
         self.client = None
@@ -95,14 +97,13 @@ class ZEOStorage:
         self.storage_id = "uninitialized"
         self.transaction = None
         self.read_only = read_only
-        self.locked = 0
+        self.locked = False             # Don't have storage lock
         self.verifying = 0
         self.store_failed = 0
         self.log_label = _label
         self.authenticated = 0
         self.auth_realm = auth_realm
         self.blob_tempfile = None
-        self.blob_log = []
         # The authentication protocol may define extra methods.
         self._extensions = {}
         for func in self.extensions:
@@ -139,24 +140,13 @@ class ZEOStorage:
         self.log_label = _label + "/" + label
 
     def notifyDisconnected(self):
+        self.connection = None
+
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.
         if self.transaction is not None:
             self.log("disconnected during transaction %s" % self.transaction)
-            if not self.locked:
-                # Delete (d, zeo_storage) from the _waiting list, if found.
-                waiting = self.storage._waiting
-                for i in range(len(waiting)):
-                    d, z = waiting[i]
-                    if z is self:
-                        del waiting[i]
-                        self.log("Closed connection removed from waiting list."
-                                 " Clients waiting: %d." % len(waiting))
-                        break
-
-            if self.transaction:
-                self.tpc_abort(self.transaction.id)
-
+            self.tpc_abort(self.transaction.id)
         else:
             self.log("disconnected")
 
@@ -176,6 +166,7 @@ class ZEOStorage:
     def setup_delegation(self):
         """Delegate several methods to the storage
         """
+        # Called from register
 
         storage = self.storage
 
@@ -183,9 +174,6 @@ class ZEOStorage:
 
         if not info['supportsUndo']:
             self.undoLog = self.undoInfo = lambda *a,**k: ()
-            def undo(*a, **k):
-                raise NotImplementedError
-            self.undo = undo
 
         self.getTid = storage.getTid
         self.load = storage.load
@@ -268,6 +256,7 @@ class ZEOStorage:
         if self.storage is not None:
             self.log("duplicate register() call")
             raise ValueError("duplicate register() call")
+
         storage = self.server.storages.get(storage_id)
         if storage is None:
             self.log("unknown storage_id: %s" % storage_id)
@@ -280,18 +269,14 @@ class ZEOStorage:
         self.storage_id = storage_id
         self.storage = storage
         self.setup_delegation()
-        self.timeout, self.stats = self.server.register_connection(storage_id,
-                                                                   self)
+        self.stats = self.server.register_connection(storage_id, self)
 
     def get_info(self):
         storage = self.storage
 
-        try:
-            supportsUndo = storage.supportsUndo
-        except AttributeError:
-            supportsUndo = False
-        else:
-            supportsUndo = supportsUndo()
+
+        supportsUndo = (getattr(storage, 'supportsUndo', lambda : False)()
+                        and self.connection.peer_protocol_version >= 'Z310')
 
         # Communicate the backend storage interfaces to the client
         storage_provides = zope.interface.providedBy(storage)
@@ -419,6 +404,7 @@ class ZEOStorage:
         self.serials = []
         self.invalidated = []
         self.txnlog = CommitLog()
+        self.blob_log = []
         self.tid = tid
         self.status = status
         self.store_failed = 0
@@ -437,19 +423,23 @@ class ZEOStorage:
     def tpc_finish(self, id):
         if not self._check_tid(id):
             return
-        assert self.locked
+        assert self.locked, "finished called wo lock"
+
         self.stats.commits += 1
-        self.storage.tpc_finish(self.transaction)
+        self.storage.tpc_finish(self.transaction, self._invalidate)
+        # Note that the tid is still current because we still hold the
+        # commit lock. We'll relinquish it in _clear_transaction.
         tid = self.storage.lastTransaction()
+        # Return the tid, for cache invalidation optimization
+        return Result(tid, self._clear_transaction)
+
+    def _invalidate(self, tid):
         if self.invalidated:
             self.server.invalidate(self, self.storage_id, tid,
                                    self.invalidated, self.get_size_info())
-        self._clear_transaction()
-        # Return the tid, for cache invalidation optimization
-        return tid
 
-    def tpc_abort(self, id):
-        if not self._check_tid(id):
+    def tpc_abort(self, tid):
+        if not self._check_tid(tid):
             return
         self.stats.aborts += 1
         if self.locked:
@@ -458,111 +448,68 @@ class ZEOStorage:
 
     def _clear_transaction(self):
         # Common code at end of tpc_finish() and tpc_abort()
-        self.stats.active_txns -= 1
-        self.transaction = None
-        self.txnlog.close()
         if self.locked:
+            self.server.unlock_storage(self)
             self.locked = 0
-            self.timeout.end(self)
-            self.stats.lock_time = None
-            self.log("Transaction released storage lock", BLATHER)
+        self.transaction = None
+        self.stats.active_txns -= 1
+        if self.txnlog is not None:
+            self.txnlog.close()
+            self.txnlog = None
+            for oid, oldserial, data, blobfilename in self.blob_log:
+                ZODB.blob.remove_committed(blobfilename)
+            del self.blob_log
 
-            # Restart any client waiting for the storage lock.
-            while self.storage._waiting:
-                delay, zeo_storage = self.storage._waiting.pop(0)
-                try:
-                    zeo_storage._restart(delay)
-                except:
-                    self.log("Unexpected error handling waiting transaction",
-                             level=logging.WARNING, exc_info=True)
-                    zeo_storage.connection.close()
-                    continue
+    def vote(self, tid):
+        self._check_tid(tid, exc=StorageTransactionError)
+        return self._try_to_vote()
 
-                if self.storage._waiting:
-                    n = len(self.storage._waiting)
-                    self.log("Blocked transaction restarted.  "
-                             "Clients waiting: %d" % n)
+    def _try_to_vote(self, delay=None):
+        if self.connection is None:
+            return # We're disconnected
+        self.locked = self.server.lock_storage(self)
+        if self.locked:
+            try:
+                self._vote()
+            except Exception:
+                if delay is not None:
+                    delay.error()
                 else:
-                    self.log("Blocked transaction restarted.")
-
-                break
-
-    # The following two methods return values, so they must acquire
-    # the storage lock and begin the transaction before returning.
-
-    # It's a bit vile that undo can cause us to get the lock before vote.
-
-    def undo(self, trans_id, id):
-        self._check_tid(id, exc=StorageTransactionError)
-        if self.locked:
-            return self._undo(trans_id)
+                    raise
+            else:
+                if delay is not None:
+                    delay.reply(None)
         else:
-            return self._wait(lambda: self._undo(trans_id))
+            if delay == None:
+                self.log("(%r) queue lock: transactions waiting: %s"
+                         % (self.storage_id, self.server.waiting(self)+1))
+                delay = Delay()
+            self.server.unlock_callback(self, delay)
+            return delay
 
-    def vote(self, id):
-        self._check_tid(id, exc=StorageTransactionError)
-        if self.locked:
-            return self._vote()
-        else:
-            return self._wait(lambda: self._vote())
+    def _unlock_callback(self, delay):
+        connection = self.connection
+        if connection is not None:
+            connection.call_from_thread(self._try_to_vote, delay)
 
-    # When a delayed transaction is restarted, the dance is
-    # complicated.  The restart occurs when one ZEOStorage instance
-    # finishes as a transaction and finds another instance is in the
-    # _waiting list.
+    def _vote(self):
 
-    # It might be better to have a mechanism to explicitly send
-    # the finishing transaction's reply before restarting the waiting
-    # transaction.  If the restart takes a long time, the previous
-    # client will be blocked until it finishes.
-
-    def _wait(self, thunk):
-        # Wait for the storage lock to be acquired.
-        self._thunk = thunk
-        if self.tpc_transaction():
-            d = Delay()
-            self.storage._waiting.append((d, self))
-            self.log("Transaction blocked waiting for storage. "
-                     "Clients waiting: %d." % len(self.storage._waiting))
-            return d
-        else:
-            self.log("Transaction acquired storage lock.", BLATHER)
-            return self._restart()
-
-    def _restart(self, delay=None):
-        # Restart when the storage lock is available.
         if self.txnlog.stores == 1:
             template = "Preparing to commit transaction: %d object, %d bytes"
         else:
             template = "Preparing to commit transaction: %d objects, %d bytes"
+
         self.log(template % (self.txnlog.stores, self.txnlog.size()),
                  level=BLATHER)
 
-        self.locked = 1
-        self.timeout.begin(self)
-        self.stats.lock_time = time.time()
         if (self.tid is not None) or (self.status != ' '):
             self.storage.tpc_begin(self.transaction, self.tid, self.status)
         else:
             self.storage.tpc_begin(self.transaction)
 
         try:
-            loads, loader = self.txnlog.get_loader()
-            for i in range(loads):
-                store = loader.load()
-                store_type = store[0]
-                store_args = store[1:]
-
-                if store_type == 'd':
-                    do_store = self._delete
-                elif store_type == 's':
-                    do_store = self._store
-                elif store_type == 'r':
-                    do_store = self._restore
-                else:
-                    raise ValueError('Invalid store type: %r' % store_type)
-
-                if not do_store(*store_args):
+            for op, args in self.txnlog:
+                if not getattr(self, op)(*args):
                     break
 
             # Blob support
@@ -575,11 +522,16 @@ class ZEOStorage:
             self._clear_transaction()
             raise
 
-        resp = self._thunk()
-        if delay is not None:
-            delay.reply(resp)
-        else:
-            return resp
+
+        if not self.store_failed:
+            # Only call tpc_vote of no store call failed, otherwise
+            # the serialnos() call will deliver an exception that will be
+            # handled by the client in its tpc_vote() method.
+            serials = self.storage.tpc_vote(self.transaction)
+            if serials:
+                self.serials.extend(serials)
+
+        self.client.serialnos(self.serials)
 
     # The public methods of the ZEO client API do not do the real work.
     # They defer work until after the storage lock has been acquired.
@@ -610,14 +562,18 @@ class ZEOStorage:
         os.write(self.blob_tempfile[0], chunk)
 
     def storeBlobEnd(self, oid, serial, data, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        assert self.txnlog is not None # effectively not allowed after undo
         fd, tempname = self.blob_tempfile
         self.blob_tempfile = None
         os.close(fd)
         self.blob_log.append((oid, serial, data, tempname))
 
     def storeBlobShared(self, oid, serial, data, filename, id):
-        # Reconstruct the full path from the filename in the OID directory
+        self._check_tid(id, exc=StorageTransactionError)
+        assert self.txnlog is not None # effectively not allowed after undo
 
+        # Reconstruct the full path from the filename in the OID directory
         if (os.path.sep in filename
             or not (filename.endswith('.tmp')
                     or filename[:-1].endswith('.tmp')
@@ -634,6 +590,13 @@ class ZEOStorage:
 
     def sendBlob(self, oid, serial):
         self.client.storeBlob(oid, serial, self.storage.loadBlob(oid, serial))
+
+    def undo(*a, **k):
+        raise NotImplementedError
+
+    def undoa(self, trans_id, tid):
+        self._check_tid(tid, exc=StorageTransactionError)
+        self.txnlog.undo(trans_id)
 
     def _delete(self, oid, serial):
         err = None
@@ -721,6 +684,27 @@ class ZEOStorage:
 
         return err is None
 
+    def _undo(self, trans_id):
+        err = None
+        try:
+            tid, oids = self.storage.undo(trans_id, self.transaction)
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except Exception, err:
+            self.store_failed = 1
+            if not isinstance(err, TransactionError):
+                # Unexpected errors are logged and passed to the client
+                self.log("store error: %s, %s" % sys.exc_info()[:2],
+                         logging.ERROR, exc_info=True)
+            err = self._marshal_error(err)
+            # The exception is reported back as newserial for this oid
+            self.serials.append((z64, err))
+        else:
+            self.invalidated.extend(oids)
+            self.serials.extend((oid, ResolvedSerial) for oid in oids)
+
+        return err is None
+
     def _marshal_error(self, error):
         # Try to pickle the exception.  If it can't be pickled,
         # the RPC response would fail, so use something that can be pickled.
@@ -733,23 +717,6 @@ class ZEOStorage:
             self.log(msg, logging.ERROR)
             error = StorageServerError(msg)
         return error
-
-    def _vote(self):
-        if not self.store_failed:
-            # Only call tpc_vote of no store call failed, otherwise
-            # the serialnos() call will deliver an exception that will be
-            # handled by the client in its tpc_vote() method.
-            serials = self.storage.tpc_vote(self.transaction)
-            if serials:
-                self.serials.extend(serials)
-
-        self.client.serialnos(self.serials)
-        return
-
-    def _undo(self, trans_id):
-        tid, oids = self.storage.undo(trans_id, self.transaction)
-        self.invalidated.extend(oids)
-        return tid, oids
 
     # IStorageIteration support
 
@@ -929,8 +896,12 @@ class StorageServer:
              for name, storage in storages.items()])
         log("%s created %s with storages: %s" %
             (self.__class__.__name__, read_only and "RO" or "RW", msg))
-        for s in storages.values():
-            s._waiting = []
+
+
+        self._lock = threading.Lock()
+        self._commit_locks = {}
+        self._unlock_callbacks = dict((name, []) for name in storages)
+
         self.read_only = read_only
         self.auth_protocol = auth_protocol
         self.auth_database = auth_database
@@ -1044,7 +1015,7 @@ class StorageServer:
         Returns the timeout and stats objects for the appropriate storage.
         """
         self.connections[storage_id].append(conn)
-        return self.timeouts[storage_id], self.stats[storage_id]
+        return self.stats[storage_id]
 
     def _invalidateCache(self, storage_id):
         """We need to invalidate any caches we have.
@@ -1195,8 +1166,6 @@ class StorageServer:
         self.dispatcher.close()
         if self.monitor is not None:
             self.monitor.close()
-        for storage in self.storages.values():
-            storage.close()
         # Force the asyncore mainloop to exit by hackery, i.e. close
         # every socket in the map.  loop() will return when the map is
         # empty.
@@ -1206,6 +1175,8 @@ class StorageServer:
             except:
                 pass
         asyncore.socket_map.clear()
+        for storage in self.storages.values():
+            storage.close()
 
     def close_conn(self, conn):
         """Internal: remove the given connection from self.connections.
@@ -1216,6 +1187,45 @@ class StorageServer:
             if conn.obj in cl:
                 cl.remove(conn.obj)
 
+    def lock_storage(self, zeostore):
+        storage_id = zeostore.storage_id
+        with self._lock:
+            if storage_id in self._commit_locks:
+                return False
+            self._commit_locks[storage_id] = zeostore
+            self.timeouts[storage_id].begin(zeostore)
+            self.stats[storage_id].lock_time = time.time()
+        return True
+
+    def unlock_storage(self, zeostore):
+        storage_id = zeostore.storage_id
+        with self._lock:
+            assert self._commit_locks[storage_id] is zeostore
+            del self._commit_locks[storage_id]
+            self.timeouts[storage_id].end(zeostore)
+            self.stats[storage_id].lock_time = None
+            callbacks = self._unlock_callbacks[storage_id][:]
+            del self._unlock_callbacks[storage_id][:]
+
+        if callbacks:
+            zeostore.log("(%r) unlock: transactions waiting: %s"
+                         % (storage_id, len(callbacks)-1))
+
+            for zeostore, delay in callbacks:
+                try:
+                    zeostore._unlock_callback(delay)
+                except (SystemExit, KeyboardInterrupt):
+                    raise
+                except Exception:
+                    logger.exception("Calling unlock callback")
+
+    def unlock_callback(self, zeostore, delay):
+        storage_id = zeostore.storage_id
+        with self._lock:
+            self._unlock_callbacks[storage_id].append((zeostore, delay))
+
+    def waiting(self, zeostore):
+        return len(self._unlock_callbacks[zeostore.storage_id])
 
 class StubTimeoutThread:
 
@@ -1238,7 +1248,6 @@ class TimeoutThread(threading.Thread):
         self._client = None
         self._deadline = None
         self._cond = threading.Condition() # Protects _client and _deadline
-        self._trigger = trigger()
 
     def begin(self, client):
         # Called from the restart code the "main" thread, whenever the
@@ -1281,7 +1290,7 @@ class TimeoutThread(threading.Thread):
             if howlong <= 0:
                 client.log("Transaction timeout after %s seconds" %
                            self._timeout)
-                self._trigger.pull_trigger(lambda: client.connection.close())
+                client.connection.trigger.pull_trigger(client.connection.close)
             else:
                 time.sleep(howlong)
 

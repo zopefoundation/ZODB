@@ -93,9 +93,9 @@ client will be restarted.  It will get a conflict error, that is
 handled correctly:
 
     >>> zs1.tpc_abort('0') # doctest: +ELLIPSIS
+    (511/test-addr) ('1') unlock: transactions waiting: 0
     2 callAsync serialnos ...
     reply 1 None
-    (511/test-addr) Blocked transaction restarted.
 
     >>> fs.tpc_transaction() is not None
     True

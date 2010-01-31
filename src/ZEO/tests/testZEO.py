@@ -25,7 +25,6 @@ from ZODB.tests import StorageTestBase, BasicStorage,  \
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
-import asyncore
 import doctest
 import logging
 import os
@@ -244,7 +243,6 @@ class GenericTests(
 class FullGenericTests(
     GenericTests,
     Cache.TransUndoStorageWithCache,
-    CommitLockTests.CommitLockUndoTests,
     ConflictResolution.ConflictResolvingStorage,
     ConflictResolution.ConflictResolvingTransUndoStorage,
     PackableStorage.PackableUndoStorage,
@@ -727,6 +725,10 @@ class BlobWritableCacheTests(FullGenericTests, CommonBlobTests):
     blob_cache_dir = 'blobs'
     shared_blob_dir = True
 
+class FauxConn:
+    addr = 'x'
+    peer_protocol_version = ZEO.zrpc.connection.Connection.current_protocol
+
 class StorageServerClientWrapper:
 
     def __init__(self):
@@ -743,8 +745,8 @@ class StorageServerWrapper:
     def __init__(self, server, storage_id):
         self.storage_id = storage_id
         self.server = ZEO.StorageServer.ZEOStorage(server, server.read_only)
+        self.server.notifyConnected(FauxConn())
         self.server.register(storage_id, False)
-        self.server._thunk = lambda : None
         self.server.client = StorageServerClientWrapper()
 
     def sortKey(self):
@@ -766,8 +768,7 @@ class StorageServerWrapper:
         self.server.tpc_begin(id(transaction), '', '', {}, None, ' ')
 
     def tpc_vote(self, transaction):
-        self.server._restart()
-        self.server.vote(id(transaction))
+        assert self.server.vote(id(transaction)) is None
         result = self.server.client.serials[:]
         del self.server.client.serials[:]
         return result
@@ -775,8 +776,11 @@ class StorageServerWrapper:
     def store(self, oid, serial, data, version_ignored, transaction):
         self.server.storea(oid, serial, data, id(transaction))
 
+    def send_reply(self, *args):        # Masquerade as conn
+        pass
+
     def tpc_finish(self, transaction, func = lambda: None):
-        self.server.tpc_finish(id(transaction))
+        self.server.tpc_finish(id(transaction)).set_sender(0, self)
 
 
 def multiple_storages_invalidation_queue_is_not_insane():
@@ -849,6 +853,7 @@ Now we'll open a storage server on the data, simulating a restart:
     >>> fs = FileStorage('t.fs')
     >>> sv = StorageServer(('', get_port()), dict(fs=fs))
     >>> s = ZEOStorage(sv, sv.read_only)
+    >>> s.notifyConnected(FauxConn())
     >>> s.register('fs', False)
 
 If we ask for the last transaction, we should get the last transaction
@@ -941,7 +946,7 @@ def tpc_finish_error():
     ...     def close(self):
     ...         print 'connection closed'
     ...     trigger = property(lambda self: self)
-    ...     pull_trigger = lambda self, func: func()
+    ...     pull_trigger = lambda self, func, *args: func(*args)
 
     >>> class ConnectionManager:
     ...     def __init__(self, addr, client, tmin, tmax):
@@ -1251,6 +1256,8 @@ Invalidations could cause errors when closing client storages,
     >>> thread.join(1)
     """
 
+
+
 if sys.version_info >= (2, 6):
     import multiprocessing
 
@@ -1259,28 +1266,32 @@ if sys.version_info >= (2, 6):
         q.put((name, conn.root.x))
         conn.close()
 
-    def work_with_multiprocessing():
-        """Client storage should work with multi-processing.
+    class MultiprocessingTests(unittest.TestCase):
 
-        >>> import StringIO
-        >>> sys.stdin = StringIO.StringIO()
-        >>> addr, _ = start_server()
-        >>> conn = ZEO.connection(addr)
-        >>> conn.root.x = 1
-        >>> transaction.commit()
-        >>> q = multiprocessing.Queue()
-        >>> processes = [multiprocessing.Process(
-        ...     target=work_with_multiprocessing_process,
-        ...     args=(i, addr, q))
-        ...     for i in range(3)]
-        >>> _ = [p.start() for p in processes]
-        >>> sorted(q.get(timeout=60) for p in processes)
-        [(0, 1), (1, 1), (2, 1)]
+        def test_work_with_multiprocessing(self):
+            "Client storage should work with multi-processing."
 
-        >>> _ = [p.join(30) for p in processes]
-        >>> conn.close()
-        """
+            self.globs = {}
+            forker.setUp(self)
+            addr, adminaddr = self.globs['start_server']()
+            conn = ZEO.connection(addr)
+            conn.root.x = 1
+            transaction.commit()
+            q = multiprocessing.Queue()
+            processes = [multiprocessing.Process(
+                target=work_with_multiprocessing_process,
+                args=(i, addr, q))
+                         for i in range(3)]
+            _ = [p.start() for p in processes]
+            self.assertEqual(sorted(q.get(timeout=300) for p in processes),
+                             [(0, 1), (1, 1), (2, 1)])
 
+            _ = [p.join(30) for p in processes]
+            conn.close()
+            zope.testing.setupstack.tearDown(self)
+else:
+    class MultiprocessingTests(unittest.TestCase):
+        pass
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
@@ -1353,6 +1364,7 @@ def test_suite():
     # unit test layer
     zeo = unittest.TestSuite()
     zeo.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
+    zeo.addTest(unittest.makeSuite(MultiprocessingTests))
     zeo.addTest(doctest.DocTestSuite(
         setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
     zeo.addTest(doctest.DocTestSuite(ZEO.tests.IterationTests,

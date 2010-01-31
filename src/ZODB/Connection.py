@@ -666,32 +666,11 @@ class Connection(ExportImport, object):
             self._cache.update_object_size_estimation(oid, len(p))
             obj._p_estimated_size = len(p)
 
-            self._handle_serial(s, oid)
+            self._handle_serial(oid, s)
 
-    def _handle_serial(self, store_return, oid=None, change=1):
-        """Handle the returns from store() and tpc_vote() calls."""
-
-        # These calls can return different types depending on whether
-        # ZEO is used.  ZEO uses asynchronous returns that may be
-        # returned in batches by the ClientStorage.  ZEO1 can also
-        # return an exception object and expect that the Connection
-        # will raise the exception.
-
-        # When conflict resolution occurs, the object state held by
-        # the connection does not match what is written to the
-        # database.  Invalidate the object here to guarantee that
-        # the new state is read the next time the object is used.
-
-        if not store_return:
+    def _handle_serial(self, oid, serial, change=True):
+        if not serial:
             return
-        if isinstance(store_return, str):
-            assert oid is not None
-            self._handle_one_serial(oid, store_return, change)
-        else:
-            for oid, serial in store_return:
-                self._handle_one_serial(oid, serial, change)
-
-    def _handle_one_serial(self, oid, serial, change):
         if not isinstance(serial, str):
             raise serial
         obj = self._cache.get(oid, None)
@@ -757,7 +736,9 @@ class Connection(ExportImport, object):
         except AttributeError:
             return
         s = vote(transaction)
-        self._handle_serial(s)
+        if s:
+            for oid, serial in s:
+                self._handle_serial(oid, serial)
 
     def tpc_finish(self, transaction):
         """Indicate confirmation that the transaction is done."""
@@ -1171,7 +1152,7 @@ class Connection(ExportImport, object):
                 s = self._storage.store(oid, serial, data,
                                         '', transaction)
 
-            self._handle_serial(s, oid, change=False)
+            self._handle_serial(oid, s, change=False)
         src.close()
 
     def _abort_savepoint(self):

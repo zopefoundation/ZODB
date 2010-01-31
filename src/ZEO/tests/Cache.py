@@ -37,14 +37,11 @@ class TransUndoStorageWithCache:
         # Now start an undo transaction
         t = Transaction()
         t.note('undo1')
-        self._storage.tpc_begin(t)
-
-        tid, oids = self._storage.undo(tid, t)
+        oids = self._begin_undos_vote(t, tid)
 
         # Make sure this doesn't load invalid data into the cache
         self._storage.load(oid, '')
 
-        self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
         assert len(oids) == 1

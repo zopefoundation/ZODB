@@ -55,6 +55,16 @@ class Delay:
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.conn.return_error(self.msgid, *exc_info[:2])
 
+class Result(Delay):
+
+    def __init__(self, *args):
+        self.args = args
+
+    def set_sender(self, msgid, conn):
+        reply, callback = self.args
+        conn.send_reply(msgid, reply, False)
+        callback()
+
 class MTDelay(Delay):
 
     def __init__(self):
@@ -218,18 +228,25 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             restorea, iterator_start, iterator_next,
     #             iterator_record_start, iterator_record_next,
     #             iterator_gc
+    #
+    # Z310 -- named after the ZODB release 3.10
+    #         New server methods:
+    #             undoa
+    #         Doesn't support undo for older clients.
+    #         Undone oid info returned by vote.
 
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z309"
+    current_protocol = "Z310"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
-    servers_we_can_talk_to = ["Z308", current_protocol]
+    servers_we_can_talk_to = ["Z308", "Z309", current_protocol]
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", "Z303", "Z308", current_protocol]
+    clients_we_can_talk_to = [
+        "Z200", "Z201", "Z303", "Z308", "Z309", current_protocol]
 
     # This is pretty excruciating.  Details:
     #
