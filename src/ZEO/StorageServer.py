@@ -1346,7 +1346,7 @@ class ClientStub:
         self.rpc.callAsync('endVerify')
 
     def invalidateTransaction(self, tid, args):
-        self.rpc.callAsyncNoPoll('invalidateTransaction', tid, args)
+        self.rpc.callAsync('invalidateTransaction', tid, args)
 
     def serialnos(self, arg):
         self.rpc.callAsyncNoPoll('serialnos', arg)
@@ -1372,11 +1372,11 @@ class ClientStub:
 class ClientStub308(ClientStub):
 
     def invalidateTransaction(self, tid, args):
-        self.rpc.callAsyncNoPoll(
-            'invalidateTransaction', tid, [(arg, '') for arg in args])
+        ClientStub.invalidateTransaction(
+            self, tid, [(arg, '') for arg in args])
 
     def invalidateVerify(self, oid):
-        self.rpc.callAsync('invalidateVerify', (oid, ''))
+        ClientStub.invalidateVerify(self, (oid, ''))
 
 class ZEOStorage308Adapter:
 

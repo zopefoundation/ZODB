@@ -560,14 +560,17 @@ class ManagedServerConnection(Connection):
     # Exception types that should not be logged:
     unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
-    # Servers use a shared server trigger that uses the asyncore socket map
-    trigger = ZEO.zrpc.trigger.trigger()
-    call_from_thread = trigger.pull_trigger
-
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
-        Connection.__init__(self, sock, addr, obj, 'S')
+        map = {}
+        Connection.__init__(self, sock, addr, obj, 'S', map=map)
         self.marshal = ServerMarshaller()
+        self.trigger = ZEO.zrpc.trigger.trigger(map)
+        self.call_from_thread = self.trigger.pull_trigger
+
+        t = threading.Thread(target=server_loop, args=(map,))
+        t.setDaemon(True)
+        t.start()
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
@@ -600,6 +603,13 @@ class ManagedServerConnection(Connection):
             self.poll()
 
     poll = smac.SizedMessageAsyncConnection.handle_write
+
+def server_loop(map):
+    while len(map) > 1:
+        asyncore.poll(30.0, map)
+
+    for o in map.values():
+        o.close()
 
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""
@@ -713,10 +723,6 @@ class ManagedClientConnection(Connection):
             self.log("wait(%d)" % msgid, level=TRACE)
 
         self.trigger.pull_trigger()
-
-        # Delay used when we call asyncore.poll() directly.
-        # Start with a 1 msec delay, double until 1 sec.
-        delay = 0.001
 
         self.replies_cond.acquire()
         try:
