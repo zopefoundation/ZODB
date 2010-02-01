@@ -36,6 +36,7 @@ import errno
 import logging
 import os
 import sys
+import threading
 import time
 import ZODB.blob
 import ZODB.interfaces
@@ -128,7 +129,7 @@ class FileStorage(
         else:
             self._tfile = None
 
-        self._file_name = file_name
+        self._file_name = os.path.abspath(file_name)
 
         self._pack_gc = pack_gc
         self.pack_keep_old = pack_keep_old
@@ -167,6 +168,7 @@ class FileStorage(
             self._file = open(file_name, 'w+b')
             self._file.write(packed_version)
 
+        self._files = FilePool(self._file_name)
         r = self._restore_index()
         if r is not None:
             self._used_index = 1 # Marker for testing
@@ -401,6 +403,7 @@ class FileStorage(
 
     def close(self):
         self._file.close()
+        self._files.close()
         if hasattr(self,'_lock_file'):
             self._lock_file.close()
         if self._tfile:
@@ -426,22 +429,22 @@ class FileStorage(
         """Return pickle data and serial number."""
         assert not version
 
-        self._lock_acquire()
+        _file = self._files.get()
         try:
             pos = self._lookup_pos(oid)
-            h = self._read_data_header(pos, oid)
+            h = self._read_data_header(pos, oid, _file)
             if h.plen:
-                data = self._file.read(h.plen)
+                data = _file.read(h.plen)
                 return data, h.tid
             elif h.back:
                 # Get the data from the backpointer, but tid from
                 # current txn.
-                data = self._loadBack_impl(oid, h.back)[0]
+                data = self._loadBack_impl(oid, h.back, _file=_file)[0]
                 return data, h.tid
             else:
                 raise POSKeyError(oid)
         finally:
-            self._lock_release()
+            self._files.put(_file)
 
     def loadSerial(self, oid, serial):
         self._lock_acquire()
@@ -462,12 +465,12 @@ class FileStorage(
             self._lock_release()
 
     def loadBefore(self, oid, tid):
-        self._lock_acquire()
+        _file = self._files.get()
         try:
             pos = self._lookup_pos(oid)
             end_tid = None
             while True:
-                h = self._read_data_header(pos, oid)
+                h = self._read_data_header(pos, oid, _file)
                 if h.tid < tid:
                     break
 
@@ -477,13 +480,12 @@ class FileStorage(
                     return None
 
             if h.back:
-                data, _, _, _ = self._loadBack_impl(oid, h.back)
+                data, _, _, _ = self._loadBack_impl(oid, h.back, _file=_file)
                 return data, h.tid, end_tid
             else:
-                return self._file.read(h.plen), h.tid, end_tid
-
+                return _file.read(h.plen), h.tid, end_tid
         finally:
-            self._lock_release()
+            self._files.put(_file)
 
     def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
@@ -734,6 +736,32 @@ class FileStorage(
             self._nextpos = self._pos + (tl + 8)
         finally:
             self._lock_release()
+
+    def tpc_finish(self, transaction, f=None):
+
+        # Get write lock
+        self._files.write_lock()
+        try:
+            self._lock_acquire()
+            try:
+                if transaction is not self._transaction:
+                    raise POSException.StorageTransactionError(
+                        "tpc_finish called with wrong transaction")
+                try:
+                    if f is not None:
+                        f(self._tid)
+                    u, d, e = self._ude
+                    self._finish(self._tid, u, d, e)
+                    self._clear_temp()
+                finally:
+                    self._ude = None
+                    self._transaction = None
+                    self._commit_lock_release()
+            finally:
+                self._lock_release()
+
+        finally:
+            self._files.write_unlock()
 
     def _finish(self, tid, u, d, e):
         # If self._nextpos is 0, then the transaction didn't write any
@@ -1131,8 +1159,10 @@ class FileStorage(
                 return
             have_commit_lock = True
             opos, index = pack_result
+            self._files.write_lock()
             self._lock_acquire()
             try:
+                self._files.empty()
                 self._file.close()
                 try:
                     os.rename(self._file_name, oldpath)
@@ -1146,6 +1176,7 @@ class FileStorage(
                 self._initIndex(index, self._tindex)
                 self._pos = opos
             finally:
+                self._files.write_unlock()
                 self._lock_release()
 
             # We're basically done.  Now we need to deal with removed
@@ -2037,3 +2068,72 @@ class UndoSearch:
              'description': d}
         d.update(e)
         return d
+
+class FilePool:
+
+    closed = False
+    writing = False
+
+    def __init__(self, file_name):
+        self.name = file_name
+        self._files = []
+        self._out = []
+        self._cond = threading.Condition()
+
+    def write_lock(self):
+        self._cond.acquire()
+        try:
+            self.writing = True
+            while self._out:
+                self._cond.wait()
+        finally:
+            self._cond.release()
+
+    def write_unlock(self):
+        self._cond.acquire()
+        self.writing = False
+        self._cond.notifyAll()
+        self._cond.release()
+
+    def get(self):
+        self._cond.acquire()
+        try:
+            while self.writing:
+                self._cond.wait()
+            if self.closed:
+                raise ValueError('closed')
+
+            try:
+                f = self._files.pop()
+            except IndexError:
+                f = open(self.name, 'rb')
+            self._out.append(f)
+            return f
+        finally:
+            self._cond.release()
+
+    def put(self, f):
+        self._out.remove(f)
+        self._files.append(f)
+        if not self._out:
+            self._cond.acquire()
+            try:
+                if self.writing and not self._out:
+                    self._cond.notifyAll()
+            finally:
+                self._cond.release()
+
+    def empty(self):
+        while self._files:
+            self._files.pop().close()
+
+    def close(self):
+        self._cond.acquire()
+        self.closed = True
+        self._cond.release()
+
+        self.write_lock()
+        try:
+            self.empty()
+        finally:
+            self.write_unlock()
