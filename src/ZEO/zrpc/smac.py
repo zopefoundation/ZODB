@@ -282,7 +282,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             # unfortunate interaction between the Nagle algorithm and
             # delayed acks.  If we send a very large string, only a
             # portion of it will actually be delivered at a time.
-            l = 0
+            l = i = 0
             for i in range(len(output)):
                 l += len(output[i])
                 if l > SEND_SIZE:
