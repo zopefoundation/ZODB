@@ -8,6 +8,9 @@
 New Features
 ------------
 
+- There are a number of performance enhancements for ZEO storage
+  servers.
+
 - FileStorage indexes use a new format. They are saved and loaded much
   faster and take less space. Old indexes can still be read, but new
   indexes won't be readable by older versions of ZODB.
