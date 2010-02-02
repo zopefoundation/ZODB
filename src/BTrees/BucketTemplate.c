@@ -1582,6 +1582,10 @@ static struct PyMethodDef Bucket_methods[] = {
     {"iteritems", (PyCFunction) Bucket_iteritems,    METH_KEYWORDS,
      "B.iteritems([min[,max]]) -> an iterator over the (key, value) items of B"},
 
+#ifdef EXTRA_BUCKET_METHODS
+    EXTRA_BUCKET_METHODS
+#endif
+
 #ifdef PERSISTENT
     {"_p_resolveConflict", (PyCFunction) bucket__p_resolveConflict,
      METH_VARARGS,
