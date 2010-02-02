@@ -1268,8 +1268,14 @@ if sys.version_info >= (2, 6):
 
     class MultiprocessingTests(unittest.TestCase):
 
+        layer = ZODB.tests.util.MininalTestLayer('work_with_multiprocessing')
+
         def test_work_with_multiprocessing(self):
             "Client storage should work with multi-processing."
+
+            # Gaaa, zope.testing.runner.FakeInputContinueGenerator has no close
+            if not hasattr(sys.stdin, 'close'):
+                sys.stdin.close = lambda : None
 
             self.globs = {}
             forker.setUp(self)
@@ -1364,7 +1370,6 @@ def test_suite():
     # unit test layer
     zeo = unittest.TestSuite()
     zeo.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
-    zeo.addTest(unittest.makeSuite(MultiprocessingTests))
     zeo.addTest(doctest.DocTestSuite(
         setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
     zeo.addTest(doctest.DocTestSuite(ZEO.tests.IterationTests,
@@ -1387,6 +1392,8 @@ def test_suite():
         zeo.addTest(unittest.makeSuite(klass, "check"))
     zeo.layer = ZODB.tests.util.MininalTestLayer('testZeo-misc')
     suite.addTest(zeo)
+
+    suite.addTest(unittest.makeSuite(MultiprocessingTests))
 
     # Put the heavyweights in their own layers
     for klass in slow_test_classes:
