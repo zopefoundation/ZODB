@@ -2,11 +2,15 @@
  Change History
 ================
 
-3.10.0a1 (2009-12-??)
+3.10.0a1 (2010-02-??)
 =====================
 
 New Features
 ------------
+
+- FileStorage indexes use a new format. They are saved and loaded much
+  faster and take less space. Old indexes can still be read, but new
+  indexes won't be readable by older versions of ZODB.
 
 - The API for undoing multiple transactions has changed.  To undo
   multiple transactions in a single transaction, pass pass a list of

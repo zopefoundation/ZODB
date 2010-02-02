@@ -39,6 +39,7 @@
 # bytes back before using u64 to convert the data back to (long)
 # integers.
 
+import cPickle
 import struct
 
 from BTrees._fsBTree import fsBucket
@@ -62,11 +63,61 @@ def prefix_minus_one(s):
 
 class fsIndex(object):
 
-    def __init__(self):
+    def __init__(self, data=None):
         self._data = OOBTree()
+        if data:
+            self.update(data)
+
+    def __getstate__(self):
+        return dict(
+            state_version = 1,
+            _data = [(k, v.toString())
+                     for (k, v) in self._data.iteritems()
+                     ]
+            )
+
+    def __setstate__(self, state):
+        version = state.pop('state_version', 0)
+        getattr(self, '_setstate_%s' % version)(state)
+
+    def _setstate_0(self, state):
+        self.__dict__.clear()
+        self.__dict__.update(state)
+
+    def _setstate_1(self, state):
+        self._data =  OOBTree([
+            (k, fsBucket().fromString(v))
+            for (k, v) in state['_data']
+            ])
 
     def __getitem__(self, key):
         return str2num(self._data[key[:6]][key[6:]])
+
+    def save(self, pos, fname):
+        with open(fname, 'wb') as f:
+            pickler = cPickle.Pickler(f, 1)
+            pickler.fast = True
+            pickler.dump(pos)
+            for k, v in self._data.iteritems():
+                pickler.dump((k, v.toString()))
+            pickler.dump(None)
+
+    @classmethod
+    def load(class_, fname):
+        with open(fname, 'rb') as f:
+            unpickler = cPickle.Unpickler(f)
+            pos = unpickler.load()
+            if not isinstance(pos, (int, long)):
+                return pos                  # Old format
+            index = class_()
+            data = index._data
+            while 1:
+                v = unpickler.load()
+                if not v:
+                    break
+                k, v = v
+                data[k] = fsBucket().fromString(v)
+            return dict(pos=pos, index=index)
 
     def get(self, key, default=None):
         tree = self._data.get(key[:6], default)

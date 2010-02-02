@@ -246,23 +246,7 @@ class FileStorage(
         index_name = self.__name__ + '.index'
         tmp_name = index_name + '.index_tmp'
 
-        f=open(tmp_name,'wb')
-        p=Pickler(f,1)
-
-        # Pickle the index buckets first to avoid deep recursion:
-        buckets = []
-        bucket = self._index._data._firstbucket
-        while bucket is not None:
-            buckets.append(bucket)
-            bucket = bucket._next
-        buckets.reverse()
-
-        info=BTrees.OOBTree.Bucket(dict(
-            _buckets=buckets, index=self._index, pos=self._pos))
-
-        p.dump(info)
-        f.flush()
-        f.close()
+        self._index.save(self._pos, tmp_name)
 
         try:
             try:
@@ -357,19 +341,15 @@ class FileStorage(
         file_name=self.__name__
         index_name=file_name+'.index'
 
-        try:
-            f = open(index_name, 'rb')
-        except:
+        if os.path.exists(index_name):
+            try:
+                info = fsIndex.load(index_name)
+            except:
+                logger.exception('loading index')
+                return None
+        else:
             return None
 
-        p=Unpickler(f)
-
-        try:
-            info=p.load()
-        except:
-            exc, err = sys.exc_info()[:2]
-            logger.warning("Failed to load database index: %s: %s", exc, err)
-            return None
         index = info.get('index')
         pos = info.get('pos')
         if index is None or pos is None:

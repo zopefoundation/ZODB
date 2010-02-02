@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import cPickle
 import os, unittest
 import transaction
 import ZODB.FileStorage
@@ -19,6 +20,7 @@ import ZODB.tests.util
 import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
+from ZODB.fsIndex import fsIndex
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
@@ -69,7 +71,6 @@ class FileStorageTests(
             self.fail("expect long user field to raise error")
 
     def check_use_fsIndex(self):
-        from ZODB.fsIndex import fsIndex
 
         self.assertEqual(self._storage._index.__class__, fsIndex)
 
@@ -78,21 +79,13 @@ class FileStorageTests(
     def convert_index_to_dict(self):
         # Convert the index in the current .index file to a Python dict.
         # Return the index originally found.
-        import cPickle as pickle
-
-        f = open('FileStorageTests.fs.index', 'r+b')
-        p = pickle.Unpickler(f)
-        data = p.load()
+        data = fsIndex.load('FileStorageTests.fs.index')
         index = data['index']
 
         newindex = dict(index)
         data['index'] = newindex
 
-        f.seek(0)
-        f.truncate()
-        p = pickle.Pickler(f, 1)
-        p.dump(data)
-        f.close()
+        cPickle.dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
         return index
 
     def check_conversion_to_fsIndex(self, read_only=False):
