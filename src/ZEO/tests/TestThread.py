@@ -36,11 +36,12 @@ class TestThread(threading.Thread):
     message.
     """
 
-    def __init__(self):
+    def __init__(self, testcase):
         threading.Thread.__init__(self)
         # In case this thread hangs, don't stop Python from exiting.
         self.setDaemon(1)
         self._exc_info = None
+        self._testcase = testcase
 
     def run(self):
         try:

@@ -130,9 +130,9 @@ class StressThread(FailableThread):
     # to 'tree' until Event stop is set.  If sleep is given, sleep
     # that long after each append.  At the end, instance var .added_keys
     # is a list of the ints the thread believes it added successfully.
-    def __init__(self, db, stop, threadnum, commitdict,
+    def __init__(self, testcase, db, stop, threadnum, commitdict,
                  startnum, step=2, sleep=None):
-        TestThread.__init__(self)
+        TestThread.__init__(self, testcase)
         self.db = db
         self.stop = stop
         self.threadnum = threadnum
@@ -173,9 +173,9 @@ class LargeUpdatesThread(FailableThread):
     # more than 25 objects so that it can test code that runs vote
     # in a separate thread when it modifies more than 25 objects.
 
-    def __init__(self, db, stop, threadnum, commitdict, startnum,
+    def __init__(self, test, db, stop, threadnum, commitdict, startnum,
                  step=2, sleep=None):
-        TestThread.__init__(self)
+        TestThread.__init__(self, test)
         self.db = db
         self.stop = stop
         self.threadnum = threadnum
@@ -361,8 +361,8 @@ class InvalidationTests:
 
         # Run two threads that update the BTree
         cd = {}
-        t1 = self.StressThread(db1, stop, 1, cd, 1)
-        t2 = self.StressThread(db2, stop, 2, cd, 2)
+        t1 = self.StressThread(self, db1, stop, 1, cd, 1)
+        t2 = self.StressThread(self, db2, stop, 2, cd, 2)
         self.go(stop, cd, t1, t2)
 
         while db1.lastTransaction() != db2.lastTransaction():
@@ -391,7 +391,7 @@ class InvalidationTests:
 
         # Run threads that update the BTree
         cd = {}
-        threads = [self.StressThread(dbs[i], stop, i, cd, i, n)
+        threads = [self.StressThread(self, dbs[i], stop, i, cd, i, n)
                    for i in range(n)]
         self.go(stop, cd, *threads)
 
@@ -418,8 +418,8 @@ class InvalidationTests:
 
         # Run two threads that update the BTree
         cd = {}
-        t1 = self.StressThread(db1, stop, 1, cd, 1, sleep=0.01)
-        t2 = self.StressThread(db1, stop, 2, cd, 2, sleep=0.01)
+        t1 = self.StressThread(self, db1, stop, 1, cd, 1, sleep=0.01)
+        t2 = self.StressThread(self, db1, stop, 2, cd, 2, sleep=0.01)
         self.go(stop, cd, t1, t2)
 
         cn = db1.open()
@@ -447,9 +447,9 @@ class InvalidationTests:
         # at the same time.
 
         cd = {}
-        t1 = self.StressThread(db1, stop, 1, cd, 1, 3)
-        t2 = self.StressThread(db2, stop, 2, cd, 2, 3, 0.01)
-        t3 = self.StressThread(db2, stop, 3, cd, 3, 3, 0.01)
+        t1 = self.StressThread(self, db1, stop, 1, cd, 1, 3)
+        t2 = self.StressThread(self, db2, stop, 2, cd, 2, 3, 0.01)
+        t3 = self.StressThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         while db1.lastTransaction() != db2.lastTransaction():
@@ -485,9 +485,9 @@ class InvalidationTests:
         # at the same time.
 
         cd = {}
-        t1 = LargeUpdatesThread(db1, stop, 1, cd, 1, 3, 0.02)
-        t2 = LargeUpdatesThread(db2, stop, 2, cd, 2, 3, 0.01)
-        t3 = LargeUpdatesThread(db2, stop, 3, cd, 3, 3, 0.01)
+        t1 = LargeUpdatesThread(self, db1, stop, 1, cd, 1, 3, 0.02)
+        t2 = LargeUpdatesThread(self, db2, stop, 2, cd, 2, 3, 0.01)
+        t3 = LargeUpdatesThread(self, db2, stop, 3, cd, 3, 3, 0.01)
         self.go(stop, cd, t1, t2, t3)
 
         while db1.lastTransaction() != db2.lastTransaction():
