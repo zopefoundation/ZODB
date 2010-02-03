@@ -39,6 +39,8 @@
 # bytes back before using u64 to convert the data back to (long)
 # integers.
 
+from __future__ import with_statement
+
 import cPickle
 import struct
 
