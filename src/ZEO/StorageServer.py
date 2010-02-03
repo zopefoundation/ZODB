@@ -1346,7 +1346,20 @@ class ClientStub:
         self.rpc.callAsync('endVerify')
 
     def invalidateTransaction(self, tid, args):
-        self.rpc.callAsync('invalidateTransaction', tid, args)
+        # Note that this method is *always* called from a different
+        # thread than self.rpc's async thread. It is the only method
+        # for which this is true and requires special consideration!
+
+        # callAsyncNoSend is important here because:
+        # - callAsyncNoPoll isn't appropriate because
+        #   the network thread may not wake up for a long time,
+        #   delaying invalidations for too long. (This is demonstrateed
+        #   by a test failure.)
+        # - callAsync isn't appropriate because (on the server) it tries
+        #   to write to the socket.  If self.rpc's network thread also
+        #   tries to write at the ame time, we can run into problems
+        #   because handle_write isn't thread safe.
+        self.rpc.callAsyncNoSend('invalidateTransaction', tid, args)
 
     def serialnos(self, arg):
         self.rpc.callAsyncNoPoll('serialnos', arg)

@@ -535,6 +535,15 @@ class Connection(smac.SizedMessageAsyncConnection, object):
             raise DisconnectedError()
         self.send_call(method, args, 1)
 
+    def callAsyncNoSend(self, method, *args):
+        # Like CallAsync but doesn't poll.  This exists so that we can
+        # send invalidations atomically to all clients without
+        # allowing any client to sneak in a load request.
+        if self.closed:
+            raise DisconnectedError()
+        self.send_call(method, args, 1)
+        self.call_from_thread()
+
     def callAsyncIterator(self, iterator):
         """Queue a sequence of calls using an iterator
 
