@@ -31,6 +31,10 @@ def connection(*args, **kw):
     conn.onCloseCallback(db.close)
     return conn
 
+def client(*args, **kw):
+    import ZEO.ClientStorage
+    return ZEO.ClientStorage.ClientStorage(*args, **kw)
+
 def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
            port=None):
     """Convenience function to start a server for interactive exploration

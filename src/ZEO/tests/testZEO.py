@@ -1256,6 +1256,16 @@ Invalidations could cause errors when closing client storages,
     >>> thread.join(1)
     """
 
+def convenient_to_pass_port_to_client_and_ZEO_dot_client():
+    """Jim hates typing
+
+    >>> addr, _ = start_server()
+    >>> client = ZEO.client(addr[1])
+    >>> client.__name__ == "('127.0.0.1', %s)" % addr[1]
+    True
+
+    >>> client.close()
+    """
 
 
 if sys.version_info >= (2, 6):

@@ -34,6 +34,13 @@ New Features
 
 - Broken objects now provide the IBroken interface.
 
+- As a convenience, you can now pass an integer port as an address to
+  the ZEO ClientStorage constructor.
+
+- As a convenience, there's a new ``client`` function in the ZEO
+  package for constructing a ClientStorage instance.  It takes the
+  same arguments as the ClientStorage constructor.
+
 Bugs Fixed
 ----------
 

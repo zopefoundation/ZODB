@@ -240,6 +240,9 @@ class ClientStorage(object):
 
         """
 
+        if isinstance(addr, int):
+            addr = '127.0.0.1', addr
+
         self.__name__ = name or str(addr) # Standard convention for storages
 
         logger.info(
