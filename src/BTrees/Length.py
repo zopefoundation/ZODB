@@ -30,6 +30,7 @@ class Length(persistent.Persistent):
     instance-defined slot fillers are ignored.
 
     """
+    value = 0
 
     def __init__(self, v=0):
         self.value = v

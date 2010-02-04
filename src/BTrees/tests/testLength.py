@@ -18,6 +18,7 @@ Test for BTrees.Length module.
 __docformat__ = "reStructuredText"
 
 import BTrees.Length
+import copy
 import sys
 import unittest
 
@@ -40,7 +41,13 @@ class LengthTestCase(unittest.TestCase):
         length.change(-1)
         self.assertEqual(length(), minint - 1)
         self.assert_(type(length()) is long)
-        
+
+    def test_copy(self):
+        # Test for https://bugs.launchpad.net/zodb/+bug/516653
+        length = BTrees.Length.Length()
+        other = copy.copy(length)
+        self.assertEqual(other(), 0)
+
 
 def test_suite():
     return unittest.makeSuite(LengthTestCase)
