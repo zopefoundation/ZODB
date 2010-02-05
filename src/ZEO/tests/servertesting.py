@@ -62,3 +62,6 @@ class Connection:
     def call_from_thread(self, *args):
         if args:
             args[0](*args[1:])
+
+    def send_reply(self, *args):
+        pass
