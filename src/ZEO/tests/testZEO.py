@@ -1032,7 +1032,6 @@ def tpc_finish_error():
     connection closed
 
     >>> cs.close()
-    connection closed
     """
 
 def client_has_newer_data_than_server():
@@ -1286,6 +1285,8 @@ if sys.version_info >= (2, 6):
             # Gaaa, zope.testing.runner.FakeInputContinueGenerator has no close
             if not hasattr(sys.stdin, 'close'):
                 sys.stdin.close = lambda : None
+            if not hasattr(sys.stdin, 'fileno'):
+                sys.stdin.fileno = lambda : -1
 
             self.globs = {}
             forker.setUp(self)
