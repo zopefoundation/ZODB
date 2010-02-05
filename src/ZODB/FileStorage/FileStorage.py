@@ -16,10 +16,9 @@
 
 from __future__ import with_statement
 
-from cPickle import Pickler, Unpickler, loads
+from cPickle import Pickler, loads
 from persistent.TimeStamp import TimeStamp
 from struct import pack, unpack
-from types import StringType
 from zc.lockfile import LockFile
 from ZODB.FileStorage.format import CorruptedError, CorruptedDataError
 from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
@@ -28,7 +27,6 @@ from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
 from ZODB.FileStorage.fspack import FileStoragePacker
 from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.loglevels import BLATHER
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.utils import p64, u64, z64
 
@@ -38,7 +36,6 @@ import contextlib
 import errno
 import logging
 import os
-import sys
 import threading
 import time
 import ZODB.blob
@@ -427,8 +424,7 @@ class FileStorage(
                 raise POSKeyError(oid)
 
     def loadSerial(self, oid, serial):
-        self._lock_acquire()
-        try:
+        with self._lock:
             pos = self._lookup_pos(oid)
             while 1:
                 h = self._read_data_header(pos, oid)
@@ -441,8 +437,6 @@ class FileStorage(
                 return self._file.read(h.plen)
             else:
                 return self._loadBack_impl(oid, h.back)[0]
-        finally:
-            self._lock_release()
 
     def loadBefore(self, oid, tid):
         with self._files.get() as _file:
@@ -471,8 +465,7 @@ class FileStorage(
             raise POSException.StorageTransactionError(self, transaction)
         assert not version
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             if oid > self._oid:
                 self.set_max_oid(oid)
             old = self._index_get(oid, 0)
@@ -510,17 +503,13 @@ class FileStorage(
             else:
                 return self._tid
 
-        finally:
-            self._lock_release()
-
     def deleteObject(self, oid, oldserial, transaction):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             old = self._index_get(oid, 0)
             if not old:
                 raise POSException.POSKeyError(oid)
@@ -542,9 +531,6 @@ class FileStorage(
             if self._quota is not None and here > self._quota:
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
-
-        finally:
-            self._lock_release()
 
     def _data_find(self, tpos, oid, data):
         # Return backpointer for oid.  Must call with the lock held.
@@ -617,8 +603,7 @@ class FileStorage(
         if version:
             raise TypeError("Versions are no-longer supported")
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             if oid > self._oid:
                 self.set_max_oid(oid)
             prev_pos = 0
@@ -654,8 +639,6 @@ class FileStorage(
                     self._tfile.write(z64)
             else:
                 self._tfile.write(data)
-        finally:
-            self._lock_release()
 
     def supportsUndo(self):
         return 1
@@ -679,10 +662,8 @@ class FileStorage(
             if len(e) > 65535:
                 raise FileStorageError('too much extension data')
 
-
     def tpc_vote(self, transaction):
-        self._lock_acquire()
-        try:
+        with self._lock:
             if transaction is not self._transaction:
                 raise POSException.StorageTransactionError(
                     "tpc_vote called with wrong transaction")
@@ -711,8 +692,6 @@ class FileStorage(
                 self._file.truncate(self._pos)
                 raise
             self._nextpos = self._pos + (tl + 8)
-        finally:
-            self._lock_release()
 
     def tpc_finish(self, transaction, f=None):
         with self._files.write_lock():
@@ -794,16 +773,13 @@ class FileStorage(
         return h.tid, pos, data
 
     def getTid(self, oid):
-        self._lock_acquire()
-        try:
+        with self._lock:
             pos = self._lookup_pos(oid)
             h = self._read_data_header(pos, oid)
             if h.plen == 0 and h.back == 0:
                 # Undone creation
                 raise POSKeyError(oid)
             return h.tid
-        finally:
-            self._lock_release()
 
     def _transactionalUndoRecord(self, oid, pos, tid, pre):
         """Get the undo information for a data record
@@ -887,8 +863,7 @@ class FileStorage(
             # the normalization code was incorrect for years (used +1
             # instead -- off by 1), until ZODB 3.4.
             last = first - last
-        self._lock_acquire()
-        try:
+        with self._lock:
             if self._pack_is_in_progress:
                 raise UndoError(
                     'Undo is currently disabled for database maintenance.<p>')
@@ -905,8 +880,6 @@ class FileStorage(
                 self._lock_release()
                 self._lock_acquire()
             return us.results
-        finally:
-            self._lock_release()
 
     def undo(self, transaction_id, transaction):
         """Undo a transaction, given by transaction_id.
@@ -925,20 +898,14 @@ class FileStorage(
         if transaction is not self._transaction:
             raise POSException.StorageTransactionError(self, transaction)
 
-        self._lock_acquire()
-        try:
-            return self._txn_undo(transaction_id)
-        finally:
-            self._lock_release()
-
-    def _txn_undo(self, transaction_id):
-        # Find the right transaction to undo and call _txn_undo_write().
-        tid = base64.decodestring(transaction_id + '\n')
-        assert len(tid) == 8
-        tpos = self._txn_find(tid, 1)
-        tindex = self._txn_undo_write(tpos)
-        self._tindex.update(tindex)
-        return self._tid, tindex.keys()
+        with self._lock:
+          # Find the right transaction to undo and call _txn_undo_write().
+          tid = base64.decodestring(transaction_id + '\n')
+          assert len(tid) == 8
+          tpos = self._txn_find(tid, 1)
+          tindex = self._txn_undo_write(tpos)
+          self._tindex.update(tindex)
+          return self._tid, tindex.keys()
 
     def _txn_find(self, tid, stop_at_pack):
         pos = self._pos
@@ -1027,8 +994,7 @@ class FileStorage(
         return tindex
 
     def history(self, oid, size=1, filter=None):
-        self._lock_acquire()
-        try:
+        with self._lock:
             r = []
             pos = self._lookup_pos(oid)
 
@@ -1056,8 +1022,6 @@ class FileStorage(
                     pos = h.prev
                 else:
                     return r
-        finally:
-            self._lock_release()
 
     def _redundant_pack(self, file, pos):
         assert pos > 8, pos
@@ -1097,13 +1061,10 @@ class FileStorage(
         if not self._index:
             return
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             if self._pack_is_in_progress:
                 raise FileStorageError('Already packing')
             self._pack_is_in_progress = True
-        finally:
-            self._lock_release()
 
         if gc is None:
             gc = self._pack_gc
@@ -1154,18 +1115,14 @@ class FileStorage(
         finally:
             if have_commit_lock:
                 self._commit_lock_release()
-            self._lock_acquire()
-            self._pack_is_in_progress = False
-            self._lock_release()
+            with self._lock:
+                self._pack_is_in_progress = False
 
         if not self.pack_keep_old:
             os.remove(oldpath)
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             self._save_index()
-        finally:
-            self._lock_release()
 
     def _remove_blob_files_tagged_for_removal_during_pack(self):
         lblob_dir = len(self.blob_dir)
@@ -1277,8 +1234,7 @@ class FileStorage(
         file = self._file
         seek = file.seek
         read = file.read
-        self._lock_acquire()
-        try:
+        with self._lock:
             pos = self._pos
             while count > 0 and pos > 4:
                 count -= 1
@@ -1288,9 +1244,6 @@ class FileStorage(
             seek(0)
             return [(trans.tid, [r.oid for r in trans])
                     for trans in FileIterator(self._file_name, pos=pos)]
-        finally:
-            self._lock_release()
-
 
     def lastTid(self, oid):
         """Return last serialno committed for object oid.
