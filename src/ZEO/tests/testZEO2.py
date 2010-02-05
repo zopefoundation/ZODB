@@ -111,7 +111,7 @@ handled correctly:
 def proper_handling_of_errors_in_restart():
     r"""
 
-It's critical that if there is an error in _restart (ie vote) that the
+It's critical that if there is an error in vote that the
 storage isn't left in tpc.
 
     >>> fs = ZODB.FileStorage.FileStorage('t.fs', blob_dir='t.blobs')
@@ -150,8 +150,7 @@ We can start another client and get the storage lock.
     >>> _ = zs1.vote('1') # doctest: +ELLIPSIS
     1 callAsync serialnos ...
 
-    >>> zs1.tpc_finish('1') is not None
-    True
+    >>> zs1.tpc_finish('1').set_sender(0, conn1)
 
     >>> fs.close()
     """
