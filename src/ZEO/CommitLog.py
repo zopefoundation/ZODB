@@ -28,7 +28,7 @@ import tempfile
 class CommitLog:
 
     def __init__(self):
-        self.file = tempfile.TemporaryFile(suffix=".log")
+        self.file = tempfile.TemporaryFile(suffix=".comit-log")
         self.pickler = cPickle.Pickler(self.file, 1)
         self.pickler.fast = 1
         self.stores = 0
