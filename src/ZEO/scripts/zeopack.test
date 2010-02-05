@@ -44,6 +44,7 @@ Now, we're ready to try the script:
 
 If we call it with no arguments, we get help:
 
+>>> import os; os.environ['COLUMNS'] = '80' # for consistent optparse output
 >>> main([], 'zeopack')
 Usage: zeopack [options] [servers]
 <BLANKLINE>
