@@ -217,7 +217,10 @@ class ConnectionManager(object):
 
         self.map.clear()
         self.trigger.pull_trigger()
-        self.loop_thread.join(9)
+        try:
+            self.loop_thread.join(9)
+        except RuntimeError:
+            pass # we are the thread :)
         self.trigger.close()
 
     def attempt_connect(self):
