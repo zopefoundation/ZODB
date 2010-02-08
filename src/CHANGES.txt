@@ -16,7 +16,7 @@ New Features
   indexes won't be readable by older versions of ZODB.
 
 - The API for undoing multiple transactions has changed.  To undo
-  multiple transactions in a single transaction, pass pass a list of
+  multiple transactions in a single transaction, pass a list of
   transaction identifiers to a database's undoMultiple method. Calling a
   database's undo method multiple times in the same transaction now
   raises an exception.
