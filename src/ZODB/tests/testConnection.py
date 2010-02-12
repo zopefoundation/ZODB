@@ -815,6 +815,7 @@ class StubDatabase:
 
     def __init__(self):
         self.storage = StubStorage()
+        self.new_oid = self.storage.new_oid
 
     classFactory = None
     database_name = 'stubdatabase'
@@ -822,6 +823,8 @@ class StubDatabase:
 
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
+
+    save_oid = lambda self, oid: None
 
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')

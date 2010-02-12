@@ -57,7 +57,7 @@ def pack(db):
 
 class P(persistent.Persistent):
 
-    def __init__(self, name):
+    def __init__(self, name=None):
         self.name = name
 
     def __repr__(self):

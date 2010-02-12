@@ -2,6 +2,17 @@
  Change History
 ================
 
+3.10.0a2 (2010-??-??)
+=====================
+
+New Features
+------------
+
+- When transactions are aborted, new object ids allocated during the
+  transaction are saved and used in subsequent transactions. This can
+  help in situations where object ids are used as BTree keys and the
+  sequential allocation of object ids leads to conflict errors.
+
 3.10.0a1 (2010-02-08)
 =====================
 

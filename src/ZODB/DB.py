@@ -384,7 +384,9 @@ class DB(object):
                  historical_timeout=300,
                  database_name='unnamed',
                  databases=None,
-                 xrefs=True):
+                 xrefs=True,
+                 max_saved_oids=999,
+                 ):
         """Create an object database.
 
         :Parameters:
@@ -479,6 +481,9 @@ class DB(object):
 
         self._setupUndoMethods()
         self.history = storage.history
+
+        self._saved_oids = []
+        self._max_saved_oids = max_saved_oids
 
     def _setupUndoMethods(self):
         storage = self.storage
@@ -940,6 +945,19 @@ class DB(object):
 
     def transaction(self):
         return ContextManager(self)
+
+
+    def save_oid(self, oid):
+        if len(self._saved_oids) < self._max_saved_oids:
+            self._saved_oids.append(oid)
+
+    def new_oid(self):
+        if self._saved_oids:
+            try:
+                return self._saved_oids.pop()
+            except IndexError:
+                pass # Hm, threads
+        return self.storage.new_oid()
 
 
 class ContextManager:

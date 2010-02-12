@@ -11,20 +11,21 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest
-import warnings
-
-import ZODB
-import ZODB.FileStorage
-import ZODB.MappingStorage
-from ZODB.POSException import ReadConflictError, ConflictError
-from ZODB.POSException import TransactionFailedError
-from ZODB.tests.warnhook import WarningsHook
-import ZODB.tests.util
 
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
+from ZODB.POSException import ReadConflictError, ConflictError
+from ZODB.POSException import TransactionFailedError
+from ZODB.tests.warnhook import WarningsHook
+
+import doctest
 import transaction
+import unittest
+import warnings
+import ZODB
+import ZODB.FileStorage
+import ZODB.MappingStorage
+import ZODB.tests.util
 
 class P(Persistent):
     pass
@@ -631,7 +632,9 @@ class PoisonedObject:
         self._p_jar = poisonedjar
 
 def test_suite():
-    return unittest.makeSuite(ZODBTests, 'check')
+    suite = unittest.makeSuite(ZODBTests, 'check')
+    suite.addTest(doctest.DocFileSuite('new_oids_get_reused_on_abort.test'))
+    return suite
 
 if __name__ == "__main__":
     unittest.main(defaultTest="test_suite")

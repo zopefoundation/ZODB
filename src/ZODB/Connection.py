@@ -104,7 +104,7 @@ class Connection(ExportImport, object):
             self._mvcc_storage = False
 
         self._normal_storage = self._storage = storage
-        self.new_oid = storage.new_oid
+        self.new_oid = db.new_oid
         self._savepoint_storage = None
 
         # Do we need to join a txn manager?
@@ -214,7 +214,7 @@ class Connection(ExportImport, object):
                             " added to a Connection.", obj)
         elif obj._p_jar is None:
             assert obj._p_oid is None
-            oid = obj._p_oid = self._storage.new_oid()
+            oid = obj._p_oid = self.new_oid()
             obj._p_jar = self
             if self._added_during_commit is not None:
                 self._added_during_commit.append(obj)
@@ -426,6 +426,7 @@ class Connection(ExportImport, object):
         if self._savepoint_storage is not None:
             self._abort_savepoint()
 
+        self._invalidate_creating()
         self._tpc_cleanup()
 
     def _abort(self):
@@ -438,6 +439,7 @@ class Connection(ExportImport, object):
                 del self._added[oid]
                 del obj._p_jar
                 del obj._p_oid
+                self._db.save_oid(oid)
             else:
 
                 # Note: If we invalidate a non-ghostifiable object
@@ -723,6 +725,7 @@ class Connection(ExportImport, object):
             self._creating = {}
 
         for oid in creating:
+            self._db.save_oid(oid)
             o = self._cache.get(oid)
             if o is not None:
                 del self._cache[oid]
