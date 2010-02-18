@@ -1,8 +1,7 @@
 Bugs
 ====
 
-General bug reporting happens in the `Launchpad bug
-tracker<http://bugs.launchpad.net/zodb>`_.
+General bug reporting happens in the `Launchpad bug tracker <http://bugs.launchpad.net/zodb>`_.
 
 However, the ZODB has been around much longer and thus there are some historic
 resource for bug-related information.:
