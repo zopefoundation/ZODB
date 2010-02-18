@@ -30,7 +30,7 @@ You can install the egg using setuptools' easy_install command::
 
     $ easy_install ZODB3
 
-`Other downloads <downloads.rst>`_ are available for old (non-egg) releases
+`Other downloads <downloads.html>`_ are available for old (non-egg) releases
 and via Subversion.
 
 Community and contributing
