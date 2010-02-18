@@ -29,8 +29,16 @@ Other ZODB Resources
 - `How To Love ZODB and Forget RDBMS
   <http://zope.org/Members/adytumsolutions/HowToLoveZODB_PartI>`_
 
-- `ZODB Wiki <http://www.zope.org/Wikis/ZODB/FrontPage>`_ and `Documentation
-  page <http://wiki.zope.org/ZODB/Documentation>`_
+- `ZODB wiki <http://www.zope.org/Wikis/ZODB/FrontPage>`_ and `Documentation
+  page <http://wiki.zope.org/ZODB/Documentation>`_ and `Historical pages
+  <http://wiki.zope.org/ZODB/HistoricalPages>`_
+
+- `Very old ZODB wiki <http://www.zope.org/Members/jim/ZODB/FrontPage>`_
 
 - `ZODB-dev <http://mail.zope.org/mailman/listinfo/zodb-dev>`_ mailing list
   and `archive <http://mail.zope.org/pipermail/zodb-dev/>`_
+
+- `Administering Zope 2 - ZODB
+  <http://wiki.zope.org/zope2/ZODBZopeObjectDatabase>`_
+
+- `Add-on software for ZODB <http://wiki.zope.org/ZODB/ZODBAddOns>`_
