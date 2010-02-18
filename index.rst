@@ -24,4 +24,4 @@ Documentation
 Release information
 ===================
 
-- `Release information at pypi <http://pypi.python.org/pypi/ZODB3>`_
+- `Release information at PyPI <http://pypi.python.org/pypi/ZODB3>`_
