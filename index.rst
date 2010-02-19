@@ -6,7 +6,7 @@ ZODB - a native object database for Python
 
 The Zope Object Database (ZODB) provides seamless object persistence in Python.
 It gets rid of requiring a relational database for your object-oriented
-application and provides you with a powerful and safe object sore:
+application and provides you with a powerful and safe object store:
 persistence, transactions, scalability, :doc:`and more<overview>`.
 
 
