@@ -13,6 +13,13 @@ New Features
   help in situations where object ids are used as BTree keys and the
   sequential allocation of object ids leads to conflict errors.
 
+Bugs Fixed
+----------
+
+- The byte size limited pickle cache could overflow and effectively disable
+  the cache. (https://bugs.launchpad.net/zodb/+bug/533015)
+
+
 3.10.0a1 (2010-02-08)
 =====================
 

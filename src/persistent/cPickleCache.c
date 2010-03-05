@@ -667,7 +667,7 @@ cc_update_object_size_estimation(ccobject *self, PyObject *args)
 {
   PyObject *oid;
   cPersistentObject *v;
-  unsigned int new_size;
+  int new_size;
   if (!PyArg_ParseTuple(args, "OI:updateObjectSizeEstimation", &oid, &new_size))
     return NULL;
   /* Note: reference borrowed */
