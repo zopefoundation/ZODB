@@ -701,6 +701,8 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # make the object smaller
         obj.setValueWithSize(100)
         transaction.savepoint()
+        # the object still fits into the cache, so it should be there
+        self.assert_(cache.total_estimated_size >= 100)
         # make sure there was no overflow
         self.assert_(cache.total_estimated_size <= 1000)
 
