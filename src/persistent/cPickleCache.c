@@ -668,7 +668,8 @@ cc_update_object_size_estimation(ccobject *self, PyObject *args)
   PyObject *oid;
   cPersistentObject *v;
   unsigned int new_size;
-  if (!PyArg_ParseTuple(args, "OI:updateObjectSizeEstimation", &oid, &new_size))
+  if (!PyArg_ParseTuple(args, "OI:updateObjectSizeEstimation",
+                        &oid, &new_size))
     return NULL;
   /* Note: reference borrowed */
   v = (cPersistentObject *)PyDict_GetItem(self->data, oid);
@@ -680,8 +681,9 @@ cc_update_object_size_estimation(ccobject *self, PyObject *args)
       if (v->ring.r_next)
         {
           self->total_estimated_size += _estimated_size_in_bytes(
-               _estimated_size_in_24_bits(new_size) - v->estimated_size
-                                                                 );
+               (int)(_estimated_size_in_24_bits(new_size))
+                - (int)(v->estimated_size)
+               );
           /* we do this in "Connection" as we need it even when the
              object is not in the cache (or not the ring)
           */
