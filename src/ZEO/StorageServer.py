@@ -786,13 +786,6 @@ class StorageServerDB:
             raise StorageServerError("Versions aren't supported.")
         storage_id = self.storage_id
         self.server.invalidate(None, storage_id, tid, oids)
-        for zeo_server in self.server.connections.get(storage_id, ())[:]:
-            try:
-                zeo_server.connection.poll()
-            except ZEO.zrpc.error.DisconnectedError:
-                pass
-            else:
-                break # We only need to pull one :)
 
     def invalidateCache(self):
         self.server._invalidateCache(self.storage_id)

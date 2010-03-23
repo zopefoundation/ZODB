@@ -5,6 +5,12 @@
 3.10.0a2 (2010-??-??)
 =====================
 
+Bugs Fixed
+----------
+
+- When using using a ClientStorage in a Storage server, there was a
+  threading bug that caused clients to get disconnected.
+
 New Features
 ------------
 
