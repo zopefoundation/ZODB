@@ -8,6 +8,9 @@
 Bugs Fixed
 ----------
 
+- Fixed bug in cPickleCache's byte size estimation logic.
+  (https://bugs.launchpad.net/zodb/+bug/533015)
+
 - When using using a ClientStorage in a Storage server, there was a
   threading bug that caused clients to get disconnected.
 

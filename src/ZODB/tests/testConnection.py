@@ -685,10 +685,26 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # sanity check
         self.assert_(cache.total_estimated_size >= 0)
 
-
-
-
-
+    def test_cache_garbage_collection_shrinking_object(self):
+        db = self.db
+        # activate size based cache garbage collection
+        db.setCacheSizeBytes(1000)
+        obj, conn, cache = self.obj, self.conn, self.conn._cache
+        # verify the change worked as expected
+        self.assertEqual(cache.cache_size_bytes, 1000)
+        # verify our entrance assumption is fullfilled
+        self.assert_(cache.total_estimated_size > 1)
+        # give the objects some size
+        obj.setValueWithSize(500)
+        transaction.savepoint()
+        self.assert_(cache.total_estimated_size > 500)
+        # make the object smaller
+        obj.setValueWithSize(100)
+        transaction.savepoint()
+        # make sure there was no overflow
+        self.assert_(cache.total_estimated_size != 0)
+        # the size is not larger than the allowed maximum
+        self.assert_(cache.total_estimated_size <= 1000)
 
 # ---- stubs
 
