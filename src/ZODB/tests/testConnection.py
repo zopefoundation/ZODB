@@ -680,6 +680,8 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         transaction.savepoint()
         # make sure there was no overflow
         self.assert_(cache.total_estimated_size != 0)
+        # the size is not larger than the allowed maximum
+        self.assert_(cache.total_estimated_size <= 1000)
 
 # ---- stubs
 
