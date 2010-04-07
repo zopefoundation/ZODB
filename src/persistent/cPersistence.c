@@ -1235,6 +1235,12 @@ Per_setstate(cPersistentObject *self)
 static PyObject *
 simple_new(PyObject *self, PyObject *type_object)
 {
+  if (!PyType_Check(type_object))
+    {
+      PyErr_SetString(PyExc_TypeError,
+                      "simple_new argument must be a type object.");
+      return NULL;
+    }
   return PyType_GenericNew((PyTypeObject *)type_object, NULL, NULL);
 }
 

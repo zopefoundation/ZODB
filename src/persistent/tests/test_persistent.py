@@ -13,7 +13,7 @@
 ##############################################################################
 import unittest
 from zope.testing import doctest
-from persistent import Persistent
+from persistent import Persistent, simple_new
 
 class P(Persistent):
     def __init__(self):
@@ -35,6 +35,13 @@ def cpersistent_setstate_pointer_sanity():
     TypeError: this object has no instance dictionary
     """
 
+def cpersistent_simple_new_invalid_argument():
+    """
+    >>> simple_new('')
+    Traceback (most recent call last):
+    ...
+    TypeError: simple_new argument must be a type object.
+    """
 
 def test_suite():
     return unittest.TestSuite((
