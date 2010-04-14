@@ -168,8 +168,94 @@ class RepozoTests(unittest.TestCase):
             (correctpath, when, ' '.join(argv)))
         self.assertEquals(fguts, gguts, msg)
 
+class Test_delete_old_backups(unittest.TestCase):
+
+    _repository_directory = None
+
+    def tearDown(self):
+        if self._repository_directory is not None:
+            from shutil import rmtree
+            rmtree(self._repository_directory)
+
+    def _callFUT(self, options=None, filenames=()):
+        from ZODB.scripts.repozo import delete_old_backups
+        if options is None:
+            options = self._makeOptions(filenames)
+        delete_old_backups(options)
+
+    def _makeOptions(self, filenames=()):
+        import tempfile
+        dir = self._repository_directory = tempfile.mkdtemp()
+        for filename in filenames:
+            fqn = os.path.join(dir, filename)
+            f = open(fqn, 'wb')
+            f.write('testing delete_old_backups')
+            f.close()
+        class Options(object):
+            repository = dir
+        return Options()
+
+    def test_empty_dir_doesnt_raise(self):
+        self._callFUT()
+        self.assertEqual(len(os.listdir(self._repository_directory)), 0)
+
+    def test_no_repozo_files_doesnt_raise(self):
+        FILENAMES = ['bogus.txt', 'not_a_repozo_file']
+        self._callFUT(filenames=FILENAMES)
+        remaining = os.listdir(self._repository_directory)
+        self.assertEqual(len(remaining), len(FILENAMES))
+        for name in FILENAMES:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failUnless(os.path.isfile(fqn))
+
+    def test_doesnt_remove_current_repozo_files(self):
+        FILENAMES = ['2009-12-20-10-08-03.fs', '2009-12-20-10-08-03.dat']
+        self._callFUT(filenames=FILENAMES)
+        remaining = os.listdir(self._repository_directory)
+        self.assertEqual(len(remaining), len(FILENAMES))
+        for name in FILENAMES:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failUnless(os.path.isfile(fqn))
+
+    def test_removes_older_repozo_files(self):
+        OLDER_FULL = ['2009-12-20-00-01-03.fs', '2009-12-20-00-01-03.dat']
+        DELTAS = ['2009-12-21-00-00-01.deltafs', '2009-12-22-00-00-01.deltafs']
+        CURRENT_FULL = ['2009-12-23-00-00-01.fs', '2009-12-23-00-00-01.dat']
+        FILENAMES = OLDER_FULL + DELTAS + CURRENT_FULL
+        self._callFUT(filenames=FILENAMES)
+        remaining = os.listdir(self._repository_directory)
+        self.assertEqual(len(remaining), len(CURRENT_FULL))
+        for name in OLDER_FULL:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failIf(os.path.isfile(fqn))
+        for name in DELTAS:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failIf(os.path.isfile(fqn))
+        for name in CURRENT_FULL:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failUnless(os.path.isfile(fqn))
+
+    def test_removes_older_repozo_files_zipped(self):
+        OLDER_FULL = ['2009-12-20-00-01-03.fsz', '2009-12-20-00-01-03.dat']
+        DELTAS = ['2009-12-21-00-00-01.deltafsz',
+                  '2009-12-22-00-00-01.deltafsz']
+        CURRENT_FULL = ['2009-12-23-00-00-01.fsz', '2009-12-23-00-00-01.dat']
+        FILENAMES = OLDER_FULL + DELTAS + CURRENT_FULL
+        self._callFUT(filenames=FILENAMES)
+        remaining = os.listdir(self._repository_directory)
+        self.assertEqual(len(remaining), len(CURRENT_FULL))
+        for name in OLDER_FULL:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failIf(os.path.isfile(fqn))
+        for name in DELTAS:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failIf(os.path.isfile(fqn))
+        for name in CURRENT_FULL:
+            fqn = os.path.join(self._repository_directory, name)
+            self.failUnless(os.path.isfile(fqn))
 
 def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(RepozoTests),
+        unittest.makeSuite(Test_delete_old_backups),
     ])

@@ -5,6 +5,18 @@
 3.10.0a2 (2010-??-??)
 =====================
 
+New Features
+------------
+
+- Added a '--kill-old-on-full' argument to the backup options:  if passed,
+  remove any older full or incremental backup files from the repository after
+  doing a full backup. (https://bugs.launchpad.net/zope2/+bug/143158)
+
+- When transactions are aborted, new object ids allocated during the
+  transaction are saved and used in subsequent transactions. This can
+  help in situations where object ids are used as BTree keys and the
+  sequential allocation of object ids leads to conflict errors.
+
 Bugs Fixed
 ----------
 
@@ -13,14 +25,6 @@ Bugs Fixed
 
 - When using using a ClientStorage in a Storage server, there was a
   threading bug that caused clients to get disconnected.
-
-New Features
-------------
-
-- When transactions are aborted, new object ids allocated during the
-  transaction are saved and used in subsequent transactions. This can
-  help in situations where object ids are used as BTree keys and the
-  sequential allocation of object ids leads to conflict errors.
 
 3.10.0a1 (2010-02-08)
 =====================

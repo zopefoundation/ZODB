@@ -50,6 +50,11 @@ Options for -B/--backup:
         Compress with gzip the backup files.  Uses the default zlib
         compression level.  By default, gzip compression is not used.
 
+    -k / --kill-old-on-full
+        If a full backup is created, remove any prior full or incremental
+        backup files (and associated metadata files) from the repository
+        directory.
+
 Options for -R/--recover:
     -D str
     --date=str
@@ -109,10 +114,20 @@ def log(msg, *args):
 def parseargs(argv):
     global VERBOSE
     try:
-        opts, args = getopt.getopt(argv, 'BRvhf:r:FD:o:Qz',
-                                   ['backup', 'recover', 'verbose', 'help',
-                                    'file=', 'repository=', 'full', 'date=',
-                                    'output=', 'quick', 'gzip'])
+        opts, args = getopt.getopt(argv, 'BRvhr:f:FQzkD:o:',
+                                   ['backup',
+                                    'recover',
+                                    'verbose',
+                                    'help',
+                                    'repository=',
+                                    'file=',
+                                    'full',
+                                    'quick',
+                                    'gzip',
+                                    'kill-old-on-full',
+                                    'date=',
+                                    'output=',
+                                   ])
     except getopt.error, msg:
         usage(1, msg)
 
@@ -125,6 +140,7 @@ def parseargs(argv):
         output = None       # where to write recovered data; None = stdout
         quick = False       # -Q flag state
         gzip = False        # -z flag state
+        killold = False     # -k flag state
 
     options = Options()
 
@@ -155,6 +171,8 @@ def parseargs(argv):
             options.output = arg
         elif opt in ('-z', '--gzip'):
             options.gzip = True
+        elif opt in ('-k', '--kill-old-on-full'):
+            options.killold = True
         else:
             assert False, (opt, arg)
 
@@ -179,6 +197,9 @@ def parseargs(argv):
         if options.file is not None:
             log('--file option is ignored in recover mode')
             options.file = None
+        if options.killold is not None:
+            log('--kill-old-on-full option is ignored in recover mode')
+            options.killold = None
     return options
 
 
@@ -351,6 +372,39 @@ def scandat(repofiles):
 
     return fn, startpos, endpos, sum
 
+def delete_old_backups(options):
+    # Delete all full backup files except for the most recent full backup file
+    all = filter(is_data_file, os.listdir(options.repository))
+    all.sort()
+
+    deletable = []
+    full = []
+    for fname in all:
+        root, ext = os.path.splitext(fname)
+        if ext in ('.fs', '.fsz'):
+            full.append(fname)
+        if ext in ('.fs', '.fsz', '.deltafs', '.deltafsz'):
+            deletable.append(fname)
+
+    # keep most recent full
+    if not full:
+        return
+    
+    recentfull = full.pop(-1)
+    deletable.remove(recentfull)
+    root, ext = os.path.splitext(recentfull)
+    dat = root + '.dat'
+    if dat in deletable:
+        deletable.remove(dat)
+    
+    for fname in deletable:
+        log('removing old backup file %s (and .dat)', fname)
+        root, ext = os.path.splitext(fname)
+        try:
+            os.unlink(os.path.join(options.repository, root + '.dat'))
+        except OSError:
+            pass
+        os.unlink(os.path.join(options.repository, fname))
 
 def do_full_backup(options):
     # Find the file position of the last completed transaction.
@@ -376,6 +430,8 @@ def do_full_backup(options):
     fp.flush()
     os.fsync(fp.fileno())
     fp.close()
+    if options.killold:
+        delete_old_backups(options)
 
 
 def do_incremental_backup(options, reposz, repofiles):
