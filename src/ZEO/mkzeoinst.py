@@ -13,7 +13,7 @@
 ##############################################################################
 """%(program)s -- create a ZEO instance.
 
-Usage: %(program)s home [port]
+Usage: %(program)s home [[host:]port]
 
 Given an "instance home directory" <home> and some configuration
 options (all of which have default values), create the following:
@@ -43,7 +43,7 @@ zeo_conf_template = """\
 %%define INSTANCE %(instance_home)s
 
 <zeo>
-  address %(port)d
+  address %(address)s
   read-only false
   invalidation-queue-size 100
   # pid-filename $INSTANCE/var/ZEO.pid
@@ -73,7 +73,7 @@ zeo_conf_template = """\
   default-to-interactive true
   # user zope
   python %(python)s
-  zdrun %(zodb3_home)s/zdaemon/zdrun.py
+  zdrun %(zdaemon_home)s/zdaemon/zdrun.py
 
   # This logfile should match the one in the %(package)s.conf file.
   # It is used by zdctl's logtail command, zdrun/zdctl doesn't write it.
@@ -143,36 +143,50 @@ class ZEOInstanceBuilder:
             print msg
             sys.exit()
         if len(args) not in [1, 2]:
-            print "Usage: %s home [port]" % program
+            print "Usage: %s home [[host:]port]" % program
             sys.exit(2)
 
         instance_home = args[0]
         if not os.path.isabs(instance_home):
             instance_home = os.path.abspath(instance_home)
 
+        zodb3_home = None
         for entry in sys.path:
             if os.path.exists(os.path.join(entry, 'ZODB')):
                 zodb3_home = entry
                 break
-        else:
+        if zodb3_home is None:
             print "Can't find the Zope home (not in sys.path)"
             sys.exit(2)
 
-        if args[1:]:
-            port = int(args[1])
-        else:
-            port = 8100  # match example in zope.conf
+        import zdaemon
+        zdaemon_home = os.path.split(zdaemon.__path__[0])[0]
 
-        params = self.get_params(zodb3_home, instance_home, port)
+        host = None
+        port = 9999
+        if args[1:]:
+            addr_string = args[1]
+            if ':' in addr_string:
+                host, port = addr_string.split(':', 1)
+            else:
+                port = addr_string
+            port = int(port)
+        address = port
+        if host:
+            address = host + ':' + str(port)
+
+        params = self.get_params(zodb3_home, zdaemon_home,
+                                 instance_home, address)
         self.create(instance_home, params)
 
-    def get_params(self, zodb3_home, instance_home, port):
+    def get_params(self, zodb3_home, zdaemon_home, instance_home, address):
         return {
             "package": "zeo",
             "PACKAGE": "ZEO",
             "zodb3_home": zodb3_home,
+            "zdaemon_home": zdaemon_home,
             "instance_home": instance_home,
-            "port": port,
+            "address": address,
             "python": sys.executable,
             }
 

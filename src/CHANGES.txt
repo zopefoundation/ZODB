@@ -8,6 +8,10 @@
 New Features
 ------------
 
+- In 'ZEO/mkzeoinst.py', added support for supplying a host interface,
+  in addition to a port number, when creating a new ZEO server instance.
+  (https://bugs.launchpad.net/zodb/+bug/143361)
+
 - Added a '--kill-old-on-full' argument to the backup options:  if passed,
   remove any older full or incremental backup files from the repository after
   doing a full backup. (https://bugs.launchpad.net/zope2/+bug/143158)
@@ -19,6 +23,9 @@ New Features
 
 Bugs Fixed
 ----------
+
+- Fixed 'mkzeoinst', which has generated broken 'zeoctl' scripts since the
+  'zdaemon' package was split out of ZODB for separate distribution.
 
 - Fixed bug in cPickleCache's byte size estimation logic.
   (https://bugs.launchpad.net/zodb/+bug/533015)
