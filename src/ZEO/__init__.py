@@ -76,7 +76,7 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
     """
     import os, ZEO.tests.forker
     if storage_conf is None and path is None:
-        raise TypeError("You must specify either a storage_conf or file path.")
+        storage_conf = '<mappingstorage>\n</mappingstorage>'
     if port is None and zeo_conf is None:
         port = ZEO.tests.forker.get_port()
 
