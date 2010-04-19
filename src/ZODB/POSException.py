@@ -27,6 +27,8 @@ def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
     return "Undo error %s%s" % (oid_repr(oid), s)
 
+# The following is no longer used but should be kept, at least for a
+# while, for compatibility with ZODB 3.8 and 3.9 servers. :/
 def _recon(class_, state):
     err = class_.__new__(class_)
     err.__setstate__(state)
@@ -36,29 +38,24 @@ _recon.__no_side_effects__ = True
 class POSError(StandardError):
     """Persistent object system error."""
 
-    if sys.version_info[:2] == (2, 6):
-        # The 'message' attribute was deprecated for BaseException with
-        # Python 2.6; here we create descriptor properties to continue using it
-        def __set_message(self, v):
-            self.__dict__['message'] = v
+    def __reduce__(self):
+        try:
+            args = self.args
+        except AttributeError:
+            return self.__class__, (), self.__getstate__()
+        else:
+            if args:
+                return self.__class__, args
+            else:
+                # sigh. 
+                return self.__class__, (), self.__getstate__()
 
-        def __get_message(self):
-            return self.__dict__['message']
+    def __getstate__(self):
+        return self.__dict__.copy()
 
-        def __del_message(self):
-            del self.__dict__['message']
-
-        message = property(__get_message, __set_message, __del_message)
-
-    if sys.version_info[:2] >= (2, 5):
-        def __reduce__(self):
-            # Copy extra data from internal structures
-            state = self.__dict__.copy()
-            if sys.version_info[:2] == (2, 5):
-                state['message'] = self.message
-            state['args'] = self.args
-
-            return (_recon, (self.__class__, state))
+    def __setstate__(self, v):
+        self.__dict__.clear()
+        self.__dict__.update(v)
 
 class POSKeyError(POSError, KeyError):
     """Key not found in database."""
@@ -95,6 +92,7 @@ class ConflictError(POSError, TransactionError):
 
     def __init__(self, message=None, object=None, oid=None, serials=None,
                  data=None):
+
         if message is None:
             self.message = "database conflict error"
         else:
@@ -220,6 +218,7 @@ class BTreesConflictError(ConflictError):
             ]
 
     def __init__(self, p1, p2, p3, reason):
+        POSError.__init__(self, p1, p2, p3, reason)
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
@@ -248,6 +247,7 @@ class DanglingReferenceError(POSError, TransactionError):
     """
 
     def __init__(self, Aoid, Boid):
+        POSError.__init__(self, Aoid, Boid)
         self.referer = Aoid
         self.missing = Boid
 
@@ -277,6 +277,7 @@ class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction."""
 
     def __init__(self, reason, oid=None):
+        POSError.__init__(self, reason, oid)
         self._reason = reason
         self._oid = oid
 
@@ -289,6 +290,7 @@ class MultipleUndoErrors(UndoError):
     def __init__(self, errs):
         # provide a reason and oid for clients that only look at that
         UndoError.__init__(self, *errs[0])
+        POSError.__init__(self, errs)
         self._errs = errs
 
     def __str__(self):
