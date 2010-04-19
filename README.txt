@@ -24,10 +24,20 @@ you pass --all as an argument to test.py.
 Compatibility
 =============
 
-ZODB 3.9 requires Python 2.4.2 or later.
+ZODB 3.10 requires Python 2.5 or later.
 
-ZODB ZEO clients from ZODB 3.2 on can talk to ZODB 3.9 servers.  ZODB
-ZEO Clients can talk to ZODB 3.8 and 3.9 ZEO servers.
+Note --
+   When using ZEO and upgrading from Python 2.4, you need to upgrade
+   clients and servers at the same time, or upgrade clients first and
+   then servers.  Clients running Python 2.4 won't work properly with
+   servers running Python 2.5 or later dur to changes in the way
+   Python implements exceptions.
+
+ZODB ZEO clients from ZODB 3.2 on can talk to ZODB 3.10 servers.  ZODB
+ZEO 3.10 Clients can talk to ZODB 3.8, 3.9, and 3.10 ZEO servers.
+
+Note --
+   ZEO 3.10 servers don't support undo for older clients.
 
 Prerequisites
 =============
