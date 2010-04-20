@@ -29,9 +29,10 @@ ZODB 3.10 requires Python 2.5 or later.
 Note --
    When using ZEO and upgrading from Python 2.4, you need to upgrade
    clients and servers at the same time, or upgrade clients first and
-   then servers.  Clients running Python 2.4 won't work properly with
-   servers running Python 2.5 or later dur to changes in the way
-   Python implements exceptions.
+   then servers.  Clients running Python 2.5 or 2.6 will work with
+   servers running Python 2.4.  Clients running Python 2.4 won't work
+   properly with servers running Python 2.5 or later due to changes in
+   the way Python implements exceptions.
 
 ZODB ZEO clients from ZODB 3.2 on can talk to ZODB 3.10 servers.  ZODB
 ZEO 3.10 Clients can talk to ZODB 3.8, 3.9, and 3.10 ZEO servers.
