@@ -486,7 +486,10 @@ class ZRPCConnectionTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
         # logged
         self._storage._connection.handle_request('foo',0,'history',(1,2,3,4))
         # test logging
-        level,message,kw = log[1]
+        if __debug__:
+            level,message,kw = log[1]
+        else:
+            level,message,kw = log[0]
         self.assertEqual(level,logging.ERROR)
         self.failUnless(message.endswith(
                 ') history() raised exception: history() takes at'
