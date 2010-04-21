@@ -20,6 +20,11 @@ New Features
 Bugs Fixed
 ----------
 
+- Fixed a serious bug that caused cache failures when run
+  with Python optimization turned on.
+
+  https://bugs.launchpad.net/zodb/+bug/544305
+
 - Fixed bug in cPickleCache's byte size estimation logic.
   (https://bugs.launchpad.net/zodb/+bug/533015)
 

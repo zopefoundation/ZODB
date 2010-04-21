@@ -473,7 +473,8 @@ class ClientCache(object):
             return None
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a', (ofs, self.f.tell(), oid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, tid, end_tid, lver, ldata = unpack(
             ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -481,6 +482,9 @@ class ClientCache(object):
 
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell(), oid, len(data), ldata)
+
+        # WARNING: The following assert changes the file position.
+        # We must not depend on this below or we'll fail in optimized mode.
         assert read(8) == oid, (ofs, self.f.tell(), oid)
 
         self._n_accesses += 1
@@ -509,7 +513,8 @@ class ClientCache(object):
 
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a', (ofs, self.f.tell(), oid, before_tid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid, before_tid)
         size, saved_oid, saved_tid, end_tid, lver, ldata = unpack(
             ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -518,6 +523,9 @@ class ClientCache(object):
         assert lver == 0, "Versions aren't supported"
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell())
+
+        # WARNING: The following assert changes the file position.
+        # We must not depend on this below or we'll fail in optimized mode.
         assert read(8) == oid, (ofs, self.f.tell(), oid)
 
         if end_tid < before_tid:
@@ -545,7 +553,8 @@ class ClientCache(object):
             if ofs:
                 seek(ofs)
                 read = self.f.read
-                assert read(1) == 'a', (ofs, self.f.tell(), oid)
+                status = read(1)
+                assert status == 'a', (ofs, self.f.tell(), oid)
                 size, saved_oid, saved_tid, end_tid = unpack(
                     ">I8s8s8s", read(28))
                 assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -657,7 +666,8 @@ class ClientCache(object):
 
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a', (ofs, self.f.tell(), oid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, saved_tid, end_tid = unpack(">I8s8s8s", read(28))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
         assert end_tid == z64, (ofs, self.f.tell(), oid)
@@ -687,7 +697,8 @@ class ClientCache(object):
             self._lock.acquire()
             try:
                 seek(ofs)
-                assert read(1) == 'a', (ofs, self.f.tell(), oid)
+                status = read(1)
+                assert status == 'a', (ofs, self.f.tell(), oid)
                 size, saved_oid, tid, end_tid = unpack(">I8s8s8s", read(28))
                 assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
                 assert end_tid == z64, (ofs, self.f.tell(), oid)
