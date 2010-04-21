@@ -768,7 +768,8 @@ class StorageServerWrapper:
         self.server.tpc_begin(id(transaction), '', '', {}, None, ' ')
 
     def tpc_vote(self, transaction):
-        assert self.server.vote(id(transaction)) is None
+        vote_result = self.server.vote(id(transaction))
+        assert vote_result is None
         result = self.server.client.serials[:]
         del self.server.client.serials[:]
         return result
