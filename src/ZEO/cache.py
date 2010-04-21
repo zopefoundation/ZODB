@@ -40,19 +40,19 @@ from ZODB.utils import p64, u64, z64
 logger = logging.getLogger("ZEO.cache")
 
 # A disk-based cache for ZEO clients.
-# 
+#
 # This class provides an interface to a persistent, disk-based cache
 # used by ZEO clients to store copies of database records from the
 # server.
-# 
+#
 # The details of the constructor as unspecified at this point.
-# 
+#
 # Each entry in the cache is valid for a particular range of transaction
 # ids.  The lower bound is the transaction that wrote the data.  The
 # upper bound is the next transaction that wrote a revision of the
 # object.  If the data is current, the upper bound is stored as None;
 # the data is considered current until an invalidate() call is made.
-# 
+#
 # It is an error to call store() twice with the same object without an
 # intervening invalidate() to set the upper bound on the first cache
 # entry.  Perhaps it will be necessary to have a call the removes
@@ -60,12 +60,12 @@ logger = logging.getLogger("ZEO.cache")
 # entry.
 
 # Cache verification
-# 
+#
 # When the client is connected to the server, it receives
 # invalidations every time an object is modified.  When the client is
 # disconnected then reconnects, it must perform cache verification to make
 # sure its cached data is synchronized with the storage's current state.
-# 
+#
 # quick verification
 # full verification
 #
@@ -184,7 +184,7 @@ class ClientCache(object):
 
         if path:
             self._lock_file = ZODB.lock_file.LockFile(path + '.lock')
-        
+
         if path and os.path.exists(path):
             # Reuse an existing file.  scan() will open & read it.
             self.f = None
@@ -303,7 +303,7 @@ class ClientCache(object):
         except KeyError:
             logger.error("Couldn't find non-current %r", (oid, tid))
 
-            
+
     def clearStats(self):
         self._n_adds = self._n_added_bytes = 0
         self._n_evicts = self._n_evicted_bytes = 0
@@ -416,7 +416,8 @@ class ClientCache(object):
             return None
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a', (ofs, self.f.tell(), oid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, tid, end_tid, lver, ldata = unpack(
             ">I8s8s8shI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -424,11 +425,11 @@ class ClientCache(object):
             if lver != len(version) or read(lver) != version:
                 self._trace(0x20, oid, version)
                 return None
-        
-        
+
+
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell(), oid, len(data), ldata)
-        assert read(8) == oid, (ofs, self.f.tell(), oid) 
+        assert read(8) == oid, (ofs, self.f.tell(), oid)
 
         self._n_accesses += 1
         self._trace(0x22, oid, version, tid, end_tid, ldata)
@@ -456,7 +457,8 @@ class ClientCache(object):
 
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a', (ofs, self.f.tell(), oid, before_tid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid, before_tid)
         size, saved_oid, saved_tid, end_tid, lver, ldata = unpack(
             ">I8s8s8shI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -466,11 +468,11 @@ class ClientCache(object):
         data = read(ldata)
         assert len(data) == ldata, (ofs, self.f.tell())
         assert read(8) == oid, (ofs, self.f.tell(), oid)
-        
+
         if end_tid < before_tid:
             self._trace(0x24, oid, "", before_tid)
             return None
-            
+
         self._n_accesses += 1
         self._trace(0x26, oid, "", saved_tid)
         return data, saved_tid, end_tid
@@ -490,7 +492,8 @@ class ClientCache(object):
             return None
         self.f.seek(ofs)
         read = self.f.read
-        assert self.f.read(1) == 'a', (ofs, self.f.tell(), oid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, saved_tid, end_tid, lver, ldata = unpack(
             ">I8s8s8shI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -525,7 +528,8 @@ class ClientCache(object):
             if ofs:
                 seek(ofs)
                 read = self.f.read
-                assert read(1) == 'a', (ofs, self.f.tell(), oid)
+                status = read(1)
+                assert status == 'a', (ofs, self.f.tell(), oid)
                 size, saved_oid, saved_tid, end_tid = unpack(
                     ">I8s8s8s", read(28))
                 assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -537,7 +541,7 @@ class ClientCache(object):
             noncurrent_for_oid = self.noncurrent.get(u64(oid))
             if noncurrent_for_oid and (u64(start_tid) in noncurrent_for_oid):
                 return
-                
+
             if version:
                 raise ValueError("cache only stores current version data")
 
@@ -600,7 +604,7 @@ class ClientCache(object):
                 self._trace(0x50, oid, version, start_tid, dlen=len(data))
             else:
                 self._trace(0x52, oid, version, start_tid, dlen=len(data))
-            
+
         self.currentofs += size
 
     ##
@@ -624,7 +628,7 @@ class ClientCache(object):
     #       to threading issues, that when applying a local
     #       invalidation after a store, that later invalidations from
     #       the server may already have arrived.
-    
+
     @locked
     def invalidate(self, oid, version, tid, server_invalidation=True):
         if tid is not None:
@@ -644,7 +648,8 @@ class ClientCache(object):
 
         self.f.seek(ofs)
         read = self.f.read
-        assert read(1) == 'a', (ofs, self.f.tell(), oid)
+        status = read(1)
+        assert status == 'a', (ofs, self.f.tell(), oid)
         size, saved_oid, saved_tid, end_tid, lver = unpack(
             ">I8s8s8sh", read(30))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -680,7 +685,8 @@ class ClientCache(object):
             self._lock.acquire()
             try:
                 seek(ofs)
-                assert read(1) == 'a', (ofs, self.f.tell(), oid)
+                status = read(1)
+                assert status == 'a', (ofs, self.f.tell(), oid)
                 size, saved_oid, tid, end_tid, lver = unpack(
                     ">I8s8s8sh", read(30))
                 assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
@@ -752,7 +758,7 @@ class ClientCache(object):
             except:
                 print `tid`, `end_tid`
                 raise
-                
+
         self._trace = _trace
         _trace(0x00)
 

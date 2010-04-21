@@ -1,3 +1,14 @@
+
+Whats new in ZODB 3.8.6 (2010-??-??)
+====================================
+
+Bug Fixed:
+
+- Fixed a serious bug that caused cache failures when run
+  with Python optimization turned on.
+
+  https://bugs.launchpad.net/zodb/+bug/544305
+
 Whats new in ZODB 3.8.5 (2009-12-16)
 ====================================
 
