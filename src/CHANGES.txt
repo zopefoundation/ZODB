@@ -2,7 +2,7 @@
  Change History
 ================
 
-3.9.5 (unreleased)
+3.9.5 (2010-04-23)
 ==================
 
 Bugs Fixed
