@@ -22,6 +22,10 @@ Bugs Fixed
 
   https://bugs.launchpad.net/zodb/+bug/428039
 
+- cross-database wekrefs weren't handled correctly.
+
+  https://bugs.launchpad.net/zodb/+bug/435547
+
 - The mkzeoinst script was fixed to tell people to
   install and use the mkzeoinstance script. :)
 

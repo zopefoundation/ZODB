@@ -116,13 +116,17 @@ class PersistentReference(object):
             # 'm' = multi_persistent: (database_name, oid, klass)
             # 'n' = multi_oid: (database_name, oid)
             # 'w' = persistent weakref: (oid)
+            #    or persistent weakref: (oid, database_name)
             # else it is a weakref: reference_type
             if reference_type == 'm':
                 self.database_name, self.oid, self.klass = data[1]
             elif reference_type == 'n':
                 self.database_name, self.oid = data[1]
             elif reference_type == 'w':
-                self.oid, = data[1]
+                try:
+                    self.oid, = data[1]
+                except ValueError:
+                    self.oid, self.database_name = data[1]
                 self.weak = True
             else:
                 assert len(data) == 1, 'unknown reference format'
