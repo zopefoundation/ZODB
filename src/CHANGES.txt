@@ -17,6 +17,12 @@ New Features
   help in situations where object ids are used as BTree keys and the
   sequential allocation of object ids leads to conflict errors.
 
+- The mkzeoinst script has been moved to a separate project:
+
+    http://pypi.python.org/pypi/zope.mkzeoinstance
+
+  and is no-longer included with ZODB.
+
 Bugs Fixed
 ----------
 

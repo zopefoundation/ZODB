@@ -49,22 +49,6 @@ Operating System :: Microsoft :: Windows
 Operating System :: Unix
 """
 
-entry_points = """
-    [console_scripts]
-    fsdump = ZODB.FileStorage.fsdump:main
-    fsoids = ZODB.scripts.fsoids:main
-    fsrefs = ZODB.scripts.fsrefs:main
-    fstail = ZODB.scripts.fstail:Main
-    repozo = ZODB.scripts.repozo:main
-    zeopack = ZEO.scripts.zeopack:main
-    runzeo = ZEO.runzeo:main
-    zeopasswd = ZEO.zeopasswd:main
-    mkzeoinst = ZEO.mkzeoinst:main
-    zeoctl = ZEO.zeoctl:main
-    remove-old-zeo-cached-blobs = ZEO.ClientStorage:check_blob_size_script
-    """
-
-
 # Include directories for C extensions
 include = ['src']
 
@@ -223,7 +207,6 @@ setup(name="ZODB3",
       zeopack = ZEO.scripts.zeopack:main
       runzeo = ZEO.runzeo:main
       zeopasswd = ZEO.zeopasswd:main
-      mkzeoinst = ZEO.mkzeoinst:main
       zeoctl = ZEO.zeoctl:main
       """,
       include_package_data = True,
