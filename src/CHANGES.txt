@@ -16,6 +16,9 @@ Bugs Fixed
 
   https://bugs.launchpad.net/zodb/+bug/544305
 
+- The mkzeoinst script was fixed to tell people to
+  install and use the mkzeoinstance script. :)
+
 3.9.4 (2009-12-14)
 ==================
 
