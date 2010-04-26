@@ -99,6 +99,61 @@ class WeakRef(object):
     Always explicitly close databases: :)
 
     >>> db.close()
+    >>> del ob, ref, db, conn1, conn2, conn3
+
+    When multiple databases are in use, a weakref in one database may
+    point to an object in a different database.  Let's create two new
+    databases to demonstrate this.
+
+    >>> dbA = ZODB.tests.util.DB(
+    ...     database_name = 'dbA',
+    ...     )
+    >>> dbB = ZODB.tests.util.DB(
+    ...     database_name = 'dbB',
+    ...     databases = dbA.databases,
+    ...     )
+    >>> connA1 = dbA.open()
+    >>> connB1 = connA1.get_connection('dbB')
+
+    Now create and add a new object and a weak reference, and add them
+    to different databases.
+
+    >>> ob = ZODB.tests.MinPO.MinPO()
+    >>> ref = WeakRef(ob)
+    >>> connA1.root()['ob'] = ob
+    >>> connA1.add(ob)
+    >>> connB1.root()['ref'] = ref
+    >>> transaction.commit()
+
+    After a succesful commit, the reference should know the oid,
+    database name and connection of the object.
+
+    >>> ref.oid == ob._p_oid
+    True
+    >>> ref.database_name == 'dbA'
+    True
+    >>> ref.dm is ob._p_jar is connA1
+    True
+
+    If we open new connections, we should be able to use the reference.
+
+    >>> connA2 = dbA.open()
+    >>> connB2 = connA2.get_connection('dbB')
+    >>> ref2 = connB2.root()['ref']
+    >>> ob2 = connA2.root()['ob']
+    >>> ref2() is ob2
+    True
+    >>> ref2.oid == ob2._p_oid
+    True
+    >>> ref2.database_name == 'dbA'
+    True
+    >>> ref2.dm is ob2._p_jar is connA2
+    True
+
+    Always explicitly close databases: :)
+
+    >>> dbA.close()
+    >>> dbB.close()
 
     """
 
@@ -110,6 +165,8 @@ class WeakRef(object):
         self._v_ob = ob
         self.oid = ob._p_oid
         self.dm = ob._p_jar
+        if self.dm is not None:
+            self.database_name = self.dm.db().database_name
 
     def __call__(self):
         try:
@@ -117,7 +174,7 @@ class WeakRef(object):
         except AttributeError:
             try:
                 self._v_ob = self.dm[self.oid]
-            except KeyError:
+            except (KeyError, AttributeError):
                 return None
             return self._v_ob
 

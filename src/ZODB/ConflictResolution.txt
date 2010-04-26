@@ -474,6 +474,16 @@ integrity issues.
     >>> ref3.weak
     True
 
+    >>> ref3a = PersistentReference(['w', ('my_oid', 'other_db')])
+    >>> ref3a.oid
+    'my_oid'
+    >>> print ref3a.klass
+    None
+    >>> ref3a.database_name
+    'other_db'
+    >>> ref3a.weak
+    True
+
     >>> ref4 = PersistentReference(['m', ('other_db', 'my_oid', 'my_class')])
     >>> ref4.oid
     'my_oid'
@@ -508,7 +518,7 @@ integrity issues.
 
     >>> ref1 == ref1 and ref2 == ref2 and ref4 == ref4 and ref5 == ref5
     True
-    >>> ref3 == ref3 and ref6 == ref6 # weak references
+    >>> ref3 == ref3 and ref3a == ref3a and ref6 == ref6 # weak references
     True
 
     Non-weak references with the same oid and database_name are equal.

@@ -34,14 +34,18 @@ Bugs Fixed
 
   https://bugs.launchpad.net/zodb/+bug/544305
 
+- When using using a ClientStorage in a Storage server, there was a
+  threading bug that caused clients to get disconnected.
+
 - Fixed a bug that caused savepoint rollback to not properly
   set object state when objects implemented _p_invalidate methods
   that reloaded ther state (unghostifiable objects).
 
   https://bugs.launchpad.net/zodb/+bug/428039
 
-- When using using a ClientStorage in a Storage server, there was a
-  threading bug that caused clients to get disconnected.
+- cross-database wekrefs weren't handled correctly.
+
+  https://bugs.launchpad.net/zodb/+bug/435547
 
 3.10.0a1 (2010-02-08)
 =====================
