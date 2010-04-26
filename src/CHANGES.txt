@@ -26,13 +26,19 @@ New Features
 Bugs Fixed
 ----------
 
+- Fixed bug in cPickleCache's byte size estimation logic.
+  (https://bugs.launchpad.net/zodb/+bug/533015)
+
 - Fixed a serious bug that caused cache failures when run
   with Python optimization turned on.
 
   https://bugs.launchpad.net/zodb/+bug/544305
 
-- Fixed bug in cPickleCache's byte size estimation logic.
-  (https://bugs.launchpad.net/zodb/+bug/533015)
+- Fixed a bug that caused savepoint rollback to not properly
+  set object state when objects implemented _p_invalidate methods
+  that reloaded ther state (unghostifiable objects).
+
+  https://bugs.launchpad.net/zodb/+bug/428039
 
 - When using using a ClientStorage in a Storage server, there was a
   threading bug that caused clients to get disconnected.

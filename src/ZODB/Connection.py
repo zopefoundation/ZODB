@@ -1119,8 +1119,9 @@ class Connection(ExportImport, object):
         self._abort()
         self._registered_objects = []
         src = self._storage
-        self._cache.invalidate(src.index)
+        index = src.index
         src.reset(*state)
+        self._cache.invalidate(index)
 
     def _commit_savepoint(self, transaction):
         """Commit all changes made in savepoints and begin 2-phase commit
