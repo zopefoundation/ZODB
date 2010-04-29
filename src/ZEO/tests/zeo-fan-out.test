@@ -85,15 +85,6 @@ Now, let's see if we can break it. :)
     ...             c.transaction_manager.abort()
     ...     c.close()
 
-    >>> def g():
-    ...     c = db0.open(transaction.TransactionManager())
-    ...     r = c.root()
-    ...     for i in range(100):
-    ...         for j in range(1000, 2000):
-    ...             r[j].v += 1
-    ...         c.transaction_manager.commit()
-    ...     c.close()
-
     >>> import threading
     >>> threadf = threading.Thread(target=f)
     >>> threadg = threading.Thread(target=f)
@@ -107,7 +98,7 @@ Now, let's see if we can break it. :)
     ...     t = tm2.begin()
     ...     if r2[1].v + r2[2].v:
     ...         print 'oops', r2[1], r2[2]
-    ...     if r2[1].v == 900:
+    ...     if r2[1].v == 800:
     ...         break # we caught up
     ...     path = s2.fshelper.getBlobFilename(*blob_id)
     ...     if os.path.exists(path):
