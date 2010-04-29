@@ -153,10 +153,12 @@ def main():
     configfile = None
     suicide = True
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'kSC:v:')
+    opts, args = getopt.getopt(sys.argv[1:], 'dkSC:v:')
     for opt, arg in opts:
         if opt == '-k':
             keep = 1
+        if opt == '-d':
+            ZEO.zrpc.connection.debug_zrpc = True
         elif opt == '-C':
             configfile = arg
         elif opt == '-S':

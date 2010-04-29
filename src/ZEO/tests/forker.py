@@ -42,6 +42,7 @@ class ZEOConfig:
         self.authentication_protocol = None
         self.authentication_database = None
         self.authentication_realm = None
+        self.loglevel = 'INFO'
 
     def dump(self, f):
         print >> f, "<zeo>"
@@ -66,12 +67,12 @@ class ZEOConfig:
 
         print >> f, """
         <eventlog>
-          level INFO
+          level %s
           <logfile>
              path server-%s.log
           </logfile>
         </eventlog>
-        """ % self.address[1]
+        """ % (self.loglevel, self.address[1])
 
     def __str__(self):
         f = StringIO.StringIO()
@@ -90,7 +91,7 @@ def encode_format(fmt):
 
 def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
                      path='Data.fs', protocol=None, blob_dir=None,
-                     suicide=True):
+                     suicide=True, debug=False):
     """Start a ZEO server in a separate process.
 
     Takes two positional arguments a string containing the storage conf
@@ -133,6 +134,8 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     args = [qa(sys.executable), qa(script), '-C', qa(tmpfile)]
     if keep:
         args.append("-k")
+    if debug:
+        args.append("-d")
     if not suicide:
         args.append("-S")
     if protocol:
@@ -288,7 +291,8 @@ def setUp(test):
     servers = {}
 
     def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
-                     addr=None, path='Data.fs', protocol=None, blob_dir=None):
+                     addr=None, path='Data.fs', protocol=None, blob_dir=None,
+                     suicide=True, debug=False):
         """Start a ZEO server.
 
         Return the server and admin addresses.
@@ -301,7 +305,8 @@ def setUp(test):
         elif addr is not None:
             raise TypeError("Can't specify port and addr")
         addr, adminaddr, pid, config_path = start_zeo_server(
-            storage_conf, zeo_conf, port, keep, path, protocol, blob_dir)
+            storage_conf, zeo_conf, port, keep, path, protocol, blob_dir,
+            suicide, debug)
         os.remove(config_path)
         servers[adminaddr] = pid
         return addr, adminaddr
