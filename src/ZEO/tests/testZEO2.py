@@ -155,6 +155,50 @@ We can start another client and get the storage lock.
     >>> fs.close()
     """
 
+def errors_in_vote_should_clear_lock():
+    """
+
+So, we arrange to get an error in vote:
+
+    >>> import ZODB.MappingStorage
+    >>> vote_should_fail = True
+    >>> class MappingStorage(ZODB.MappingStorage.MappingStorage):
+    ...     def tpc_vote(*args):
+    ...         if vote_should_fail:
+    ...             raise ValueError
+    ...         return ZODB.MappingStorage.MappingStorage.tpc_vote(*args)
+
+    >>> server = ZEO.tests.servertesting.StorageServer(
+    ...      'x', {'1': MappingStorage()})
+    >>> zs = ZEO.StorageServer.ZEOStorage(server)
+    >>> conn = ZEO.tests.servertesting.Connection(1)
+    >>> zs.notifyConnected(conn)
+    >>> zs.register('1', 0)
+    >>> zs.tpc_begin('0', '', '', {})
+    >>> zs.storea(ZODB.utils.p64(99), ZODB.utils.z64, 'x', '0')
+    >>> zs.vote('0')
+    Traceback (most recent call last):
+    ...
+    ValueError
+
+When we do, the storage server's transaction lock shouldn't be held:
+
+    >>> '1' in server._commit_locks
+    False
+
+Of course, of vote suceeds, the lock will be held:
+
+    >>> vote_should_fail = False
+    >>> zs.tpc_begin('1', '', '', {})
+    >>> zs.storea(ZODB.utils.p64(99), ZODB.utils.z64, 'x', '1')
+    >>> _ = zs.vote('1') # doctest: +ELLIPSIS
+    1 callAsync serialnos ...
+
+    >>> '1' in server._commit_locks
+    True
+
+    """
+
 
 def test_suite():
     return unittest.TestSuite((

@@ -145,7 +145,8 @@ class ZEOStorage:
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.
         if self.transaction is not None:
-            self.log("disconnected during transaction %s" % self.transaction)
+            self.log("disconnected during %s transaction"
+                     % self.locked and 'locked' or 'unlocked')
             self.tpc_abort(self.transaction.id)
         else:
             self.log("disconnected")
@@ -442,8 +443,7 @@ class ZEOStorage:
         if not self._check_tid(tid):
             return
         self.stats.aborts += 1
-        if self.locked:
-            self.storage.tpc_abort(self.transaction)
+        self.storage.tpc_abort(self.transaction)
         self._clear_transaction()
 
     def _clear_transaction(self):
@@ -470,8 +470,40 @@ class ZEOStorage:
         self.locked = self.server.lock_storage(self)
         if self.locked:
             try:
-                self._vote()
+                self.log(
+                    "Preparing to commit transaction: %d objects, %d bytes"
+                    % (self.txnlog.stores, self.txnlog.size()),
+                    level=BLATHER)
+
+                if (self.tid is not None) or (self.status != ' '):
+                    self.storage.tpc_begin(self.transaction,
+                                           self.tid, self.status)
+                else:
+                    self.storage.tpc_begin(self.transaction)
+
+                for op, args in self.txnlog:
+                    if not getattr(self, op)(*args):
+                        break
+
+                # Blob support
+                while self.blob_log and not self.store_failed:
+                    oid, oldserial, data, blobfilename = self.blob_log.pop()
+                    self._store(oid, oldserial, data, blobfilename)
+
+                if not self.store_failed:
+                    # Only call tpc_vote of no store call failed,
+                    # otherwise the serialnos() call will deliver an
+                    # exception that will be handled by the client in
+                    # its tpc_vote() method.
+                    serials = self.storage.tpc_vote(self.transaction)
+                    if serials:
+                        self.serials.extend(serials)
+
+                self.client.serialnos(self.serials)
+
             except Exception:
+                self.storage.tpc_abort(self.transaction)
+                self._clear_transaction()
                 if delay is not None:
                     delay.error()
                 else:
@@ -491,47 +523,6 @@ class ZEOStorage:
         connection = self.connection
         if connection is not None:
             connection.call_from_thread(self._try_to_vote, delay)
-
-    def _vote(self):
-
-        if self.txnlog.stores == 1:
-            template = "Preparing to commit transaction: %d object, %d bytes"
-        else:
-            template = "Preparing to commit transaction: %d objects, %d bytes"
-
-        self.log(template % (self.txnlog.stores, self.txnlog.size()),
-                 level=BLATHER)
-
-        if (self.tid is not None) or (self.status != ' '):
-            self.storage.tpc_begin(self.transaction, self.tid, self.status)
-        else:
-            self.storage.tpc_begin(self.transaction)
-
-        try:
-            for op, args in self.txnlog:
-                if not getattr(self, op)(*args):
-                    break
-
-            # Blob support
-            while self.blob_log and not self.store_failed:
-                oid, oldserial, data, blobfilename = self.blob_log.pop()
-                self._store(oid, oldserial, data, blobfilename)
-
-        except:
-            self.storage.tpc_abort(self.transaction)
-            self._clear_transaction()
-            raise
-
-
-        if not self.store_failed:
-            # Only call tpc_vote of no store call failed, otherwise
-            # the serialnos() call will deliver an exception that will be
-            # handled by the client in its tpc_vote() method.
-            serials = self.storage.tpc_vote(self.transaction)
-            if serials:
-                self.serials.extend(serials)
-
-        self.client.serialnos(self.serials)
 
     # The public methods of the ZEO client API do not do the real work.
     # They defer work until after the storage lock has been acquired.
