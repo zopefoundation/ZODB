@@ -186,7 +186,7 @@ When we do, the storage server's transaction lock shouldn't be held:
     >>> '1' in server._commit_locks
     False
 
-Of course, of vote suceeds, the lock will be held:
+Of course, if vote suceeds, the lock will be held:
 
     >>> vote_should_fail = False
     >>> zs.tpc_begin('1', '', '', {})
