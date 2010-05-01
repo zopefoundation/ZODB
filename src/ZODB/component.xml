@@ -138,6 +138,11 @@
         The maximum size of the client cache, in bytes, KB or MB.
       </description>
     </key>
+    <key name="cache-protocol" required="no" datatype="integer">
+      <description>
+        The pickle protocol used for the cache. Defaults to 1.
+      </description>
+    </key>
     <key name="name" default="">
       <description>
         The storage name.  If unspecified, the address of the server
