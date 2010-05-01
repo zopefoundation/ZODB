@@ -65,6 +65,11 @@
          ".old" file.
       </description>
     </key>
+    <key name="pickle-protocol" required="no" datatype="integer" default="1">
+      <description>
+        The pickle protocol used for the storage. Defaults to 1.
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
@@ -138,7 +143,7 @@
         The maximum size of the client cache, in bytes, KB or MB.
       </description>
     </key>
-    <key name="pickle-protocol" required="no" datatype="integer">
+    <key name="pickle-protocol" required="no" datatype="integer" default="1">
       <description>
         The pickle protocol used for the client. Defaults to 1.
       </description>

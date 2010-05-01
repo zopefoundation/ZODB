@@ -161,7 +161,7 @@ class FileStorage(BaseConfig):
             options['packer'] = getattr(__import__(m, {}, {}, ['*']), name)
 
         for name in ('blob_dir', 'create', 'read_only', 'quota', 'pack_gc',
-                     'pack_keep_old'):
+                     'pack_keep_old', 'pickle_protocol'):
             v = getattr(config, name, self)
             if v is not self:
                 options[name] = v

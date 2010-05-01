@@ -171,9 +171,9 @@ class ObjectWriter:
 
     _jar = None
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None, pickle_protocol=1):
         self._file = cStringIO.StringIO()
-        self._p = cPickle.Pickler(self._file, 1)
+        self._p = cPickle.Pickler(self._file, pickle_protocol)
         self._p.inst_persistent_id = self.persistent_id
         self._stack = []
         if obj is not None:

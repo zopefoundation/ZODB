@@ -8,5 +8,5 @@
 </zeo>
 
 <filestorage 1>
-  path ${buildout:directory}/var/Data.fs
+  path ${buildout:directory}/var/Data_zeo.fs
 </filestorage>

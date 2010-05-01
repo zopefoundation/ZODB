@@ -108,7 +108,7 @@ class FileStorage(
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
-                 blob_dir=None):
+                 blob_dir=None, pickle_protocol=1):
 
         if read_only:
             self._is_read_only = True
@@ -135,6 +135,8 @@ class FileStorage(
         self.pack_keep_old = pack_keep_old
         if packer is not None:
             self.packer = packer
+
+        self._pickle_protocol = pickle_protocol
 
         BaseStorage.BaseStorage.__init__(self, file_name)
 

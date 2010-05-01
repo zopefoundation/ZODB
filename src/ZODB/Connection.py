@@ -106,6 +106,7 @@ class Connection(ExportImport, object):
         self._normal_storage = self._storage = storage
         self.new_oid = db.new_oid
         self._savepoint_storage = None
+        self._pickle_protocol = getattr(storage, '_pickle_protocol', 1)
 
         # Do we need to join a txn manager?
         self._needs_to_join = True
@@ -597,10 +598,12 @@ class Connection(ExportImport, object):
                 # changed and registered.
                 continue
 
-            self._store_objects(ObjectWriter(obj), transaction)
+            self._store_objects(ObjectWriter(
+                obj, pickle_protocol=self._pickle_protocol), transaction)
 
         for obj in self._added_during_commit:
-            self._store_objects(ObjectWriter(obj), transaction)
+            self._store_objects(ObjectWriter(
+                obj, pickle_protocol=self._pickle_protocol), transaction)
         self._added_during_commit = None
 
     def _store_objects(self, writer, transaction):
