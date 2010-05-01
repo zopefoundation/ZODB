@@ -42,7 +42,7 @@ class ZEOConfig:
         self.authentication_protocol = None
         self.authentication_database = None
         self.authentication_realm = None
-        self.loglevel = 'INFO'
+        self.loglevel = 'DEBUG'
 
     def dump(self, f):
         print >> f, "<zeo>"

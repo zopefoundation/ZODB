@@ -31,8 +31,14 @@
 import ZEO.StorageServer
 import ZEO.zrpc.connection
 import ZEO.zrpc.error
+import ZODB.MappingStorage
 
 class StorageServer(ZEO.StorageServer.StorageServer):
+
+    def __init__(self, addr='test_addr', storages=None, **kw):
+        if storages is None:
+            storages = {'1': ZODB.MappingStorage.MappingStorage()}
+        ZEO.StorageServer.StorageServer.__init__(self, addr, storages, **kw)
 
     def DispatcherClass(*args, **kw):
         pass
@@ -42,9 +48,10 @@ class Connection:
     peer_protocol_version = ZEO.zrpc.connection.Connection.current_protocol
     connected = True
 
-    def __init__(self, name='connection', addr='test-addr'):
+    def __init__(self, name='connection', addr=''):
+        name = str(name)
         self.name = name
-        self.addr = addr
+        self.addr = addr or 'test-addr-'+name
 
     def close(self):
         print self.name, 'closed'
@@ -65,3 +72,9 @@ class Connection:
 
     def send_reply(self, *args):
         pass
+
+def client(server, name='client', addr=''):
+    zs = ZEO.StorageServer.ZEOStorage(server)
+    zs.notifyConnected(Connection(name, addr))
+    zs.register('1', 0)
+    return zs
