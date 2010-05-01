@@ -152,7 +152,7 @@ class ClientCache(object):
     # default of 20MB.  The default here is misleading, though, since
     # ClientStorage is the only user of ClientCache, and it always passes an
     # explicit size of its own choosing.
-    def __init__(self, path=None, size=200*1024**2):
+    def __init__(self, path=None, size=200*1024**2, pickle_protocol=1):
 
         # - `path`:  filepath for the cache file, or None (in which case
         #   a temp file will be created)
@@ -163,11 +163,14 @@ class ClientCache(object):
         size = max(size, ZEC_HEADER_SIZE)
         self.maxsize = size
 
+        # The pickle protocol to use
+        self._pickle_protocol = pickle_protocol
+
         # The number of records in the cache.
         self._len = 0
 
         # {oid -> pos}
-        self.current = ZODB.fsIndex.fsIndex()
+        self.current = ZODB.fsIndex.fsIndex(pickle_protocol=pickle_protocol)
 
         # {oid -> {tid->pos}}
         # Note that caches in the wild seem to have very little non-current
@@ -252,7 +255,8 @@ class ClientCache(object):
         # Remember the location of the largest free block.  That seems a
         # decent place to start currentofs.
 
-        self.current = ZODB.fsIndex.fsIndex()
+        self.current = ZODB.fsIndex.fsIndex(
+            pickle_protocol=self._pickle_protocol)
         self.noncurrent = BTrees.LOBTree.LOBTree()
         l = 0
         last = ofs = ZEC_HEADER_SIZE

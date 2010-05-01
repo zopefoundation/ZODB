@@ -401,7 +401,8 @@ class ClientStorage(object):
         else:
             cache_path = None
 
-        self._cache = self.ClientCacheClass(cache_path, size=cache_size)
+        self._cache = self.ClientCacheClass(
+            cache_path, size=cache_size, pickle_protocol=pickle_protocol)
 
         self._blob_cache_size = blob_cache_size
         self._blob_data_bytes_loaded = 0
