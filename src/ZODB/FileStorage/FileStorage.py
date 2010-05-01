@@ -236,7 +236,7 @@ class FileStorage(
 
     def _newIndexes(self):
         # hook to use something other than builtin dict
-        return fsIndex(), {}
+        return fsIndex(pickle_protocol=self._pickle_protocol), {}
 
     _saved = 0
     def _save_index(self):
@@ -364,13 +364,13 @@ class FileStorage(
             # Convert dictionary indexes to fsIndexes *or* convert fsIndexes
             # which have a dict `_data` attribute to a new fsIndex (newer
             # fsIndexes have an OOBTree as `_data`).
-            newindex = fsIndex()
+            newindex = fsIndex(pickle_protocol=self._pickle_protocol)
             newindex.update(index)
             index = newindex
             if not self._is_read_only:
                 # Save the converted index.
                 f = open(index_name, 'wb')
-                p = Pickler(f, 1)
+                p = Pickler(f, self._pickle_protocol)
                 info['index'] = index
                 p.dump(info)
                 f.close()

@@ -65,8 +65,9 @@ def prefix_minus_one(s):
 
 class fsIndex(object):
 
-    def __init__(self, data=None):
+    def __init__(self, data=None, pickle_protocol=1):
         self._data = OOBTree()
+        self._pickle_protocol = pickle_protocol
         if data:
             self.update(data)
 
@@ -97,7 +98,7 @@ class fsIndex(object):
 
     def save(self, pos, fname):
         with open(fname, 'wb') as f:
-            pickler = cPickle.Pickler(f, 1)
+            pickler = cPickle.Pickler(f, self._pickle_protocol)
             pickler.fast = True
             pickler.dump(pos)
             for k, v in self._data.iteritems():

@@ -146,17 +146,19 @@ class PackCopier(FileStorageFormatter):
 
 class GC(FileStorageFormatter):
 
-    def __init__(self, file, eof, packtime, gc, referencesf):
+    def __init__(self, file, eof, packtime, gc, referencesf,
+                 pickle_protocol=1):
         self._file = file
         self._name = file.name
         self.eof = eof
         self.packtime = packtime
         self.gc = gc
+        self._pickle_protocol = pickle_protocol
         # packpos: position of first txn header after pack time
         self.packpos = None
 
         # {oid -> current data record position}:
-        self.oid2curpos = ZODB.fsIndex.fsIndex()
+        self.oid2curpos = ZODB.fsIndex.fsIndex(pickle_protocol=pickle_protocol)
 
         # The set of reachable revisions of each object.
         #
@@ -167,7 +169,7 @@ class GC(FileStorageFormatter):
         # second is a dictionary mapping objects to lists of
         # positions; it is used to handle the same number of objects
         # for which we must keep multiple revisions.
-        self.reachable = ZODB.fsIndex.fsIndex()
+        self.reachable = ZODB.fsIndex.fsIndex(pickle_protocol=pickle_protocol)
         self.reach_ex = {}
 
         # keep ltid for consistency checks during initial scan
@@ -341,6 +343,7 @@ class FileStoragePacker(FileStorageFormatter):
     # progress after it).
     def __init__(self, storage, referencesf, stop, gc=True):
         self._storage = storage
+        self._pickle_protocol = getattr(storage, '_pickle_protocol', 1)
         if storage.blob_dir:
             self.pack_blobs = True
             self.blob_removed = open(
@@ -360,7 +363,8 @@ class FileStoragePacker(FileStorageFormatter):
         self.locked = False
         self.file_end = storage.getSize()
 
-        self.gc = GC(self._file, self.file_end, self._stop, gc, referencesf)
+        self.gc = GC(self._file, self.file_end, self._stop, gc, referencesf,
+                     pickle_protocol=self._pickle_protocol)
 
         # The packer needs to acquire the parent's commit lock
         # during the copying stage, so the two sets of lock acquire
@@ -375,7 +379,8 @@ class FileStoragePacker(FileStorageFormatter):
         # tindex: oid -> pos, for current txn
         # oid2tid: not used by the packer
 
-        self.index = ZODB.fsIndex.fsIndex()
+        self.index = ZODB.fsIndex.fsIndex(
+            pickle_protocol=self._pickle_protocol)
         self.tindex = {}
         self.oid2tid = {}
         self.toid2tid = {}
