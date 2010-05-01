@@ -1,0 +1,12 @@
+<zeo>
+  address ${port}
+  read-only false
+  invalidation-queue-size 100
+  pid-filename ${buildout:directory}/var/zeo.pid
+  # monitor-address PORT
+  # transaction-timeout SECONDS
+</zeo>
+
+<filestorage 1>
+  path ${buildout:directory}/var/Data.fs
+</filestorage>
