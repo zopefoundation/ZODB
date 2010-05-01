@@ -188,8 +188,8 @@ class ZEOClient(BaseConfig):
             options['blob_cache_size'] = self.config.blob_cache_size
         if self.config.blob_cache_size_check is not None:
             options['blob_cache_size_check'] = self.config.blob_cache_size_check
-        if self.config.cache_protocol is not None:
-            options['cache_protocol'] = self.config.cache_protocol
+        if self.config.pickle_protocol is not None:
+            options['pickle_protocol'] = self.config.pickle_protocol
 
         return ClientStorage(
             L,

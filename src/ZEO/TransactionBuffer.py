@@ -55,7 +55,7 @@ class TransactionBuffer:
     # inconsistent data.  This should have minimal effect, though,
     # because the Connection is connected to a closed storage.
 
-    def __init__(self):
+    def __init__(self, pickle_protocol=1):
         self.file = tempfile.TemporaryFile(suffix=".tbuf")
         self.lock = Lock()
         self.closed = 0
@@ -64,7 +64,8 @@ class TransactionBuffer:
         self.blobs = []
         # It's safe to use a fast pickler because the only objects
         # stored are builtin types -- strings or None.
-        self.pickler = cPickle.Pickler(self.file, 1)
+        self.pickle_protocol = pickle_protocol
+        self.pickler = cPickle.Pickler(self.file, pickle_protocol)
         self.pickler.fast = 1
 
     def close(self):

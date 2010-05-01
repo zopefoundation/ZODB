@@ -123,7 +123,7 @@ class ClientStorage(object):
                  username='', password='', realm=None,
                  blob_dir=None, shared_blob_dir=False,
                  blob_cache_size=None, blob_cache_size_check=10,
-                 cache_protocol=1,
+                 pickle_protocol=1,
                  ):
         """ClientStorage constructor.
 
@@ -235,8 +235,8 @@ class ClientStorage(object):
             loaded into the cache. Defaults to 10% of the blob cache
             size.   This option is ignored if shared_blob_dir is true.
 
-        cache_protocol
-            The pickle protocol used for the ZEO cache. Defaults to 1.
+        pickle_protocol
+            The pickle protocol used for the client. Defaults to 1.
 
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
@@ -322,11 +322,13 @@ class ClientStorage(object):
         self._server_addr = None
 
         self._pickler = self._tfile = None
+        self._pickle_protocol = pickle_protocol
 
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo': 0, 'interfaces': ()}
 
-        self._tbuf = self.TransactionBufferClass()
+        self._tbuf = self.TransactionBufferClass(
+            pickle_protocol=pickle_protocol)
         self._db = None
         self._ltid = None # the last committed transaction
 
@@ -400,7 +402,6 @@ class ClientStorage(object):
             cache_path = None
 
         self._cache = self.ClientCacheClass(cache_path, size=cache_size)
-        self._cache_protocol = cache_protocol
 
         self._blob_cache_size = blob_cache_size
         self._blob_data_bytes_loaded = 0
@@ -1303,7 +1304,7 @@ class ClientStorage(object):
         # setup tempfile to hold zeoVerify results and interim
         # invalidation results
         self._tfile = tempfile.TemporaryFile(suffix=".inv")
-        self._pickler = cPickle.Pickler(self._tfile, self._cache_protocol)
+        self._pickler = cPickle.Pickler(self._tfile, self._pickle_protocol)
         self._pickler.fast = 1 # Don't use the memo
 
         if self._connection.peer_protocol_version < 'Z309':
