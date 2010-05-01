@@ -36,11 +36,13 @@ class ZEOConfig:
         self.address = addr
         self.read_only = None
         self.invalidation_queue_size = None
+        self.invalidation_age = None
         self.monitor_address = None
         self.transaction_timeout = None
         self.authentication_protocol = None
         self.authentication_database = None
         self.authentication_realm = None
+        self.loglevel = 'INFO'
 
     def dump(self, f):
         print >> f, "<zeo>"
@@ -49,6 +51,8 @@ class ZEOConfig:
             print >> f, "read-only", self.read_only and "true" or "false"
         if self.invalidation_queue_size is not None:
             print >> f, "invalidation-queue-size", self.invalidation_queue_size
+        if self.invalidation_age is not None:
+            print >> f, "invalidation-age", self.invalidation_age
         if self.monitor_address is not None:
             print >> f, "monitor-address %s:%s" % self.monitor_address
         if self.transaction_timeout is not None:
@@ -63,12 +67,12 @@ class ZEOConfig:
 
         print >> f, """
         <eventlog>
-          level INFO
+          level %s
           <logfile>
              path server-%s.log
           </logfile>
         </eventlog>
-        """ % self.address[1]
+        """ % (self.loglevel, self.address[1])
 
     def __str__(self):
         f = StringIO.StringIO()
@@ -87,7 +91,7 @@ def encode_format(fmt):
 
 def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
                      path='Data.fs', protocol=None, blob_dir=None,
-                     suicide=True):
+                     suicide=True, debug=False):
     """Start a ZEO server in a separate process.
 
     Takes two positional arguments a string containing the storage conf
@@ -130,11 +134,13 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     args = [qa(sys.executable), qa(script), '-C', qa(tmpfile)]
     if keep:
         args.append("-k")
+    if debug:
+        args.append("-d")
     if not suicide:
         args.append("-S")
     if protocol:
         args.extend(["-v", protocol])
-        
+
     d = os.environ.copy()
     d['PYTHONPATH'] = os.pathsep.join(sys.path)
 
@@ -219,7 +225,7 @@ def get_port(test=None):
 
     if test is not None:
         return get_port2(test)
-    
+
     for i in range(10):
         port = random.randrange(20000, 30000)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -278,14 +284,15 @@ def can_connect(port):
     else:
         c.close()
         return True
-    
+
 def setUp(test):
     ZODB.tests.util.setUp(test)
 
     servers = {}
 
     def start_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
-                     addr=None, path='Data.fs', protocol=None, blob_dir=None):
+                     addr=None, path='Data.fs', protocol=None, blob_dir=None,
+                     suicide=True, debug=False):
         """Start a ZEO server.
 
         Return the server and admin addresses.
@@ -298,7 +305,8 @@ def setUp(test):
         elif addr is not None:
             raise TypeError("Can't specify port and addr")
         addr, adminaddr, pid, config_path = start_zeo_server(
-            storage_conf, zeo_conf, port, keep, path, protocol, blob_dir)
+            storage_conf, zeo_conf, port, keep, path, protocol, blob_dir,
+            suicide, debug)
         os.remove(config_path)
         servers[adminaddr] = pid
         return addr, adminaddr
@@ -326,20 +334,20 @@ def setUp(test):
     test.globs['wait_connected'] = wait_connected
     test.globs['wait_disconnected'] = wait_disconnected
 
-def wait_connected(storage):
-    now = time.time()
-    giveup = now + 30
-    while not storage.is_connected():
-        now = time.time()
+
+def wait_until(label, func, timeout=30, onfail=None):
+    giveup = time.time() + timeout
+    while not func():
         if time.time() > giveup:
-            raise AssertionError("timed out waiting for storage to connect")
-        time.sleep(0.1)
+            if onfail is None:
+                raise AssertionError("Timed out waiting for: ", label)
+            else:
+                return onfail()
+        time.sleep(0.01)
+
+def wait_connected(storage):
+    wait_until("storage is connected", storage.is_connected)
 
 def wait_disconnected(storage):
-    now = time.time()
-    giveup = now + 30
-    while storage.is_connected():
-        now = time.time()
-        if time.time() > giveup:
-            raise AssertionError("timed out waiting for storage to connect")
-        time.sleep(0.1)
+    wait_until("storage is disconnected",
+               lambda : not storage.is_connected())

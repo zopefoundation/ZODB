@@ -21,10 +21,11 @@ is used to store the data until a commit or abort.
 # A faster implementation might store trans data in memory until it
 # reaches a certain size.
 
+from threading import Lock
 import os
 import cPickle
 import tempfile
-from threading import Lock
+import ZODB.blob
 
 class TransactionBuffer:
 
@@ -87,7 +88,7 @@ class TransactionBuffer:
             self.pickler.dump((oid, data))
             self.count += 1
             # Estimate per-record cache size
-            self.size = self.size + len(data) + 31
+            self.size = self.size + (data and len(data) or 0) + 31
         finally:
             self.lock.release()
 
@@ -116,7 +117,7 @@ class TransactionBuffer:
             while self.blobs:
                 oid, blobfilename = self.blobs.pop()
                 if os.path.exists(blobfilename):
-                    os.remove(blobfilename)
+                    ZODB.blob.remove_committed(blobfilename)
         finally:
             self.lock.release()
 

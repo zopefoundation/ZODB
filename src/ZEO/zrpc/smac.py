@@ -31,17 +31,14 @@ try:
     import hmac
 except ImportError:
     import _hmac as hmac
-import sha
 import socket
 import struct
 import threading
-import logging
 from types import StringType
 
-from ZODB.loglevels import TRACE
-
-from ZEO.zrpc.log import log, short_repr
+from ZEO.zrpc.log import log
 from ZEO.zrpc.error import DisconnectedError
+import ZEO.hash
 
 
 # Use the dictionary to make sure we get the minimum number of errno
@@ -78,12 +75,8 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     socket = None # to outwit Sam's getattr
 
-    def __init__(self, sock, addr, map=None, debug=None):
+    def __init__(self, sock, addr, map=None):
         self.addr = addr
-        if debug is not None:
-            self._debug = debug
-        elif not hasattr(self, '_debug'):
-            self._debug = __debug__
         # __input_lock protects __inp, __input_len, __state, __msg_size
         self.__input_lock = threading.Lock()
         self.__inp = None # None, a single String, or a list
@@ -147,13 +140,13 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
         # and thus iterator, because it contains a yield statement.
 
         def hack():
-            self.__hmac_send = hmac.HMAC(sesskey, digestmod=sha)
-            self.__hmac_recv = hmac.HMAC(sesskey, digestmod=sha)
+            self.__hmac_send = hmac.HMAC(sesskey, digestmod=ZEO.hash)
+            self.__hmac_recv = hmac.HMAC(sesskey, digestmod=ZEO.hash)
             if False:
                 yield ''
 
         self.message_output(hack())
-        
+
     def get_addr(self):
         return self.addr
 
@@ -312,7 +305,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 if err[0] in expected_socket_write_errors:
                     break # we couldn't write anything
                 raise
-            
+
             if n < l:
                 output.insert(0, v[n:])
                 break # we can't write any more
@@ -328,7 +321,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
     def __message_output(self, message, output):
         # do two separate appends to avoid copying the message string
-        size = 4        
+        size = 4
         if self.__hmac_send:
             output.append(struct.pack(">I", len(message) | MAC_BIT))
             self.__hmac_send.update(message)

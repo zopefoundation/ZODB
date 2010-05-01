@@ -12,9 +12,6 @@
 #
 ##############################################################################
 
-# The next line must use double quotes, so release.py recognizes it.
-__version__ = "3.7.0b3"
-
 import sys
 
 from persistent import TimeStamp
@@ -28,4 +25,4 @@ sys.modules['ZODB.PersistentList'] = sys.modules['persistent.list']
 
 del mapping, list, sys
 
-from DB import DB
+from DB import DB, connection

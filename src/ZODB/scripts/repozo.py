@@ -50,6 +50,11 @@ Options for -B/--backup:
         Compress with gzip the backup files.  Uses the default zlib
         compression level.  By default, gzip compression is not used.
 
+    -k / --kill-old-on-full
+        If a full backup is created, remove any prior full or incremental
+        backup files (and associated metadata files) from the repository
+        directory.
+
 Options for -R/--recover:
     -D str
     --date=str
@@ -65,7 +70,12 @@ Options for -R/--recover:
 
 import os
 import sys
-import md5
+try:
+    # the hashlib package is available from Python 2.5
+    from hashlib import md5
+except ImportError:
+    # the md5 package is deprecated in Python 2.6
+    from md5 import new as md5
 import gzip
 import time
 import errno
@@ -101,13 +111,23 @@ def log(msg, *args):
         print >> sys.stderr, msg % args
 
 
-def parseargs():
+def parseargs(argv):
     global VERBOSE
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'BRvhf:r:FD:o:Qz',
-                                   ['backup', 'recover', 'verbose', 'help',
-                                    'file=', 'repository=', 'full', 'date=',
-                                    'output=', 'quick', 'gzip'])
+        opts, args = getopt.getopt(argv, 'BRvhr:f:FQzkD:o:',
+                                   ['backup',
+                                    'recover',
+                                    'verbose',
+                                    'help',
+                                    'repository=',
+                                    'file=',
+                                    'full',
+                                    'quick',
+                                    'gzip',
+                                    'kill-old-on-full',
+                                    'date=',
+                                    'output=',
+                                   ])
     except getopt.error, msg:
         usage(1, msg)
 
@@ -120,6 +140,7 @@ def parseargs():
         output = None       # where to write recovered data; None = stdout
         quick = False       # -Q flag state
         gzip = False        # -z flag state
+        killold = False     # -k flag state
 
     options = Options()
 
@@ -150,6 +171,8 @@ def parseargs():
             options.output = arg
         elif opt in ('-z', '--gzip'):
             options.gzip = True
+        elif opt in ('-k', '--kill-old-on-full'):
+            options.killold = True
         else:
             assert False, (opt, arg)
 
@@ -174,6 +197,9 @@ def parseargs():
         if options.file is not None:
             log('--file option is ignored in recover mode')
             options.file = None
+        if options.killold is not None:
+            log('--kill-old-on-full option is ignored in recover mode')
+            options.killold = None
     return options
 
 
@@ -210,7 +236,7 @@ def dofile(func, fp, n=None):
 
 def checksum(fp, n):
     # Checksum the first n bytes of the specified file
-    sum = md5.new()
+    sum = md5()
     def func(data):
         sum.update(data)
     dofile(func, fp, n)
@@ -221,7 +247,7 @@ def copyfile(options, dst, start, n):
     # Copy bytes from file src, to file dst, starting at offset start, for n
     # length of bytes.  For robustness, we first write, flush and fsync
     # to a temp file, then rename the temp file at the end.
-    sum = md5.new()
+    sum = md5()
     ifp = open(options.file, 'rb')
     ifp.seek(start)
     tempname = os.path.join(os.path.dirname(dst), 'tmp.tmp')
@@ -248,7 +274,7 @@ def concat(files, ofp=None):
     # Concatenate a bunch of files from the repository, output to `outfile' if
     # given.  Return the number of bytes written and the md5 checksum of the
     # bytes.
-    sum = md5.new()
+    sum = md5()
     def func(data):
         sum.update(data)
         if ofp:
@@ -346,6 +372,39 @@ def scandat(repofiles):
 
     return fn, startpos, endpos, sum
 
+def delete_old_backups(options):
+    # Delete all full backup files except for the most recent full backup file
+    all = filter(is_data_file, os.listdir(options.repository))
+    all.sort()
+
+    deletable = []
+    full = []
+    for fname in all:
+        root, ext = os.path.splitext(fname)
+        if ext in ('.fs', '.fsz'):
+            full.append(fname)
+        if ext in ('.fs', '.fsz', '.deltafs', '.deltafsz'):
+            deletable.append(fname)
+
+    # keep most recent full
+    if not full:
+        return
+    
+    recentfull = full.pop(-1)
+    deletable.remove(recentfull)
+    root, ext = os.path.splitext(recentfull)
+    dat = root + '.dat'
+    if dat in deletable:
+        deletable.remove(dat)
+    
+    for fname in deletable:
+        log('removing old backup file %s (and .dat)', fname)
+        root, ext = os.path.splitext(fname)
+        try:
+            os.unlink(os.path.join(options.repository, root + '.dat'))
+        except OSError:
+            pass
+        os.unlink(os.path.join(options.repository, fname))
 
 def do_full_backup(options):
     # Find the file position of the last completed transaction.
@@ -371,6 +430,8 @@ def do_full_backup(options):
     fp.flush()
     os.fsync(fp.fileno())
     fp.close()
+    if options.killold:
+        delete_old_backups(options)
 
 
 def do_incremental_backup(options, reposz, repofiles):
@@ -504,8 +565,10 @@ def do_recover(options):
     log('Recovered %s bytes, md5: %s', reposz, reposum)
 
 
-def main():
-    options = parseargs()
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    options = parseargs(argv)
     if options.mode == BACKUP:
         do_backup(options)
     else:

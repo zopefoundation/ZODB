@@ -15,6 +15,7 @@
 """
 
 import cPickle
+import cStringIO
 import base64
 import binascii
 import logging
@@ -63,12 +64,14 @@ class Blob(persistent.Persistent):
 
     readers = writers = None
 
-    def __init__(self):
+    def __init__(self, data=None):
         # Raise exception if Blobs are getting subclassed
         # refer to ZODB-Bug No.127182 by Jim Fulton on 2007-07-20
         if (self.__class__ is not Blob):
             raise TypeError('Blobs do not support subclassing.')
         self.__setstate__()
+        if data is not None:
+            self.open('w').write(data)
 
     def __setstate__(self, state=None):
         # we use lists here because it will allow us to add and remove
@@ -126,7 +129,7 @@ class Blob(persistent.Persistent):
                 or
                 self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
                 ):
-                raise BlobError('Uncommitted changes')            
+                raise BlobError('Uncommitted changes')
             return self._p_jar._storage.openCommittedBlobFile(
                 self._p_oid, self._p_serial)
 
@@ -167,14 +170,15 @@ class Blob(persistent.Persistent):
                 if self._p_blob_uncommitted is None:
                     self._create_uncommitted_file()
                 result = BlobFile(self._p_blob_uncommitted, mode, self)
-            else:
+            else: # 'r+' and 'a'
                 if self._p_blob_uncommitted is None:
                     # Create a new working copy
                     self._create_uncommitted_file()
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
-                    utils.cp(file(self._p_blob_committed), result)
-                    if mode == 'r+':
-                        result.seek(0)
+                    if self._p_blob_committed:
+                        utils.cp(open(self._p_blob_committed), result)
+                        if mode == 'r+':
+                            result.seek(0)
                 else:
                     # Re-use existing working copy
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
@@ -201,7 +205,7 @@ class Blob(persistent.Persistent):
             raise BlobError('Uncommitted changes')
 
         result = self._p_blob_committed
-        
+
         # We do this to make sure we have the file and to let the
         # storage know we're accessing the file.
         n = self._p_jar._storage.loadBlob(self._p_oid, self._p_serial)
@@ -250,7 +254,7 @@ class Blob(persistent.Persistent):
             raise
         else:
             if previous_uncommitted:
-                # The relinking worked so we can remove the data that we had 
+                # The relinking worked so we can remove the data that we had
                 # set aside.
                 os.remove(target_aside)
 
@@ -331,7 +335,7 @@ class FilesystemHelper:
             log('The `lawn` blob directory layout is deprecated due to '
                 'scalability issues on some file systems, please consider '
                 'migrating to the `bushy` layout.', level=logging.WARN)
-        self.layout_name = layout_name 
+        self.layout_name = layout_name
         self.layout = LAYOUTS[layout_name]
 
     def create(self):
@@ -452,7 +456,7 @@ class FilesystemHelper:
 
         serial = filename[:-len(BLOB_SUFFIX)]
         serial = utils.repr_to_oid(serial)
-        return oid, serial 
+        return oid, serial
 
     def getOIDsForSerial(self, search_serial):
         """Return all oids related to a particular tid that exist in
@@ -483,13 +487,14 @@ class FilesystemHelper:
                 continue
             yield oid, path
 
+
 class NoBlobsFileSystemHelper:
 
     @property
     def temp_dir(self):
         raise TypeError("Blobs are not supported")
 
-    getPathForOID = getBlobFilenamem = temp_dir
+    getPathForOID = getBlobFilename = temp_dir
 
 
 class BlobStorageError(Exception):
@@ -499,23 +504,30 @@ def auto_layout_select(path):
     # A heuristic to look at a path and determine which directory layout to
     # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
-    if not os.path.exists(path):
-        log('Blob directory %s does not exist. '
-            'Selected `bushy` layout. ' % path)
-        layout = 'bushy'
-    elif len(os.listdir(path)) == 0:
-        log('Blob directory `%s` is unused and has no layout marker set. '
-            'Selected `bushy` layout. ' % path)
-        layout = 'bushy'
-    elif LAYOUT_MARKER not in os.listdir(path):
-        log('Blob directory `%s` is used but has no layout marker set. '
-            'Selected `lawn` layout. ' % path)
-        layout = 'lawn'
-    else:
+    if os.path.exists(layout_marker):
         layout = open(layout_marker, 'rb').read()
         layout = layout.strip()
         log('Blob directory `%s` has layout marker set. '
-            'Selected `%s` layout. ' % (path, layout))
+            'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
+    elif not os.path.exists(path):
+        log('Blob directory %s does not exist. '
+            'Selected `bushy` layout. ' % path)
+        layout = 'bushy'
+    else:
+        # look for a non-hidden file in the directory
+        has_files = False
+        for name in os.listdir(path):
+            if not name.startswith('.'):
+                has_files = True
+                break
+        if not has_files:
+            log('Blob directory `%s` is unused and has no layout marker set. '
+                'Selected `bushy` layout. ' % path)
+            layout = 'bushy'
+        else:
+            log('Blob directory `%s` is used but has no layout marker set. '
+                'Selected `lawn` layout. ' % path)
+            layout = 'lawn'
     return layout
 
 
@@ -581,7 +593,7 @@ class LawnLayout(BushyLayout):
 LAYOUTS['lawn'] = LawnLayout()
 
 class BlobStorageMixin(object):
-    """A mix-in to help storages support blobssupport blobs."""
+    """A mix-in to help storages support blobs."""
 
     def _blob_init(self, blob_dir, layout='automatic'):
         # XXX Log warning if storage is ClientStorage
@@ -668,7 +680,7 @@ class BlobStorageMixin(object):
             self.dirty_oids.append((oid, serial))
         finally:
             self._lock_release()
-            
+
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
         """Stores data that has a BLOB attached."""
@@ -722,7 +734,7 @@ class BlobStorage(SpecificationDecoratorBase):
     @non_overridable
     def tpc_finish(self, *arg, **kw):
         # We need to override the base storage's tpc_finish instead of
-        # providing a _finish method because methods found on the proxied 
+        # providing a _finish method because methods found on the proxied
         # object aren't rebound to the proxy
         getProxiedObject(self).tpc_finish(*arg, **kw)
         self._blob_tpc_finish()
@@ -858,6 +870,18 @@ class BlobStorage(SpecificationDecoratorBase):
             self._lock_release()
         return undo_serial, keys
 
+    @non_overridable
+    def new_instance(self):
+        """Implementation of IMVCCStorage.new_instance.
+
+        This method causes all storage instances to be wrapped with
+        a blob storage wrapper.
+        """
+        base_dir = self.fshelper.base_dir
+        s = getProxiedObject(self).new_instance()
+        res = BlobStorage(base_dir, s)
+        return res
+
 
 for name, v in BlobStorageMixin.__dict__.items():
     if isinstance(v, type(BlobStorageMixin.__dict__['storeBlob'])):
@@ -911,16 +935,26 @@ else:
     link_or_copy = os.link
 
 
+def find_global_Blob(module, class_):
+    if module == 'ZODB.blob' and class_ == 'Blob':
+        return Blob
+
 def is_blob_record(record):
     """Check whether a database record is a blob record.
 
     This is primarily intended to be used when copying data from one
     storage to another.
-    
+
     """
-    try:
-        return cPickle.loads(record) is ZODB.blob.Blob
-    except (MemoryError, KeyboardInterrupt, SystemExit):
-        raise
-    except Exception:
-        return False
+    if record and ('ZODB.blob' in record):
+        unpickler = cPickle.Unpickler(cStringIO.StringIO(record))
+        unpickler.find_global = find_global_Blob
+
+        try:
+            return unpickler.load() is Blob
+        except (MemoryError, KeyboardInterrupt, SystemExit):
+            raise
+        except Exception:
+            pass
+
+    return False

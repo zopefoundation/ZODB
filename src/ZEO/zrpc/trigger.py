@@ -12,6 +12,8 @@
 #
 ##############################################################################
 
+from __future__ import with_statement
+
 import asyncore
 import os
 import socket
@@ -95,14 +97,15 @@ class _triggerbase(object):
     def _close(self):    # see close() above; subclass must supply
         raise NotImplementedError
 
-    def pull_trigger(self, thunk=None):
+    def pull_trigger(self, *thunk):
         if thunk:
-            self.lock.acquire()
-            try:
+            with self.lock:
                 self.thunks.append(thunk)
-            finally:
-                self.lock.release()
-        self._physical_pull()
+        try:
+            self._physical_pull()
+        except Exception:
+            if not self._closed:
+                raise
 
     # Subclass must supply _physical_pull, which does whatever the OS
     # needs to do to provoke the "write" end of the trigger.
@@ -114,18 +117,19 @@ class _triggerbase(object):
             self.recv(8192)
         except socket.error:
             return
-        self.lock.acquire()
-        try:
-            for thunk in self.thunks:
-                try:
-                    thunk()
-                except:
-                    nil, t, v, tbinfo = asyncore.compact_traceback()
-                    print ('exception in trigger thunk:'
-                           ' (%s:%s %s)' % (t, v, tbinfo))
-            self.thunks = []
-        finally:
-            self.lock.release()
+
+        while 1:
+            with self.lock:
+                if self.thunks:
+                    thunk = self.thunks.pop(0)
+                else:
+                    return
+            try:
+                thunk[0](*thunk[1:])
+            except:
+                nil, t, v, tbinfo = asyncore.compact_traceback()
+                print ('exception in trigger thunk:'
+                       ' (%s:%s %s)' % (t, v, tbinfo))
 
     def __repr__(self):
         return '<select-trigger (%s) at %x>' % (self.kind, positive_id(self))
@@ -137,13 +141,21 @@ if os.name == 'posix':
 
         def __init__(self, map=None):
             _triggerbase.__init__(self)
-            r, self.trigger = self._fds = os.pipe()
+            r, self.trigger = os.pipe()
             asyncore.file_dispatcher.__init__(self, r, map)
 
+            if self.fd != r:
+                # Starting in Python 2.6, the descriptor passed to
+                # file_dispatcher gets duped and assigned to
+                # self.fd. This breals the instantiation semantics and
+                # is a bug imo.  I dount it will get fixed, but maybe
+                # it will. Who knows. For that reason, we test for the
+                # fd changing rather than just checking the Python version.
+                os.close(r)
+
         def _close(self):
-            for fd in self._fds:
-                os.close(fd)
-            self._fds = []
+            os.close(self.trigger)
+            asyncore.file_dispatcher.close(self)
 
         def _physical_pull(self):
             os.write(self.trigger, 'x')

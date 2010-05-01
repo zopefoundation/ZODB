@@ -1,5 +1,5 @@
 ====
-ZODB 
+ZODB
 ====
 
 Introduction
@@ -13,7 +13,7 @@ follows:
 - Standard storages such as FileStorage
 - The persistent BTrees modules
 - ZEO, for scalability needs
-- documentation (needs more work)
+- documentation (needs a lot more work)
 
 Our primary development platforms are Linux, Mac OS X, and Windows
 XP.  The test suite should pass without error on all of these
@@ -24,25 +24,32 @@ you pass --all as an argument to test.py.
 Compatibility
 =============
 
+ZODB 3.10 requires Python 2.5 or later.
 
-ZODB 3.8 requires Python 2.4.2 or later.
+Note --
+   When using ZEO and upgrading from Python 2.4, you need to upgrade
+   clients and servers at the same time, or upgrade clients first and
+   then servers.  Clients running Python 2.5 or 2.6 will work with
+   servers running Python 2.4.  Clients running Python 2.4 won't work
+   properly with servers running Python 2.5 or later due to changes in
+   the way Python implements exceptions.
 
-ZEO servers and clients are wholly compatible among 3.3, 3.4, 3.5, 3.6 and
-3.7; a ZEO client from any of those versions can talk with a ZEO server from
-any.  ZODB 3.8 ZEO clients require ZODB 3.8 servers and later.  ZODB
-3.8 ZEO Servers will work with ZODB 3.2 clients and later.
+ZODB ZEO clients from ZODB 3.2 on can talk to ZODB 3.10 servers.  ZODB
+ZEO 3.10 Clients can talk to ZODB 3.8, 3.9, and 3.10 ZEO servers.
+
+Note --
+   ZEO 3.10 servers don't support undo for older clients.
 
 Prerequisites
 =============
 
-You must have Python installed.  If you've installed Python from RPM,
-be sure that you've installed the development RPMs too, since ZODB
-builds Python extensions.  If you have the source release of ZODB,
-you will need a C compiler.
+You must have Python installed. If you're using a system Python
+install, make sure development support is installed too.
 
-You also need the ZConfig, zdaemon, zope.interface, zope.proxy and
-zope.testing packages.  If you are using easy_install or zc.buildout to
-install ZODB, then these will be installed for you automatically.
+You also need the transaction, zc.lockfile, ZConfig, zdaemon,
+zope.event, zope.interface, zope.proxy and zope.testing packages.  If
+you don't have them and you can connect to the Python Package Index,
+then these will be installed for you if you don't have them.
 
 Installation
 ============
@@ -54,31 +61,25 @@ and install it are to use `easy_install
 
 To install by hand, first install the dependencies, ZConfig, zdaemon,
 zope.interface, zope.proxy and zope.testing.  These can be found
-either in the `Python Package Index <http://www.python.org/pypi>`_,
-or at http://download.zope.org/distribution/.
+in the `Python Package Index <http://www.python.org/pypi>`_.
 
-To build it, run the setup script::
+To run the tests, use the test setup command::
 
-    % python setup.py build
+  python setup.py test
 
-The 64-bit support for the BTrees package may be enabled by using this
-build command instead::
+It will download dependencies if needed.  If this happens, ou may get
+an import error when the test command gets to looking for tests.  Try
+running the test command a second time and you should see the tests
+run.
 
-    % python setup.py build_ext -DZODB_64BIT_INTS build
+::
 
-To test the build, run the test script::
+  python setup.py test
 
-    % python test.py
+To install, use the install command::
 
-For more verbose test output, append one or two '-v' arguments to this
-command.
+  python setup.py install
 
-If all the tests succeeded, you can install ZODB using the setup
-script::
-
-    % python setup.py install
-
-This should now make all of ZODB accessible to your Python programs.
 
 Testing for Developers
 ======================
@@ -90,7 +91,7 @@ to initialize the buildout:
     % python bootstrap.py
 
 and then use the buildout script to build ZODB and gather the dependencies:
- 
+
     % bin/buildout
 
 This creates a test script:
@@ -164,8 +165,6 @@ made a couple of alpha releases.  We've now abandoned that effort,
 because we didn't have the resources to pursue ot while also maintaining
 ZODB(3).
 
-
-
 License
 =======
 
@@ -184,7 +183,7 @@ More information
 We maintain a Wiki page about all things ZODB, including status on
 future directions for ZODB.  Please see
 
-    http://www.zope.org/Wikis/ZODB
+    http://wiki.zope.org/ZODB/FrontPage
 
 and feel free to contribute your comments.  There is a Mailman mailing
 list in place to discuss all issues related to ZODB.  You can send

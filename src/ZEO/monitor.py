@@ -39,18 +39,22 @@ else:
 class StorageStats:
     """Per-storage usage statistics."""
 
-    def __init__(self):
+    def __init__(self, connections=None):
+        self.connections = connections
         self.loads = 0
         self.stores = 0
         self.commits = 0
         self.aborts = 0
         self.active_txns = 0
-        self.clients = 0
         self.verifying_clients = 0
         self.lock_time = None
         self.conflicts = 0
         self.conflicts_resolved = 0
         self.start = time.ctime()
+
+    @property
+    def clients(self):
+        return len(self.connections)
 
     def parse(self, s):
         # parse the dump format
@@ -60,7 +64,9 @@ class StorageStats:
             if field == "Server started":
                 self.start = value
             elif field == "Clients":
-                self.clients = int(value)
+                # Hack because we use this both on the server and on
+                # the client where there are no connections.
+                self.connections = [0] * int(value)
             elif field == "Clients verifying":
                 self.verifying_clients = int(value)
             elif field == "Active transactions":

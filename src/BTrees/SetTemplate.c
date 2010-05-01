@@ -108,6 +108,12 @@ _set_setstate(Bucket *self, PyObject *args)
   UNLESS (PyArg_ParseTuple(args, "O|O", &items, &next))
     return -1;
 
+  if (!PyTuple_Check(items)) {
+    PyErr_SetString(PyExc_TypeError,
+                    "tuple required for first state element");
+    return -1;
+  }
+
   if ((l=PyTuple_Size(items)) < 0) return -1;
 
   for (i=self->len; --i >= 0; )
@@ -196,8 +202,11 @@ static struct PyMethodDef Set_methods[] = {
    "_p_deactivate() -- Reinitialize from a newly created copy"},
 #endif
 
+  {"add",	(PyCFunction)Set_insert,	METH_VARARGS,
+   "add(id) -- Add a key to the set"},
+
   {"insert",	(PyCFunction)Set_insert,	METH_VARARGS,
-   "insert(id,[ignored]) -- Add a key to the set"},
+   "insert(id) -- Add a key to the set"},
 
   {"update",	(PyCFunction)Set_update,	METH_VARARGS,
    "update(seq) -- Add the items from the given sequence to the set"},

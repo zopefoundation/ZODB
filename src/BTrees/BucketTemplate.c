@@ -688,7 +688,7 @@ static PyObject *
 Bucket_maxminKey(Bucket *self, PyObject *args, int min)
 {
   PyObject *key=0;
-  int rc, offset;
+  int rc, offset = 0;
   int empty_bucket = 1;
 
   if (args && ! PyArg_ParseTuple(args, "|O", &key)) return NULL;
@@ -1182,6 +1182,12 @@ _bucket_setstate(Bucket *self, PyObject *state)
     if (!PyArg_ParseTuple(state, "O|O:__setstate__", &items, &next))
 	return -1;
 
+    if (!PyTuple_Check(items)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "tuple required for first state element");
+	return -1;
+    }
+
     len = PyTuple_Size(items);
     if (len < 0)
 	return -1;
@@ -1575,6 +1581,10 @@ static struct PyMethodDef Bucket_methods[] = {
 
     {"iteritems", (PyCFunction) Bucket_iteritems,    METH_KEYWORDS,
      "B.iteritems([min[,max]]) -> an iterator over the (key, value) items of B"},
+
+#ifdef EXTRA_BUCKET_METHODS
+    EXTRA_BUCKET_METHODS
+#endif
 
 #ifdef PERSISTENT
     {"_p_resolveConflict", (PyCFunction) bucket__p_resolveConflict,

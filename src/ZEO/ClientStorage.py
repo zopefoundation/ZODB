@@ -28,7 +28,6 @@ from ZEO.TransactionBuffer import TransactionBuffer
 from ZEO.zrpc.client import ConnectionManager
 from ZODB import POSException
 from ZODB import utils
-from ZODB.loglevels import BLATHER
 import BTrees.IOBTree
 import cPickle
 import logging
@@ -38,6 +37,7 @@ import socket
 import stat
 import sys
 import tempfile
+import thread
 import threading
 import time
 import types
@@ -225,7 +225,7 @@ class ClientStorage(object):
             Maximum size of the ZEO blob cache, in bytes.  If not set, then
             the cache size isn't checked and the blob directory will
             grow without bound.
-            
+
             This option is ignored if shared_blob_dir is true.
 
         blob_cache_size_check
@@ -240,8 +240,11 @@ class ClientStorage(object):
 
         """
 
+        if isinstance(addr, int):
+            addr = '127.0.0.1', addr
+
         self.__name__ = name or str(addr) # Standard convention for storages
-        
+
         logger.info(
             "%s %s (pid=%d) created %s/%s for storage: %r",
             self.__name__,
@@ -315,7 +318,7 @@ class ClientStorage(object):
         self._server_addr = None
 
         self._pickler = self._tfile = None
-        
+
         self._info = {'length': 0, 'size': 0, 'name': 'ZEO Client',
                       'supportsUndo': 0, 'interfaces': ()}
 
@@ -369,7 +372,7 @@ class ClientStorage(object):
         # XXX need to check for POSIX-ness here
         self.blob_dir = blob_dir
         self.shared_blob_dir = shared_blob_dir
-        
+
         if blob_dir is not None:
             # Avoid doing this import unless we need it, as it
             # currently requires pywin32 on Windows.
@@ -398,6 +401,7 @@ class ClientStorage(object):
         self._blob_cache_size = blob_cache_size
         self._blob_data_bytes_loaded = 0
         if blob_cache_size is not None:
+            assert blob_cache_size_check < 100
             self._blob_cache_size_check = (
                 blob_cache_size * blob_cache_size_check / 100)
             self._check_blob_size()
@@ -415,7 +419,7 @@ class ClientStorage(object):
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
 
-        
+
 
     def _wait(self, timeout=None):
         if timeout is not None:
@@ -442,15 +446,17 @@ class ClientStorage(object):
                         self.__name__)
 
     def close(self):
-        """Storage API: finalize the storage, releasing external resources."""
-        if self._rpc_mgr is not None:
-            self._rpc_mgr.close()
-            self._rpc_mgr = None
+        "Storage API: finalize the storage, releasing external resources."
+        _rpc_mgr = self._rpc_mgr
+        self._rpc_mgr = None
+        if _rpc_mgr is None:
+            return # already closed
+
         if self._connection is not None:
             self._connection.register_object(None) # Don't call me!
-            self._connection.close()
-            self._connection = None
+        self._connection = None
 
+        _rpc_mgr.close()
         self._tbuf.close()
         if self._cache is not None:
             self._cache.close()
@@ -470,14 +476,14 @@ class ClientStorage(object):
 
         if (bytes is not None) and (bytes < self._blob_cache_size_check):
             return
-        
+
         self._blob_data_bytes_loaded = 0
 
         target = max(self._blob_cache_size - self._blob_cache_size_check, 0)
-        
+
         check_blob_size_thread = threading.Thread(
             target=_check_blob_cache_size,
-            args=(self.blob_dir, self._blob_cache_size),
+            args=(self.blob_dir, target),
             )
         check_blob_size_thread.setDaemon(True)
         check_blob_size_thread.start()
@@ -623,7 +629,7 @@ class ClientStorage(object):
         # If we end up doing a full-verification, we need to wait till
         # it's done.  By doing a synchonous call, we are guarenteed
         # that the verification will be done because operations are
-        # handled in order.        
+        # handled in order.
         self._info.update(stub.get_info())
 
         self._handle_extensions()
@@ -634,6 +640,7 @@ class ClientStorage(object):
             ZODB.interfaces.IStorageUndoable,
             ZODB.interfaces.IStorageCurrentRecordIteration,
             ZODB.interfaces.IBlobStorage,
+            ZODB.interfaces.IExternalGC,
             ):
             if (iface.__module__, iface.__name__) in self._info.get(
                 'interfaces', ()):
@@ -916,33 +923,29 @@ class ClientStorage(object):
     def storeBlob(self, oid, serial, data, blobfilename, version, txn):
         """Storage API: store a blob object."""
         assert not version
-        serials = self.store(oid, serial, data, '', txn)
-        if self.shared_blob_dir:
-            self._storeBlob_shared(oid, serial, data, blobfilename, txn)
-        else:
-            self._server.storeBlob(oid, serial, data, blobfilename, txn)
-            self._tbuf.storeBlob(oid, blobfilename)
-        return serials
 
-    def _storeBlob_shared(self, oid, serial, data, filename, txn):
-        # First, move the blob into the blob directory
+        # Grab the file right away. That way, if we don't have enough
+        # room for a copy, we'll know now rather than in tpc_finish.
+        # Also, this releaves the client of having to manage the file
+        # (or the directory contianing it).
         self.fshelper.getPathForOID(oid, create=True)
         fd, target = self.fshelper.blob_mkstemp(oid, serial)
         os.close(fd)
 
-        if sys.platform == 'win32':
-            # On windows, we can't rename to an existing file.  We'll
-            # use a slightly different file name. We keep the old one
-            # until we're done to avoid conflicts. Then remove the old name.
-            target += 'w'
-            ZODB.blob.rename_or_copy_blob(filename, target)
-            os.remove(target[:-1])
-        else:
-            ZODB.blob.rename_or_copy_blob(filename, target)
+        # It's a bit odd (and impossible on windows) to rename over
+        # an existing file.  We'll use the temporary file name as a base.
+        target += '-'
+        ZODB.blob.rename_or_copy_blob(blobfilename, target)
+        os.remove(target[:-1])
 
-        # Now tell the server where we put it
-        self._server.storeBlobShared(
-            oid, serial, data, os.path.basename(target), id(txn))
+        serials = self.store(oid, serial, data, '', txn)
+        if self.shared_blob_dir:
+            self._server.storeBlobShared(
+                oid, serial, data, os.path.basename(target), id(txn))
+        else:
+            self._server.storeBlob(oid, serial, data, target, txn)
+            self._tbuf.storeBlob(oid, target)
+        return serials
 
     def receiveBlobStart(self, oid, serial):
         blob_filename = self.fshelper.getBlobFilename(oid, serial)
@@ -969,6 +972,11 @@ class ClientStorage(object):
         os.rename(blob_filename+'.dl', blob_filename)
         os.chmod(blob_filename, stat.S_IREAD)
 
+    def deleteObject(self, oid, serial, txn):
+        self._check_trans(txn)
+        self._server.deleteObject(oid, serial, id(txn))
+        self._tbuf.store(oid, None)
+
     def loadBlob(self, oid, serial):
         # Load a blob.  If it isn't present and we have a shared blob
         # directory, then assume that it doesn't exist on the server
@@ -986,11 +994,11 @@ class ClientStorage(object):
                 # We're using a server shared cache.  If the file isn't
                 # here, it's not anywhere.
                 raise POSException.POSKeyError("No blob file", oid, serial)
-        
+
         if os.path.exists(blob_filename):
             return _accessed(blob_filename)
 
-        # First, we'll create the directory for this oid, if it doesn't exist. 
+        # First, we'll create the directory for this oid, if it doesn't exist.
         self.fshelper.createPathForOID(oid)
 
         # OK, it's not here and we (or someone) needs to get it.  We
@@ -998,15 +1006,7 @@ class ClientStorage(object):
         # getting it multiple times even accross separate client
         # processes on the same machine. We'll use file locking.
 
-        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
-        while 1:
-            try:
-                lock = zc.lockfile.LockFile(lockfilename)
-            except zc.lockfile.LockError:
-                time.sleep(0.01)
-            else:
-                break
-
+        lock = _lock_blob(blob_filename)
         try:
             # We got the lock, so it's our job to download it.  First,
             # we'll double check that someone didn't download it while we
@@ -1040,16 +1040,8 @@ class ClientStorage(object):
             # The file got removed while we were opening.
             # Fall through and try again with the protection of the lock.
             pass
-        
-        lockfilename = os.path.join(os.path.dirname(blob_filename), '.lock')
-        while 1:
-            try:
-                lock = zc.lockfile.LockFile(lockfilename)
-            except zc.lockfile.LockError:
-                time.sleep(.01)
-            else:
-                break
 
+        lock = _lock_blob(blob_filename)
         try:
             blob_filename = self.fshelper.getBlobFilename(oid, serial)
             if not os.path.exists(blob_filename):
@@ -1068,7 +1060,7 @@ class ClientStorage(object):
                 return ZODB.blob.BlobFile(blob_filename, 'r', blob)
         finally:
             lock.close()
-        
+
 
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
@@ -1076,7 +1068,8 @@ class ClientStorage(object):
     def tpc_vote(self, txn):
         """Storage API: vote on a transaction."""
         if txn is not self._transaction:
-            return
+            raise POSException.StorageTransactionError(
+                "tpc_vote called with wrong transaction")
         self._server.vote(id(txn))
         return self._check_serials()
 
@@ -1095,7 +1088,9 @@ class ClientStorage(object):
             # must be ignored.
             if self._transaction == txn:
                 self._tpc_cond.release()
-                return
+                raise POSException.StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
+
             self._tpc_cond.wait(30)
         self._transaction = txn
         self._tpc_cond.release()
@@ -1149,22 +1144,20 @@ class ClientStorage(object):
     def tpc_finish(self, txn, f=None):
         """Storage API: finish a transaction."""
         if txn is not self._transaction:
-            return
+            raise POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction")
         self._load_lock.acquire()
         try:
             if self._midtxn_disconnect:
                 raise ClientDisconnected(
                        'Calling tpc_finish() on a disconnected transaction')
 
-            # The calls to tpc_finish() and _update_cache() should
-            # never run currently with another thread, because the
-            # tpc_cond condition variable prevents more than one
-            # thread from calling tpc_finish() at a time.
-            tid = self._server.tpc_finish(id(txn))
-
+            finished = 0
             try:
                 self._lock.acquire()  # for atomic processing of invalidations
                 try:
+                    tid = self._server.tpc_finish(id(txn))
+                    finished = 1
                     self._update_cache(tid)
                     if f is not None:
                         f(tid)
@@ -1174,9 +1167,10 @@ class ClientStorage(object):
                 r = self._check_serials()
                 assert r is None or len(r) == 0, "unhandled serialnos: %s" % r
             except:
-                # The server successfully committed.  If we get a failure
-                # here, our own state will be in question, so reconnect.
-                self._connection.close()
+                if finished:
+                    # The server successfully committed.  If we get a failure
+                    # here, our own state will be in question, so reconnect.
+                    self._connection.close()
                 raise
 
             self.end_transaction()
@@ -1197,25 +1191,39 @@ class ClientStorage(object):
         if self._cache is None:
             return
 
-        for oid, data in self._tbuf:
+        for oid, _ in self._seriald.iteritems():
             self._cache.invalidate(oid, tid, False)
+
+        for oid, data in self._tbuf:
             # If data is None, we just invalidate.
             if data is not None:
                 s = self._seriald[oid]
                 if s != ResolvedSerial:
                     assert s == tid, (s, tid)
                     self._cache.store(oid, s, None, data)
+            else:
+                # object deletion
+                self._cache.invalidate(oid, tid, False)
 
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
+            had_blobs = False
             while blobs:
                 oid, blobfilename = blobs.pop()
                 self._blob_data_bytes_loaded += os.stat(blobfilename).st_size
                 targetpath = self.fshelper.getPathForOID(oid, create=True)
-                ZODB.blob.rename_or_copy_blob(
-                    blobfilename,
-                    self.fshelper.getBlobFilename(oid, tid),
-                    )
+                target_blob_file_name = self.fshelper.getBlobFilename(oid, tid)
+                lock = _lock_blob(target_blob_file_name)
+                try:
+                    ZODB.blob.rename_or_copy_blob(
+                        blobfilename,
+                        target_blob_file_name,
+                        )
+                finally:
+                    lock.close()
+                had_blobs = True
+
+            if had_blobs:
                 self._check_blob_size(self._blob_data_bytes_loaded)
 
         self._tbuf.clear()
@@ -1231,10 +1239,7 @@ class ClientStorage(object):
 
         """
         self._check_trans(txn)
-        tid, oids = self._server.undo(trans_id, id(txn))
-        for oid in oids:
-            self._tbuf.invalidate(oid)
-        return tid, oids
+        self._server.undoa(trans_id, id(txn))
 
     def undoInfo(self, first=0, last=-20, specification=None):
         """Storage API: return undo information."""
@@ -1316,7 +1321,7 @@ class ClientStorage(object):
             if ltid and ltid != utils.z64:
                 self._cache.setLastTid(ltid)
             self.finish_verification()
-            return "full verification"
+            return "empty cache"
 
         last_inval_tid = self._cache.getLastTid()
         if last_inval_tid is not None:
@@ -1399,7 +1404,7 @@ class ClientStorage(object):
             if catch_up:
                 # process catch-up invalidations
                 self._process_invalidations(*catch_up)
-            
+
             if self._pickler is None:
                 return
             # write end-of-data marker
@@ -1503,7 +1508,7 @@ class ClientStorage(object):
 class TransactionIterator(object):
 
     def __init__(self, storage, iid, *args):
-        self._storage = storage 
+        self._storage = storage
         self._iid = iid
         self._ended = False
 
@@ -1614,71 +1619,99 @@ cache_file_name = re.compile(r'\d+$').match
 def _check_blob_cache_size(blob_dir, target):
 
     logger = logging.getLogger(__name__+'.check_blob_cache')
-    logger.info("Checking blob cache size")
-    
+
     layout = open(os.path.join(blob_dir, ZODB.blob.LAYOUT_MARKER)
                   ).read().strip()
     if not layout == 'zeocache':
         logger.critical("Invalid blob directory layout %s", layout)
         raise ValueError("Invalid blob directory layout", layout)
 
+    attempt_path = os.path.join(blob_dir, 'check_size.attempt')
+
     try:
         check_lock = zc.lockfile.LockFile(
             os.path.join(blob_dir, 'check_size.lock'))
     except zc.lockfile.LockError:
-        # Someone is already cleaning up, so don't bother
-        logger.info("Another thread is checking the blob cache size")
-        return
-    
+        try:
+            time.sleep(1)
+            check_lock = zc.lockfile.LockFile(
+                os.path.join(blob_dir, 'check_size.lock'))
+        except zc.lockfile.LockError:
+            # Someone is already cleaning up, so don't bother
+            logger.debug("%s Another thread is checking the blob cache size.",
+                         thread.get_ident())
+            open(attempt_path, 'w').close() # Mark that we tried
+            return
+
+    logger.debug("%s Checking blob cache size. (target: %s)",
+                 thread.get_ident(), target)
+
     try:
-        size = 0
-        blob_suffix = ZODB.blob.BLOB_SUFFIX
-        files_by_atime = BTrees.IOBTree.BTree()
+        while 1:
+            size = 0
+            blob_suffix = ZODB.blob.BLOB_SUFFIX
+            files_by_atime = BTrees.OOBTree.BTree()
 
-        for dirname in os.listdir(blob_dir):
-            if not cache_file_name(dirname):
-                continue
-            base = os.path.join(blob_dir, dirname)
-            if not os.path.isdir(base):
-                continue
-            for file_name in os.listdir(base):
-                if not file_name.endswith(blob_suffix):
+            for dirname in os.listdir(blob_dir):
+                if not cache_file_name(dirname):
                     continue
-                file_name = os.path.join(base, file_name)
-                if not os.path.isfile(file_name):
+                base = os.path.join(blob_dir, dirname)
+                if not os.path.isdir(base):
                     continue
-                stat = os.stat(file_name)
-                size += stat.st_size
-                t = int(stat.st_atime)
-                if t not in files_by_atime:
-                    files_by_atime[t] = []
-                files_by_atime[t].append(file_name)
+                for file_name in os.listdir(base):
+                    if not file_name.endswith(blob_suffix):
+                        continue
+                    file_path = os.path.join(base, file_name)
+                    if not os.path.isfile(file_path):
+                        continue
+                    stat = os.stat(file_path)
+                    size += stat.st_size
+                    t = stat.st_atime
+                    if t not in files_by_atime:
+                        files_by_atime[t] = []
+                    files_by_atime[t].append(os.path.join(dirname, file_name))
 
-        logger.info("blob cache size: %s", size)
+            logger.debug("%s   blob cache size: %s", thread.get_ident(), size)
 
-        while size > target and files_by_atime:
-            for file_name in files_by_atime.pop(files_by_atime.minKey()):
-                lockfilename = os.path.join(os.path.dirname(file_name),
-                                            '.lock')
-                try:
-                    lock = zc.lockfile.LockFile(lockfilename)
-                except zc.lockfile.LockError:
-                    logger.info("Skipping locked %s",
-                                os.path.basename(file_name))
-                    continue  # In use, skip
-
-                try:
-                    fsize = os.stat(file_name).st_size
+            if size <= target:
+                if os.path.isfile(attempt_path):
                     try:
-                        ZODB.blob.remove_committed(file_name)
-                    except OSError, v:
-                        pass # probably open on windows
-                    else:
-                        size -= fsize
-                finally:
-                    lock.close()
+                        os.remove(attempt_path)
+                    except OSError:
+                        pass # Sigh, windows
+                    continue
+                logger.debug("%s   -->", thread.get_ident())
+                break
 
-        logger.info("reduced blob cache size: %s", size)
+            while size > target and files_by_atime:
+                for file_name in files_by_atime.pop(files_by_atime.minKey()):
+                    file_name = os.path.join(blob_dir, file_name)
+                    lockfilename = os.path.join(os.path.dirname(file_name),
+                                                '.lock')
+                    try:
+                        lock = zc.lockfile.LockFile(lockfilename)
+                    except zc.lockfile.LockError:
+                        logger.debug("%s Skipping locked %s",
+                                     thread.get_ident(),
+                                     os.path.basename(file_name))
+                        continue  # In use, skip
+
+                    try:
+                        fsize = os.stat(file_name).st_size
+                        try:
+                            ZODB.blob.remove_committed(file_name)
+                        except OSError, v:
+                            pass # probably open on windows
+                        else:
+                            size -= fsize
+                    finally:
+                        lock.close()
+
+                    if size <= target:
+                        break
+
+            logger.debug("%s   reduced blob cache size: %s",
+                         thread.get_ident(), size)
 
     finally:
         check_lock.close()
@@ -1688,3 +1721,17 @@ def check_blob_size_script(args=None):
         args = sys.argv[1:]
     blob_dir, target = args
     _check_blob_cache_size(blob_dir, int(target))
+
+def _lock_blob(path):
+    lockfilename = os.path.join(os.path.dirname(path), '.lock')
+    n = 0
+    while 1:
+        try:
+            return zc.lockfile.LockFile(lockfilename)
+        except zc.lockfile.LockError:
+            time.sleep(0.01)
+            n += 1
+            if n > 60000:
+                raise
+        else:
+            break

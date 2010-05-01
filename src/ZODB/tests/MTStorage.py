@@ -96,12 +96,16 @@ class ZODBClientThread(TestThread):
                 break
             except ConflictError:
                 root._p_jar.sync()
+        else:
+            raise ConflictError("Exceeded %d attempts to store" % MAXRETRIES)
 
-        for i in range(MAXRETRIES):
+        for j in range(MAXRETRIES):
             try:
                 return root.get(name)
             except ConflictError:
                 root._p_jar.sync()
+
+        raise ConflictError("Exceeded %d attempts to read" % MAXRETRIES)
 
 class StorageClientThread(TestThread):
 

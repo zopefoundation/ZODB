@@ -1,0 +1,64 @@
+New OIDs get reused if a transaction aborts
+===========================================
+
+Historical note:
+
+  An OID is a terrible thing to waste.
+
+  Seriously: sequential allocation of OIDs could cause problems when
+  OIDs are used as (or as the basis of) BTree keys.  This happened
+  with Zope 3's intid utility where the object->id mapping uses an
+  object key based on the OID.  We got frequent conflict errors
+  because, in a site with many users, many objects are added at the
+  same time and conficts happened when conflicting changes caused
+  bucket splits.
+
+  Reusing an earlier allocated, but discarded OID will allow retries
+  of transactions to work because they'll use earlier OIDs which won't
+  tend to conflict with newly allocated ones.
+
+If a transaction is aborted, new OIDs assigned in the transaction are
+saved and made available for later transactions.
+
+    >>> import ZODB.tests.util, transaction
+    >>> db = ZODB.tests.util.DB()
+    >>> tm1 = transaction.TransactionManager()
+    >>> conn1 = db.open(tm1)
+    >>> conn1.root.x = ZODB.tests.util.P()
+    >>> tm1.commit()
+    >>> conn1.root.x.x = ZODB.tests.util.P()
+    >>> conn1.root.y = 1
+    >>> tm2 = transaction.TransactionManager()
+    >>> conn2 = db.open(tm2)
+    >>> conn2.root.y = ZODB.tests.util.P()
+    >>> tm2.commit()
+
+We get a conflict when we try to commit the change to the first connection:
+
+    >>> tm1.commit() # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ConflictError: ...
+
+    >>> tm1.abort()
+
+When we try, we get the same oid we would have gotten on the first transaction:
+
+    >>> conn1.root.x.x = ZODB.tests.util.P()
+    >>> tm1.commit()
+    >>> conn1.root.x.x._p_oid
+    '\x00\x00\x00\x00\x00\x00\x00\x03'
+
+We see this more clearly when we use add to assign the oid before the commit:
+
+    >>> conn1.root.z = ZODB.tests.util.P()
+    >>> conn1.add(conn1.root.z)
+    >>> conn1.root.z._p_oid
+    '\x00\x00\x00\x00\x00\x00\x00\x04'
+
+    >>> tm1.abort()
+
+    >>> conn2.root.a = ZODB.tests.util.P()
+    >>> conn2.add(conn2.root.a)
+    >>> conn2.root.a._p_oid
+    '\x00\x00\x00\x00\x00\x00\x00\x04'

@@ -45,6 +45,16 @@
       </description>
     </key>
 
+    <key name="invalidation-age" datatype="float" required="no">
+      <description>
+        The maximum age of a client for which quick-verification
+        invalidations will be provided by iterating over the served
+        storage. This option should only be used if the served storage
+        supports efficient iteration from a starting point near the
+        end of the transaction history (e.g. end of file).
+      </description>
+    </key>
+
     <key name="monitor-address" datatype="socket-binding-address"
          required="no">
       <description>

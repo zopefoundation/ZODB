@@ -17,7 +17,7 @@ $Id$
 """
 import unittest
 from zope.testing import doctest
-import persistent.dict
+import persistent.mapping
 import transaction
 
 def testAddingThenModifyThenAbort():
@@ -39,7 +39,7 @@ savepoint.
     >>> connection = db.open()
     >>> root = connection.root()
 
-    >>> ob = persistent.dict.PersistentDict()
+    >>> ob = persistent.mapping.PersistentMapping()
     >>> root['ob'] = ob
     >>> sp = transaction.savepoint()
     >>> ob.x = 1
@@ -153,6 +153,34 @@ We simply rely on the underlying storage method.
     >>> connection.isReadOnly()
     False
 """
+
+class SelfActivatingObject(persistent.Persistent):
+
+    def _p_invalidate(self):
+        super(SelfActivatingObject, self)._p_invalidate()
+        self._p_activate()
+
+def testInvalidateAfterRollback():
+    """\
+The rollback used to invalidate objects before resetting the TmpStore.
+This caused problems for custom _p_invalidate methods that would load
+the wrong state.
+
+    >>> import ZODB.tests.util
+    >>> db = ZODB.tests.util.DB()
+    >>> connection = db.open()
+    >>> root = connection.root()
+
+    >>> root['p'] = p = SelfActivatingObject()
+    >>> transaction.commit()
+    >>> p.foo = 1
+    >>> sp = transaction.savepoint()
+    >>> p.foo = 2
+    >>> sp2 = transaction.savepoint()
+    >>> sp.rollback()
+    >>> p.foo  # This used to wrongly return 2
+    1
+    """
 
 def tearDown(test):
     transaction.abort()

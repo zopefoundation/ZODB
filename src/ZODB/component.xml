@@ -7,20 +7,29 @@
 
   <sectiontype name="filestorage" datatype=".FileStorage"
                implements="ZODB.storage">
-    <key name="path" required="yes">
+    <key name="path" required="yes" datatype="existing-dirpath">
       <description>
         Path name to the main storage file.  The names for
         supplemental files, including index and lock files, will be
         computed from this.
       </description>
     </key>
-    <key name="create" datatype="boolean" default="false">
+    <key name="blob-dir" required="no" datatype="existing-dirpath">
+      <description>
+        If supplied, the file storage will provide blob support and this
+        is the name of a directory to hold blob data.  The directory will
+        be created if it doeesn't exist.  If no value (or an empty value)
+        is provided, then no blob support will be provided. (You can still
+        use a BlobStorage to provide blob support.)
+      </description>
+    </key>
+    <key name="create" datatype="boolean">
       <description>
         Flag that indicates whether the storage should be truncated if
         it already exists.
       </description>
     </key>
-    <key name="read-only" datatype="boolean" default="false">
+    <key name="read-only" datatype="boolean">
       <description>
         If true, only reads may be executed against the storage.  Note
         that the "pack" operation is not considered a write operation
@@ -48,6 +57,12 @@
          packing.  This can make packing go much faster and can avoid
          problems when objects are referenced only from other
          databases.
+      </description>
+    </key>
+    <key name="pack-keep-old" datatype="boolean" default="true">
+      <description>
+         If true, a copy of the database before packing is kept in a
+         ".old" file.
       </description>
     </key>
   </sectiontype>
@@ -98,7 +113,7 @@
             Maximum size of the ZEO blob cache, in bytes.  If not set, then
             the cache size isn't checked and the blob directory will
             grow without bound.
-            
+
             This option is ignored if shared_blob_dir is true.
       </description>
     </key>
@@ -106,11 +121,10 @@
       <description>
             ZEO check size as percent of blob_cache_size.  The ZEO
             cache size will be checked when this many bytes have been
-            loaded into the cache. Defaults to 100% of the blob cache
+            loaded into the cache. Defaults to 10% of the blob cache
             size.   This option is ignored if shared_blob_dir is true.
       </description>
     </key>
-    
     <key name="storage" default="1">
       <description>
         The name of the storage that the client wants to use.  If the
@@ -235,6 +249,11 @@
         and exceeding twice pool-size connections causes a critical
         message to be logged.
       </description>
+    <key name="pool-timeout" datatype="time-interval"/>
+      <description>
+        The minimum interval that an unused (non-historical)
+        connection should be kept.
+      </description>
     <key name="historical-pool-size" datatype="integer" default="3"/>
       <description>
         The expected maximum total number of historical connections
@@ -252,12 +271,13 @@
       </description>
     </key>
     <key name="historical-timeout" datatype="time-interval"
-         default="5m"/>
+         default="5m">
       <description>
         The minimum interval that an unused historical connection should be
         kept.
       </description>
-    <key name="database-name" default="unnamed"/>
+    </key>
+    <key name="database-name">
       <description>
         When multidatabases are in use, this is the name given to this
         database in the collection.  The name must be unique across all
@@ -268,6 +288,14 @@
         their own config files, using the "databases" parameter of a DB
         constructor.
       </description>
+    </key>
+    <key name="allow-implicit-cross-references" datatype="boolean">
+      <description>
+        If set to false, implicit cross references (the only kind
+        currently possible) are disallowed.
+      </description>
+    </key>
+
   </sectiontype>
 
   <sectiontype name="blobstorage" datatype=".BlobStorage"
@@ -280,8 +308,6 @@
     <section type="ZODB.storage" name="*" attribute="base"/>
   </sectiontype>
 
-
-    
 
 
 </component>

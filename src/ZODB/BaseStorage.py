@@ -83,12 +83,12 @@ class BaseStorage(UndoLogCompatible):
         log.debug("create storage %s", self.__name__)
 
         # Allocate locks:
-        self.__lock = threading.RLock()
+        self._lock = threading.RLock()
         self.__commit_lock = threading.Lock()
 
         # Comment out the following 4 lines to debug locking:
-        self._lock_acquire = self.__lock.acquire
-        self._lock_release = self.__lock.release
+        self._lock_acquire = self._lock.acquire
+        self._lock_release = self._lock.release
         self._commit_lock_acquire = self.__commit_lock.acquire
         self._commit_lock_release = self.__commit_lock.release
 
@@ -109,12 +109,12 @@ class BaseStorage(UndoLogCompatible):
     ########################################################################
     # The following methods are normally overridden on instances,
     # except when debugging:
-    
+
     def _lock_acquire(self, *args):
         f = sys._getframe(1)
         sys.stdout.write("[la(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
         sys.stdout.flush()
-        self.__lock.acquire(*args)
+        self._lock.acquire(*args)
         sys.stdout.write("la(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
         sys.stdout.flush()
 
@@ -122,7 +122,7 @@ class BaseStorage(UndoLogCompatible):
         f = sys._getframe(1)
         sys.stdout.write("[lr(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
         sys.stdout.flush()
-        self.__lock.release(*args)
+        self._lock.release(*args)
         sys.stdout.write("lr(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
         sys.stdout.flush()
 
@@ -221,7 +221,8 @@ class BaseStorage(UndoLogCompatible):
         self._lock_acquire()
         try:
             if self._transaction is transaction:
-                return
+                raise POSException.StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
             self._lock_release()
             self._commit_lock_acquire()
             self._lock_acquire()
@@ -264,7 +265,8 @@ class BaseStorage(UndoLogCompatible):
         self._lock_acquire()
         try:
             if transaction is not self._transaction:
-                return
+                raise POSException.StorageTransactionError(
+                    "tpc_vote called with wrong transaction")
             self._vote()
         finally:
             self._lock_release()
@@ -284,14 +286,14 @@ class BaseStorage(UndoLogCompatible):
         self._lock_acquire()
         try:
             if transaction is not self._transaction:
-                return
+                raise POSException.StorageTransactionError(
+                    "tpc_finish called with wrong transaction")
             try:
                 if f is not None:
                     f(self._tid)
                 u, d, e = self._ude
                 self._finish(self._tid, u, d, e)
                 self._clear_temp()
-                return self._tid
             finally:
                 self._ude = None
                 self._transaction = None

@@ -15,7 +15,7 @@
 import persistent
 
 class Length(persistent.Persistent):
-    """BTree lengths are too expensive to compute
+    """BTree lengths are often too expensive to compute.
 
     Objects that use BTrees need to keep track of lengths themselves.
     This class provides an object for doing this.
@@ -24,12 +24,13 @@ class Length(persistent.Persistent):
     resolution.
 
     It is tempting to to assign length objects to __len__ attributes
-    to provide instance-specific __len__ methods. However, this no
+    to provide instance-specific __len__ methods.  However, this no
     longer works as expected, because new-style classes cache
     class-defined slot methods (like __len__) in C type slots.  Thus,
-    instance-define slot fillers are ignores.
+    instance-defined slot fillers are ignored.
 
     """
+    value = 0
 
     def __init__(self, v=0):
         self.value = v

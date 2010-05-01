@@ -519,6 +519,66 @@ def test_invalidateCache():
         >>> db.close()
     """
 
+def connection_root_convenience():
+    """Connection root attributes can now be used as objects with attributes
+
+    >>> db = ZODB.tests.util.DB()
+    >>> conn = db.open()
+    >>> conn.root.x
+    Traceback (most recent call last):
+    ...
+    AttributeError: x
+
+    >>> del conn.root.x
+    Traceback (most recent call last):
+    ...
+    AttributeError: x
+
+    >>> conn.root()['x'] = 1
+    >>> conn.root.x
+    1
+    >>> conn.root.y = 2
+    >>> sorted(conn.root().items())
+    [('x', 1), ('y', 2)]
+
+    >>> conn.root
+    <root: x y>
+
+    >>> del conn.root.x
+    >>> sorted(conn.root().items())
+    [('y', 2)]
+
+    >>> conn.root.rather_long_name = 1
+    >>> conn.root.rather_long_name2 = 1
+    >>> conn.root.rather_long_name4 = 1
+    >>> conn.root.rather_long_name5 = 1
+    >>> conn.root
+    <root: rather_long_name rather_long_name2 rather_long_name4 ...>
+    """
+
+class proper_ghost_initialization_with_empty__p_deactivate_class(Persistent):
+    def _p_deactivate(self):
+        pass
+
+def proper_ghost_initialization_with_empty__p_deactivate():
+    """
+See https://bugs.launchpad.net/zodb/+bug/185066
+
+    >>> db = ZODB.tests.util.DB()
+    >>> conn = db.open()
+    >>> C = proper_ghost_initialization_with_empty__p_deactivate_class
+    >>> conn.root.x = x = C()
+    >>> conn.root.x.y = 1
+    >>> transaction.commit()
+
+    >>> conn2 = db.open()
+    >>> conn2.root.x._p_changed
+
+    >>> conn2.root.x.y
+    1
+
+    """
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
@@ -557,7 +617,8 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         transaction.savepoint()
         new_size = obj._p_estimated_size
         self.assert_(new_size > size)
-        self.assertEqual(cache.total_estimated_size, cache_size + new_size - size)
+        self.assertEqual(cache.total_estimated_size,
+                         cache_size + new_size - size)
 
     def test_size_set_on_load(self):
         c = self.db.open() # new connection
@@ -570,10 +631,10 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         size = obj._p_estimated_size
         self.assert_(size > 0)
         self.assertEqual(cache.total_estimated_size, cache_size + size)
-        # we test here as well that the deactivation works reduced the cache size
+        # we test here as well that the deactivation works reduced the cache
+        # size
         obj._p_deactivate()
         self.assertEqual(cache.total_estimated_size, cache_size)
-
 
     def test_configuration(self):
         # verify defaults ....
@@ -624,10 +685,26 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # sanity check
         self.assert_(cache.total_estimated_size >= 0)
 
-
-
-
-
+    def test_cache_garbage_collection_shrinking_object(self):
+        db = self.db
+        # activate size based cache garbage collection
+        db.setCacheSizeBytes(1000)
+        obj, conn, cache = self.obj, self.conn, self.conn._cache
+        # verify the change worked as expected
+        self.assertEqual(cache.cache_size_bytes, 1000)
+        # verify our entrance assumption is fullfilled
+        self.assert_(cache.total_estimated_size > 1)
+        # give the objects some size
+        obj.setValueWithSize(500)
+        transaction.savepoint()
+        self.assert_(cache.total_estimated_size > 500)
+        # make the object smaller
+        obj.setValueWithSize(100)
+        transaction.savepoint()
+        # make sure there was no overflow
+        self.assert_(cache.total_estimated_size != 0)
+        # the size is not larger than the allowed maximum
+        self.assert_(cache.total_estimated_size <= 1000)
 
 # ---- stubs
 
@@ -754,6 +831,7 @@ class StubDatabase:
 
     def __init__(self):
         self.storage = StubStorage()
+        self.new_oid = self.storage.new_oid
 
     classFactory = None
     database_name = 'stubdatabase'
@@ -761,6 +839,8 @@ class StubDatabase:
 
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
+
+    save_oid = lambda self, oid: None
 
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')

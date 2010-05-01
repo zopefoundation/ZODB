@@ -1,0 +1,279 @@
+zeopack
+=======
+
+The zeopack script can be used to pack one or more storages.  It uses
+ClientStorage to do this.  To test it's behavior, we'll replace the
+normal ClientStorage with a fake one that echos information we'll want
+for our test:
+
+    >>> class ClientStorage:
+    ...     connect_wait = 0
+    ...     def __init__(self, *args, **kw):
+    ...         if args[0] == 'bad':
+    ...             import logging
+    ...             logging.getLogger('test.ClientStorage').error(
+    ...                 "I hate this address, %r", args[0])
+    ...             raise ValueError("Bad address")
+    ...         print "ClientStorage(%s %s)" % (
+    ...             repr(args)[1:-1],
+    ...             ', '.join("%s=%r" % i for i in sorted(kw.items())),
+    ...             )
+    ...     def pack(self, t=None, *args, **kw):
+    ...         now = time.localtime(time.time())
+    ...         local_midnight = time.mktime(now[:3]+(0, 0, 0)+now[6:])
+    ...         t -= local_midnight # adjust for tz
+    ...         t += 86400*7 # add a week to make sure we're positive
+    ...         print "pack(%r,%s %s)" % (
+    ...             t, repr(args)[1:-1],
+    ...             ', '.join("%s=%r" % i for i in sorted(kw.items())),
+    ...             )
+    ...     def is_connected(self):
+    ...         self.connect_wait -= 1
+    ...         print 'is_connected', self.connect_wait < 0
+    ...         return self.connect_wait < 0
+    ...     def close(self):
+    ...         print "close()"
+
+    >>> import ZEO
+    >>> ClientStorage_orig = ZEO.ClientStorage.ClientStorage
+    >>> ZEO.ClientStorage.ClientStorage = ClientStorage
+
+Now, we're ready to try the script:
+
+    >>> from ZEO.scripts.zeopack import main
+
+If we call it with no arguments, we get help:
+
+>>> import os; os.environ['COLUMNS'] = '80' # for consistent optparse output
+>>> main([], 'zeopack')
+Usage: zeopack [options] [servers]
+<BLANKLINE>
+Pack one or more storages hosted by ZEO servers.
+<BLANKLINE>
+The positional arguments specify 0 or more tcp servers to pack, where
+each is of the form:
+<BLANKLINE>
+    host:port[:name]
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+Options:
+  -d DAYS, --days=DAYS  Pack objects that are older than this number of days
+  -t TIME, --time=TIME  Time of day to pack to of the form: HH[:MM[:SS]].
+                        Defaults to current time.
+  -u UNIX_SOCKETS, --unix=UNIX_SOCKETS
+                        A unix-domain-socket server to connect to, of the
+                        form: path[:name]
+  -h HOST               Deprecated: Used with the -p and -S options, specified
+                        the host to connect to.
+  -p PORT               Deprecated: Used with the -h and -S options, specifies
+                        the port to connect to.
+  -S NAME               Deprecated: Used with the -h and -p, options, or with
+                        the -U option specified the storage name to use.
+                        Defaults to 1.
+  -U UNIX               Deprecated: Used with the -S option, Unix-domain
+                        socket to connect to.
+
+Since packing involves time, we'd better have our way with it.  Replace
+time.time() with a function that always returns the same value.  The
+value is timezone dependent.
+
+    >>> import time
+    >>> time_orig = time.time
+    >>> time.time = lambda : time.mktime((2009, 3, 24, 10, 55, 17, 1, 83, -1))
+    >>> sleep_orig = time.sleep
+    >>> def sleep(t):
+    ...     print 'sleep(%r)' % t
+    >>> time.sleep = sleep
+
+Normally, we pass one or more TCP server specifications:
+
+    >>> main(["host1:8100", "host1:8100:2"])
+    ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(644117.0, wait=True)
+    close()
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected True
+    pack(644117.0, wait=True)
+    close()
+
+We can also pass unix-domain-sockey servers using the -u option:
+
+    >>> main(["-ufoo", "-ubar:spam", "host1:8100", "host1:8100:2"])
+    ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(644117.0, wait=True)
+    close()
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected True
+    pack(644117.0, wait=True)
+    close()
+    ClientStorage('foo', read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(644117.0, wait=True)
+    close()
+    ClientStorage('bar', read_only=1, storage='spam', wait=False)
+    is_connected True
+    pack(644117.0, wait=True)
+    close()
+
+The -d option causes a pack time the given number of days earlier to
+be used:
+
+    >>> main(["-ufoo", "-ubar:spam", "-d3", "host1:8100", "host1:8100:2"])
+    ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+    ClientStorage('foo', read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+    ClientStorage('bar', read_only=1, storage='spam', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+
+The -t option allows us to control the time of day:
+
+    >>> main(["-ufoo", "-d3", "-t1:30", "host1:8100:2"])
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected True
+    pack(351000.0, wait=True)
+    close()
+    ClientStorage('foo', read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(351000.0, wait=True)
+    close()
+
+Connection timeout
+------------------
+
+The zeopack script tells ClientStorage not to wait for connections
+before returning from the constructor, but will time out after 60
+seconds of waiting for a connect.
+
+    >>> ClientStorage.connect_wait = 3
+    >>> main(["-d3", "-t1:30", "host1:8100:2"])
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected False
+    sleep(1)
+    is_connected False
+    sleep(1)
+    is_connected False
+    sleep(1)
+    is_connected True
+    pack(351000.0, wait=True)
+    close()
+
+    >>> def call_main(args):
+    ...     import sys
+    ...     old_stderr = sys.stderr
+    ...     sys.stderr = sys.stdout
+    ...     try:
+    ...         try:
+    ...             main(args)
+    ...         except SystemExit, v:
+    ...             print "Exited", v
+    ...     finally:
+    ...         sys.stderr = old_stderr
+
+    >>> ClientStorage.connect_wait = 999
+    >>> call_main(["-d3", "-t1:30", "host1:8100", "host1:8100:2"])
+    ... # doctest: +ELLIPSIS
+    ClientStorage(('host1', 8100), read_only=1, storage='1', wait=False)
+    is_connected False
+    sleep(1)
+    ...
+    is_connected False
+    sleep(1)
+    Couldn't connect to: (('host1', 8100), '1')
+    close()
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected False
+    sleep(1)
+    ...
+    is_connected False
+    sleep(1)
+    Couldn't connect to: (('host1', 8100), '2')
+    close()
+
+    >>> ClientStorage.connect_wait = 0
+
+
+Legacy support
+--------------
+
+    >>> main(["-d3", "-h", "host1", "-p", "8100", "-S", "2"])
+    ClientStorage(('host1', 8100), read_only=1, storage='2', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+
+    >>> import socket
+    >>> old_gethostname = socket.gethostname
+    >>> socket.gethostname = lambda : 'test.host.com'
+    >>> main(["-d3", "-p", "8100"])
+    ClientStorage(('test.host.com', 8100), read_only=1, storage='1', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+    >>> socket.gethostname = old_gethostname
+
+    >>> main(["-d3", "-U", "foo/bar", "-S", "2"])
+    ClientStorage('foo/bar', read_only=1, storage='2', wait=False)
+    is_connected True
+    pack(384917.0, wait=True)
+    close()
+
+Error handling
+--------------
+
+    >>> call_main(["-d3"])
+    Error:
+    No servers specified.
+    Exited 1
+
+    >>> call_main(["-d3", "a"])
+    Error:
+    Invalid server specification: 'a'
+    Exited 1
+
+    >>> call_main(["-d3", "a:b:c:d"])
+    Error:
+    Invalid server specification: 'a:b:c:d'
+    Exited 1
+
+    >>> call_main(["-d3", "a:b:2"])
+    Error:
+    Invalid port in server specification: 'a:b:2'
+    Exited 1
+
+    >>> call_main(["-d3", "-u", "a:b:2"])
+    Error:
+    Invalid server specification: 'a:b:2'
+    Exited 1
+
+    >>> call_main(["-d3", "-u", "bad"]) # doctest: +ELLIPSIS
+    test.ClientStorage ERROR I hate this address, 'bad'
+    Traceback (most recent call last):
+    ...
+    ValueError: Bad address
+    Error:
+    Error packing storage 1 in 'bad'
+    Exited 1
+
+
+
+Note that in the previous example, the first line was output through logging.
+
+.. tear down
+
+    >>> ZEO.ClientStorage.ClientStorage = ClientStorage_orig
+    >>> time.time = time_orig
+    >>> time.sleep = sleep_orig

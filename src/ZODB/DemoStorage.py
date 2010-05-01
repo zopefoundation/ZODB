@@ -153,11 +153,18 @@ class DemoStorage(object):
             # The oid *was* in the changes, but there aren't any
             # earlier records. Maybe there are in the base.
             try:
-                return self.base.loadBefore(oid, tid)
+                result = self.base.loadBefore(oid, tid)
             except ZODB.POSException.POSKeyError:
                 # The oid isn't in the base, so None will be the right result
                 pass
-
+            else:
+                if result and not result[-1]:
+                    end_tid = None
+                    t = self.changes.load(oid)
+                    while t:
+                        end_tid = t[1]
+                        t = self.changes.loadBefore(oid, end_tid)
+                    result = result[:2] + (end_tid,)
         return result
 
     def loadBlob(self, oid, serial):
@@ -302,7 +309,8 @@ class DemoStorage(object):
     def tpc_begin(self, transaction, *a, **k):
         # The tid argument exists to support testing.
         if transaction is self._transaction:
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "Duplicate tpc_begin calls for same transaction")
         self._lock_release()
         self._commit_lock.acquire()
         self._lock_acquire()
@@ -313,7 +321,8 @@ class DemoStorage(object):
     @ZODB.utils.locked
     def tpc_finish(self, transaction, func = lambda tid: None):
         if (transaction is not self._transaction):
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction")
         self._issued_oids.difference_update(self._stored_oids)
         self._stored_oids = set()
         self._transaction = None

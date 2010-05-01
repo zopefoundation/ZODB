@@ -35,11 +35,11 @@ class WorkerThread(TestThread):
     # run the entire test in a thread so that the blocking call for
     # tpc_vote() doesn't hang the test suite.
 
-    def __init__(self, storage, trans):
+    def __init__(self, test, storage, trans):
         self.storage = storage
         self.trans = trans
         self.ready = threading.Event()
-        TestThread.__init__(self)
+        TestThread.__init__(self, test)
 
     def testrun(self):
         try:
@@ -111,7 +111,7 @@ class CommitLockTests:
             txn = transaction.Transaction()
             tid = self._get_timestamp()
 
-            t = WorkerThread(storage, txn)
+            t = WorkerThread(self, storage, txn)
             self._threads.append(t)
             t.start()
             t.ready.wait()
@@ -180,65 +180,4 @@ class CommitLockVoteTests(CommitLockTests):
         self._storage.close()
 
         self._finish_threads()
-        self._cleanup()
-
-class CommitLockUndoTests(CommitLockTests):
-
-    def _get_trans_id(self):
-        self._dostore()
-        L = self._storage.undoInfo()
-        return L[0]['id']
-
-    def _begin_undo(self, trans_id, txn):
-        rpc = self._storage._server.rpc
-        return rpc._deferred_call('undo', trans_id, id(txn))
-
-    def _finish_undo(self, msgid):
-        return self._storage._server.rpc._deferred_wait(msgid)
-
-    def checkCommitLockUndoFinish(self):
-        trans_id = self._get_trans_id()
-        oid, txn = self._start_txn()
-        msgid = self._begin_undo(trans_id, txn)
-
-        self._begin_threads()
-
-        self._finish_undo(msgid)
-        self._storage.tpc_vote(txn)
-        self._storage.tpc_finish(txn)
-        self._storage.load(oid, '')
-
-        self._finish_threads()
-
-        self._dostore()
-        self._cleanup()
-
-    def checkCommitLockUndoAbort(self):
-        trans_id = self._get_trans_id()
-        oid, txn = self._start_txn()
-        msgid = self._begin_undo(trans_id, txn)
-
-        self._begin_threads()
-
-        self._finish_undo(msgid)
-        self._storage.tpc_vote(txn)
-        self._storage.tpc_abort(txn)
-
-        self._finish_threads()
-
-        self._dostore()
-        self._cleanup()
-
-    def checkCommitLockUndoClose(self):
-        trans_id = self._get_trans_id()
-        oid, txn = self._start_txn()
-        msgid = self._begin_undo(trans_id, txn)
-        self._begin_threads()
-
-        self._finish_undo(msgid)
-        self._storage.tpc_vote(txn)
-        self._storage.close()
-
-        self._finish_threads()
-
         self._cleanup()

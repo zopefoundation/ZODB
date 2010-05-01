@@ -79,10 +79,7 @@ class ZEOOptionsMixin:
             def __init__(self, name, path):
                 self._name = name
                 self.path = path
-                self.create = 0
-                self.read_only = 0
                 self.stop = None
-                self.quota = None
             def getSectionName(self):
                 return self._name
         if not self.storages:
@@ -91,7 +88,12 @@ class ZEOOptionsMixin:
         conf = FileStorage(FSConfig(name, arg))
         self.storages.append(conf)
 
+    testing_exit_immediately = False
+    def handle_test(self, *args):
+        self.testing_exit_immediately = True
+
     def add_zeo_options(self):
+        self.add(None, None, None, "test", self.handle_test)
         self.add(None, None, "a:", "address=", self.handle_address)
         self.add(None, None, "f:", "filename=", self.handle_filename)
         self.add("family", "zeo.address.family")
@@ -100,6 +102,7 @@ class ZEOOptionsMixin:
         self.add("read_only", "zeo.read_only", default=0)
         self.add("invalidation_queue_size", "zeo.invalidation_queue_size",
                  default=100)
+        self.add("invalidation_age", "zeo.invalidation_age")
         self.add("transaction_timeout", "zeo.transaction_timeout",
                  "t:", "timeout=", float)
         self.add("monitor_address", "zeo.monitor_address.address",
@@ -114,6 +117,8 @@ class ZEOOptionsMixin:
                  None, 'pid-file=')
 
 class ZEOOptions(ZDOptions, ZEOOptionsMixin):
+
+    __doc__ = __doc__
 
     logsectionname = "eventlog"
     schemadir = os.path.dirname(ZEO.__file__)
@@ -137,7 +142,7 @@ class ZEOOptions(ZDOptions, ZEOOptionsMixin):
                 if s.name is None:
                     s.name = '1'
                     break
-                
+
 
 class ZEOServer:
 
@@ -243,20 +248,13 @@ class ZEOServer:
             SignalHandler.registerHandler(SIGUSR2, self.handle_sigusr2)
 
     def create_server(self):
-        from ZEO.StorageServer import StorageServer
-        self.server = StorageServer(
-            self.options.address,
-            self.storages,
-            read_only=self.options.read_only,
-            invalidation_queue_size=self.options.invalidation_queue_size,
-            transaction_timeout=self.options.transaction_timeout,
-            monitor_address=self.options.monitor_address,
-            auth_protocol=self.options.auth_protocol,
-            auth_database=self.options.auth_database,
-            auth_realm=self.options.auth_realm)
+        self.server = create_server(self.storages, self.options)
 
     def loop_forever(self):
-        asyncore.loop()
+        if self.options.testing_exit_immediately:
+            print "testing exit immediately"
+        else:
+            asyncore.loop()
 
     def handle_sigterm(self):
         log("terminated by SIGTERM")
@@ -331,6 +329,23 @@ class ZEOServer:
                     log("removed PID file '%s'" % pidfile)
             except IOError:
                 logger.error("PID file '%s' could not be removed" % pidfile)
+
+
+def create_server(storages, options):
+    from ZEO.StorageServer import StorageServer
+    return StorageServer(
+        options.address,
+        storages,
+        read_only = options.read_only,
+        invalidation_queue_size = options.invalidation_queue_size,
+        invalidation_age = options.invalidation_age,
+        transaction_timeout = options.transaction_timeout,
+        monitor_address = options.monitor_address,
+        auth_protocol = options.auth_protocol,
+        auth_database = options.auth_database,
+        auth_realm = options.auth_realm,
+        )
+
 
 # Signal names
 

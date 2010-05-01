@@ -11,11 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest
+import doctest
 import random
+import unittest
 
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import p64, z64
+from ZODB.tests.util import setUp, tearDown
 
 
 class Test(unittest.TestCase):
@@ -30,7 +32,7 @@ class Test(unittest.TestCase):
         index = self.index
         self.assert_(p64(1000) in index)
         self.assert_(p64(100*1000) in index)
-        
+
         del self.index[p64(1000)]
         del self.index[p64(100*1000)]
 
@@ -186,9 +188,44 @@ class Test(unittest.TestCase):
         self.assertEqual(index.minKey(b), c)
         self.assertRaises(ValueError, index.minKey, d)
 
-def test_suite():
-    loader=unittest.TestLoader()
-    return loader.loadTestsFromTestCase(Test)
+def fsIndex_save_and_load():
+    """
+fsIndex objects now have save methods for saving them to disk in a new
+format.  The fsIndex class has a load class method that can load data.
 
-if __name__=='__main__':
-    unittest.TextTestRunner().run(test_suite())
+Let's start by creating an fsIndex.  We'll bother to allocate the
+object ids to get multiple buckets:
+
+    >>> index = fsIndex(dict((p64(i), i) for i in xrange(0, 1<<28, 1<<15)))
+    >>> len(index._data)
+    4096
+
+Now, we'll save the data to disk and then load it:
+
+    >>> index.save(42, 'index')
+
+Note that we pass a file position, which gets saved with the index data.
+
+    >>> info = fsIndex.load('index')
+    >>> info['pos']
+    42
+    >>> info['index'].__getstate__() == index.__getstate__()
+    True
+
+If we save the data in the old format, we can still read it:
+
+    >>> import cPickle
+    >>> cPickle.dump(dict(pos=42, index=index), open('old', 'wb'), 1)
+    >>> info = fsIndex.load('old')
+    >>> info['pos']
+    42
+    >>> info['index'].__getstate__() == index.__getstate__()
+    True
+
+    """
+
+def test_suite():
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(Test))
+    suite.addTest(doctest.DocTestSuite(setUp=setUp, tearDown=tearDown))
+    return suite

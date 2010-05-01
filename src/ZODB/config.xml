@@ -2,6 +2,7 @@
 
   <import package="ZODB"/>
 
-  <section type="ZODB.database" name="*" attribute="database"/>
+  <multisection type="ZODB.database" name="*" attribute="database"
+                required="yes" />
 
 </schema>

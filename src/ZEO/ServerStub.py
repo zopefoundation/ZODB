@@ -165,7 +165,6 @@ class StorageServer:
         return self.rpc.call('zeoLoad', oid)[:2]
 
     ##
-    
     # Return current data for oid, and the tid of the
     # transaction that wrote the most recent revision.
     # @param oid object id
@@ -225,6 +224,9 @@ class StorageServer:
     def storeBlobShared(self, oid, serial, data, filename, id):
         self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, id)
 
+    def deleteObject(self, oid, serial, id):
+        self.rpc.callAsync('deleteObject', oid, serial, id)
+
     ##
     # Start two-phase commit for a transaction
     # @param id id used by client to identify current transaction.  The
@@ -238,7 +240,7 @@ class StorageServer:
     # @defreturn async
 
     def tpc_begin(self, id, user, descr, ext, tid, status):
-        return self.rpc.call('tpc_begin', id, user, descr, ext, tid, status)
+        self.rpc.callAsync('tpc_begin', id, user, descr, ext, tid, status)
 
     def vote(self, trans_id):
         return self.rpc.call('vote', trans_id)
@@ -270,8 +272,8 @@ class StorageServer:
     def new_oid(self):
         return self.rpc.call('new_oid')
 
-    def undo(self, trans_id, trans):
-        return self.rpc.call('undo', trans_id, trans)
+    def undoa(self, trans_id, trans):
+        self.rpc.callAsync('undoa', trans_id, trans)
 
     def undoLog(self, first, last):
         return self.rpc.call('undoLog', first, last)
@@ -319,7 +321,7 @@ class StorageServer308(StorageServer):
 
     def verify(self, oid, serial):
         self.rpc.callAsync('verify', oid, '', serial)
-    
+
     def loadEx(self, oid):
         return self.rpc.call("loadEx", oid, '')[:2]
 
@@ -346,7 +348,7 @@ class StorageServer308(StorageServer):
         self.rpc.callAsyncIterator(store())
 
     def storeBlobShared(self, oid, serial, data, filename, id):
-        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename, 
+        self.rpc.callAsync('storeBlobShared', oid, serial, data, filename,
                            '', id)
 
     def zeoVerify(self, oid, s):
@@ -367,11 +369,12 @@ class StorageServer308(StorageServer):
     def iterator_gc(self, iids):
         raise NotImplementedError
 
-
 def stub(client, connection):
-        
+    start = time.time()
     # Wait until we know what version the other side is using.
     while connection.peer_protocol_version is None:
+        if time.time()-start > 10:
+            raise ValueError("Timeout waiting for protocol handshake")
         time.sleep(0.1)
 
     if connection.peer_protocol_version < 'Z309':

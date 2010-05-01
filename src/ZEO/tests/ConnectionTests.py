@@ -593,14 +593,14 @@ class InvqTests(CommonSetupTearDown):
 
     def checkQuickVerificationWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "full verification")
+        self.assertEqual(perstorage.verify_result, "empty cache")
 
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         oid2 = self._storage.new_oid()
         # When we create a new storage, it should always do a full
         # verification
-        self.assertEqual(self._storage.verify_result, "full verification")
+        self.assertEqual(self._storage.verify_result, "empty cache")
         # do two storages of the object to make sure an invalidation
         # message is generated
         revid = self._dostore(oid)
@@ -628,18 +628,22 @@ class InvqTests(CommonSetupTearDown):
 
     def checkVerificationWith2ClientsInvqOverflow(self):
         perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "full verification")
+        self.assertEqual(perstorage.verify_result, "empty cache")
 
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         # When we create a new storage, it should always do a full
         # verification
-        self.assertEqual(self._storage.verify_result, "full verification")
+        self.assertEqual(self._storage.verify_result, "empty cache")
         # do two storages of the object to make sure an invalidation
         # message is generated
         revid = self._dostore(oid)
         revid = self._dostore(oid, revid)
-
+        forker.wait_until(
+            "Client has seen all of the transactions from the server",
+            lambda :
+            perstorage.lastTransaction() == self._storage.lastTransaction()
+            )
         perstorage.load(oid, '')
         perstorage.close()
 
@@ -836,7 +840,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self._storage = self.openClientStorage()
         # When we create a new storage, it should always do a full
         # verification
-        self.assertEqual(self._storage.verify_result, "full verification")
+        self.assertEqual(self._storage.verify_result, "empty cache")
         self._dostore()
         self.shutdownServer()
         self.pollDown()
@@ -849,22 +853,24 @@ class ReconnectionTests(CommonSetupTearDown):
 
     def checkNoVerificationOnServerRestartWith2Clients(self):
         perstorage = self.openClientStorage(cache="test")
-        self.assertEqual(perstorage.verify_result, "full verification")
+        self.assertEqual(perstorage.verify_result, "empty cache")
 
         self._storage = self.openClientStorage()
         oid = self._storage.new_oid()
         # When we create a new storage, it should always do a full
         # verification
-        self.assertEqual(self._storage.verify_result, "full verification")
+        self.assertEqual(self._storage.verify_result, "empty cache")
         # do two storages of the object to make sure an invalidation
         # message is generated
         revid = self._dostore(oid)
-        self._dostore(oid, revid)
-
+        revid = self._dostore(oid, revid)
+        forker.wait_until(
+            "Client has seen all of the transactions from the server",
+            lambda :
+            perstorage.lastTransaction() == self._storage.lastTransaction()
+            )
         perstorage.load(oid, '')
-
         self.shutdownServer()
-
         self.pollDown()
         self._storage.verify_result = None
         perstorage.verify_result = None
@@ -1087,7 +1093,8 @@ class TimeoutTests(CommonSetupTearDown):
         self.assertRaises(ConflictError, storage.tpc_vote, t)
         # Even aborting won't help.
         storage.tpc_abort(t)
-        storage.tpc_finish(t)
+        self.assertRaises(ZODB.POSException.StorageTransactionError,
+                          storage.tpc_finish, t)
         # Try again.
         obj.value = 10
         t = Transaction()
@@ -1097,7 +1104,7 @@ class TimeoutTests(CommonSetupTearDown):
         self.assertRaises(ConflictError, storage.tpc_vote, t)
         # Abort this one and try a transaction that should succeed.
         storage.tpc_abort(t)
-        storage.tpc_finish(t)
+        
         # Now do a store.
         obj.value = 11
         t = Transaction()

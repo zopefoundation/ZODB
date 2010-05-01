@@ -13,24 +13,22 @@
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
 
-import cPickle
 from cStringIO import StringIO
-
-import time
-
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-import transaction
-import ZODB.interfaces
 from ZODB import DB
+from ZODB.POSException import ConflictError, StorageError
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import snooze
-from ZODB.POSException import ConflictError, StorageError
-
 from ZODB.tests.MTStorage import TestThread
-
+from ZODB.tests.StorageTestBase import snooze
+from zope.testing import doctest
+import cPickle
+import time
+import transaction
+import ZODB.interfaces
 import ZODB.tests.util
+import zope.testing.setupstack
 
 ZERO = '\0'*8
 
@@ -89,12 +87,19 @@ def pdumps(obj):
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
-    
+
 
 class PackableStorageBase:
     # We keep a cache of object ids to instances so that the unpickler can
     # easily return any persistent object.
-    _cache = {}
+
+    @property
+    def _cache(self):
+        try:
+            return self.__cache
+        except AttributeError:
+            self.__cache = {}
+            return self.__cache
 
     def _newobj(self):
         # This is a convenience method to create a new persistent Object
@@ -312,7 +317,8 @@ class PackableStorage(PackableStorageBase):
         root[2] = conn.get_connection('o').root()
         transaction.commit()
         db.pack(time.time()+1)
-        self.assertEqual(len(self._storage), 1)
+        # some valid storages always return 0 for len()
+        self.assertTrue(len(self._storage) in (0, 1))
 
     def checkPackAllRevisions(self):
         self._initroot()
@@ -540,8 +546,8 @@ class PackableStorageWithOptionalGC(PackableStorage):
         raises(KeyError, self._storage.loadSerial, oid, revid1)
         raises(KeyError, self._storage.loadSerial, oid, revid2)
         self._storage.loadSerial(oid, revid3)
-        
-        
+
+
 
 class PackableUndoStorage(PackableStorageBase):
 
@@ -749,3 +755,17 @@ class ElapsedTimer:
     def elapsed_millis(self):
         return int((time.time() - self.start_time) * 1000)
 
+
+def IExternalGC_suite(factory):
+    """Return a test suite for a generic .
+
+    Pass a factory taking a name and a blob directory name.
+    """
+
+    def setup(test):
+        ZODB.tests.util.setUp(test)
+        test.globs['create_storage'] = factory
+
+    return doctest.DocFileSuite(
+        'IExternalGC.test',
+        setUp=setup, tearDown=zope.testing.setupstack.tearDown)

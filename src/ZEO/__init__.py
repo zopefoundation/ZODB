@@ -17,13 +17,23 @@ See the file README.txt in this directory for an overview.
 
 ZEO is now part of ZODB; ZODB's home on the web is
 
-    http://www.zope.org/Wikis/ZODB
+    http://wiki.zope.org/ZODB
 
 """
 
 def DB(*args, **kw):
     import ZEO.ClientStorage, ZODB
     return ZODB.DB(ZEO.ClientStorage.ClientStorage(*args, **kw))
+
+def connection(*args, **kw):
+    db = DB(*args, **kw)
+    conn = db.open()
+    conn.onCloseCallback(db.close)
+    return conn
+
+def client(*args, **kw):
+    import ZEO.ClientStorage
+    return ZEO.ClientStorage.ClientStorage(*args, **kw)
 
 def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
            port=None):
@@ -44,7 +54,7 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
     path
        A file-storage path. This argument is ignored if a storage
        configuration is supplied.
-    
+
     blob_dir
        A blob directory path. This argument is ignored if a storage
        configuration is supplied.
@@ -57,16 +67,16 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
 
     zeo_conf
        A ZEO server configuration string.
-    
+
     port
        If no ZEO configuration is supplied, the one will be computed
        from the port.  If no port is supplied, one will be chosedn
        randomly.
-    
+
     """
     import os, ZEO.tests.forker
     if storage_conf is None and path is None:
-        raise TypeError("You must specify either a storage_conf or file path.")
+        storage_conf = '<mappingstorage>\n</mappingstorage>'
     if port is None and zeo_conf is None:
         port = ZEO.tests.forker.get_port()
 
@@ -77,4 +87,4 @@ def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
     def stop_server():
         ZEO.tests.forker.shutdown_zeo_server(admin)
         os.waitpid(pid, 0)
-    return addr, stop_server 
+    return addr, stop_server

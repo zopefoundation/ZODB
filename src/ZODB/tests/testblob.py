@@ -15,22 +15,16 @@
 from pickle import Pickler
 from pickle import Unpickler
 from StringIO import StringIO
-from ZConfig import ConfigurationSyntaxError
-from ZODB.blob import Blob, BlobStorage
+from ZODB.blob import Blob
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
-from ZODB import utils
 from ZODB.tests.testConfig import ConfigTestBase
 from zope.testing import doctest
 
-import base64
 import os
 import random
 import re
-import shutil
-import stat
 import struct
-import sys
 import sys
 import time
 import transaction
@@ -350,6 +344,7 @@ Works with savepoints too:
     >>> logger.setLevel(0)
     >>> logger.removeHandler(handler)
 
+    >>> database.close()
     """
 
 
@@ -475,7 +470,7 @@ def loadblob_tmpstore():
     >>> import transaction
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
-    >>> tid = blob_storage.lastTransaction()
+    >>> tid = connection._storage.lastTransaction()
 
     Now we open a database with a TmpStore in front:
 
@@ -516,6 +511,11 @@ def is_blob_record():
     >>> ZODB.blob.is_blob_record('cWaaaa\nC\nq\x01.')
     False
 
+    As does None, which may occur in delete records:
+
+    >>> ZODB.blob.is_blob_record(None)
+    False
+
     >>> db.close()
     """
 
@@ -533,8 +533,64 @@ def do_not_depend_on_cwd():
     >>> os.chdir(here)
     >>> conn.root()['blob'].open().read()
     'data'
-    
+
+    >>> bs.close()
     """
+
+def savepoint_isolation():
+    """Make sure savepoint data is distinct accross transactions
+
+    >>> bs = create_storage()
+    >>> db = DB(bs)
+    >>> conn = db.open()
+    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> transaction.commit()
+    >>> conn.root.b.open('w').write('1')
+    >>> _ = transaction.savepoint()
+    >>> tm = transaction.TransactionManager()
+    >>> conn2 = db.open(transaction_manager=tm)
+    >>> conn2.root.b.open('w').write('2')
+    >>> _ = tm.savepoint()
+    >>> conn.root.b.open().read()
+    '1'
+    >>> conn2.root.b.open().read()
+    '2'
+    >>> transaction.abort()
+    >>> tm.commit()
+    >>> conn.sync()
+    >>> conn.root.b.open().read()
+    '2'
+    >>> db.close()
+    """
+
+def savepoint_cleanup():
+    """Make sure savepoint data gets cleaned up.
+
+    >>> bs = create_storage()
+    >>> tdir = bs.temporaryDirectory()
+    >>> os.listdir(tdir)
+    []
+
+    >>> db = DB(bs)
+    >>> conn = db.open()
+    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> _ = transaction.savepoint()
+    >>> len(os.listdir(tdir))
+    1
+    >>> transaction.abort()
+    >>> os.listdir(tdir)
+    []
+    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> transaction.commit()
+    >>> conn.root.b.open('w').write('1')
+    >>> _ = transaction.savepoint()
+    >>> transaction.abort()
+    >>> os.listdir(tdir)
+    []
+
+    >>> db.close()
+    """
+
 
 def setUp(test):
     ZODB.tests.util.setUp(test)
@@ -554,6 +610,7 @@ def setUpBlobAdaptedFileStorage(test):
 def storage_reusable_suite(prefix, factory,
                            test_blob_storage_recovery=False,
                            test_packing=False,
+                           test_undo=True,
                            ):
     """Return a test suite for a generic IBlobStorage.
 
@@ -603,7 +660,8 @@ def storage_reusable_suite(prefix, factory,
 
     if test_blob_storage_recovery:
         add_test_based_on_test_class(RecoveryBlobStorage)
-    add_test_based_on_test_class(BlobUndoTests)
+    if test_undo:
+        add_test_based_on_test_class(BlobUndoTests)
 
     suite.layer = ZODB.tests.util.MininalTestLayer(prefix+'BlobTests')
 

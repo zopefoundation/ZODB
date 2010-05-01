@@ -13,20 +13,18 @@
 ##############################################################################
 """Helper file used to launch a ZEO server cross platform"""
 
-from ZEO.StorageServer import StorageServer
-from ZEO.runzeo import ZEOOptions
-
 import asyncore
-import os
-import sys
-import time
 import errno
 import getopt
-import socket
-import signal
-import asyncore
-import threading
 import logging
+import os
+import signal
+import socket
+import sys
+import threading
+import time
+import ZEO.runzeo
+import ZEO.zrpc.connection
 
 def cleanup(storage):
     # FileStorage and the Berkeley storages have this method, which deletes
@@ -155,24 +153,25 @@ def main():
     configfile = None
     suicide = True
     # Parse the arguments and let getopt.error percolate
-    opts, args = getopt.getopt(sys.argv[1:], 'kSC:v:')
+    opts, args = getopt.getopt(sys.argv[1:], 'dkSC:v:')
     for opt, arg in opts:
         if opt == '-k':
             keep = 1
+        if opt == '-d':
+            ZEO.zrpc.connection.debug_zrpc = True
         elif opt == '-C':
             configfile = arg
         elif opt == '-S':
             suicide = False
         elif opt == '-v':
-            import ZEO.zrpc.connection
             ZEO.zrpc.connection.Connection.current_protocol = arg
 
-    zo = ZEOOptions()
+    zo = ZEO.runzeo.ZEOOptions()
     zo.realize(["-C", configfile])
     zeo_port = int(zo.address[1])
 
     if zo.auth_protocol == "plaintext":
-        import ZEO.tests.auth_plaintext
+        __import__('ZEO.tests.auth_plaintext')
 
     # Open the config file and let ZConfig parse the data there.  Then remove
     # the config file, otherwise we'll leave turds.
@@ -185,16 +184,7 @@ def main():
     mon_addr = None
     if zo.monitor_address:
         mon_addr = zo.monitor_address
-    server = StorageServer(
-        zo.address,
-        {"1": storage},
-        read_only=zo.read_only,
-        invalidation_queue_size=zo.invalidation_queue_size,
-        transaction_timeout=zo.transaction_timeout,
-        monitor_address=mon_addr,
-        auth_protocol=zo.auth_protocol,
-        auth_database=zo.auth_database,
-        auth_realm=zo.auth_realm)
+    server = ZEO.runzeo.create_server({"1": storage}, zo)
 
     try:
         log(label, 'creating the test server, keep: %s', keep)

@@ -12,10 +12,7 @@
 #
 ##############################################################################
 """Database objects
-
-$Id$"""
-
-import warnings
+"""
 
 import cPickle
 import cStringIO
@@ -25,6 +22,7 @@ import logging
 import datetime
 import calendar
 import time
+import warnings
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
@@ -35,8 +33,8 @@ import transaction.weakset
 
 from zope.interface import implements
 from ZODB.interfaces import IDatabase
+from ZODB.interfaces import IMVCCStorage
 
-import BTrees.OOBTree
 import transaction
 
 from persistent.TimeStamp import TimeStamp
@@ -70,7 +68,7 @@ class AbstractConnectionPool(object):
     connectionDebugInfo() can still gather statistics.
     """
 
-    def __init__(self, size, timeout=None):
+    def __init__(self, size, timeout):
         # The largest # of connections we expect to see alive simultaneously.
         self._size = size
 
@@ -95,8 +93,7 @@ class AbstractConnectionPool(object):
     def setTimeout(self, timeout):
         old = self._timeout
         self._timeout = timeout
-        if timeout is not None and old != timeout and (
-            old is None or old > timeout):
+        if timeout < old:
             self._reduce_size()
 
     def getSize(self):
@@ -111,8 +108,7 @@ class AbstractConnectionPool(object):
 
 class ConnectionPool(AbstractConnectionPool):
 
-    # XXX WTF, passing time.time() as a default?
-    def __init__(self, size, timeout=time.time()):
+    def __init__(self, size, timeout=1<<31):
         super(ConnectionPool, self).__init__(size, timeout)
 
         # A stack of connections available to hand out.  This is a subset
@@ -121,6 +117,21 @@ class ConnectionPool(AbstractConnectionPool):
         # pop() pops this stack.  There are never more than size entries
         # in this stack.
         self.available = []
+
+    def _append(self, c):
+        available = self.available
+        cactive = c._cache.cache_non_ghost_count
+        if (available and
+            (available[-1][1]._cache.cache_non_ghost_count > cactive)
+            ):
+            i = len(available) - 1
+            while (i and
+                   (available[i-1][1]._cache.cache_non_ghost_count > cactive)
+                   ):
+                i -= 1
+            available.insert(i, (time.time(), c))
+        else:
+            available.append((time.time(), c))
 
     def push(self, c):
         """Register a new available connection.
@@ -132,7 +143,7 @@ class ConnectionPool(AbstractConnectionPool):
         assert c not in self.available
         self._reduce_size(strictly_less=True)
         self.all.add(c)
-        self.available.append((time.time(), c))
+        self._append(c)
         n = len(self.all)
         limit = self.size
         if n > limit:
@@ -151,7 +162,7 @@ class ConnectionPool(AbstractConnectionPool):
         assert c in self.all
         assert c not in self.available
         self._reduce_size(strictly_less=True)
-        self.available.append((time.time(), c))
+        self._append(c)
 
     def _reduce_size(self, strictly_less=False):
         """Throw away the oldest available connections until we're under our
@@ -185,6 +196,7 @@ class ConnectionPool(AbstractConnectionPool):
             # reclaim `c` now, and `c` would be left in a user-visible
             # crazy state.
             c._resetCache()
+            c._releaseStorage()
 
     def reduce_size(self):
         self._reduce_size()
@@ -210,7 +222,7 @@ class ConnectionPool(AbstractConnectionPool):
 
     def availableGC(self):
         """Perform garbage collection on available connections.
-        
+
         If a connection is no longer viable because it has timed out, it is
         garbage collected."""
         threshhold = time.time() - self.timeout
@@ -230,7 +242,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
 
     # see the comments in ConnectionPool for method descriptions.
 
-    def __init__(self, size, timeout=time.time()):
+    def __init__(self, size, timeout=1<<31):
         super(KeyedConnectionPool, self).__init__(size, timeout)
         self.pools = {}
 
@@ -290,8 +302,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
         for pool in self.pools.itervalues():
             result.extend(pool.available)
         return tuple(result)
-        
-        
+
 
 def toTimeStamp(dt):
     utc_struct = dt.utctimetuple()
@@ -364,6 +375,7 @@ class DB(object):
 
     def __init__(self, storage,
                  pool_size=7,
+                 pool_timeout=1<<31,
                  cache_size=400,
                  cache_size_bytes=0,
                  historical_pool_size=3,
@@ -372,6 +384,8 @@ class DB(object):
                  historical_timeout=300,
                  database_name='unnamed',
                  databases=None,
+                 xrefs=True,
+                 max_saved_oids=999,
                  ):
         """Create an object database.
 
@@ -390,6 +404,8 @@ class DB(object):
             the historical connection.
           - `historical_timeout`: minimum number of seconds that
             an unused historical connection will be kept, or None.
+          - `xrefs` - Boolian flag indicating whether implicit cross-database
+            references are allowed
         """
         if isinstance(storage, basestring):
             from ZODB import FileStorage
@@ -401,7 +417,7 @@ class DB(object):
         self._r = x.release
 
         # pools and cache sizes
-        self.pool = ConnectionPool(pool_size)
+        self.pool = ConnectionPool(pool_size, pool_timeout)
         self.historical_pool = KeyedConnectionPool(historical_pool_size,
                                                    historical_timeout)
         self._cache_size = cache_size
@@ -425,24 +441,32 @@ class DB(object):
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
 
+        if IMVCCStorage.providedBy(storage):
+            temp_storage = storage.new_instance()
+        else:
+            temp_storage = storage
         try:
-            storage.load(z64, '')
-        except KeyError:
-            # Create the database's root in the storage if it doesn't exist
-            from persistent.mapping import PersistentMapping
-            root = PersistentMapping()
-            # Manually create a pickle for the root to put in the storage.
-            # The pickle must be in the special ZODB format.
-            file = cStringIO.StringIO()
-            p = cPickle.Pickler(file, 1)
-            p.dump((root.__class__, None))
-            p.dump(root.__getstate__())
-            t = transaction.Transaction()
-            t.description = 'initial database creation'
-            storage.tpc_begin(t)
-            storage.store(z64, None, file.getvalue(), '', t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
+            try:
+                temp_storage.load(z64, '')
+            except KeyError:
+                # Create the database's root in the storage if it doesn't exist
+                from persistent.mapping import PersistentMapping
+                root = PersistentMapping()
+                # Manually create a pickle for the root to put in the storage.
+                # The pickle must be in the special ZODB format.
+                file = cStringIO.StringIO()
+                p = cPickle.Pickler(file, 1)
+                p.dump((root.__class__, None))
+                p.dump(root.__getstate__())
+                t = transaction.Transaction()
+                t.description = 'initial database creation'
+                temp_storage.tpc_begin(t)
+                temp_storage.store(z64, None, file.getvalue(), '', t)
+                temp_storage.tpc_vote(t)
+                temp_storage.tpc_finish(t)
+        finally:
+            if IMVCCStorage.providedBy(temp_storage):
+                temp_storage.release()
 
         # Multi-database setup.
         if databases is None:
@@ -453,9 +477,13 @@ class DB(object):
             raise ValueError("database_name %r already in databases" %
                              database_name)
         databases[database_name] = self
+        self.xrefs = xrefs
 
         self._setupUndoMethods()
         self.history = storage.history
+
+        self._saved_oids = []
+        self._max_saved_oids = max_saved_oids
 
     def _setupUndoMethods(self):
         storage = self.storage
@@ -488,7 +516,7 @@ class DB(object):
         self._a()
         try:
             assert connection._db is self
-            connection._opened = None
+            connection.opened = None
 
             am = self._activity_monitor
             if am is not None:
@@ -704,6 +732,15 @@ class DB(object):
             raise ValueError(
                 'cannot open an historical connection in the future.')
 
+        if isinstance(transaction_manager, basestring):
+            if transaction_manager:
+                raise TypeError("Versions aren't supported.")
+            warnings.warn(
+                "A version string was passed to open.\n"
+                "The first argument is a transaction manager.",
+                DeprecationWarning, 2)
+            transaction_manager = None
+
         self._a()
         try:
             # result <- a connection
@@ -748,7 +785,7 @@ class DB(object):
 
         def get_info(c):
             # `result`, `time` and `before` are lexically inherited.
-            o = c._opened
+            o = c.opened
             d = c.getDebugInfo()
             if d:
                 if len(d) == 1:
@@ -823,7 +860,7 @@ class DB(object):
         finally:
             self._r()
 
-    def setHistoricalCacheSize(self, size):       
+    def setHistoricalCacheSize(self, size):
         self._a()
         try:
             self._historical_cache_size = size
@@ -833,7 +870,7 @@ class DB(object):
         finally:
             self._r()
 
-    def setHistoricalCacheSizeBytes(self, size):       
+    def setHistoricalCacheSizeBytes(self, size):
         self._a()
         try:
             self._historical_cache_size_bytes = size
@@ -864,6 +901,29 @@ class DB(object):
         finally:
             self._r()
 
+    def undoMultiple(self, ids, txn=None):
+        """Undo multiple transactions identified by ids.
+
+        A transaction can be undone if all of the objects involved in
+        the transaction were not modified subsequently, if any
+        modifications can be resolved by conflict resolution, or if
+        subsequent changes resulted in the same object state.
+
+        The values in ids should be generated by calling undoLog()
+        or undoInfo().  The value of ids are not the same as a
+        transaction ids used by other methods; they are unique to undo().
+
+        :Parameters:
+          - `ids`: a sequence of storage-specific transaction identifiers
+          - `txn`: transaction context to use for undo().
+            By default, uses the current transaction.
+        """
+        if txn is None:
+            txn = transaction.get()
+        if isinstance(ids, basestring):
+            ids = [ids]
+        txn.join(TransactionalUndo(self, ids))
+
     def undo(self, id, txn=None):
         """Undo a transaction identified by id.
 
@@ -877,69 +937,89 @@ class DB(object):
         transaction id used by other methods; it is unique to undo().
 
         :Parameters:
-          - `id`: a storage-specific transaction identifier
+          - `id`: a transaction identifier
           - `txn`: transaction context to use for undo().
             By default, uses the current transaction.
         """
-        if txn is None:
-            txn = transaction.get()
-        txn.register(TransactionalUndo(self, id))
+        self.undoMultiple([id], txn)
 
+    def transaction(self):
+        return ContextManager(self)
+
+
+    def save_oid(self, oid):
+        if len(self._saved_oids) < self._max_saved_oids:
+            self._saved_oids.append(oid)
+
+    def new_oid(self):
+        if self._saved_oids:
+            try:
+                return self._saved_oids.pop()
+            except IndexError:
+                pass # Hm, threads
+        return self.storage.new_oid()
+
+
+class ContextManager:
+    """PEP 343 context manager
+    """
+
+    def __init__(self, db):
+        self.db = db
+
+    def __enter__(self):
+        self.tm = transaction.TransactionManager()
+        self.conn = self.db.open(self.tm)
+        return self.conn
+
+    def __exit__(self, t, v, tb):
+        if t is None:
+            self.tm.commit()
+        else:
+            self.tm.abort()
+        self.conn.close()
 
 resource_counter_lock = threading.Lock()
 resource_counter = 0
 
-class ResourceManager(object):
-    """Transaction participation for an undo resource."""
+class TransactionalUndo(object):
 
-    # XXX This implementation is broken.  Subclasses invalidate oids
-    # in their commit calls. Invalidations should not be sent until
-    # tpc_finish is called.  In fact, invalidations should be sent to
-    # the db *while* tpc_finish is being called on the storage.
-
-    def __init__(self, db):
+    def __init__(self, db, tids):
         self._db = db
-        # Delegate the actual 2PC methods to the storage
-        self.tpc_vote = self._db.storage.tpc_vote
-        self.tpc_finish = self._db.storage.tpc_finish
-        self.tpc_abort = self._db.storage.tpc_abort
+        self._storage = db.storage
+        self._tids = tids
+        self._oids = set()
 
-        # Get a number from a simple thread-safe counter, then
-        # increment it, for the purpose of sorting ResourceManagers by
-        # creation order.  This ensures that multiple ResourceManagers
-        # within a transaction commit in a predictable sequence.
-        resource_counter_lock.acquire()
-        try:
-            global resource_counter
-            self._count = resource_counter
-            resource_counter += 1
-        finally:
-            resource_counter_lock.release()
+    def abort(self, transaction):
+        pass
+
+    def tpc_begin(self, transaction):
+        self._storage.tpc_begin(transaction)
+
+    def commit(self, transaction):
+        for tid in self._tids:
+            result = self._storage.undo(tid, transaction)
+            if result:
+                self._oids.update(result[1])
+
+    def tpc_vote(self, transaction):
+        for oid, _ in  self._storage.tpc_vote(transaction) or ():
+            self._oids.add(oid)
+
+    def tpc_finish(self, transaction):
+        self._storage.tpc_finish(
+            transaction,
+            lambda tid: self._db.invalidate(tid, self._oids)
+            )
+
+    def tpc_abort(self, transaction):
+        self._storage.tpc_abort(transaction)
 
     def sortKey(self):
-        return "%s:%016x" % (self._db.storage.sortKey(), self._count)
+        return "%s:%s" % (self._storage.sortKey(), id(self))
 
-    def tpc_begin(self, txn, sub=False):
-        if sub:
-            raise ValueError("doesn't support sub-transactions")
-        self._db.storage.tpc_begin(txn)
-
-    # The object registers itself with the txn manager, so the ob
-    # argument to the methods below is self.
-
-    def abort(self, obj, txn):
-        raise NotImplementedError
-
-    def commit(self, obj, txn):
-        raise NotImplementedError
-
-class TransactionalUndo(ResourceManager):
-
-    def __init__(self, db, tid):
-        super(TransactionalUndo, self).__init__(db)
-        self._tid = tid
-
-    def commit(self, ob, t):
-        # XXX see XXX in ResourceManager
-        tid, oids = self._db.storage.undo(self._tid, t)
-        self._db.invalidate(tid, dict.fromkeys(oids, 1))
+def connection(*args, **kw):
+    db = DB(*args, **kw)
+    conn = db.open()
+    conn.onCloseCallback(db.close)
+    return conn

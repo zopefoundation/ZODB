@@ -16,6 +16,7 @@ from ZODB.tests.MinPO import MinPO
 from zope.testing import doctest
 import datetime
 import os
+import sys
 import time
 import transaction
 import unittest
@@ -146,8 +147,119 @@ def connectionDebugInfo():
 
     """
 
+def passing_a_file_name_to_DB():
+    """You can pass a file-storage file name to DB.
+
+    (Also note that we can access DB in ZODB.)
+
+    >>> db = ZODB.DB('data.fs')
+    >>> db.storage # doctest: +ELLIPSIS
+    <ZODB.FileStorage.FileStorage.FileStorage object at ...
+    >>> os.path.exists('data.fs')
+    True
+
+    >>> db.close()
+    """
+
+def open_convenience():
+    """Often, we just want to open a single connection.
+
+    >>> conn = ZODB.connection('data.fs')
+    >>> conn.root()
+    {}
+
+    >>> conn.root()['x'] = 1
+    >>> transaction.commit()
+    >>> conn.close()
+
+    Let's make sure the database was cloased when we closed the
+    connection, and that the data is there.
+
+    >>> db = ZODB.DB('data.fs')
+    >>> conn = db.open()
+    >>> conn.root()
+    {'x': 1}
+    >>> db.close()
+    """
+
+if sys.version_info >= (2, 6):
+    def db_with_transaction():
+        """Using databases with with
+
+        The transaction method returns a context manager that when entered
+        starts a transaction with a private transaction manager.  To
+        illustrate this, we start a trasnaction using a regular connection
+        and see that it isn't automatically committed or aborted as we use
+        the transaction context manager.
+
+        >>> db = ZODB.tests.util.DB()
+        >>> conn = db.open()
+        >>> conn.root()['x'] = conn.root().__class__()
+        >>> transaction.commit()
+        >>> conn.root()['x']['x'] = 1
+
+        >>> with db.transaction() as conn2:
+        ...     conn2.root()['y'] = 1
+
+        >>> conn2.opened
+
+    Now, we'll open a 3rd connection a verify that
+
+        >>> conn3 = db.open()
+        >>> conn3.root()['x']
+        {}
+        >>> conn3.root()['y']
+        1
+        >>> conn3.close()
+
+    Let's try again, but this time, we'll have an exception:
+
+        >>> with db.transaction() as conn2:
+        ...     conn2.root()['y'] = 2
+        ...     XXX
+        Traceback (most recent call last):
+        ...
+        NameError: name 'XXX' is not defined
+
+        >>> conn2.opened
+
+        >>> conn3 = db.open()
+        >>> conn3.root()['x']
+        {}
+        >>> conn3.root()['y']
+        1
+        >>> conn3.close()
+
+        >>> transaction.commit()
+
+        >>> conn3 = db.open()
+        >>> conn3.root()['x']
+        {'x': 1}
+
+
+        >>> db.close()
+        """
+
+def connection_allows_empty_version_for_idiots():
+    r"""
+    >>> import sys, StringIO
+    >>> stderr = sys.stderr
+    >>> sys.stderr = StringIO.StringIO()
+    >>> db = ZODB.DB('t.fs')
+    >>> c = db.open('')
+    >>> sys.stderr.getvalue() # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    '...: DeprecationWarning: A version string was passed to
+    open.\nThe first argument is a transaction manager...
+
+    >>> sys.stderr = stderr
+    >>> c.root()
+    {}
+    >>> db.close()
+    """
 
 def test_suite():
     s = unittest.makeSuite(DBTests)
-    s.addTest(doctest.DocTestSuite())
+    s.addTest(doctest.DocTestSuite(
+        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+        ))
     return s

@@ -100,7 +100,8 @@ oid
     The following reference types are defined:
 
     'w'
-        Persistent weak reference.  The arguments consist of an oid.
+        Persistent weak reference.  The arguments consist of an oid
+        and optionally a database name.
 
     The following are planned for the future:
 
@@ -186,6 +187,7 @@ class ObjectWriter:
 
         >>> from ZODB.tests.util import P
         >>> class DummyJar:
+        ...     xrefs = True
         ...     def new_oid(self):
         ...         return 42
         ...     def db(self):
@@ -229,11 +231,13 @@ class ObjectWriter:
         If the jar doesn't match that of the writer, an error is raised:
 
         >>> bob._p_jar = DummyJar()
-        >>> writer.persistent_id(bob)   # doctest: +NORMALIZE_WHITESPACE
+        >>> writer.persistent_id(bob)
+        ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
         Traceback (most recent call last):
           ...
-        InvalidObjectReference: Attempt to store an object from a
-            foreign database connection
+        InvalidObjectReference:
+        ('Attempt to store an object from a foreign database connection',
+        <ZODB.serialize.DummyJar instance at ...>, P(bob))
 
         Constructor arguments used by __new__(), as returned by
         __getnewargs__(), can affect memory allocation, but may also
@@ -295,8 +299,8 @@ class ObjectWriter:
 
                 oid = obj.oid
                 if oid is None:
-                    obj = obj() # get the referenced object
-                    oid = obj._p_oid
+                    target = obj() # get the referenced object
+                    oid = target._p_oid
                     if oid is None:
                         # Here we are causing the object to be saved in
                         # the database. One could argue that we shouldn't
@@ -305,10 +309,16 @@ class ObjectWriter:
                         # assume that the object will be added eventually.
 
                         oid = self._jar.new_oid()
-                        obj._p_jar = self._jar
-                        obj._p_oid = oid
-                        self._stack.append(obj)
-                return ['w', (oid, )]
+                        target._p_jar = self._jar
+                        target._p_oid = oid
+                        self._stack.append(target)
+                    obj.oid = oid
+                    obj.dm = target._p_jar
+                    obj.database_name = obj.dm.db().database_name
+                if obj.dm is self._jar:
+                    return ['w', (oid, )]
+                else:
+                    return ['w', (oid, obj.database_name)]
 
 
         # Since we have an oid, we have either a persistent instance
@@ -322,8 +332,13 @@ class ObjectWriter:
             oid = obj._p_oid = self._jar.new_oid()
             obj._p_jar = self._jar
             self._stack.append(obj)
-            
+
         elif obj._p_jar is not self._jar:
+            if not self._jar.db().xrefs:
+                raise InvalidObjectReference(
+                    "Database %r doesn't allow implicit cross-database "
+                    "references" % self._jar.db().database_name,
+                    self._jar, obj)
 
             try:
                 otherdb = obj._p_jar.db()
@@ -334,14 +349,14 @@ class ObjectWriter:
             if self._jar.db().databases.get(database_name) is not otherdb:
                 raise InvalidObjectReference(
                     "Attempt to store an object from a foreign "
-                    "database connection"
+                    "database connection", self._jar, obj,
                     )
 
             if self._jar.get_connection(database_name) is not obj._p_jar:
                 raise InvalidObjectReference(
                     "Attempt to store a reference to an object from "
                     "a separate connection to the same database or "
-                    "multidatabase"
+                    "multidatabase", self._jar, obj,
                     )
 
             # OK, we have an object from another database.
@@ -350,9 +365,9 @@ class ObjectWriter:
             if obj._p_jar._implicitlyAdding(oid):
                 raise InvalidObjectReference(
                     "A new object is reachable from multiple databases. "
-                    "Won't try to guess which one was correct!"
+                    "Won't try to guess which one was correct!",
+                    self._jar, obj,
                     )
-                
 
         klass = type(obj)
         if hasattr(klass, '__getnewargs__'):
@@ -503,14 +518,7 @@ class ObjectReader:
             return self._conn.get(oid)
 
         # TODO: should be done by connection
-        obj._p_oid = oid
-        obj._p_jar = self._conn
-        # When an object is created, it is put in the UPTODATE
-        # state.  We must explicitly deactivate it to turn it into
-        # a ghost.
-        obj._p_changed = None
-
-        self._cache[oid] = obj
+        self._cache.new_ghost(oid, obj)
         return obj
 
     def load_multi_persistent(self, database_name, oid, klass):
@@ -522,10 +530,20 @@ class ObjectReader:
     loaders['m'] = load_multi_persistent
 
 
-    def load_persistent_weakref(self, oid):
+    def load_persistent_weakref(self, oid, database_name=None):
         obj = WeakRef.__new__(WeakRef)
         obj.oid = oid
-        obj.dm = self._conn
+        if database_name is None:
+            obj.dm = self._conn
+        else:
+            obj.database_name = database_name
+            try:
+                obj.dm = self._conn.get_connection(database_name)
+            except KeyError:
+                # XXX Not sure what to do here.  It seems wrong to
+                # fail since this is a weak reference.  For now we'll
+                # just pretend that the target object has gone.
+                pass
         return obj
 
     loaders['w'] = load_persistent_weakref
@@ -543,16 +561,6 @@ class ObjectReader:
         return reader.load_oid(oid)
 
     loaders['n'] = load_multi_oid
-
-    def _new_object(self, klass, args):
-        if not args and not myhasattr(klass, "__getnewargs__"):
-            obj = klass.__new__(klass)
-        else:
-            obj = klass(*args)
-            if not isinstance(klass, type):
-                obj.__dict__.clear()
-
-        return obj
 
     def getClassName(self, pickle):
         unpickler = self._get_unpickler(pickle)
@@ -641,7 +649,7 @@ def referencesf(p, oids=None):
     return oids
 
 oid_klass_loaders = {
-    'w': lambda oid: None,
+    'w': lambda oid, database_name=None: None,
     }
 
 def get_refs(a_pickle):

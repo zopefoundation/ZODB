@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import cPickle
 import os, unittest
 import transaction
 import ZODB.FileStorage
@@ -19,6 +20,7 @@ import ZODB.tests.util
 import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
+from ZODB.fsIndex import fsIndex
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
@@ -27,18 +29,8 @@ from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
 from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 
-class BaseFileStorageTests(StorageTestBase.StorageTestBase):
-
-    def open(self, **kwargs):
-        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
-                                                     **kwargs)
-
-    def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
-        self.open(create=1)
-
 class FileStorageTests(
-    BaseFileStorageTests,
+    StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
     TransactionalUndoStorage.TransactionalUndoStorage,
     RevisionStorage.RevisionStorage,
@@ -54,6 +46,14 @@ class FileStorageTests(
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage
     ):
+
+    def open(self, **kwargs):
+        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
+                                                     **kwargs)
+
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
+        self.open(create=1)
 
     def checkLongMetadata(self):
         s = "X" * 75000
@@ -71,7 +71,6 @@ class FileStorageTests(
             self.fail("expect long user field to raise error")
 
     def check_use_fsIndex(self):
-        from ZODB.fsIndex import fsIndex
 
         self.assertEqual(self._storage._index.__class__, fsIndex)
 
@@ -80,21 +79,13 @@ class FileStorageTests(
     def convert_index_to_dict(self):
         # Convert the index in the current .index file to a Python dict.
         # Return the index originally found.
-        import cPickle as pickle
-
-        f = open('FileStorageTests.fs.index', 'r+b')
-        p = pickle.Unpickler(f)
-        data = p.load()
+        data = fsIndex.load('FileStorageTests.fs.index')
         index = data['index']
 
         newindex = dict(index)
         data['index'] = newindex
 
-        f.seek(0)
-        f.truncate()
-        p = pickle.Pickler(f, 1)
-        p.dump(data)
-        f.close()
+        cPickle.dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
         return index
 
     def check_conversion_to_fsIndex(self, read_only=False):
@@ -221,6 +212,7 @@ class FileStorageTests(
 
         from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
+        from ZODB.serialize import referencesf
 
         db = DB(self._storage)
         conn = db.open()
@@ -253,7 +245,7 @@ class FileStorageTests(
         # Try to pack.  This used to yield
         #     NameError: global name 's' is not defined
         try:
-            self._storage.pack(time.time(), None)
+            self._storage.pack(time.time(), referencesf)
         except CorruptedError, detail:
             self.assert_("redundant transaction length does not match "
                          "initial transaction length" in str(detail))
@@ -287,6 +279,13 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
+class FileStorageTestsWithBlobsEnabled(FileStorageTests):
+
+    def open(self, **kwargs):
+        if 'blob_dir' not in kwargs:
+            kwargs = kwargs.copy()
+            kwargs['blob_dir'] = 'blobs'
+        return FileStorageTests.open(self, **kwargs)
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
@@ -301,7 +300,6 @@ class FileStorageRecoveryTest(
     def tearDown(self):
         self._dst.close()
         StorageTestBase.StorageTestBase.tearDown(self)
-        
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
@@ -332,24 +330,74 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         pass
 
 
-class SlowFileStorageTest(BaseFileStorageTests):
+class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
 
-    level = 2
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
 
-    def check10Kstores(self):
-        # The _get_cached_serial() method has a special case
-        # every 8000 calls.  Make sure it gets minimal coverage.
-        oids = [[self._storage.new_oid(), None] for i in range(100)]
-        for i in range(100):
+    def checkanalyze(self):
+        import new, sys, pickle
+        from BTrees.OOBTree import OOBTree
+        from ZODB.scripts import analyze
+
+        # Set up a module to act as a broken import
+        module_name = 'brokenmodule'
+        module = new.module(module_name)
+        sys.modules[module_name] = module
+
+        class Broken(MinPO):
+            __module__ = module_name
+        module.Broken = Broken
+
+        oids = [[self._storage.new_oid(), None] for i in range(3)]
+        for i in range(2):
             t = transaction.Transaction()
             self._storage.tpc_begin(t)
-            for j in range(100):
-                o = MinPO(j)
-                oid, revid = oids[j]
-                serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
-                oids[j][1] = serial
+
+            # sometimes data is in this format
+            j = 0
+            oid, revid = oids[j]
+            serial = self._storage.store(
+                oid, revid, pickle.dumps(OOBTree, 1), "", t)
+            oids[j][1] = serial
+
+            # and it could be from a broken module
+            j = 1
+            oid, revid = oids[j]
+            serial = self._storage.store(
+                oid, revid, pickle.dumps(Broken, 1), "", t)
+            oids[j][1] = serial
+
+            # but mostly it looks like this
+            j = 2
+            o = MinPO(j)
+            oid, revid = oids[j]
+            serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
+            oids[j][1] = serial
+
             self._storage.tpc_vote(t)
             self._storage.tpc_finish(t)
+
+        # now break the import of the Broken class
+        del sys.modules[module_name]
+
+        # from ZODB.scripts.analyze.analyze
+        fsi = self._storage.iterator()
+        rep = analyze.Report()
+        for txn in fsi:
+            analyze.analyze_trans(rep, txn)
+
+        # from ZODB.scripts.analyze.report
+        typemap = rep.TYPEMAP.keys()
+        typemap.sort()
+        cumpct = 0.0
+        for t in typemap:
+            pct = rep.TYPESIZE[t] * 100.0 / rep.DBYTES
+            cumpct += pct
+
+        self.assertAlmostEqual(cumpct, 100.0, 0,
+                               "Failed to analyze some records")
 
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
@@ -458,10 +506,10 @@ track of the transactions along the way:
     >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
     >>> db = DB(fs)
     >>> conn = db.open()
-    >>> from persistent.dict import PersistentDict
+    >>> from persistent.mapping import PersistentMapping
     >>> last = []
     >>> for i in range(100):
-    ...     conn.root()[i] = PersistentDict()
+    ...     conn.root()[i] = PersistentMapping()
     ...     transaction.commit()
     ...     last.append(fs.lastTransaction())
 
@@ -496,7 +544,7 @@ Of course, calling lastInvalidations on an empty storage refturns no data:
 
 def deal_with_finish_failures():
     r"""
-    
+
     It's really bad to get errors in FileStorage's _finish method, as
     that can cause the file storage to be in an inconsistent
     state. The data file will be fine, but the internal data
@@ -525,17 +573,17 @@ def deal_with_finish_failures():
     ...
     TypeError: <lambda>() takes no arguments (1 given)
 
-    
+
     >>> print handler
     ZODB.FileStorage CRITICAL
       Failure in _finish. Closing.
 
     >>> handler.uninstall()
 
-    >>> fs.load('\0'*8, '')
+    >>> fs.load('\0'*8, '') # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ValueError: I/O operation on closed file
+    ValueError: ...
 
     >>> db.close()
     >>> fs = ZODB.FileStorage.FileStorage('data.fs')
@@ -561,7 +609,7 @@ def pack_with_open_blob_files():
     >>> conn1.add(conn1.root()[1])
     >>> conn1.root()[1].open('w').write('some data')
     >>> tm1.commit()
-    
+
     >>> tm2 = transaction.TransactionManager()
     >>> conn2 = db.open(tm2)
     >>> f = conn1.root()[1].open()
@@ -572,6 +620,7 @@ def pack_with_open_blob_files():
     >>> db.pack()
     >>> f.read()
     'some data'
+    >>> f.close()
 
     >>> tm1.commit()
     >>> conn2.sync()
@@ -580,7 +629,6 @@ def pack_with_open_blob_files():
 
     >>> db.close()
     """
-    
 
 def test_suite():
     from zope.testing import doctest
@@ -588,7 +636,8 @@ def test_suite():
     suite = unittest.TestSuite()
     for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
                   FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
-                  SlowFileStorageTest]:
+                  FileStorageTestsWithBlobsEnabled, AnalyzeDotPyTest,
+                  ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
@@ -600,6 +649,9 @@ def test_suite():
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
+    suite.addTest(PackableStorage.IExternalGC_suite(
+        lambda : ZODB.FileStorage.FileStorage(
+            'data.fs', blob_dir='blobs', pack_gc=False)))
     return suite
 
 if __name__=='__main__':

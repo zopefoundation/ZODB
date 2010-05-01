@@ -17,11 +17,12 @@ The actual tests are in ConnectionTests.py; this file provides the
 platform-dependent scaffolding.
 """
 
-# System imports
-import unittest
-# Import the actual test class
 from ZEO.tests import ConnectionTests, InvalidationTests
 from zope.testing import doctest, setupstack
+import unittest
+import ZEO.tests.forker
+import ZEO.tests.testMonitor
+import ZEO.zrpc.connection
 import ZODB.tests.util
 
 class FileStorageConfig:
@@ -35,14 +36,6 @@ class FileStorageConfig:
                              create and 'yes' or 'no',
                              read_only and 'yes' or 'no')
 
-class BerkeleyStorageConfig:
-    def getConfig(self, path, create, read_only):
-        return """\
-        <fullstorage 1>
-        envdir %s
-        read-only %s
-        </fullstorage>""" % (path, read_only and "yes" or "no")
-
 class MappingStorageConfig:
     def getConfig(self, path, create, read_only):
         return """<mappingstorage 1/>"""
@@ -54,7 +47,6 @@ class FileStorageConnectionTests(
     InvalidationTests.InvalidationTests
     ):
     """FileStorage-specific connection tests."""
-    level = 2
 
 class FileStorageReconnectionTests(
     FileStorageConfig,
@@ -62,48 +54,18 @@ class FileStorageReconnectionTests(
     ):
     """FileStorage-specific re-connection tests."""
     # Run this at level 1 because MappingStorage can't do reconnection tests
-    level = 1
 
 class FileStorageInvqTests(
     FileStorageConfig,
     ConnectionTests.InvqTests
     ):
     """FileStorage-specific invalidation queue tests."""
-    level = 1
 
 class FileStorageTimeoutTests(
     FileStorageConfig,
     ConnectionTests.TimeoutTests
     ):
-    level = 2
-
-class BDBConnectionTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.ConnectionTests,
-    InvalidationTests.InvalidationTests
-    ):
-    """Berkeley storage connection tests."""
-    level = 2
-
-class BDBReconnectionTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.ReconnectionTests
-    ):
-    """Berkeley storage re-connection tests."""
-    level = 2
-
-class BDBInvqTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.InvqTests
-    ):
-    """Berkeley storage invalidation queue tests."""
-    level = 2
-
-class BDBTimeoutTests(
-    BerkeleyStorageConfig,
-    ConnectionTests.TimeoutTests
-    ):
-    level = 2
+    pass
 
 
 class MappingStorageConnectionTests(
@@ -111,7 +73,6 @@ class MappingStorageConnectionTests(
     ConnectionTests.ConnectionTests
     ):
     """Mapping storage connection tests."""
-    level = 1
 
 # The ReconnectionTests can't work with MappingStorage because it's only an
 # in-memory storage and has no persistent state.
@@ -120,16 +81,52 @@ class MappingStorageTimeoutTests(
     MappingStorageConfig,
     ConnectionTests.TimeoutTests
     ):
-    level = 1
+    pass
+
+class MonitorTests(ZEO.tests.testMonitor.MonitorTests):
+
+    def check_connection_management(self):
+        # Open and close a few connections, making sure that
+        # the resulting number of clients is 0.
+
+        s1 = self.openClientStorage()
+        s2 = self.openClientStorage()
+        s3 = self.openClientStorage()
+        stats = self.parse(self.get_monitor_output())[1]
+        self.assertEqual(stats.clients, 3)
+        s1.close()
+        s3.close()
+        s2.close()
+
+        ZEO.tests.forker.wait_until(
+            "Number of clients shown in monitor drops to 0",
+            lambda :
+            self.parse(self.get_monitor_output())[1].clients == 0
+            )
+
+    def check_connection_management_with_old_client(self):
+        # Check that connection management works even when using an
+        # older protcool that requires a connection adapter.
+        test_protocol = "Z303"
+        current_protocol = ZEO.zrpc.connection.Connection.current_protocol
+        ZEO.zrpc.connection.Connection.current_protocol = test_protocol
+        ZEO.zrpc.connection.Connection.servers_we_can_talk_to.append(
+            test_protocol)
+        try:
+            self.check_connection_management()
+        finally:
+            ZEO.zrpc.connection.Connection.current_protocol = current_protocol
+            ZEO.zrpc.connection.Connection.servers_we_can_talk_to.pop()
 
 
-
 test_classes = [FileStorageConnectionTests,
                 FileStorageReconnectionTests,
                 FileStorageInvqTests,
                 FileStorageTimeoutTests,
                 MappingStorageConnectionTests,
-                MappingStorageTimeoutTests]
+                MappingStorageTimeoutTests,
+                MonitorTests,
+                ]
 
 def test_suite():
     suite = unittest.TestSuite()

@@ -1,18 +1,19 @@
 ##############################################################################
 #
-# Copyright (c) 2001, 2002 Zope Corporation and Contributors.
+# Copyright (c) Zope Foundation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
-# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# Version 2.0 (ZPL).  A copy of the ZPL should accompany this distribution.
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import unittest
 from zope.testing import doctest
-from persistent import Persistent
+from persistent import Persistent, simple_new
 
 class P(Persistent):
     def __init__(self):
@@ -20,5 +21,30 @@ class P(Persistent):
     def inc(self):
         self.x += 1
 
+def cpersistent_setstate_pointer_sanity():
+    """
+    >>> Persistent().__setstate__({})
+    Traceback (most recent call last):
+    ...
+    TypeError: this object has no instance dictionary
+
+    >>> class C(Persistent): __slots__ = 'x', 'y'
+    >>> C().__setstate__(({}, {}))
+    Traceback (most recent call last):
+    ...
+    TypeError: this object has no instance dictionary
+    """
+
+def cpersistent_simple_new_invalid_argument():
+    """
+    >>> simple_new('')
+    Traceback (most recent call last):
+    ...
+    TypeError: simple_new argument must be a type object.
+    """
+
 def test_suite():
-    return doctest.DocFileSuite("persistent.txt", globs={"P": P})
+    return unittest.TestSuite((
+        doctest.DocFileSuite("persistent.txt", globs={"P": P}),
+        doctest.DocTestSuite(),
+        ))

@@ -20,7 +20,19 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.9.0dev"
+VERSION = "3.9.0c2"
+
+from ez_setup import use_setuptools
+use_setuptools()
+
+from setuptools import setup, find_packages
+from setuptools.extension import Extension
+import os
+import sys
+
+if sys.version_info < (2, 4, 2):
+    print "This version of ZODB requires Python 2.4.2 or higher"
+    sys.exit(0)
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -28,7 +40,6 @@ VERSION = "3.9.0dev"
 # Development Status :: 3 - Alpha
 
 classifiers = """\
-Development Status :: 3 - Alpha
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
@@ -37,39 +48,6 @@ Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
 Operating System :: Unix
 """
-
-from setuptools import setup
-
-entry_points = """
-    [console_scripts]
-    fsdump = ZODB.FileStorage.fsdump:main
-    fsoids = ZODB.scripts.fsoids:main
-    fsrefs = ZODB.scripts.fsrefs:main
-    fstail = ZODB.scripts.fstail:Main
-    repozo = ZODB.scripts.repozo:main
-    zeopack = ZEO.scripts.zeopack:main
-    runzeo = ZEO.runzeo:main
-    zeopasswd = ZEO.zeopasswd:main
-    mkzeoinst = ZEO.mkzeoinst:main
-    zeoctl = ZEO.zeoctl:main
-    remove-old-zeo-cached-blobs = ZEO.ClientStorage:check_blob_size_script
-    """
-
-scripts = []
-
-import glob
-import os
-import sys
-from setuptools.extension import Extension
-from distutils import dir_util
-from setuptools.dist import Distribution
-from setuptools.command.install_lib import install_lib
-from setuptools.command.build_py import build_py
-from distutils.util import convert_path
-
-if sys.version_info < (2, 4, 2):
-    print "This version of ZODB requires Python 2.4.2 or higher"
-    sys.exit(0)
 
 # Include directories for C extensions
 include = ['src']
@@ -142,88 +120,43 @@ exts += [cPersistence,
          TimeStamp,
         ]
 
-# The ZODB.zodb4 code is not being packaged, because it is only
-# need to convert early versions of Zope3 databases to ZODB3.
-
-packages = ["BTrees", "BTrees.tests",
-            "ZEO", "ZEO.auth", "ZEO.zrpc", "ZEO.tests", "ZEO.scripts",
-            "ZODB", "ZODB.FileStorage", "ZODB.tests",
-                    "ZODB.scripts",
-            "persistent", "persistent.tests",
-            ]
-
-def copy_other_files(cmd, outputbase):
-    # A delicate dance to copy files with certain extensions
-    # into a package just like .py files.
-    extensions = ["*.conf", "*.xml", "*.txt", "*.sh"]
-    directories = [
-        "BTrees",
-        "persistent/tests",
-        "ZEO",
-        "ZEO/scripts",
-        "ZODB",
-        "ZODB/scripts",
-        "ZODB/tests",
-        "ZODB/Blobs",
-        "ZODB/Blobs/tests",
-        ]
-    for dir in directories:
-        exts = extensions
-        dir = convert_path(dir)
-        inputdir = os.path.join("src", dir)
-        outputdir = os.path.join(outputbase, dir)
-        if not os.path.exists(outputdir):
-            dir_util.mkpath(outputdir)
-        for pattern in exts:
-            for fn in glob.glob(os.path.join(inputdir, pattern)):
-                # glob is going to give us a path including "src",
-                # which must be stripped to get the destination dir
-                dest = os.path.join(outputbase, fn[4:])
-                cmd.copy_file(fn, dest)
-
-class MyLibInstaller(install_lib):
-    """Custom library installer, used to put hosttab in the right place."""
-
-    # We use the install_lib command since we need to put hosttab
-    # inside the library directory.  This is where we already have the
-    # real information about where to install it after the library
-    # location has been set by any relevant distutils command line
-    # options.
-
-    def run(self):
-        install_lib.run(self)
-        copy_other_files(self, self.install_dir)
-
-class MyPyBuilder(build_py):
-    def build_packages(self):
-        build_py.build_packages(self)
-        copy_other_files(self, self.build_lib)
-
-class MyDistribution(Distribution):
-    # To control the selection of MyLibInstaller and MyPyBuilder, we
-    # have to set it into the cmdclass instance variable, set in
-    # Distribution.__init__().
-
-    def __init__(self, *attrs):
-        Distribution.__init__(self, *attrs)
-        self.cmdclass['build_py'] = MyPyBuilder
-        self.cmdclass['install_lib'] = MyLibInstaller
+def _modname(path, base, name=''):
+    if path == base:
+        return name
+    dirname, basename = os.path.split(path)
+    return _modname(dirname, base, basename + '.' + name)
 
 def alltests():
-    # use the zope.testing testrunner machinery to find all the
-    # test suites we've put under ourselves
-    from zope.testing.testrunner import get_options
-    from zope.testing.testrunner import find_suites
-    from zope.testing.testrunner import configure_logging
-    configure_logging()
-    from unittest import TestSuite
-    here = os.path.abspath(os.path.dirname(sys.argv[0]))
-    args = sys.argv[:]
-    src = os.path.join(here, 'src')
-    defaults = ['--test-path', src, '--all']
-    options = get_options(args, defaults)
-    suites = list(find_suites(options))
-    return TestSuite(suites)
+    import logging
+    import pkg_resources
+    import unittest
+    import ZEO.ClientStorage
+
+    class NullHandler(logging.Handler):
+        level = 50
+        
+        def emit(self, record):
+            pass
+
+    logging.getLogger().addHandler(NullHandler())
+
+    suite = unittest.TestSuite()
+    base = pkg_resources.working_set.find(
+        pkg_resources.Requirement.parse('ZODB3')).location
+    for dirpath, dirnames, filenames in os.walk(base):
+        if os.path.basename(dirpath) == 'tests':
+            for filename in filenames:
+                if filename != 'testZEO.py': continue
+                if filename.endswith('.py') and filename.startswith('test'):
+                    mod = __import__(
+                        _modname(dirpath, base, os.path.splitext(filename)[0]),
+                        {}, {}, ['*'])
+                    suite.addTest(mod.test_suite())
+        elif 'tests.py' in filenames:
+            continue
+            mod = __import__(_modname(dirpath, base, 'tests'), {}, {}, ['*'])
+            suite.addTest(mod.test_suite())
+    return suite
 
 doclines = __doc__.split("\n")
 
@@ -234,13 +167,13 @@ def read_file(*path):
 
 setup(name="ZODB3",
       version=VERSION,
-      maintainer="Zope Corporation",
+      maintainer="Zope Foundation and Contributors",
       maintainer_email="zodb-dev@zope.org",
-      url = "http://wiki.zope.org/ZODB",
-      packages = packages,
+      packages = find_packages('src'),
       package_dir = {'': 'src'},
       ext_modules = exts,
       headers = ['src/persistent/cPersistence.h',
+                 'src/persistent/py24compat.h',
                  'src/persistent/ring.h'],
       license = "ZPL 2.1",
       platforms = ["any"],
@@ -251,15 +184,9 @@ setup(name="ZODB3",
         ".. contents::\n\n" + 
         read_file("README.txt")  + "\n\n" +
         read_file("src", "CHANGES.txt")),
-      distclass = MyDistribution,
       test_suite="__main__.alltests", # to support "setup.py test"
-      tests_require = [
-        'zope.interface',
-        'zope.proxy',
-        'zope.testing',
-        'transaction',
-        'zdaemon',
-        ],
+      tests_require = ['zope.testing'],
+      extras_require = dict(test=['zope.testing']),
       install_requires = [
         'transaction',
         'zc.lockfile',
@@ -268,7 +195,6 @@ setup(name="ZODB3",
         'zope.event',
         'zope.interface',
         'zope.proxy',
-        'zope.testing',
         ],
       zip_safe = False,
       entry_points = """
@@ -281,7 +207,6 @@ setup(name="ZODB3",
       zeopack = ZEO.scripts.zeopack:main
       runzeo = ZEO.runzeo:main
       zeopasswd = ZEO.zeopasswd:main
-      mkzeoinst = ZEO.mkzeoinst:main
       zeoctl = ZEO.zeoctl:main
       """,
       include_package_data = True,

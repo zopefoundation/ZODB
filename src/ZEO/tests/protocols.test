@@ -96,7 +96,7 @@ Note that when taking to a 3.8 server, iteration won't work:
     >>> os.remove('client-1.zec')
     >>> zope.testing.setupstack.rmtree('blobs')
     >>> zope.testing.setupstack.rmtree('server-blobs')
-    
+
 And the other way around:
 
     >>> addr, _ = start_server(storage_conf, dict(invalidation_queue_size=5))
@@ -164,6 +164,20 @@ Note that we'll have to pull some hijinks:
     'blob data 1'
     >>> conn.root()['blob2'].open().read()
     'blob data 2'
+
+Make some old protocol calls:
+
+    >>> db.storage._server.rpc.call('getSerial', conn.root()._p_oid
+    ...      ) == conn.root()._p_serial
+    True
+
+    >>> p, s, v, x, y = db.storage._server.rpc.call('zeoLoad',
+    ...                                             conn.root()._p_oid)
+    >>> (v, x, y) == ('', None, None)
+    True
+    >>> db.storage.load(conn.root()._p_oid) == (p, s)
+    True
+
 
     >>> db2.close()
     >>> db.close()

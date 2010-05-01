@@ -18,29 +18,29 @@ $Id$
 
 
 # Notes:
-# 
+#
 # Persistent classes are non-ghostable.  This has some interesting
 # ramifications:
-# 
+#
 # - When an object is invalidated, it must reload it's state
-# 
+#
 # - When an object is loaded from the database, it's state must be
 #   loaded.  Unfortunately, there isn't a clear signal when an object is
 #   loaded from the database.  This should probably be fixed.
-# 
+#
 #   In the mean time, we need to infer.  This should be viewed as a
 #   short term hack.
-# 
+#
 #   Here's the strategy we'll use:
-# 
+#
 #   - We'll have a need to be loaded flag that we'll set in
 #     __new__, through an extra argument.
-# 
+#
 #   - When setting _p_oid and _p_jar, if both are set and we need to be
 #     loaded, then we'll load out state.
-# 
+#
 #   - We'll use _p_changed is None to indicate that we're in this state.
-# 
+#
 
 class _p_DataDescr(object):
     # Descr used as base for _p_ data. Data are stored in
@@ -56,7 +56,7 @@ class _p_DataDescr(object):
         if '__global_persistent_class_not_stored_in_DB__' in inst.__dict__:
             raise AttributeError(self.__name__)
         return inst._p_class_dict.get(self.__name__)
-    
+
     def __set__(self, inst, v):
         inst._p_class_dict[self.__name__] = v
 
@@ -68,14 +68,14 @@ class _p_oid_or_jar_Descr(_p_DataDescr):
     # state when set if both are set and and _p_changed is None
     #
     # See notes above
-    
+
     def __set__(self, inst, v):
         get = inst._p_class_dict.get
         if v == get(self.__name__):
             return
-        
+
         inst._p_class_dict[self.__name__] = v
-        
+
         jar = get('_p_jar')
         if (jar is not None
             and get('_p_oid') is not None
@@ -85,12 +85,12 @@ class _p_oid_or_jar_Descr(_p_DataDescr):
 
 class _p_ChangedDescr(object):
     # descriptor to handle special weird emantics of _p_changed
-    
+
     def __get__(self, inst, cls):
         if inst is None:
             return self
         return inst._p_class_dict['_p_changed']
-        
+
     def __set__(self, inst, v):
         if v is None:
             return
@@ -116,7 +116,7 @@ class _p_MethodDescr(object):
 
     def __delete__(self, inst):
         raise AttributeError(self.__name__)
-    
+
 
 special_class_descrs = '__dict__', '__weakref__'
 
@@ -145,12 +145,12 @@ class PersistentMetaClass(type):
 
         if (
             (data_manager is not None)
-            and          
+            and
             (get('_p_oid') is not None)
             and
             (get('_p_changed') == False)
             ):
-            
+
             self._p_changed = True
             data_manager.register(self)
 
@@ -179,7 +179,7 @@ class PersistentMetaClass(type):
 
 
     def __getstate__(self):
-        return (self.__bases__, 
+        return (self.__bases__,
                 dict([(k, v) for (k, v) in self.__dict__.items()
                       if not (k.startswith('_p_')
                               or k.startswith('_v_')
@@ -187,9 +187,9 @@ class PersistentMetaClass(type):
                               )
                      ]),
                 )
-                
+
     __getstate__ = _p_MethodDescr(__getstate__)
-    
+
     def __setstate__(self, state):
         self.__bases__, cdict = state
         cdict = dict([(k, v) for (k, v) in cdict.items()
@@ -208,14 +208,14 @@ class PersistentMetaClass(type):
 
         for k in to_remove:
             delattr(self, k)
-        
+
         for k, v in cdict.items():
             setattr(self, k, v)
 
         self._p_class_dict = _p_class_dict
 
         self._p_changed = False
-        
+
     __setstate__ = _p_MethodDescr(__setstate__)
 
     def _p_activate(self):

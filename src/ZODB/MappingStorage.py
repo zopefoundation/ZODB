@@ -37,7 +37,7 @@ class MappingStorage(object):
     def __init__(self, name='MappingStorage'):
         self.__name__ = name
         self._data = {}                               # {oid->{tid->pickle}}
-        self._transactions = BTrees.OOBTree.OOBTree() # {tid->transaction}
+        self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
         self._ltid = None
         self._last_pack = None
         _lock = threading.RLock()
@@ -231,7 +231,8 @@ class MappingStorage(object):
                     if transactions[tid].pack(oid):
                         del transactions[tid]
 
-            self._data = new_data
+            self._data.clear()
+            self._data.update(new_data)
 
     # ZODB.interfaces.IStorage
     def registerDB(self, db):
@@ -273,21 +274,27 @@ class MappingStorage(object):
     def tpc_begin(self, transaction, tid=None):
         # The tid argument exists to support testing.
         if transaction is self._transaction:
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "Duplicate tpc_begin calls for same transaction")
         self._lock_release()
         self._commit_lock.acquire()
         self._lock_acquire()
         self._transaction = transaction
         self._tdata = {}
         if tid is None:
-            tid = ZODB.utils.newTid(self._ltid)
+            if self._transactions:
+                old_tid = self._transactions.maxKey()
+            else:
+                old_tid = None
+            tid = ZODB.utils.newTid(old_tid)
         self._tid = tid
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def tpc_finish(self, transaction, func = lambda tid: None):
         if (transaction is not self._transaction):
-            return
+            raise ZODB.POSException.StorageTransactionError(
+                "tpc_finish called with wrong transaction")
 
         tid = self._tid
         func(tid)
@@ -303,6 +310,7 @@ class MappingStorage(object):
         self._ltid = tid
         self._transactions[tid] = TransactionRecord(tid, transaction, tdata)
         self._transaction = None
+        del self._tdata
         self._commit_lock.release()
  
     # ZEO.interfaces.IServeable
@@ -312,7 +320,9 @@ class MappingStorage(object):
 
     # ZODB.interfaces.IStorage
     def tpc_vote(self, transaction):
-        pass
+        if transaction is not self._transaction:
+            raise POSException.StorageTransactionError(
+                "tpc_vote called with wrong transaction")
 
 class TransactionRecord:
 

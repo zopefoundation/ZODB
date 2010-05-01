@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import gc
 import pickle
 import random
 import StringIO
@@ -82,6 +83,13 @@ class Base(TestCase):
 
             self._closeRoot(root)
             self._closeRoot(root2)
+
+    def testSetstateArgumentChecking(self):
+        try: self.t.__class__().__setstate__(('',))
+        except TypeError, v:
+            self.assertEqual(str(v), 'tuple required for first state element')
+        else:
+            raise AssertionError("Expected exception")
 
     def testGhostUnghost(self):
         for i in 0, 10, 1000:
@@ -690,11 +698,13 @@ class NormalSetTests(Base):
     def testInsertReturnsValue(self):
         t = self.t
         self.assertEqual(t.insert(5) , 1)
+        self.assertEqual(t.add(4) , 1)
 
     def testDuplicateInsert(self):
         t = self.t
         t.insert(5)
         self.assertEqual(t.insert(5) , 0)
+        self.assertEqual(t.add(5) , 0)
 
     def testInsert(self):
         t = self.t
@@ -1082,7 +1092,8 @@ class BTreeTests(MappingBase):
         for x in delete_order:
             try: del self.t[x]
             except KeyError:
-                if self.t.has_key(x): self.assertEqual(1,2,"failed to delete %s" % x)
+                if self.t.has_key(x):
+                    self.assertEqual(1,2,"failed to delete %s" % x)
 
     def testRangeSearchAfterSequentialInsert(self):
         r = range(100)
@@ -1562,6 +1573,25 @@ class DegenerateBTree(TestCase):
             # at some unrelated line.
             del t   # trigger destructor
 
+LP294788_ids = {}
+
+class ToBeDeleted(object):
+    def __init__(self, id):
+        assert type(id) is int #we don't want to store any object ref here
+        self.id = id
+
+        global LP294788_ids
+        LP294788_ids[id] = 1
+
+    def __del__(self):
+        global LP294788_ids
+        LP294788_ids.pop(self.id, None)
+
+    def __cmp__(self, other):
+        return cmp(self.id, other.id)
+
+    def __hash__(self):
+        return hash(self.id)
 
 class BugFixes(TestCase):
 
@@ -1574,6 +1604,159 @@ class BugFixes(TestCase):
         self.assertRaises(TypeError, t.keys, "")
         # This one used to segfault.
         self.assertRaises(TypeError, t.keys, 0, "")
+
+    def test_LP294788(self):
+        # https://bugs.launchpad.net/bugs/294788
+        # BTree keeps some deleted objects referenced
+
+        # The logic here together with the ToBeDeleted class is that
+        # a separate reference dict is populated on object creation
+        # and removed in __del__
+        # That means what's left in the reference dict is never GC'ed
+        # therefore referenced somewhere
+        # To simulate real life, some random data is used to exercise the tree
+
+        t = OOBTree()
+
+        trandom = random.Random('OOBTree')
+
+        global LP294788_ids
+
+        # /// BTree keys are integers, value is an object
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if trandom.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = trandom.randint(0,1000000)
+
+                ids[id] = 1
+                t[id] = ToBeDeleted(id)
+            else:
+                #del
+                id = trandom.choice(ids.keys())
+                del t[id]
+                del ids[id]
+
+        ids = ids.keys()
+        trandom.shuffle(ids)
+        for id in ids:
+            del t[id]
+        ids = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
+        # \\\
+
+        # /// BTree keys are integers, value is a tuple having an object
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if trandom.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = trandom.randint(0,1000000)
+
+                ids[id] = 1
+                t[id] = (id, ToBeDeleted(id), u'somename')
+            else:
+                #del
+                id = trandom.choice(ids.keys())
+                del t[id]
+                del ids[id]
+
+        ids = ids.keys()
+        trandom.shuffle(ids)
+        for id in ids:
+            del t[id]
+        ids = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
+        # \\\
+
+
+        # /// BTree keys are objects, value is an int
+        t = OOBTree()
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if trandom.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = ToBeDeleted(trandom.randint(0,1000000))
+
+                ids[id] = 1
+                t[id] = 1
+            else:
+                #del
+                id = trandom.choice(ids.keys())
+                del ids[id]
+                del t[id]
+
+        ids = ids.keys()
+        trandom.shuffle(ids)
+        for id in ids:
+            del t[id]
+        #release all refs
+        ids = obj = id = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
+
+        # /// BTree keys are tuples having objects, value is an int
+        t = OOBTree()
+        LP294788_ids = {}
+        ids = {}
+        for i in xrange(1024):
+            if trandom.random() > 0.1:
+                #add
+                id = None
+                while id is None or id in ids:
+                    id = trandom.randint(0,1000000)
+                    id = (id, ToBeDeleted(id), u'somename')
+
+                ids[id] = 1
+                t[id] = 1
+            else:
+                #del
+                id = trandom.choice(ids.keys())
+                del ids[id]
+                del t[id]
+
+        ids = ids.keys()
+        trandom.shuffle(ids)
+        for id in ids:
+            del t[id]
+        #release all refs
+        ids = id = obj = key = None
+
+        #to be on the safe side run a full GC
+        gc.collect()
+
+        #print LP294788_ids
+
+        self.assertEqual(len(t), 0)
+        self.assertEqual(len(LP294788_ids), 0)
 
 
 class IIBTreeTest(BTreeTests):
@@ -1611,7 +1794,7 @@ if using64bits:
             self.t = OIBTree()
         def getTwoKeys(self):
             return object(), object()
-    
+
 class LLBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
     def setUp(self):
         self.t = LLBTree()
@@ -1776,6 +1959,72 @@ class FamilyTest(TestCase):
         self.failUnless(f1 is family)
         self.failUnless(f2 is family)
 
+class InternalKeysMappingTest(TestCase):
+    """There must not be any internal keys not in the BTree
+    """
+
+    def add_key(self, tree, key):
+        tree[key] = key
+
+    def test_internal_keys_after_deletion(self):
+        """Make sure when a key's deleted, it's not an internal key
+
+        We'll leverage __getstate__ to introspect the internal structures.
+
+        We need to check BTrees with BTree children as well as BTrees
+        with bucket children.
+        """
+
+        from ZODB.MappingStorage import DB
+        db = DB()
+        conn = db.open()
+
+        tree = conn.root.tree = self.t_class()
+        i = 0
+
+        # Grow the btree until we have multiple buckets
+        while 1:
+            i += 1
+            self.add_key(tree, i)
+            data = tree.__getstate__()[0]
+            if len(data) >= 3:
+                break
+
+        transaction.commit()
+
+        # Now, delete the internal key and make sure it's really gone
+        key = data[1]
+        del tree[key]
+        data = tree.__getstate__()[0]
+        self.assert_(data[1] != key)
+
+        # The tree should have changed:
+        self.assert_(tree._p_changed)
+
+        # Grow the btree until we have multiple levels
+        while 1:
+            i += 1
+            self.add_key(tree, i)
+            data = tree.__getstate__()[0]
+            if data[0].__class__ == tree.__class__:
+                assert len(data[2].__getstate__()[0]) >= 3
+                break
+
+        # Now, delete the internal key and make sure it's really gone
+        key = data[1]
+        del tree[key]
+        data = tree.__getstate__()[0]
+        self.assert_(data[1] != key)
+
+        transaction.abort()
+        db.close()
+
+class InternalKeysSetTest:
+    """There must not be any internal keys not in the TreeSet
+    """
+
+    def add_key(self, tree, key):
+        tree.add(key)
 
 def test_suite():
     s = TestSuite()
@@ -1784,13 +2033,27 @@ def test_suite():
                'II', 'IO', 'OI', 'IF',
                'LL', 'LO', 'OL', 'LF',
                ):
-        for name, bases in (('Bucket', (MappingBase,)),
-                            ('TreeSet', (NormalSetTests,)),
-                            ('Set', (ExtendedSetTests,)),
-                            ):
+        for name, bases in (
+            ('BTree', (InternalKeysMappingTest,)),
+            ('TreeSet', (InternalKeysSetTest,)),
+            ):
+            klass = ClassType(kv + name + 'InternalKeyTest', bases,
+                              dict(t_class=globals()[kv+name]))
+            s.addTest(makeSuite(klass))
+
+    for kv in ('OO', 
+               'II', 'IO', 'OI', 'IF',
+               'LL', 'LO', 'OL', 'LF',
+               ):
+        for name, bases in (
+            ('Bucket', (MappingBase,)),
+            ('TreeSet', (NormalSetTests,)),
+            ('Set', (ExtendedSetTests,)),
+            ):
             klass = ClassType(kv + name + 'Test', bases,
                               dict(t_class=globals()[kv+name]))
             s.addTest(makeSuite(klass))
+
     for kv, iface in (
         ('OO', BTrees.Interfaces.IObjectObjectBTreeModule),
         ('IO', BTrees.Interfaces.IIntegerObjectBTreeModule),

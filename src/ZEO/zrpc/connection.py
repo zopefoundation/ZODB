@@ -21,142 +21,20 @@ import logging
 
 import traceback, time
 
+import ZEO.zrpc.trigger
+
 from ZEO.zrpc import smac
 from ZEO.zrpc.error import ZRPCError, DisconnectedError
-from ZEO.zrpc.marshal import Marshaller
-from ZEO.zrpc.trigger import trigger
+from ZEO.zrpc.marshal import Marshaller, ServerMarshaller
 from ZEO.zrpc.log import short_repr, log
 from ZODB.loglevels import BLATHER, TRACE
+import ZODB.POSException
 
 REPLY = ".reply" # message name used for replies
-ASYNC = 1
 
 exception_type_type = type(Exception)
 
-##############################################################################
-# Dedicated Client select loop:
-client_timeout = 30.0
-client_timeout_count = 0 # for testing
-client_map = {}
-client_trigger = trigger(client_map)
-client_logger = logging.getLogger('ZEO.zrpc.client_loop')
-client_exit_event = threading.Event()
-client_running = True
-def client_exit():
-    global client_running
-    client_running = False
-    client_trigger.pull_trigger()
-    client_exit_event.wait()
-
-atexit.register(client_exit)
-
-def client_loop():
-    map = client_map
-
-    read = asyncore.read
-    write = asyncore.write
-    _exception = asyncore._exception
-    loop_failures = 0
-    client_exit_event.clear()
-    global client_running
-    client_running = True
-    
-    while client_running and map:
-        try:
-            
-            # The next two lines intentionally don't use
-            # iterators. Other threads can close dispatchers, causeing
-            # the socket map to shrink.
-            r = e = client_map.keys()
-            w = [fd for (fd, obj) in map.items() if obj.writable()]
-
-            try:
-                r, w, e = select.select(r, w, e, client_timeout)
-            except select.error, err:
-                if err[0] != errno.EINTR:
-                    if err[0] == errno.EBADF:
-
-                        # If a connection is closed while we are
-                        # calling select on it, we can get a bad
-                        # file-descriptor error.  We'll check for this
-                        # case by looking for entries in r and w that
-                        # are not in the socket map.
-
-                        if [fd for fd in r if fd not in map]:
-                            continue
-                        if [fd for fd in w if fd not in map]:
-                            continue
-                        
-                    raise
-                else:
-                    continue
-
-            if not client_running:
-                break
-
-            if not (r or w or e):
-                # The line intentionally doesn't use iterators. Other
-                # threads can close dispatchers, causeing the socket
-                # map to shrink.
-                for obj in map.values():
-                    if isinstance(obj, Connection):
-                        # Send a heartbeat message as a reply to a
-                        # non-existent message id.
-                        try:
-                            obj.send_reply(-1, None)
-                        except DisconnectedError:
-                            pass
-                global client_timeout_count
-                client_timeout_count += 1
-                continue
-
-            for fd in r:
-                obj = map.get(fd)
-                if obj is None:
-                    continue
-                read(obj)
-
-            for fd in w:
-                obj = map.get(fd)
-                if obj is None:
-                    continue
-                write(obj)
-
-            for fd in e:
-                obj = map.get(fd)
-                if obj is None:
-                    continue
-                _exception(obj)
-
-        except:
-            if map:
-                try:
-                    client_logger.critical('The ZEO client loop failed.',
-                                           exc_info=sys.exc_info())
-                except:
-                    pass
-
-                for fd, obj in map.items():
-                    if obj is client_trigger:
-                        continue
-                    try:
-                        obj.mgr.client.close()
-                    except:
-                        map.pop(fd, None)
-                        try:
-                            client_logger.critical(
-                                "Couldn't close a dispatcher.",
-                                exc_info=sys.exc_info())
-                        except:
-                            pass
-
-    client_exit_event.set()
-
-client_thread = threading.Thread(target=client_loop)
-client_thread.setDaemon(True)
-client_thread.start()
-#
-##############################################################################
+debug_zrpc = False
 
 class Delay:
     """Used to delay response to client for synchronous calls.
@@ -166,34 +44,43 @@ class Delay:
     the mainloop from sending a response.
     """
 
-    def set_sender(self, msgid, send_reply, return_error):
+    def set_sender(self, msgid, conn):
         self.msgid = msgid
-        self.send_reply = send_reply
-        self.return_error = return_error
+        self.conn = conn
 
     def reply(self, obj):
-        self.send_reply(self.msgid, obj)
+        self.conn.send_reply(self.msgid, obj)
 
     def error(self, exc_info):
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
-        self.return_error(self.msgid, 0, *exc_info[:2])
+        self.conn.return_error(self.msgid, *exc_info[:2])
+
+class Result(Delay):
+
+    def __init__(self, *args):
+        self.args = args
+
+    def set_sender(self, msgid, conn):
+        reply, callback = self.args
+        conn.send_reply(msgid, reply, False)
+        callback()
 
 class MTDelay(Delay):
 
     def __init__(self):
         self.ready = threading.Event()
 
-    def set_sender(self, msgid, send_reply, return_error):
-        Delay.set_sender(self, msgid, send_reply, return_error)
+    def set_sender(self, *args):
+        Delay.set_sender(self, *args)
         self.ready.set()
 
     def reply(self, obj):
         self.ready.wait()
-        Delay.reply(self, obj)
+        self.conn.call_from_thread(self.conn.send_reply, self.msgid, obj)
 
     def error(self, exc_info):
         self.ready.wait()
-        Delay.error(self, exc_info)
+        self.conn.call_from_thread(Delay.error, self, exc_info)
 
 # PROTOCOL NEGOTIATION
 #
@@ -290,9 +177,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     client for that particular call.
 
     The protocol also supports asynchronous calls.  The client does
-    not wait for a return value for an asynchronous call.  The only
-    defined flag is ASYNC.  If a method call message has the ASYNC
-    flag set, the server will raise an exception.
+    not wait for a return value for an asynchronous call.
 
     If a method call raises an Exception, the exception is propagated
     back to the client via the REPLY message.  The client side will
@@ -343,18 +228,25 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             restorea, iterator_start, iterator_next,
     #             iterator_record_start, iterator_record_next,
     #             iterator_gc
-    
+    #
+    # Z310 -- named after the ZODB release 3.10
+    #         New server methods:
+    #             undoa
+    #         Doesn't support undo for older clients.
+    #         Undone oid info returned by vote.
+
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z309"
+    current_protocol = "Z310"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
-    servers_we_can_talk_to = ["Z308", current_protocol]
+    servers_we_can_talk_to = ["Z308", "Z309", current_protocol]
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
-    clients_we_can_talk_to = ["Z200", "Z201", "Z303", "Z308", current_protocol]
+    clients_we_can_talk_to = [
+        "Z200", "Z201", "Z303", "Z308", "Z309", current_protocol]
 
     # This is pretty excruciating.  Details:
     #
@@ -376,6 +268,9 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #     Z303 is in the client's servers_we_can_talk_to, so client
     #         sends Z303 to server
     #     OK, because Z303 is in the server's clients_we_can_talk_to
+
+    # Exception types that should not be logged:
+    unlogged_exception_types = ()
 
     # Client constructor passes 'C' for tag, server constructor 'S'.  This
     # is used in log messages, and to determine whether we can speak with
@@ -410,15 +305,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # needs to call into asyncore to try to force some I/O to occur.
         # The singleton dict is a socket map containing only this object.
         self._singleton = {self._fileno: self}
-
-        # msgid_lock guards access to msgid
-        self.msgid = 0
-        self.msgid_lock = threading.Lock()
-
-        # replies_cond is used to block when a synchronous call is
-        # waiting for a response
-        self.replies_cond = threading.Condition()
-        self.replies = {}
 
         # waiting_for_reply is used internally to indicate whether
         # a call is in progress.  setting a session key is deferred
@@ -471,9 +357,6 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.closed = True
         self.__super_close()
         self.trigger.pull_trigger()
-        self.replies_cond.acquire()
-        self.replies_cond.notifyAll()
-        self.replies_cond.release()
 
     def register_object(self, obj):
         """Register obj as the true object to invoke methods on."""
@@ -520,42 +403,32 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # will raise an exception.  The exception will ultimately
         # result in asycnore calling handle_error(), which will
         # close the connection.
-        msgid, flags, name, args = self.marshal.decode(message)
+        msgid, async, name, args = self.marshal.decode(message)
 
-        if __debug__:
-            self.log("recv msg: %s, %s, %s, %s" % (msgid, flags, name,
+        if debug_zrpc:
+            self.log("recv msg: %s, %s, %s, %s" % (msgid, async, name,
                                                    short_repr(args)),
                      level=TRACE)
         if name == REPLY:
-            self.handle_reply(msgid, flags, args)
+            assert not async
+            self.handle_reply(msgid, args)
         else:
-            self.handle_request(msgid, flags, name, args)
+            self.handle_request(msgid, async, name, args)
 
-    def handle_reply(self, msgid, flags, args):
-        if __debug__:
-            self.log("recv reply: %s, %s, %s"
-                     % (msgid, flags, short_repr(args)), level=TRACE)
-        self.replies_cond.acquire()
-        try:
-            self.replies[msgid] = flags, args
-            self.replies_cond.notifyAll()
-        finally:
-            self.replies_cond.release()
-
-    def handle_request(self, msgid, flags, name, args):
+    def handle_request(self, msgid, async, name, args):
         obj = self.obj
-        
+
         if name.startswith('_') or not hasattr(obj, name):
             if obj is None:
-                if __debug__:
+                if debug_zrpc:
                     self.log("no object calling %s%s"
                              % (name, short_repr(args)),
                              level=logging.DEBUG)
                 return
-                
+
             msg = "Invalid method name: %s on %s" % (name, repr(obj))
             raise ZRPCError(msg)
-        if __debug__:
+        if debug_zrpc:
             self.log("calling %s%s" % (name, short_repr(args)),
                      level=logging.DEBUG)
 
@@ -569,57 +442,39 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, msg:
-            self.log("%s() raised exception: %s" % (name, msg), logging.INFO,
-                     exc_info=True)
+            if not isinstance(msg, self.unlogged_exception_types):
+                self.log("%s() raised exception: %s" % (name, msg),
+                         logging.ERROR, exc_info=True)
             error = sys.exc_info()[:2]
-            return self.return_error(msgid, flags, *error)
+            if async:
+                self.log("Asynchronous call raised exception: %s" % self,
+                         level=logging.ERROR, exc_info=True)
+            else:
+                self.return_error(msgid, *error)
+            return
 
-        if flags & ASYNC:
+        if async:
             if ret is not None:
                 raise ZRPCError("async method %s returned value %s" %
                                 (name, short_repr(ret)))
         else:
-            if __debug__:
+            if debug_zrpc:
                 self.log("%s returns %s" % (name, short_repr(ret)),
                          logging.DEBUG)
             if isinstance(ret, Delay):
-                ret.set_sender(msgid, self.send_reply, self.return_error)
+                ret.set_sender(msgid, self)
             else:
-                self.send_reply(msgid, ret)
+                self.send_reply(msgid, ret, not self.delay_sesskey)
 
         if self.delay_sesskey:
             self.__super_setSessionKey(self.delay_sesskey)
             self.delay_sesskey = None
 
-    def handle_error(self):
-        if sys.exc_info()[0] == SystemExit:
-            raise sys.exc_info()
-        self.log("Error caught in asyncore",
-                 level=logging.ERROR, exc_info=True)
-        self.close()
+    def return_error(self, msgid, err_type, err_value):
+        # Note that, ideally, this should be defined soley for
+        # servers, but a test arranges to get it called on
+        # a client. Too much trouble to fix it now. :/
 
-    def send_reply(self, msgid, ret):
-        # encode() can pass on a wide variety of exceptions from cPickle.
-        # While a bare `except` is generally poor practice, in this case
-        # it's acceptable -- we really do want to catch every exception
-        # cPickle may raise.
-        try:
-            msg = self.marshal.encode(msgid, 0, REPLY, ret)
-        except: # see above
-            try:
-                r = short_repr(ret)
-            except:
-                r = "<unreprable>"
-            err = ZRPCError("Couldn't pickle return %.100s" % r)
-            msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
-        self.message_output(msg)
-        self.poll()
-
-    def return_error(self, msgid, flags, err_type, err_value):
-        if flags & ASYNC:
-            self.log("Asynchronous call raised exception: %s" % self,
-                     level=logging.ERROR, exc_info=True)
-            return
         if not isinstance(err_value, Exception):
             err_value = err_type, err_value
 
@@ -639,79 +494,37 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         self.message_output(msg)
         self.poll()
 
+    def handle_error(self):
+        if sys.exc_info()[0] == SystemExit:
+            raise sys.exc_info()
+        self.log("Error caught in asyncore",
+                 level=logging.ERROR, exc_info=True)
+        self.close()
+
     def setSessionKey(self, key):
         if self.waiting_for_reply:
             self.delay_sesskey = key
         else:
             self.__super_setSessionKey(key)
 
-    # The next two public methods (call and callAsync) are used by
-    # clients to invoke methods on remote objects
-
-    def __new_msgid(self):
-        self.msgid_lock.acquire()
-        try:
-            msgid = self.msgid
-            self.msgid = self.msgid + 1
-            return msgid
-        finally:
-            self.msgid_lock.release()
-
-    def __call_message(self, method, args, flags):
-        # compute a message and return it
-        msgid = self.__new_msgid()
-        if __debug__:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
-                     level=TRACE)
-        return self.marshal.encode(msgid, flags, method, args)
-
-    def send_call(self, method, args, flags):
+    def send_call(self, method, args, async=False):
         # send a message and return its msgid
-        msgid = self.__new_msgid()
-        if __debug__:
-            self.log("send msg: %d, %d, %s, ..." % (msgid, flags, method),
+        if async:
+            msgid = 0
+        else:
+            msgid = self._new_msgid()
+
+        if debug_zrpc:
+            self.log("send msg: %d, %d, %s, ..." % (msgid, async, method),
                      level=TRACE)
-        buf = self.marshal.encode(msgid, flags, method, args)
+        buf = self.marshal.encode(msgid, async, method, args)
         self.message_output(buf)
         return msgid
-
-    def call(self, method, *args):
-        if self.closed:
-            raise DisconnectedError()
-        msgid = self.send_call(method, args, 0)
-        r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, tuple) and len(r_args) > 1
-            and type(r_args[0]) == exception_type_type
-            and issubclass(r_args[0], Exception)):
-            inst = r_args[1]
-            raise inst # error raised by server
-        else:
-            return r_args
-
-    # For testing purposes, it is useful to begin a synchronous call
-    # but not block waiting for its response.
-
-    def _deferred_call(self, method, *args):
-        if self.closed:
-            raise DisconnectedError()
-        msgid = self.send_call(method, args, 0)
-        self.trigger.pull_trigger()
-        return msgid
-
-    def _deferred_wait(self, msgid):
-        r_flags, r_args = self.wait(msgid)
-        if (isinstance(r_args, tuple)
-            and type(r_args[0]) == exception_type_type
-            and issubclass(r_args[0], Exception)):
-            inst = r_args[1]
-            raise inst # error raised by server
-        else:
-            return r_args
 
     def callAsync(self, method, *args):
         if self.closed:
             raise DisconnectedError()
-        self.send_call(method, args, ASYNC)
+        self.send_call(method, args, 1)
         self.poll()
 
     def callAsyncNoPoll(self, method, *args):
@@ -720,7 +533,16 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         # allowing any client to sneak in a load request.
         if self.closed:
             raise DisconnectedError()
-        self.send_call(method, args, ASYNC)
+        self.send_call(method, args, 1)
+
+    def callAsyncNoSend(self, method, *args):
+        # Like CallAsync but doesn't poll.  This exists so that we can
+        # send invalidations atomically to all clients without
+        # allowing any client to sneak in a load request.
+        if self.closed:
+            raise DisconnectedError()
+        self.send_call(method, args, 1)
+        self.call_from_thread()
 
     def callAsyncIterator(self, iterator):
         """Queue a sequence of calls using an iterator
@@ -728,64 +550,36 @@ class Connection(smac.SizedMessageAsyncConnection, object):
         The calls will not be interleaved with other calls from the same
         client.
         """
-        self.message_output(self.__outputIterator(iterator))
+        self.message_output(self.marshal.encode(0, 1, method, args)
+                            for method, args in iterator)
 
-    def __outputIterator(self, iterator):
-        for method, args in iterator:
-            yield self.__call_message(method, args, ASYNC)
-
-
-    def wait(self, msgid):
-        """Invoke asyncore mainloop and wait for reply."""
-        if __debug__:
-            self.log("wait(%d)" % msgid, level=TRACE)
-
-        self.trigger.pull_trigger()
-
-        # Delay used when we call asyncore.poll() directly.
-        # Start with a 1 msec delay, double until 1 sec.
-        delay = 0.001
-
-        self.replies_cond.acquire()
-        try:
-            while 1:
-                if self.closed:
-                    raise DisconnectedError()
-                reply = self.replies.get(msgid)
-                if reply is not None:
-                    del self.replies[msgid]
-                    if __debug__:
-                        self.log("wait(%d): reply=%s" %
-                                 (msgid, short_repr(reply)), level=TRACE)
-                    return reply
-                self.replies_cond.wait()
-        finally:
-            self.replies_cond.release()
-
-    def flush(self):
-        """Invoke poll() until the output buffer is empty."""
-        if __debug__:
-            self.log("flush")
-        while self.writable():
-            self.poll()
+    def handle_reply(self, msgid, ret):
+        assert msgid == -1 and ret is None
 
     def poll(self):
         """Invoke asyncore mainloop to get pending message out."""
-        if __debug__:
+        if debug_zrpc:
             self.log("poll()", level=TRACE)
         self.trigger.pull_trigger()
 
 
-        
 class ManagedServerConnection(Connection):
     """Server-side Connection subclass."""
 
-    # Servers use a shared server trigger that uses the asyncore socket map
-    trigger = trigger()
+    # Exception types that should not be logged:
+    unlogged_exception_types = (ZODB.POSException.POSKeyError, )
 
     def __init__(self, sock, addr, obj, mgr):
         self.mgr = mgr
-        Connection.__init__(self, sock, addr, obj, 'S')
+        map = {}
+        Connection.__init__(self, sock, addr, obj, 'S', map=map)
+        self.marshal = ServerMarshaller()
+        self.trigger = ZEO.zrpc.trigger.trigger(map)
+        self.call_from_thread = self.trigger.pull_trigger
+
+        t = threading.Thread(target=server_loop, args=(map,))
+        t.setDaemon(True)
+        t.start()
 
     def handshake(self):
         # Send the server's preferred protocol to the client.
@@ -799,13 +593,37 @@ class ManagedServerConnection(Connection):
         self.obj.notifyDisconnected()
         Connection.close(self)
 
+    def send_reply(self, msgid, ret, immediately=True):
+        # encode() can pass on a wide variety of exceptions from cPickle.
+        # While a bare `except` is generally poor practice, in this case
+        # it's acceptable -- we really do want to catch every exception
+        # cPickle may raise.
+        try:
+            msg = self.marshal.encode(msgid, 0, REPLY, ret)
+        except: # see above
+            try:
+                r = short_repr(ret)
+            except:
+                r = "<unreprable>"
+            err = ZRPCError("Couldn't pickle return %.100s" % r)
+            msg = self.marshal.encode(msgid, 0, REPLY, (ZRPCError, err))
+        self.message_output(msg)
+        if immediately:
+            self.poll()
+
+    poll = smac.SizedMessageAsyncConnection.handle_write
+
+def server_loop(map):
+    while len(map) > 1:
+        asyncore.poll(30.0, map)
+
+    for o in map.values():
+        o.close()
+
 class ManagedClientConnection(Connection):
     """Client-side Connection subclass."""
     __super_init = Connection.__init__
-    __super_close = Connection.close
     base_message_output = Connection.message_output
-
-    trigger = client_trigger
 
     def __init__(self, sock, addr, mgr):
         self.mgr = mgr
@@ -824,8 +642,25 @@ class ManagedClientConnection(Connection):
         self.queue_output = True
         self.queued_messages = []
 
-        self.__super_init(sock, addr, None, tag='C', map=client_map)
-        client_trigger.pull_trigger()
+        # msgid_lock guards access to msgid
+        self.msgid = 0
+        self.msgid_lock = threading.Lock()
+
+        # replies_cond is used to block when a synchronous call is
+        # waiting for a response
+        self.replies_cond = threading.Condition()
+        self.replies = {}
+
+        self.__super_init(sock, addr, None, tag='C', map=mgr.map)
+        self.trigger = mgr.trigger
+        self.call_from_thread = self.trigger.pull_trigger
+        self.call_from_thread()
+
+    def close(self):
+        Connection.close(self)
+        self.replies_cond.acquire()
+        self.replies_cond.notifyAll()
+        self.replies_cond.release()
 
     # Our message_ouput() queues messages until recv_handshake() gets the
     # protocol handshake from the server.
@@ -868,3 +703,84 @@ class ManagedClientConnection(Connection):
             self.queue_output = False
         finally:
             self.output_lock.release()
+
+    def _new_msgid(self):
+        self.msgid_lock.acquire()
+        try:
+            msgid = self.msgid
+            self.msgid = self.msgid + 1
+            return msgid
+        finally:
+            self.msgid_lock.release()
+
+    def call(self, method, *args):
+        if self.closed:
+            raise DisconnectedError()
+        msgid = self.send_call(method, args)
+        r_args = self.wait(msgid)
+        if (isinstance(r_args, tuple) and len(r_args) > 1
+            and type(r_args[0]) == exception_type_type
+            and issubclass(r_args[0], Exception)):
+            inst = r_args[1]
+            raise inst # error raised by server
+        else:
+            return r_args
+
+    def wait(self, msgid):
+        """Invoke asyncore mainloop and wait for reply."""
+        if debug_zrpc:
+            self.log("wait(%d)" % msgid, level=TRACE)
+
+        self.trigger.pull_trigger()
+
+        self.replies_cond.acquire()
+        try:
+            while 1:
+                if self.closed:
+                    raise DisconnectedError()
+                reply = self.replies.get(msgid, self)
+                if reply is not self:
+                    del self.replies[msgid]
+                    if debug_zrpc:
+                        self.log("wait(%d): reply=%s" %
+                                 (msgid, short_repr(reply)), level=TRACE)
+                    return reply
+                self.replies_cond.wait()
+        finally:
+            self.replies_cond.release()
+
+    # For testing purposes, it is useful to begin a synchronous call
+    # but not block waiting for its response.
+
+    def _deferred_call(self, method, *args):
+        if self.closed:
+            raise DisconnectedError()
+        msgid = self.send_call(method, args)
+        self.trigger.pull_trigger()
+        return msgid
+
+    def _deferred_wait(self, msgid):
+        r_args = self.wait(msgid)
+        if (isinstance(r_args, tuple)
+            and type(r_args[0]) == exception_type_type
+            and issubclass(r_args[0], Exception)):
+            inst = r_args[1]
+            raise inst # error raised by server
+        else:
+            return r_args
+
+    def handle_reply(self, msgid, args):
+        if debug_zrpc:
+            self.log("recv reply: %s, %s"
+                     % (msgid, short_repr(args)), level=TRACE)
+        self.replies_cond.acquire()
+        try:
+            self.replies[msgid] = args
+            self.replies_cond.notifyAll()
+        finally:
+            self.replies_cond.release()
+
+    def send_reply(self, msgid, ret):
+        # Whimper. Used to send heartbeat
+        assert msgid == -1 and ret is None
+        self.message_output('(J\xff\xff\xff\xffK\x00U\x06.replyNt.')

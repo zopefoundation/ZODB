@@ -181,7 +181,7 @@ Now get a `ZConfig` factory from `config2`:
 
 The desired ``databases`` mapping can be passed to this factory:
 
-    >>> db2 = factory.open(databases=db.databases)
+    >>> db2 = factory[0].open(databases=db.databases)
     >>> print db2.database_name   # has the right name
     another_name
     >>> db.databases is db2.databases # shares .databases with `db`

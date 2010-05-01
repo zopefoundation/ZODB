@@ -11,9 +11,7 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Open database and storage from a configuration.
-
-$Id$"""
+"""Open database and storage from a configuration."""
 
 import os
 from cStringIO import StringIO
@@ -51,8 +49,15 @@ def databaseFromURL(url):
     config, handler = ZConfig.loadConfig(getDbSchema(), url)
     return databaseFromConfig(config.database)
 
-def databaseFromConfig(section):
-    return section.open()
+def databaseFromConfig(database_factories):
+    databases = {}
+    first = None
+    for factory in database_factories:
+        db = factory.open(databases)
+        if first is None:
+            first = db
+
+    return first
 
 def storageFromString(s):
     return storageFromFile(StringIO(s))
@@ -94,6 +99,18 @@ class ZODBDatabase(BaseConfig):
     def open(self, databases=None):
         section = self.config
         storage = section.storage.open()
+        options = {}
+
+        def _option(name, oname=None):
+            v = getattr(section, name)
+            if v is not None:
+                if oname is None:
+                    oname = name
+                options[oname] = v
+
+        _option('pool_timeout')
+        _option('allow_implicit_cross_references', 'xrefs')
+
         try:
             return ZODB.DB(
                 storage,
@@ -104,9 +121,9 @@ class ZODBDatabase(BaseConfig):
                 historical_cache_size=section.historical_cache_size,
                 historical_cache_size_bytes=section.historical_cache_size_bytes,
                 historical_timeout=section.historical_timeout,
-                database_name=section.database_name,
+                database_name=section.database_name or self.name or '',
                 databases=databases,
-                )
+                **options)
         except:
             storage.close()
             raise
@@ -129,7 +146,7 @@ class DemoStorage(BaseConfig):
                     base = factory.open()
                 else:
                     raise ValueError("Too many base storages defined!")
-        
+
         from ZODB.DemoStorage import DemoStorage
         return DemoStorage(self.config.name, base=base, changes=changes)
 
@@ -137,17 +154,19 @@ class FileStorage(BaseConfig):
 
     def open(self):
         from ZODB.FileStorage import FileStorage
+        config = self.config
         options = {}
-        if self.config.packer:
-            m, name = self.config.packer.rsplit('.', 1)
+        if getattr(config, 'packer', None):
+            m, name = config.packer.rsplit('.', 1)
             options['packer'] = getattr(__import__(m, {}, {}, ['*']), name)
-            
-        return FileStorage(self.config.path,
-                           create=self.config.create,
-                           read_only=self.config.read_only,
-                           quota=self.config.quota,
-                           pack_gc=self.config.pack_gc,
-                           **options)
+
+        for name in ('blob_dir', 'create', 'read_only', 'quota', 'pack_gc',
+                     'pack_keep_old'):
+            v = getattr(config, name, self)
+            if v is not self:
+                options[name] = v
+
+        return FileStorage(config.path, **options)
 
 class BlobStorage(BaseConfig):
 
@@ -169,7 +188,7 @@ class ZEOClient(BaseConfig):
             options['blob_cache_size'] = self.config.blob_cache_size
         if self.config.blob_cache_size_check is not None:
             options['blob_cache_size_check'] = self.config.blob_cache_size_check
-                    
+
         return ClientStorage(
             L,
             blob_dir=self.config.blob_dir,

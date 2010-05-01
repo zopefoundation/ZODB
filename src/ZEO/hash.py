@@ -1,7 +1,6 @@
-#!/usr/bin/env python2.3
 ##############################################################################
 #
-# Copyright (c) 2005 Zope Corporation and Contributors.
+# Copyright (c) 2008 Zope Corporation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -9,11 +8,22 @@
 # THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE
+# FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
 
-"""Wrapper script for zdctl.py that causes it to use the ZEO schema."""
+"""In Python 2.6, the "sha" and "md5" modules have been deprecated
+in favor of using hashlib for both. This class allows for compatibility
+between versions."""
 
-from ZEO.zeoctl import main
-main()
+import sys
+
+try:
+    import hashlib
+    sha1 = hashlib.sha1
+    new = sha1
+except ImportError:
+    import sha
+    sha1 = sha.new
+    new = sha1
+    digest_size = sha.digest_size

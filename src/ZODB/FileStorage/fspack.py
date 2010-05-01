@@ -219,7 +219,11 @@ class GC(FileStorageFormatter):
             while pos < end:
                 dh = self._read_data_header(pos)
                 self.checkData(th, tpos, dh, pos)
-                self.oid2curpos[dh.oid] = pos
+                if dh.plen or dh.back:
+                    self.oid2curpos[dh.oid] = pos
+                else:
+                    if dh.oid in self.oid2curpos:
+                        del self.oid2curpos[dh.oid]
                 pos += dh.recordlen()
 
             tlen = self._read_num(pos)
@@ -251,26 +255,27 @@ class GC(FileStorageFormatter):
 
     def findReachableAtPacktime(self, roots):
         """Mark all objects reachable from the oids in roots as reachable."""
+        reachable = self.reachable
+        oid2curpos = self.oid2curpos
+
         todo = list(roots)
         while todo:
             oid = todo.pop()
-            if self.reachable.has_key(oid):
+            if oid in reachable:
                 continue
 
-            L = []
+            try:
+                pos = oid2curpos[oid]
+            except KeyError:
+                if oid == z64 and len(oid2curpos) == 0:
+                    # special case, pack to before creation time
+                    continue
+                raise
 
-            pos = self.oid2curpos.get(oid)
-            if pos is not None:
-                L.append(pos)
-                todo.extend(self.findrefs(pos))
-
-            if not L:
-                continue
-
-            pos = L.pop()
-            self.reachable[oid] = pos
-            if L:
-                self.reach_ex[oid] = L
+            reachable[oid] = pos
+            for oid in self.findrefs(pos):
+                if oid not in reachable:
+                    todo.append(oid)
 
     def findReachableFromFuture(self):
         # In this pass, the roots are positions of object revisions.
@@ -342,7 +347,7 @@ class FileStoragePacker(FileStorageFormatter):
                 os.path.join(storage.blob_dir, '.removed'), 'w')
         else:
             self.pack_blobs = False
-            
+
         path = storage._file.name
         self._name = path
         # We open our own handle on the storage so that much of pack can
@@ -500,12 +505,22 @@ class FileStoragePacker(FileStorageFormatter):
                     if data and ZODB.blob.is_blob_record(data):
                         # We need to remove the blob record. Maybe we
                         # need to remove oid:
-                        if h.oid not in self.gc.reachable:
-                            self.blob_removed.write(h.oid.encode('hex')+'\n')
-                        else:
-                            self.blob_removed.write(
-                                (h.oid+h.tid).encode('hex')+'\n')
-                
+
+                        # But first, we need to make sure the record
+                        # we're looking at isn't a dup of the current
+                        # record. There's a bug in ZEO blob support that causes
+                        # duplicate data records.
+                        rpos = self.gc.reachable.get(h.oid)
+                        is_dup = (rpos
+                                  and self._read_data_header(rpos).tid == h.tid)
+                        if not is_dup:
+                            if h.oid not in self.gc.reachable:
+                                self.blob_removed.write(
+                                    h.oid.encode('hex')+'\n')
+                            else:
+                                self.blob_removed.write(
+                                    (h.oid+h.tid).encode('hex')+'\n')
+
                 pos += h.recordlen()
                 continue
 

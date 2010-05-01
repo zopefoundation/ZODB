@@ -2,11 +2,217 @@
  Change History
 ================
 
-3.9.0 (2008-??-??)
-====================
+3.10.0a2 (2010-??-??)
+=====================
 
 New Features
 ------------
+
+- Added a '--kill-old-on-full' argument to the backup options:  if passed,
+  remove any older full or incremental backup files from the repository after
+  doing a full backup. (https://bugs.launchpad.net/zope2/+bug/143158)
+
+- When transactions are aborted, new object ids allocated during the
+  transaction are saved and used in subsequent transactions. This can
+  help in situations where object ids are used as BTree keys and the
+  sequential allocation of object ids leads to conflict errors.
+
+- The mkzeoinst script has been moved to a separate project:
+
+    http://pypi.python.org/pypi/zope.mkzeoinstance
+
+  and is no-longer included with ZODB.
+
+Bugs Fixed
+----------
+
+- Fixed bug in cPickleCache's byte size estimation logic.
+  (https://bugs.launchpad.net/zodb/+bug/533015)
+
+- Fixed a serious bug that caused cache failures when run
+  with Python optimization turned on.
+
+  https://bugs.launchpad.net/zodb/+bug/544305
+
+- When using using a ClientStorage in a Storage server, there was a
+  threading bug that caused clients to get disconnected.
+
+- Fixed a bug that caused savepoint rollback to not properly
+  set object state when objects implemented _p_invalidate methods
+  that reloaded ther state (unghostifiable objects).
+
+  https://bugs.launchpad.net/zodb/+bug/428039
+
+- cross-database wekrefs weren't handled correctly.
+
+  https://bugs.launchpad.net/zodb/+bug/435547
+
+3.10.0a1 (2010-02-08)
+=====================
+
+New Features
+------------
+
+- There are a number of performance enhancements for ZEO storage
+  servers.
+
+- FileStorage indexes use a new format. They are saved and loaded much
+  faster and take less space. Old indexes can still be read, but new
+  indexes won't be readable by older versions of ZODB.
+
+- The API for undoing multiple transactions has changed.  To undo
+  multiple transactions in a single transaction, pass a list of
+  transaction identifiers to a database's undoMultiple method. Calling a
+  database's undo method multiple times in the same transaction now
+  raises an exception.
+
+- The ZEO protocol for undo has changed.  The only user-visible
+  consequence of this is that when ZODB 3.10 ZEO servers won't support
+  undo for older clients.
+
+- The storage API (IStorage) has been tightened. Now, storages should
+  raise a StorageTransactionError when invalid transactions are passed
+  to tpc_begin, tpc_vote, or tpc_finish.
+
+- ZEO clients (``ClientStorage`` instances) now work in forked processes,
+  including those created via ``multiprocessing.Process`` instances.
+
+- Broken objects now provide the IBroken interface.
+
+- As a convenience, you can now pass an integer port as an address to
+  the ZEO ClientStorage constructor.
+
+- As a convenience, there's a new ``client`` function in the ZEO
+  package for constructing a ClientStorage instance.  It takes the
+  same arguments as the ClientStorage constructor.
+
+Bugs Fixed
+----------
+
+- Object state management wasn't dome correctly when classes
+  implemented custom _p_deavtivate methods.
+  (https://bugs.launchpad.net/zodb/+bug/185066)
+
+3.9.4 (2009-12-14)
+==================
+
+Bugs Fixed
+----------
+
+- A ZEO threading bug could cause transactions to read inconsistent
+  data.  (This sometimes caused an AssertionError in
+  Connection._setstate_noncurrent.)
+
+- DemoStorage.loadBefore sometimes returned invalid data which
+  would trigger AssertionErrors in ZODB.Connection.
+
+- History support was broken when using stprages that work with ZODB
+  3.8 and 3.9.
+
+- zope.testing was an unnecessary non-testing dependency.
+
+- Internal ZEO errors were logged at the INFO level, rather
+  than at the error level.
+
+- The FileStorage backup and restore script, repozo, gave a
+  deprecation warning under Python 2.6.
+
+- C Header files weren't installed correctly.
+
+- The undo implementation was incorrect in ways that could cause
+  subtle missbehaviors.
+
+3.9.3 (2009-10-23)
+==================
+
+Bugs Fixed
+----------
+
+- 2 BTree bugs, introduced by a bug fix in 3.9.0c2, sometimes caused
+  deletion of keys to be improperly handled, resulting in data being
+  available via iteraation but not item access.
+
+3.9.2 (2009-10-13)
+==================
+
+Bugs Fixed
+----------
+
+- ZEO manages a separate thread for client network IO.  It created
+  this thread on import, which caused problems for applications that
+  implemented daemon behavior by forking.  Now, the client thread
+  isn't created until needed.
+
+- File-storage pack clean-up tasks that can take a long time
+  unnecessarily blocked other activity.
+
+- In certain rare situations, ZEO client connections would hang during
+  the initial connection setup.
+
+3.9.1 (2009-10-01)
+==================
+
+Bugs Fixed
+----------
+
+- Conflict errors committing blobs caused ZEO servers to stop committing
+  transactions.
+
+3.9.0 (2009-09-08)
+==================
+
+New Features (in more or less reverse chronological order)
+----------------------------------------------------------
+
+- The Database class now has an ``xrefs`` keyword argument and a
+  corresponding allow-implicit-cross-references configuration option.
+  which default to true.  When set to false, cross-database references
+  are disallowed.
+
+- Added support for RelStorage.
+
+- As a convenience, the connection root method for returning the root
+  object can now *also* be used as an object with attributes mapped to
+  the root-object keys.
+
+- Databases have a new method, ``transaction``, that can be used with the
+  Python (2.5 and later) ``with`` statement::
+
+     db = ZODB.DB(...)
+     with db.transaction() as conn:
+          # ... do stuff with conn
+
+  This uses a private transaction manager for the connection.
+  If control exits the block without an error, the transaction is
+  committed, otherwise, it is aborted.
+
+- Convenience functions ZODB.connection and ZEO.connection provide a
+  convenient way to open a connection to a database.  They open a
+  database and return a connection to it. When the connection is
+  closed, the database is closed as well.
+
+- The ZODB.config databaseFrom... methods now support
+  multi-databases. If multiple zodb sections are used to define
+  multiple databases, the databases are connected in a multi-database
+  arrangement and the first of the defined databases is returned.
+
+- The zeopack script has gotten a number of improvements:
+
+  - Simplified command-line interface. (The old interface is still
+    supported, except that support for ZEO version 1 servers has been
+    dropped.)
+
+  - Multiple storages can be packed in sequence.
+
+    - This simplifies pack scheduling on servers serving multiple
+      databases.
+
+    - All storages are packed to the same time.
+
+  - You can now specify a time of day to pack to.
+
+  - The script will now time out if it can't connect to s storage in
+    60 seconds.
 
 - The connection now estimates the object size based on its pickle size
   and informs the cache about size changes.
@@ -19,14 +225,52 @@ New Features
   There are corresponding methods to read and set the new configuration
   parameters.
 
-  XXX There are known issues with this implementation that need to be
-  sorted out before it is "released".
+- Connections now have a public ``opened`` attribute that is true when
+  the connection is open, and false otherwise.  When true, it is the
+  seconds since the epoch (time.time()) when the connection was
+  opened. This is a renaming of the previous ``_opened`` private
+  variable.
 
-3.9.0a7 (2008-12-05)
-====================
+- FileStorage now supports blobs directly.
 
-New Features
-------------
+- You can now control whether FileStorages keep .old files when packing.
+
+- POSKeyErrors are no longer logged by ZEO servers, because they are
+  really client errors.
+
+- A new storage interface, IExternalGC, to support external garbage
+  collection, http://wiki.zope.org/ZODB/ExternalGC, has been defined
+  and implemented for FileStorage and ClientStorage.
+
+- As a small convenience (mainly for tests), you can now specify
+  initial data as a string argument to the Blob constructor.
+
+- ZEO Servers now provide an option, invalidation-age, that allows
+  quick verification of ZEO clients have been disconnected for less
+  than a given time even if the number of transactions the client
+  hasn't seen exceeds the invalidation queue size. This is only
+  recommended if the storage being served supports efficient iteration
+  from a point near the end of the transaction history.
+
+- The FileStorage iterator now handles large files better.  When
+  iterating from a starting transaction near the end of the file, the
+  iterator will scan backward from the end of the file to find the
+  starting point.  This enhancement makes it practical to take
+  advantage of the new storage server invalidation-age option.
+
+- Previously, database connections were managed as a stack.  This
+  tended to cause the same connection(s) to be used over and over.
+  For example, the most used connection would typically be the only
+  connection used.  In some rare situations, extra connections could
+  be opened and end up on the top of the stack, causing extreme memory
+  wastage.  Now, when connections are placed on the stack, they sink
+  below existing connections that have more active objects.
+
+- There is a new pool-timeout database configuration option to specify that
+  connections unused after the given time interval should be garbage
+  collection.  This will provide a means of dealing with extra
+  connections that are created in rare circumstances and that would
+  consume an unreasonable amount of memory.
 
 - The Blob open method now supports a new mode, 'c', to open committed
   data for reading as an ordinary file, rather than as a blob file.
@@ -35,38 +279,13 @@ New Features
 
 - ClientStorage now provides blob cache management. When using
   non-shared blob directories, you can set a target cache size and the
-  cache will periodically be reduced to the target size.
+  cache will periodically be reduced try to keep it below the target size.
 
   The client blob directory layout has changed.  If you have existing
-  non-shared blob directories, you will have to remove them. 
+  non-shared blob directories, you will have to remove them.
 
-Bugs Fixed
-----------
-
-- Starting ClientStorages sometimes failed with non-new but empty
-  cache files.
-
-3.9.0a6 (2008-11-30)
-====================
-
-New Features
-------------
-
-- ZODB 3.9 ZEO clients can connect to ZODB 3.8 servers.
-
-Bug Fixes
----------
-
-- ZODB 3.8 clients couldn't talk to  ZODB 3.9 servers.
-
-- The history method on ZEO clients failed.
-
-
-3.9.0a5 (2008-11-21)
-====================
-
-New Features
-------------
+- ZODB 3.9 ZEO clients can connect to ZODB 3.8 servers.  ZODB ZEO clients
+  from ZODB 3.2 on can connect to ZODB 3.9 servers.
 
 - When a ZEO cache is stale and would need verification, a
   ZEO.interfaces.StaleCache event is published (to zope.event).
@@ -78,42 +297,13 @@ New Features
   you would otherwise pass to ZEO.ClientStorage.ClientStorage::
 
     import ZEO
-    db = ZEO.DB(('some_host', 8200)) 
+    db = ZEO.DB(('some_host', 8200))
 
 - Object saves are a little faster
 
-- The previous (ZODB 3.8) ZEO client-cache format is supported.
-  The newer cache format introduced in ZODB 3.9.0a1 is no-longer
-  supported. Cache files can still be larger than 4G.  Cache file
-  sizes can now be changed.
-
 - When configuring storages in a storage server, the storage name now
   defaults to "1".  In the overwhelmingly common case that a single
-  storage, the name can now be ommitted.
-
-Bug Fixes
----------
-
-- ZEO client transaction iterators weren't properly handled after on
-  disconnects.
-
-- The code to drop a ZEO client cache rather than verifying didn't
-  drop it and didn't leave the client storage in a valid state.
-
-3.9.0a4 (2008-11-06)
-====================
-
-Bug Fixes
----------
-
-- DemoStorage could sometimes hand out the same new object id more
-  than once.
-
-3.9.0a3 (2008-11-04)
-====================
-
-New Features
-------------
+  storage, the name can now be omitted.
 
 - FileStorage now provides optional garbage collection.  A 'gc'
   keyword option can be passed to the pack method.  A false value
@@ -133,27 +323,6 @@ New Features
   The ZConfig configuration for FileStorage now includes a packer
   option, corresponding to the packer constructor argument.
 
-Bug Fixes
----------
-
-- DemoStorage could sometimes hand out the same new object id more
-  than once.
-
-3.9.0a2 (2008-10-31)
-====================
-
-Bug Fixes
----------
-
-- MappingStorage hung when committing a transaction *after* committing
-  an empty transaction.
-
-3.9.0a1 (2008-10-29)
-====================
-
-New Features
-------------
-
 - MappingStorage now supports multi-version concurrency control and
   iteration and provides a better storage implementation example.
 
@@ -166,7 +335,7 @@ New Features
 
   - Multi-version concurrency control and iteration
 
-  - Explicit support dfor demo-storage stacking via push and pop methods.
+  - Explicit support for demo-storage stacking via push and pop methods.
 
 - Wen calling ZODB.DB to create a database, you can now pass a file
   name, rather than a storage to use a file storage.
@@ -191,7 +360,7 @@ New Features
 - New `ClientStorage` configuration option `drop_cache_rather_verify`.
   If this option is true then the ZEO client cache is dropped instead of
   the long (unoptimized) verification. For large caches, setting this
-  option can avoid effective downtimes in the order of hours when
+  option can avoid effective down times in the order of hours when
   the connection to the ZEO server was interrupted for a longer time.
 
 - Cleaned-up the storage iteration API and provided an iterator implementation
@@ -199,17 +368,14 @@ New Features
 
 - Versions are no-longer supported.
 
-- ZEO cache files can be larger than 4G. Note that older ZEO cache
-  files are not supported.
-
 - Document conflict resolution (see ZODB/ConflictResolution.txt).
 
-- Support multidatabase references in conflict resolution.
+- Support multi-database references in conflict resolution.
 
 - Make it possible to examine oid and (in some situations) database
   name of persistent object references during conflict resolution.
 
-- Moved 'transaction' module out of ZODB.
+- Moved the 'transaction' module out of ZODB.
   ZODB depends upon this module, but it must be installed separately.
 
 - ZODB installation now requires setuptools.
@@ -228,6 +394,113 @@ New Features
 Bugs Fixed
 ----------
 
+- CVE-2009-2701: Fixed a vulnerability in ZEO storage servers when
+  blobs are available. Someone with write access to a ZEO server
+  configured to support blobs could read any file on the system
+  readable by the server process and remove any file removable by the
+  server process.
+
+- BTrees (and TreeSets) kept references to internal keys.
+  https://bugs.launchpad.net/zope3/+bug/294788
+
+- BTree Sets and TreeSets don't support the standard set add method.
+  (Now either add or the original insert method can be used to add an
+  object to a BTree-based set.)
+
+- The runzeo script didn't work without a configuration file.
+  (https://bugs.launchpad.net/zodb/+bug/410571)
+
+- Officially deprecated PersistentDict
+  (https://bugs.launchpad.net/zodb/+bug/400775)
+
+- Calling __setstate__ on a persistent object could under certain
+  uncommon cause the process to crash.
+
+- When committing transactions involving blobs to ClientStorages with
+  non-shared blob directories, a failure could occur in tpc_finish if
+  there was insufficient disk space to copy the blob file or if the
+  file wasn't available.  https://bugs.launchpad.net/zodb/+bug/224169
+
+- Savepoint blob data wasn't properly isolated. If multiple
+  simultaneous savepoints in separate transactions modified the same
+  blob, data from one savepoint would overwrite data for another.
+
+- Savepoint blob data wasn't cleaned up after a transaction abort.
+  https://bugs.launchpad.net/zodb/+bug/323067
+
+- Opening a blob with modes 'r+' or 'a' would fail when the blob had no
+  committed changes.
+
+- PersistentList's sort method did not allow passing of keyword parameters.
+  Changed its sort parameter list to match that of its (Python 2.4+)
+  UserList base class.
+
+- Certain ZEO server errors could cause a client to get into a state
+  where it couldn't commit transactions.
+  https://bugs.launchpad.net/zodb/+bug/374737
+
+- Fixed vulnerabilities in the ZEO network protocol that allow:
+
+  - CVE-2009-0668 Arbitrary Python code execution in ZODB ZEO storage servers
+  - CVE-2009-0669 Authentication bypass in ZODB ZEO storage servers
+
+  The vulnerabilities only apply if you are using ZEO to share a
+  database among multiple applications or application instances and if
+  untrusted clients are able to connect to your ZEO servers.
+
+- Fixed the setup test command.  It previously depended on private
+  functions in zope.testing.testrunner that don't exist any more.
+
+- ZEO client threads were unnamed, making it hard to debug thread
+  management.
+
+- ZEO protocol 2 support was broken.  This caused very old clients to
+  be unable to use new servers.
+
+- zeopack was less flexible than it was before.  -h should default to
+  local host.
+
+- The "lawn" layout was being selected by default if the root of
+  the blob directory happened to contain a hidden file or directory
+  such as ".svn".  Now hidden files and directories are ignored
+  when choosing the default layout.
+
+- BlobStorage was not compatible with MVCC storages because the
+  wrappers were being removed by each database connection.  Fixed.
+
+- Saving indexes for large file storages failed (with the error:
+  RuntimeError: maximum recursion depth exceeded).  This can cause a
+  FileStorage to fail to start because it gets an error trying to save
+  its index.
+
+- Sizes of new objects weren't added to the object cache size
+  estimation, causing the object-cache size limiting feature to let
+  the cache grow too large when many objects were added.
+
+- Deleted records weren't removed when packing file storages.
+
+- Fixed analyze.py and added test.
+
+- fixed Python 2.6 compatibility issue with ZEO/zeoserverlog.py
+
+- using hashlib.sha1 if available in order to avoid DeprecationWarning
+  under Python 2.6
+
+- made runzeo -h work
+
+- The monitor server didn't correctly report the actual number of
+  clients.
+
+- Packing could return spurious errors due to errors notifying
+  disconnected clients of new database size statistics.
+
+- Undo sometimes failed for FileStorages configured to support blobs.
+
+- Starting ClientStorages sometimes failed with non-new but empty
+  cache files.
+
+- The history method on ZEO clients failed.
+
 - Fix for bug #251037: Make packing of blob storages non-blocking.
 
 - Fix for bug #220856: Completed implementation of ZEO authentication.
@@ -244,7 +517,7 @@ Bugs Fixed
 - Fix for bug #181712: Make ClientStorage update `lastTransaction` directly
   after connecting to a server, even when no cache verification is necessary.
 
-- Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
+- Fixed bug in blob filesystem helper: the `isSecure` check was inverted.
 
 - Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
   `clear`.
@@ -256,7 +529,7 @@ Bugs Fixed
 - Fixed bug 153316: persistent and BTrees were using `int`
   for memory sizes which caused errors on x86_64 Intel Xeon machines
   (using 64-bit Linux).
-  
+
 - Fixed small bug that the Connection.isReadOnly method didn't
   work after a savepoint.
 
@@ -264,7 +537,7 @@ Bugs Fixed
   versions of objects.
 
 - Fixed a serious bug that could cause client I/O to stop
-  (hang). This was accomonied by a critical log message along the
+  (hang). This was accompanied by a critical log message along the
   lines of: "RuntimeError: dictionary changed size during iteration".
 
 - Fixed bug #127182: Blobs were subclassable which was not desired.
@@ -280,18 +553,8 @@ Bugs Fixed
 - Fixed bug in ClientCache that occurred with objects larger than the total
   cache size.
 
-3.8.1b9 (2008-??-??)
-====================
-
-Bugs Fixed:
-
 - When an error occured attempting to lock a file and logging of said error was
   enabled.
-
-3.8.1b8 (2008-09-22
-====================
-
-Bugs Fixed:
 
 - FileStorages previously saved indexes after a certain
   number of writes.  This was done during the last phase of two-phase
@@ -308,85 +571,38 @@ Bugs Fixed:
 - Refactored handling of invalidations on ZEO clients to fix
   a possible ordering problem for invalidation messages.
 
-- An ZEO cache internal data structure can get out of sync
-  with the data in a way that prevents data from being loaded into the
-  cache. We don't yet know why, but added an exception handler to
-  prevent this error from being fatal.
-
-- Fixed setup.py use of setuptools vs distutils, so .c and .h
-  files are included in the bdist_egg.
-
 - On many systems, it was impossible to create more than 32K
   blobs. Added a new blob-directory layout to work around this
   limitation.
-
-
-3.8.1b7 (2008-08-23)
-====================
-
-Bugs Fixed:
-
-- Fixed a bug, introduced in an earlier beta, that allowed
-  clients to connect to out of date servers.
 
 - Fixed bug that could lead to memory errors due to the use
   of a Python dictionary for a mapping that can grow large.
 
 - Fixed bug #251037: Made packing of blob storages non-blocking.
 
-3.8.1b6 (2008-07-24)
-====================
-
-Bugs Fixed:
-
 - Fixed a bug that could cause InvalidObjectReference errors
   for objects that were explicitly added to a database if the object
   was modified after a savepoint that added the object.
 
-3.8.1b5 (2008-07-14)
-====================
-
-Bugs Fixed:
-
 - Fixed several bugs that caused ZEO cache corruption when connecting
-  to servers. These bugs affected both persistent and non-persistent caches. 
+  to servers. These bugs affected both persistent and non-persistent caches.
 
 - Improved the the ZEO client shutdown support to try to
   avoid spurious errors on exit, especially for scripts, such as zeopack.
 
-3.8.1b4 (2008-05-23)
-====================
-
-Bugs Fixed:
-
 - Packing failed for databases containing cross-database references.
-
-3.8.1b3 (2008-05-14)
-====================
-
-Bugs Fixed:
 
 - Cross-database references to databases with empty names
   weren't constructed properly.
 
-3.8.1b2 (2008-05-13)
-====================
-
-Bugs Fixed:
-
-- The cache used an excessive amount of memory, causing applications
-  with large caches to exhaust available memory. 
-
-3.8.1b1 (2008-05-08)
-====================
-
-Bugs Fixed:
+- The zeo client cache used an excessive amount of memory, causing applications
+  with large caches to exhaust available memory.
 
 - Fixed a number of bugs in the handling of persistent ZEO caches:
 
   - Cache records are written in several steps.  If a process exits
     after writing begins and before it is finishes, the cache will be
-    corrupt on restart.  The way records are writted was changed to
+    corrupt on restart.  The way records are written was changed to
     make cache record updates atomic.
 
   - There was no lock file to prevent opening a cache multiple times
@@ -399,13 +615,13 @@ Bugs Fixed:
 - When using ZEO Client Storages, Errors occured when trying to store
   objects too big to fit in the ZEO cache file.
 
-- Fixed bug in blob filesystem helper: the `isSecure` check was inversed.
+- Fixed bug in blob filesystem helper: the `isSecure` check was inverted.
 
 - Fixed bug in transaction buffer: a tuple was unpacked incorrectly in
   `clear`.
 
 - Fixed bug in Connection.TmpStore: load() would not defer to the
-  backend storage for loading blobs.
+  back-end storage for loading blobs.
 
 - Fixed bug #190884: Wrong reference to `POSKeyError` caused NameError.
 

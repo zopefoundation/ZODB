@@ -462,7 +462,7 @@ that might be tedious.
 Interfaces
 ----------
 
-Some versions of Zope and ZODB have the `zope.interfaces` package available.
+Some versions of Zope and ZODB have the `zope.interface` package available.
 If it is available, then persistent will be associated with several
 interfaces.  It's hard to write a doctest test that runs the tests only if
 `zope.interface` is available, so this test looks a little unusual.  One

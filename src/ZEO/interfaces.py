@@ -15,7 +15,7 @@
 import zope.interface
 
 class StaleCache(object):
-    """A ZEO cache is stale and requires verification. 
+    """A ZEO cache is stale and requires verification.
     """
 
     def __init__(self, storage):
@@ -30,7 +30,7 @@ class IServeable(zope.interface.Interface):
 
         Return the transaction id of the last transaction that committed a
         change to an object with the given object id.
-        
+
         """
 
     def tpc_transaction():
@@ -40,7 +40,7 @@ class IServeable(zope.interface.Interface):
         return the transaction (object) being committed.  Otherwise
         return None.
         """
-        
+
     def lastInvalidations(size):
         """Get recent transaction invalidations
 
