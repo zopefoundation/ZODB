@@ -573,7 +573,8 @@ class ManagedServerConnection(Connection):
         self.mgr = mgr
         map = {}
         Connection.__init__(self, sock, addr, obj, 'S', map=map)
-        self.marshal = ServerMarshaller()
+        self._pickle_protocol = getattr(mgr, '_pickle_protocol', 1)
+        self.marshal = ServerMarshaller(pickle_protocol=self._pickle_protocol)
         self.trigger = ZEO.zrpc.trigger.trigger(map)
         self.call_from_thread = self.trigger.pull_trigger
 

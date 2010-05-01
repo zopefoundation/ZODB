@@ -122,6 +122,12 @@
        </description>
     </key>
 
+    <key name="pickle-protocol" required="no" datatype="integer" default="1">
+      <description>
+        The pickle protocol used by the server. Defaults to 1.
+      </description>
+    </key>
+
   </sectiontype>
 
 </component>

@@ -21,6 +21,10 @@ from ZEO.zrpc.log import log, short_repr
 class Marshaller:
     """Marshal requests and replies to second across network"""
 
+    def __init__(self, pickle_protocol=1):
+        print pickle_protocol
+        self._pickle_protocol = pickle_protocol
+
     def encode(self, msgid, flags, name, args):
         """Returns an encoded message"""
         # (We used to have a global pickler, but that's not thread-safe. :-( )
@@ -31,7 +35,7 @@ class Marshaller:
         # being represented by \xij escapes in proto 0).
         # Undocumented:  cPickle.Pickler accepts a lone protocol argument;
         # pickle.py does not.
-        pickler = cPickle.Pickler(1)
+        pickler = cPickle.Pickler(self._pickle_protocol)
         pickler.fast = 1
 
         # Undocumented:  pickler.dump(), for a cPickle.Pickler, takes

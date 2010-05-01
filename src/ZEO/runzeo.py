@@ -344,6 +344,7 @@ def create_server(storages, options):
         auth_protocol = options.auth_protocol,
         auth_database = options.auth_database,
         auth_realm = options.auth_realm,
+        pickle_protocol = getattr(options, 'pickle_protocol', 1),
         )
 
 

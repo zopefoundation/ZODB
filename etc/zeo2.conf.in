@@ -3,8 +3,10 @@
   read-only false
   invalidation-queue-size 100
   pid-filename ${buildout:directory}/var/zeo.pid
+  pickle-protocol 2
 </zeo>
 
 <filestorage 1>
-  path ${buildout:directory}/var/Data_zeo.fs
+  path ${buildout:directory}/var/Data_zeo2.fs
+  pickle-protocol 2
 </filestorage>

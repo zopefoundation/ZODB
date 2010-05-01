@@ -814,7 +814,8 @@ class StorageServer:
                  monitor_address=None,
                  auth_protocol=None,
                  auth_database=None,
-                 auth_realm=None):
+                 auth_realm=None,
+                 pickle_protocol=1):
         """StorageServer constructor.
 
         This is typically invoked from the start.py script.
@@ -878,6 +879,9 @@ class StorageServer:
             subdirectory. This module may also define a DatabaseClass
             variable that should indicate what database should be used
             by the authenticator.
+
+        pickle_protocol -- The pickle protocol used by the server connections.
+            Defaults to 1.
         """
 
         self.addr = addr
@@ -899,6 +903,7 @@ class StorageServer:
         self.auth_protocol = auth_protocol
         self.auth_database = auth_database
         self.auth_realm = auth_realm
+        self._pickle_protocol = pickle_protocol
         self.database = None
         if auth_protocol:
             self._setup_auth(auth_protocol)
