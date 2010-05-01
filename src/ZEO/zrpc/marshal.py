@@ -22,7 +22,6 @@ class Marshaller:
     """Marshal requests and replies to second across network"""
 
     def __init__(self, pickle_protocol=1):
-        print pickle_protocol
         self._pickle_protocol = pickle_protocol
 
     def encode(self, msgid, flags, name, args):
