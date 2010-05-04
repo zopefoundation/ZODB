@@ -62,6 +62,15 @@ Bugs Fixed
 
 - Fixed some problems in ZEO server commit lock management.
 
+- On Mac OS X, clients that connected and disconnected quickly could
+  cause a ZEO server to stop accepting connections, due to a failure
+  to catch errors in the initial part of the connection process.
+
+  The failure to properly handle exceptions while accepting
+  connections is potentially problematic on other platforms.
+
+  Fixes: https://bugs.launchpad.net/zodb/+bug/135108
+
 3.10.0a1 (2010-02-08)
 =====================
 

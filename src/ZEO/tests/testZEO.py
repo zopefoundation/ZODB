@@ -1338,6 +1338,34 @@ else:
     class MultiprocessingTests(unittest.TestCase):
         pass
 
+def quick_close_doesnt_kill_server():
+    r"""
+
+    Start a server:
+
+    >>> addr, _ = start_server()
+
+    Now connect and immediately disconnect. This caused the server to
+    die in the past:
+
+    >>> import socket, struct
+    >>> for i in range(5):
+    ...     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    ...     s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+    ...                  struct.pack('ii', 1, 0))
+    ...     s.connect(addr)
+    ...     s.close()
+
+    Now we should be able to connect as normal:
+
+    >>> db = ZEO.DB(addr)
+    >>> db.storage.is_connected()
+    True
+
+    >>> db.close()
+
+    """
+
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     DemoStorageTests, FileStorageTests, MappingStorageTests,
