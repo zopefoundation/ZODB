@@ -456,6 +456,11 @@ ZEOStorage as closed and see if trying to get a lock cleans it up:
     (test-addr-2) Preparing to commit transaction: 1 objects, 36 bytes
     2 callAsync serialnos ...
 
+    >>> zs1.txnlog.close()
+    >>> zs2.tpc_abort(tid2)
+
+    >>> logging.getLogger('ZEO').setLevel(logging.NOTSET)
+    >>> logging.getLogger('ZEO').removeHandler(handler)
     """
 
 
