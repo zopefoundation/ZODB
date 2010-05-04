@@ -123,6 +123,7 @@ class ClientStorage(object):
                  username='', password='', realm=None,
                  blob_dir=None, shared_blob_dir=False,
                  blob_cache_size=None, blob_cache_size_check=10,
+                 client_label=None,
                  ):
         """ClientStorage constructor.
 
@@ -234,6 +235,9 @@ class ClientStorage(object):
             loaded into the cache. Defaults to 10% of the blob cache
             size.   This option is ignored if shared_blob_dir is true.
 
+        client_label
+            A label to include in server log messages for the client.
+
         Note that the authentication protocol is defined by the server
         and is detected by the ClientStorage upon connecting (see
         testConnection() and doAuth() for details).
@@ -316,6 +320,8 @@ class ClientStorage(object):
 
         # _server_addr is used by sortKey()
         self._server_addr = None
+
+        self._client_label = client_label
 
         self._pickler = self._tfile = None
 
@@ -622,6 +628,10 @@ class ClientStorage(object):
                         self.__name__, self._server_addr)
 
         stub = self.StorageServerStubClass(conn)
+
+        if self._client_label and conn.peer_protocol_version >= "Z310":
+            stub.set_client_label(self._client_label)
+
         self._oids = []
         self.verify_cache(stub)
 

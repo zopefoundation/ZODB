@@ -1295,6 +1295,42 @@ def test_server_status():
     >>> db.close()
     """
 
+def client_labels():
+    """
+When looking at server logs, for servers with lots of clients coming
+from the same machine, it can be very difficult to correlate server
+log entries with actual clients.  It's possible, sort of, but tedious.
+
+You can make this easier by passing a label to the ClientStorage
+constructor.
+
+    >>> addr, _ = start_server()
+    >>> db = ZEO.DB(addr, client_label='test-label-1')
+    >>> db.close()
+    >>> for line in open('server-%s.log' % addr[1]):
+    ...     if 'test-label-1' in line:
+    ...         print line.split()[1:4]
+    ['INFO', 'ZEO.StorageServer', '(test-label-1']
+
+You can specify the client label via a configuration file as well:
+
+    >>> import ZODB.config
+    >>> db = ZODB.config.databaseFromString('''
+    ... <zodb>
+    ...    <zeoclient>
+    ...       server :%s
+    ...       client-label test-label-2
+    ...    </zeoclient>
+    ... </zodb>
+    ... ''' % addr[1])
+    >>> db.close()
+    >>> for line in open('server-%s.log' % addr[1]):
+    ...     if 'test-label-2' in line:
+    ...         print line.split()[1:4]
+    ['INFO', 'ZEO.StorageServer', '(test-label-2']
+
+    """
+
 
 if sys.version_info >= (2, 6):
     import multiprocessing

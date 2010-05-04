@@ -216,6 +216,11 @@
         instead of an expensive verification.
       </description>
     </key>
+    <key name="client-label" required="no">
+      <description>
+        A label for the client in server logs
+      </description>
+    </key>
   </sectiontype>
 
   <sectiontype name="demostorage" datatype=".DemoStorage"

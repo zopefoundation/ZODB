@@ -188,6 +188,8 @@ class ZEOClient(BaseConfig):
             options['blob_cache_size'] = self.config.blob_cache_size
         if self.config.blob_cache_size_check is not None:
             options['blob_cache_size_check'] = self.config.blob_cache_size_check
+        if self.config.client_label is not None:
+            options['client_label'] = self.config.client_label
 
         return ClientStorage(
             L,

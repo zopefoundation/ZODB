@@ -759,6 +759,9 @@ class ZEOStorage:
     def server_status(self):
         return self.server.server_status(self)
 
+    def set_client_label(self, label):
+        self.log_label = str(label)+' '+_addr_label(self.connection.addr)
+
 class StorageServerDB:
 
     def __init__(self, server, storage_id):

@@ -299,6 +299,9 @@ class StorageServer:
     def server_status(self):
         return self.rpc.call("server_status")
 
+    def set_client_label(self, label):
+        return self.rpc.callAsync('set_client_label', label)
+
 class StorageServer308(StorageServer):
 
     def __init__(self, rpc):

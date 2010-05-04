@@ -21,6 +21,12 @@ New Features
   information the number of clients, lock requests and general
   statistics.
 
+- ZEO clients now support a client_label constructor argument and
+  client-label configuration-file option to specify a label for a
+  client in server logs. This makes it easier to identify specific
+  clients corresponding to server log entries, especially when there
+  are multiple clients originating from the same machine.
+
 - The mkzeoinst script has been moved to a separate project:
 
     http://pypi.python.org/pypi/zope.mkzeoinstance
