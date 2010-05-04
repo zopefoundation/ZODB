@@ -22,37 +22,35 @@ exported for invocation by the server.
 
 from __future__ import with_statement
 
+from ZEO.CommitLog import CommitLog
+from ZEO.Exceptions import AuthError
+from ZEO.monitor import StorageStats, StatsServer
+from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay, Result
+from ZEO.zrpc.server import Dispatcher
+from ZEO.zrpc.trigger import trigger
+from ZODB.ConflictResolution import ResolvedSerial
+from ZODB.loglevels import BLATHER
+from ZODB.POSException import StorageError, StorageTransactionError
+from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
+from ZODB.serialize import referencesf
+from ZODB.utils import oid_repr, p64, u64, z64
+
 import asyncore
 import cPickle
+import itertools
 import logging
 import os
 import sys
 import tempfile
 import threading
 import time
-import itertools
-
 import transaction
-
+import warnings
+import ZEO.zrpc.error
 import ZODB.blob
 import ZODB.serialize
 import ZODB.TimeStamp
-import ZEO.zrpc.error
-
 import zope.interface
-from ZEO.CommitLog import CommitLog
-from ZEO.monitor import StorageStats, StatsServer
-from ZEO.zrpc.server import Dispatcher
-from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay, Result
-from ZEO.zrpc.trigger import trigger
-from ZEO.Exceptions import AuthError
-
-from ZODB.ConflictResolution import ResolvedSerial
-from ZODB.POSException import StorageError, StorageTransactionError
-from ZODB.POSException import TransactionError, ReadOnlyError, ConflictError
-from ZODB.serialize import referencesf
-from ZODB.utils import oid_repr, p64, u64, z64
-from ZODB.loglevels import BLATHER
 
 
 logger = logging.getLogger('ZEO.StorageServer')
@@ -914,6 +912,10 @@ class StorageServer:
                 timeout.start()
             self.timeouts[name] = timeout
         if monitor_address:
+            warnings.warn(
+                "The monitor server is deprecated. Use the server_status\n"
+                "ZEO method instead.",
+                DeprecationWarning)
             self.monitor = StatsServer(monitor_address, self.stats)
         else:
             self.monitor = None
