@@ -344,6 +344,7 @@ statistics using the server_status method:
      'lock_time': 1272653598.693882,
      'start': 'Fri Apr 30 14:53:18 2010',
      'stores': 13,
+     'timeout-thread-is-alive': 'stub',
      'verifying_clients': 0,
      'waiting': 9}
 

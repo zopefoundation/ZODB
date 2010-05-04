@@ -1274,7 +1274,7 @@ def test_server_status():
     """
     You can get server status using the server_status method.
 
-    >>> addr, _ = start_server()
+    >>> addr, _ = start_server(zeo_conf=dict(transaction_timeout=1))
     >>> db = ZEO.DB(addr)
     >>> import pprint
     >>> pprint.pprint(db.storage.server_status(), width=1)
@@ -1288,6 +1288,7 @@ def test_server_status():
      'lock_time': None,
      'start': 'Tue May  4 10:55:20 2010',
      'stores': 1,
+     'timeout-thread-is-alive': True,
      'verifying_clients': 0,
      'waiting': 0}
 

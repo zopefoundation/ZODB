@@ -1270,6 +1270,7 @@ class StorageServer:
         status = self.stats[storage_id].__dict__.copy()
         status['connections'] = len(status['connections'])
         status['waiting'] = len(self._waiting[storage_id])
+        status['timeout-thread-is-alive'] = self.timeouts[storage_id].isAlive()
         return status
 
 def _level_for_waiting(waiting):
@@ -1288,6 +1289,9 @@ class StubTimeoutThread:
     def end(self, client):
         pass
 
+    isAlive = lambda self: 'stub'
+
+
 class TimeoutThread(threading.Thread):
     """Monitors transaction progress and generates timeouts."""
 
@@ -1305,32 +1309,25 @@ class TimeoutThread(threading.Thread):
     def begin(self, client):
         # Called from the restart code the "main" thread, whenever the
         # storage lock is being acquired.  (Serialized by asyncore.)
-        self._cond.acquire()
-        try:
+        with self._cond:
             assert self._client is None
             self._client = client
             self._deadline = time.time() + self._timeout
             self._cond.notify()
-        finally:
-            self._cond.release()
 
     def end(self, client):
         # Called from the "main" thread whenever the storage lock is
         # being released.  (Serialized by asyncore.)
-        self._cond.acquire()
-        try:
+        with self._cond:
             assert self._client is not None
             assert self._client is client
             self._client = None
             self._deadline = None
-        finally:
-            self._cond.release()
 
     def run(self):
         # Code running in the thread.
         while 1:
-            self._cond.acquire()
-            try:
+            with self._cond:
                 while self._deadline is None:
                     self._cond.wait()
                 howlong = self._deadline - time.time()
@@ -1338,12 +1335,16 @@ class TimeoutThread(threading.Thread):
                     # Prevent reporting timeout more than once
                     self._deadline = None
                 client = self._client # For the howlong <= 0 branch below
-            finally:
-                self._cond.release()
+
             if howlong <= 0:
                 client.log("Transaction timeout after %s seconds" %
-                           self._timeout)
-                client.connection.trigger.pull_trigger(client.connection.close)
+                           self._timeout, logging.ERROR)
+                try:
+                    client.connection.call_from_thread(client.connection.close)
+                except:
+                    client.log("Timeout failure", logging.CRITICAL,
+                               exc_info=sys.exc_info())
+                    self.end(client)
             else:
                 time.sleep(howlong)
 
