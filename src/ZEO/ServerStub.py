@@ -296,6 +296,9 @@ class StorageServer:
     def iterator_gc(self, iids):
         return self.rpc.callAsync('iterator_gc', iids)
 
+    def server_status(self):
+        return self.rpc.call("server_status")
+
 class StorageServer308(StorageServer):
 
     def __init__(self, rpc):

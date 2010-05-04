@@ -1504,6 +1504,9 @@ class ClientStorage(object):
                 return self._iterator_gc(True)
             self._iterator_ids -= iids
 
+    def server_status(self):
+        return self._server.server_status()
+
 
 class TransactionIterator(object):
 

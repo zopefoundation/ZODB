@@ -25,10 +25,13 @@ from ZODB.tests import StorageTestBase, BasicStorage,  \
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
 
+from zope.testing import renormalizing
+
 import doctest
 import logging
 import os
 import persistent
+import re
 import shutil
 import signal
 import stat
@@ -1267,6 +1270,30 @@ def convenient_to_pass_port_to_client_and_ZEO_dot_client():
     >>> client.close()
     """
 
+def test_server_status():
+    """
+    You can get server status using the server_status method.
+
+    >>> addr, _ = start_server()
+    >>> db = ZEO.DB(addr)
+    >>> import pprint
+    >>> pprint.pprint(db.storage.server_status(), width=1)
+    {'aborts': 0,
+     'active_txns': 0,
+     'commits': 1,
+     'conflicts': 0,
+     'conflicts_resolved': 0,
+     'connections': 1,
+     'loads': 1,
+     'lock_time': None,
+     'start': 'Tue May  4 10:55:20 2010',
+     'stores': 1,
+     'verifying_clients': 0,
+     'waiting': 0}
+
+    >>> db.close()
+    """
+
 
 if sys.version_info >= (2, 6):
     import multiprocessing
@@ -1383,7 +1410,11 @@ def test_suite():
     zeo = unittest.TestSuite()
     zeo.addTest(unittest.makeSuite(ZODB.tests.util.AAAA_Test_Runner_Hack))
     zeo.addTest(doctest.DocTestSuite(
-        setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
+        setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
+        checker=renormalizing.RENormalizing([
+            (re.compile(r"'start': '[^\n]+'"), 'start'),
+            ]),
+        ))
     zeo.addTest(doctest.DocTestSuite(ZEO.tests.IterationTests,
         setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown))
     zeo.addTest(doctest.DocFileSuite('registerDB.test'))
