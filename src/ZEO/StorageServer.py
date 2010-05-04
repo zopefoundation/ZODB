@@ -57,20 +57,8 @@ from ZODB.loglevels import BLATHER
 
 logger = logging.getLogger('ZEO.StorageServer')
 
-# TODO:  This used to say "ZSS", which is now implied in the logger name.
-# Can this be either set to str(os.getpid()) (if that makes sense) or removed?
-_label = "" # default label used for logging.
-
-
-def set_label():
-    """Internal helper to reset the logging label (e.g. after fork())."""
-    global _label
-    _label = "%s" % os.getpid()
-
-
-def log(message, level=logging.INFO, label=None, exc_info=False):
+def log(message, level=logging.INFO, label='', exc_info=False):
     """Internal helper to log a message."""
-    label = label or _label
     if label:
         message = "(%s) %s" % (label, message)
     logger.log(level, message, exc_info=exc_info)
@@ -97,10 +85,10 @@ class ZEOStorage:
         self.storage_id = "uninitialized"
         self.transaction = None
         self.read_only = read_only
+        self.log_label = 'unconnected'
         self.locked = False             # Don't have storage lock
         self.verifying = 0
         self.store_failed = 0
-        self.log_label = _label
         self.authenticated = 0
         self.auth_realm = auth_realm
         self.blob_tempfile = None
@@ -131,13 +119,7 @@ class ZEOStorage:
             conn.register_object(ZEOStorage308Adapter(self))
         else:
             self.client = ClientStub(conn)
-        addr = conn.addr
-        if isinstance(addr, type("")):
-            label = addr
-        else:
-            host, port = addr
-            label = str(host) + ":" + str(port)
-        self.log_label = _label + "/" + label
+        self.log_label = _addr_label(conn.addr)
 
     def notifyDisconnected(self):
         self.connection = None
@@ -146,7 +128,7 @@ class ZEOStorage:
         # any pending transaction.
         if self.transaction is not None:
             self.log("disconnected during %s transaction"
-                     % self.locked and 'locked' or 'unlocked')
+                     % (self.locked and 'locked' or 'unlocked'))
             self.tpc_abort(self.transaction.id)
         else:
             self.log("disconnected")
@@ -451,7 +433,9 @@ class ZEOStorage:
         if self.locked:
             self.server.unlock_storage(self)
             self.locked = 0
-        self.transaction = None
+        if self.transaction is not None:
+            self.server.stop_waiting(self)
+            self.transaction = None
         self.stats.active_txns -= 1
         if self.txnlog is not None:
             self.txnlog.close()
@@ -462,12 +446,22 @@ class ZEOStorage:
 
     def vote(self, tid):
         self._check_tid(tid, exc=StorageTransactionError)
+        if self.locked or self.server.already_waiting(self):
+            raise StorageTransactionError(
+                'Already voting (%s)' % (self.locked and 'locked' or 'waiting')
+                )
         return self._try_to_vote()
 
     def _try_to_vote(self, delay=None):
         if self.connection is None:
             return # We're disconnected
-        self.locked = self.server.lock_storage(self)
+        if delay is not None and delay.sent:
+            # as a consequence of the unlocking strategy, _try_to_vote
+            # may be called multiple times for delayed
+            # transactions. The first call will mark the delay as
+            # sent. We should skip if the delay was already sent.
+            return
+        self.locked, delay = self.server.lock_storage(self, delay)
         if self.locked:
             try:
                 self.log(
@@ -511,17 +505,17 @@ class ZEOStorage:
             else:
                 if delay is not None:
                     delay.reply(None)
+                else:
+                    return None
+
         else:
-            if delay == None:
-                self.log("(%r) queue lock: transactions waiting: %s"
-                         % (self.storage_id, self.server.waiting(self)+1))
-                delay = Delay()
-            self.server.unlock_callback(self, delay)
             return delay
 
     def _unlock_callback(self, delay):
         connection = self.connection
-        if connection is not None:
+        if connection is None:
+            self.server.stop_waiting(self)
+        else:
             connection.call_from_thread(self._try_to_vote, delay)
 
     # The public methods of the ZEO client API do not do the real work.
@@ -764,6 +758,8 @@ class ZEOStorage:
         for iid in iids:
             self._iterators.pop(iid, None)
 
+    def server_status(self):
+        return self.server.server_status(self)
 
 class StorageServerDB:
 
@@ -873,7 +869,6 @@ class StorageServer:
 
         self.addr = addr
         self.storages = storages
-        set_label()
         msg = ", ".join(
             ["%s:%s:%s" % (name, storage.isReadOnly() and "RO" or "RW",
                            storage.getName())
@@ -884,7 +879,7 @@ class StorageServer:
 
         self._lock = threading.Lock()
         self._commit_locks = {}
-        self._unlock_callbacks = dict((name, []) for name in storages)
+        self._waiting = dict((name, []) for name in storages)
 
         self.read_only = read_only
         self.auth_protocol = auth_protocol
@@ -1171,29 +1166,59 @@ class StorageServer:
             if conn.obj in cl:
                 cl.remove(conn.obj)
 
-    def lock_storage(self, zeostore):
+    def lock_storage(self, zeostore, delay):
         storage_id = zeostore.storage_id
+        waiting = self._waiting[storage_id]
         with self._lock:
+
             if storage_id in self._commit_locks:
-                return False
-            self._commit_locks[storage_id] = zeostore
-            self.timeouts[storage_id].begin(zeostore)
-            self.stats[storage_id].lock_time = time.time()
-        return True
+                # The lock is held by another zeostore
+
+                assert self._commit_locks[storage_id] is not zeostore, (
+                    storage_id, delay)
+
+                if delay is None:
+                    # New request, queue it
+                    assert not [i for i in waiting if i[0] is zeostore
+                                ], "already waiting"
+                    delay = Delay()
+                    waiting.append((zeostore, delay))
+                    zeostore.log("(%r) queue lock: transactions waiting: %s"
+                                 % (storage_id, len(waiting)),
+                                 _level_for_waiting(waiting)
+                                 )
+
+                return False, delay
+            else:
+                self._commit_locks[storage_id] = zeostore
+                self.timeouts[storage_id].begin(zeostore)
+                self.stats[storage_id].lock_time = time.time()
+                if delay is not None:
+                    # we were waiting, stop
+                    waiting[:] = [i for i in waiting if i[0] is not zeostore]
+                zeostore.log("(%r) lock: transactions waiting: %s"
+                             % (storage_id, len(waiting)),
+                             _level_for_waiting(waiting)
+                             )
+                return True, delay
 
     def unlock_storage(self, zeostore):
         storage_id = zeostore.storage_id
+        waiting = self._waiting[storage_id]
         with self._lock:
             assert self._commit_locks[storage_id] is zeostore
             del self._commit_locks[storage_id]
             self.timeouts[storage_id].end(zeostore)
             self.stats[storage_id].lock_time = None
-            callbacks = self._unlock_callbacks[storage_id][:]
-            del self._unlock_callbacks[storage_id][:]
+            callbacks = waiting[:]
 
         if callbacks:
+            assert not [i for i in waiting if i[0] is zeostore
+                        ], "waiting while unlocking"
             zeostore.log("(%r) unlock: transactions waiting: %s"
-                         % (storage_id, len(callbacks)-1))
+                         % (storage_id, len(callbacks)),
+                         _level_for_waiting(callbacks)
+                         )
 
             for zeostore, delay in callbacks:
                 try:
@@ -1203,13 +1228,41 @@ class StorageServer:
                 except Exception:
                     logger.exception("Calling unlock callback")
 
-    def unlock_callback(self, zeostore, delay):
-        storage_id = zeostore.storage_id
-        with self._lock:
-            self._unlock_callbacks[storage_id].append((zeostore, delay))
 
-    def waiting(self, zeostore):
-        return len(self._unlock_callbacks[zeostore.storage_id])
+    def stop_waiting(self, zeostore):
+        storage_id = zeostore.storage_id
+        waiting = self._waiting[storage_id]
+        with self._lock:
+            new_waiting = [i for i in waiting if i[0] is not zeostore]
+            if len(new_waiting) == len(waiting):
+                return
+            waiting[:] = new_waiting
+
+        zeostore.log("(%r) dequeue lock: transactions waiting: %s"
+                     % (storage_id, len(waiting)),
+                     _level_for_waiting(waiting)
+                     )
+
+    def already_waiting(self, zeostore):
+        storage_id = zeostore.storage_id
+        waiting = self._waiting[storage_id]
+        with self._lock:
+            return bool([i for i in waiting if i[0] is zeostore])
+
+    def server_status(self, zeostore):
+        storage_id = zeostore.storage_id
+        status = self.stats[storage_id].__dict__.copy()
+        status['connections'] = len(status['connections'])
+        status['waiting'] = len(self._waiting[storage_id])
+        return status
+
+def _level_for_waiting(waiting):
+    if len(waiting) > 9:
+        return logging.CRITICAL
+    if len(waiting) > 3:
+        return logging.WARNING
+    else:
+        return logging.DEBUG
 
 class StubTimeoutThread:
 
@@ -1454,4 +1507,10 @@ class ZEOStorage308Adapter:
     def __getattr__(self, name):
         return getattr(self.storage, name)
 
+def _addr_label(addr):
+    if isinstance(addr, type("")):
+        return addr
+    else:
+        host, port = addr
+        return str(host) + ":" + str(port)
 

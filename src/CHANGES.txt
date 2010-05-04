@@ -17,11 +17,24 @@ New Features
   help in situations where object ids are used as BTree keys and the
   sequential allocation of object ids leads to conflict errors.
 
+- ZEO servers now support a server_status method for for getting
+  information the number of clients, lock requests and general
+  statistics.
+
 - The mkzeoinst script has been moved to a separate project:
 
     http://pypi.python.org/pypi/zope.mkzeoinstance
 
   and is no-longer included with ZODB.
+
+- Improved ZEO server commit lock logging.  Now, locking activity is
+  logged at the debug level until the number of wating lock requests
+  gets above 3.  Log at the critical level when the number of waiting
+  lock requests gets above 9.
+
+- ZEO servers no longer log their pids in every log message. It's just
+  not interesting. :)
+
 
 Bugs Fixed
 ----------
@@ -46,6 +59,8 @@ Bugs Fixed
 - cross-database wekrefs weren't handled correctly.
 
   https://bugs.launchpad.net/zodb/+bug/435547
+
+- Fixed some problems in ZEO server commit lock management.
 
 3.10.0a1 (2010-02-08)
 =====================
