@@ -271,7 +271,7 @@ BTW, voting multiple times will error:
     >>> zs2.vote(tid2)
     Traceback (most recent call last):
     ...
-    StorageTransactionError: Already voting
+    StorageTransactionError: Already voting (locked)
 
     >>> tid1 = start_trans(zs1)
     >>> delay = zs1.vote(tid1)
@@ -283,7 +283,7 @@ BTW, voting multiple times will error:
     >>> zs1.vote(tid1)
     Traceback (most recent call last):
     ...
-    StorageTransactionError: Already voting
+    StorageTransactionError: Already voting (waiting)
 
 Note that the locking activity is logged at debug level to avoid
 cluttering log files, however, as the number of waiting votes

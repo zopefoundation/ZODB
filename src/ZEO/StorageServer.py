@@ -447,16 +447,19 @@ class ZEOStorage:
     def vote(self, tid):
         self._check_tid(tid, exc=StorageTransactionError)
         if self.locked or self.server.already_waiting(self):
-            raise StorageTransactionError('Already voting %s' % self.locked)
+            raise StorageTransactionError(
+                'Already voting (%s)' % (self.locked and 'locked' or 'waiting')
+                )
         return self._try_to_vote()
 
     def _try_to_vote(self, delay=None):
         if self.connection is None:
             return # We're disconnected
-        if self.locked:
-            # as a consequence of the unlocking strategy,
-            # _try_to_vote may be called multiple times.
-            # Once we're locked, we should stop trying. :)
+        if delay is not None and delay.sent:
+            # as a consequence of the unlocking strategy, _try_to_vote
+            # may be called multiple times for delayed
+            # transactions. The first call will mark the delay as
+            # sent. We should skip if the delay was already sent.
             return
         self.locked, delay = self.server.lock_storage(self, delay)
         if self.locked:
@@ -504,6 +507,7 @@ class ZEOStorage:
                     delay.reply(None)
                 else:
                     return None
+
         else:
             return delay
 
@@ -1170,10 +1174,13 @@ class StorageServer:
             if storage_id in self._commit_locks:
                 # The lock is held by another zeostore
 
-                assert self._commit_locks[storage_id] is not zeostore
+                assert self._commit_locks[storage_id] is not zeostore, (
+                    storage_id, delay)
 
                 if delay is None:
                     # New request, queue it
+                    assert not [i for i in waiting if i[0] is zeostore
+                                ], "already waiting"
                     delay = Delay()
                     waiting.append((zeostore, delay))
                     zeostore.log("(%r) queue lock: transactions waiting: %s"
@@ -1186,7 +1193,7 @@ class StorageServer:
                 self._commit_locks[storage_id] = zeostore
                 self.timeouts[storage_id].begin(zeostore)
                 self.stats[storage_id].lock_time = time.time()
-                if delay:
+                if delay is not None:
                     # we were waiting, stop
                     waiting[:] = [i for i in waiting if i[0] is not zeostore]
                 zeostore.log("(%r) lock: transactions waiting: %s"
@@ -1206,6 +1213,8 @@ class StorageServer:
             callbacks = waiting[:]
 
         if callbacks:
+            assert not [i for i in waiting if i[0] is zeostore
+                        ], "waiting while unlocking"
             zeostore.log("(%r) unlock: transactions waiting: %s"
                          % (storage_id, len(callbacks)),
                          _level_for_waiting(callbacks)
@@ -1218,6 +1227,7 @@ class StorageServer:
                     raise
                 except Exception:
                     logger.exception("Calling unlock callback")
+
 
     def stop_waiting(self, zeostore):
         storage_id = zeostore.storage_id
