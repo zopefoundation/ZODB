@@ -197,6 +197,7 @@ Of course, if vote suceeds, the lock will be held:
     >>> '1' in server._commit_locks
     True
 
+    >>> zs.tpc_abort('1')
     """
 
 
