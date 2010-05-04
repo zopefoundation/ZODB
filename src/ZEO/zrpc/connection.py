@@ -44,16 +44,24 @@ class Delay:
     the mainloop from sending a response.
     """
 
+    msgid = conn = sent = None
+
     def set_sender(self, msgid, conn):
         self.msgid = msgid
         self.conn = conn
 
     def reply(self, obj):
+        self.sent = 'reply'
         self.conn.send_reply(self.msgid, obj)
 
     def error(self, exc_info):
+        self.sent = 'error'
         log("Error raised in delayed method", logging.ERROR, exc_info=True)
         self.conn.return_error(self.msgid, *exc_info[:2])
+
+    def __repr__(self):
+        return "%s[%s, %r, %r, %r]" % (
+            self.__class__.__name__, id(self), self.msgid, self.conn, self.sent)
 
 class Result(Delay):
 
