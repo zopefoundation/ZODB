@@ -18,7 +18,7 @@ New Features
   sequential allocation of object ids leads to conflict errors.
 
 - ZEO servers now support a server_status method for for getting
-  information the number of clients, lock requests and general
+  information on the number of clients, lock requests and general
   statistics.
 
 - ZEO clients now support a client_label constructor argument and
@@ -34,7 +34,7 @@ New Features
   and is no-longer included with ZODB.
 
 - Improved ZEO server commit lock logging.  Now, locking activity is
-  logged at the debug level until the number of wating lock requests
+  logged at the debug level until the number of waiting lock requests
   gets above 3.  Log at the critical level when the number of waiting
   lock requests gets above 9.
 
