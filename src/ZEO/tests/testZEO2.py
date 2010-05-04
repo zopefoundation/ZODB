@@ -392,6 +392,8 @@ If clients disconnect while waiting, they will be dequeued:
     ZEO.StorageServer DEBUG
     (test-addr-18) ('1') dequeue lock: transactions waiting: 0
 
+    >>> zs1.tpc_abort(tid1)
+
     >>> logging.getLogger('ZEO').setLevel(logging.NOTSET)
     >>> logging.getLogger('ZEO').removeHandler(handler)
     """
