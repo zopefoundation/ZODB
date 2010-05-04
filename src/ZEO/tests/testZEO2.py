@@ -395,6 +395,66 @@ If clients disconnect while waiting, they will be dequeued:
     >>> logging.getLogger('ZEO').removeHandler(handler)
     """
 
+def lock_sanity_check():
+    r"""
+On one occasion with 3.10.0a1 in production, we had a case where a
+transaction lock wasn't released properly.  One possibility, fron
+scant log information, is that the server and ZEOStorage had different
+ideas about whether the ZEOStorage was locked. The timeout thread
+properly closed the ZEOStorage's connection, but the ZEOStorage didn't
+release it's lock, presumably because it thought it wasn't locked. I'm
+not sure why this happened.  I've refactored the logic quite a bit to
+try to deal with this, but the consequences of this failure are so
+severe, I'm adding some sanity checking when queueing lock requests.
+
+Helper to manage transactions:
+
+    >>> itid = 0
+    >>> def start_trans(zs):
+    ...     global itid
+    ...     itid += 1
+    ...     tid = str(itid)
+    ...     zs.tpc_begin(tid, '', '', {})
+    ...     zs.storea(ZODB.utils.p64(99), ZODB.utils.z64, 'x', tid)
+    ...     return tid
+
+Set up server and logging:
+
+    >>> server = ZEO.tests.servertesting.StorageServer()
+
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> handler.setFormatter(logging.Formatter(
+    ...     '%(name)s %(levelname)s\n%(message)s'))
+    >>> logging.getLogger('ZEO').addHandler(handler)
+    >>> logging.getLogger('ZEO').setLevel(logging.DEBUG)
+
+Now, we'll start a transaction, get the lock and then mark the
+ZEOStorage as closed and see if trying to get a lock cleans it up:
+
+    >>> zs1 = ZEO.tests.servertesting.client(server, '1')
+    >>> tid1 = start_trans(zs1)
+    >>> zs1.vote(tid1) # doctest: +ELLIPSIS
+    ZEO.StorageServer DEBUG
+    (test-addr-1) ('1') lock: transactions waiting: 0
+    ZEO.StorageServer BLATHER
+    (test-addr-1) Preparing to commit transaction: 1 objects, 36 bytes
+    1 callAsync serialnos ...
+
+    >>> zs1.connection = None
+
+    >>> zs2 = ZEO.tests.servertesting.client(server, '2')
+    >>> tid2 = start_trans(zs2)
+    >>> zs2.vote(tid2) # doctest: +ELLIPSIS
+    ZEO.StorageServer CRITICAL
+    (test-addr-1) Still locked after disconnected. Unlocking.
+    ZEO.StorageServer DEBUG
+    (test-addr-2) ('1') lock: transactions waiting: 0
+    ZEO.StorageServer BLATHER
+    (test-addr-2) Preparing to commit transaction: 1 objects, 36 bytes
+    2 callAsync serialnos ...
+
+    """
+
 
 def test_suite():
     return unittest.TestSuite((

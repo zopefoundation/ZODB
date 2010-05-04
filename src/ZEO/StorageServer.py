@@ -120,8 +120,6 @@ class ZEOStorage:
         self.log_label = _addr_label(conn.addr)
 
     def notifyDisconnected(self):
-        self.connection = None
-
         # When this storage closes, we must ensure that it aborts
         # any pending transaction.
         if self.transaction is not None:
@@ -130,6 +128,8 @@ class ZEOStorage:
             self.tpc_abort(self.transaction.id)
         else:
             self.log("disconnected")
+
+        self.connection = None
 
     def __repr__(self):
         tid = self.transaction and repr(self.transaction.id)
@@ -1176,8 +1176,22 @@ class StorageServer:
             if storage_id in self._commit_locks:
                 # The lock is held by another zeostore
 
-                assert self._commit_locks[storage_id] is not zeostore, (
-                    storage_id, delay)
+                locked = self._commit_locks[storage_id]
+
+                assert locked is not zeostore, (storage_id, delay)
+
+                if locked.connection is None:
+                    locked.log("Still locked after disconnected. Unlocking.",
+                               logging.CRITICAL)
+                    if locked.transaction:
+                        locked.storage.tpc_abort(locked.transaction)
+                    del self._commit_locks[storage_id]
+                    # yuck: have to manipulate lock to appease with :(
+                    self._lock.release()
+                    try:
+                        return self.lock_storage(zeostore, delay)
+                    finally:
+                        self._lock.acquire()
 
                 if delay is None:
                     # New request, queue it
