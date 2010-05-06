@@ -45,7 +45,7 @@ class DemoStorage(object):
         else:
             self._temporary_base = False
         self.base = base
-            
+
         if changes is None:
             changes = ZODB.MappingStorage.MappingStorage()
             zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
@@ -82,7 +82,7 @@ class DemoStorage(object):
             self.changes = ZODB.blob.BlobStorage(blob_dir, self.changes)
             self._copy_methods_from_changes(self.changes)
             return True
-    
+
     def cleanup(self):
         self.base.cleanup()
         self.changes.cleanup()
@@ -95,7 +95,7 @@ class DemoStorage(object):
 
     def _copy_methods_from_changes(self, changes):
         for meth in (
-            '_lock_acquire', '_lock_release', 
+            '_lock_acquire', '_lock_release',
             'getSize', 'history', 'isReadOnly', 'registerDB',
             'sortKey', 'tpc_transaction', 'tpc_vote',
             ):
@@ -230,7 +230,7 @@ class DemoStorage(object):
             raise TypeError(
                 "Garbage collection isn't supported"
                 " when there is a base storage.")
-        
+
         try:
             self.changes.pack(t, referencesf, gc=False)
         except TypeError, v:
@@ -262,7 +262,7 @@ class DemoStorage(object):
                 old = self.base.load(oid, '')[1]
             except ZODB.POSException.POSKeyError:
                 old = serial
-                
+
         if old != serial:
             raise ZODB.POSException.ConflictError(
                 oid=oid, serials=(old, serial)) # XXX untested branch
@@ -332,7 +332,7 @@ class DemoStorage(object):
 _temporary_blobdirs = {}
 def cleanup_temporary_blobdir(
     ref,
-    _temporary_blobdirs=_temporary_blobdirs, # Make sure it stays around 
+    _temporary_blobdirs=_temporary_blobdirs, # Make sure it stays around
     ):
     blob_dir = _temporary_blobdirs.pop(ref, None)
     if blob_dir and os.path.exists(blob_dir):
