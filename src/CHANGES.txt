@@ -14,6 +14,13 @@ New Features
 
   https://bugs.launchpad.net/zodb/+bug/118512
 
+Bugs Fixed
+----------
+
+- BTree sets and tree sets didn't correctly check values passed to
+  update or to constructors, causing Python to exit under certain
+  circumstances.
+
 3.10.0a2 (2010-05-04)
 =====================
 
@@ -52,7 +59,6 @@ New Features
 
 - ZEO servers no longer log their pids in every log message. It's just
   not interesting. :)
-
 
 Bugs Fixed
 ----------

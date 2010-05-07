@@ -1387,9 +1387,12 @@ class TestIFBTrees(TestCase):
     def _noneraisesvalue(self):
         self.t[1] = None
 
-class TestIOSets(TestCase):
-    def setUp(self):
-        self.t = IOSet()
+class TestI_Sets(TestCase):
+
+    def testBadBadKeyAfterFirst(self):
+        self.assertRaises(TypeError, self.t.__class__, [1, ''])
+        self.assertRaises(TypeError, self.t.update, [1, ''])
+        del self.t
 
     def testNonIntegerInsertRaises(self):
         self.assertRaises(TypeError,self._insertstringraises)
@@ -1404,6 +1407,47 @@ class TestIOSets(TestCase):
 
     def _insertnoneraises(self):
         self.t.insert(None)
+
+class TestIOSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = IOSet()
+
+class TestIOTreeSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = IOTreeSet()
+
+class TestIISets(TestI_Sets):
+
+    def setUp(self):
+        self.t = IISet()
+
+class TestIITreeSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = IITreeSet()
+
+class TestLOSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = LOSet()
+
+class TestLOTreeSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = LOTreeSet()
+
+class TestLLSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = LLSet()
+
+class TestLLTreeSets(TestI_Sets):
+
+    def setUp(self):
+        self.t = LLTreeSet()
+
 
 class DegenerateBTree(TestCase):
     # Build a degenerate tree (set).  Boxes are BTree nodes.  There are
@@ -1758,7 +1802,6 @@ class BugFixes(TestCase):
         self.assertEqual(len(t), 0)
         self.assertEqual(len(LP294788_ids), 0)
 
-
 class IIBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IIBTree()
@@ -2083,7 +2126,8 @@ def test_suite():
         # checking for assorted TypeErrors, and when both keys
         # and values are objects (OO), there's nothing to test.
         TestIIBTrees, TestIFBTrees,  TestIOBTrees,  TestOIBTrees,
-        TestIOSets,
+        TestIOSets, TestIOTreeSets, TestIISets, TestIITreeSets,
+        TestLOSets, TestLOTreeSets, TestLLSets, TestLLTreeSets,
         DegenerateBTree,
         TestCmpError,
         BugFixes,
