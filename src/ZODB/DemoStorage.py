@@ -38,24 +38,34 @@ class DemoStorage(object):
         ZODB.interfaces.IStorageIteration,
         )
 
-    def __init__(self, name=None, base=None, changes=None):
-        if base is None:
-            base = ZODB.MappingStorage.MappingStorage()
-            self._temporary_base = True
-        else:
-            self._temporary_base = False
+    def __init__(self, name=None, base=None, changes=None,
+                 close_base_on_close=None, close_changes_on_close=None):
+
+        if close_base_on_close is None:
+            if base is None:
+                base = ZODB.MappingStorage.MappingStorage()
+                close_base_on_close = False
+            else:
+                close_base_on_close = True
+
         self.base = base
+        self.close_base_on_close = close_base_on_close
+
 
         if changes is None:
+            self._temporary_changes = True
             changes = ZODB.MappingStorage.MappingStorage()
             zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
-            self._temporary_changes = True
+            if close_changes_on_close is None:
+                close_changes_on_close = False
         else:
             if ZODB.interfaces.IBlobStorage.providedBy(changes):
                 zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
-            self._temporary_changes = False
+            if close_changes_on_close is None:
+                close_changes_on_close = True
 
         self.changes = changes
+        self.close_changes_on_close = close_changes_on_close
 
         self._issued_oids = set()
         self._stored_oids = set()
@@ -88,9 +98,9 @@ class DemoStorage(object):
         self.changes.cleanup()
 
     def close(self):
-        if not self._temporary_base:
+        if self.close_base_on_close:
             self.base.close()
-        if not self._temporary_changes:
+        if self.close_changes_on_close:
             self.changes.close()
 
     def _copy_methods_from_changes(self, changes):
@@ -222,9 +232,9 @@ class DemoStorage(object):
 
     def pack(self, t, referencesf, gc=None):
         if gc is None:
-            if self._temporary_base:
+            if self._temporary_changes:
                 return self.changes.pack(t, referencesf)
-        elif self._temporary_base:
+        elif self._temporary_changes:
             return self.changes.pack(t, referencesf, gc=gc)
         elif gc:
             raise TypeError(

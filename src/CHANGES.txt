@@ -2,6 +2,18 @@
  Change History
 ================
 
+3.10.0b1 (2010-05-??)
+=====================
+
+New Features
+------------
+
+- DemoStorages now accept constructor athuments, close_base_on_close
+  and close_changes_on_close, to control whether underlying storages
+  are closed when the DemoStorage is closed.
+
+  https://bugs.launchpad.net/zodb/+bug/118512
+
 3.10.0a2 (2010-05-04)
 =====================
 

@@ -133,6 +133,30 @@ Undo methods are simply copied from the changes storage:
 
     >>> db.close()
 
+Closing demo storages
+=====================
+
+Normally, when a demo storage is closed, it's base and changes
+storage are closed:
+
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> demo = DemoStorage(base=MappingStorage(), changes=MappingStorage())
+    >>> demo.close()
+    >>> demo.base.opened(), demo.changes.opened()
+    (False, False)
+
+You can pass constructor arguments to control whether the base and
+changes storages should be closed when the demo storage is closed:
+
+    >>> demo = DemoStorage(
+    ...     base=MappingStorage(), changes=MappingStorage(),
+    ...     close_base_on_close=False, close_changes_on_close=False,
+    ...     )
+    >>> demo.close()
+    >>> demo.base.opened(), demo.changes.opened()
+    (True, True)
+
+
 Storage Stacking
 ================
 
@@ -147,7 +171,6 @@ creates a new demo storage who's base is the original demo storage:
 
 We can also supply an explicit changes storage, if we wish:
 
-    >>> from ZODB.MappingStorage import MappingStorage
     >>> changes = MappingStorage()
     >>> demo3 = demo2.push(changes)
     >>> demo3.changes is changes, demo3.base is demo2
@@ -166,12 +189,7 @@ Special backward compatibility support
 --------------------------------------
 
 Normally, when a demo storage is closed, it's base and changes
-storage are closed:
-
-    >>> demo = DemoStorage(base=MappingStorage(), changes=MappingStorage())
-    >>> demo.close()
-    >>> demo.base.opened(), demo.changes.opened()
-    (False, False)
+storage are closed.
 
 Older versions of DemoStorage didn't have a separate changes storage
 and didn't close or discard their changes when they were closed.  When
@@ -354,7 +372,7 @@ First we'll get a single OID.
     >>> storage = DemoStorage.push(storage)
     >>> random.seed(47)
     >>> storage.new_oid()
-    '\x1a,S\xa4\xe9\xbb\x17\xbd'
+    '8\xaa-\tz\x1dP\x07'
 
 Then we'll force the random number generator to use the same seed for the
 subsequent call to "new_oid" and show that we get a different OID.
@@ -362,7 +380,7 @@ subsequent call to "new_oid" and show that we get a different OID.
     >>> random.seed(47)
     >>> oid = storage.new_oid()
     >>> oid
-    '\x1a,S\xa4\xe9\xbb\x17\xbe'
+    '8\xaa-\tz\x1dP\x08'
 
 DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 
