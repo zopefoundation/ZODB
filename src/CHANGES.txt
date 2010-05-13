@@ -150,7 +150,7 @@ New Features
 Bugs Fixed
 ----------
 
-- Object state management wasn't dome correctly when classes
+- Object state management wasn't done correctly when classes
   implemented custom _p_deavtivate methods.
   (https://bugs.launchpad.net/zodb/+bug/185066)
 
