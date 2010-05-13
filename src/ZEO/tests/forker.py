@@ -331,11 +331,25 @@ def setUp(test):
 
     zope.testing.setupstack.register(test, cleanup_servers)
 
+    test.globs['wait_until'] = wait_until
     test.globs['wait_connected'] = wait_connected
     test.globs['wait_disconnected'] = wait_disconnected
 
 
-def wait_until(label, func, timeout=30, onfail=None):
+def wait_until(label=None, func=None, timeout=30, onfail=None):
+    if label is None:
+        if func is not None:
+            label = func.__name__
+    elif not isinstance(label, basestring) and func is None:
+        func = label
+        label = func.__name__
+
+    if func is None:
+        def wait_decorator(f):
+            wait_until(label, f, timeout, onfail)
+
+        return wait_decorator
+
     giveup = time.time() + timeout
     while not func():
         if time.time() > giveup:
