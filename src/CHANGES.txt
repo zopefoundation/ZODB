@@ -20,6 +20,10 @@ New Features
   made moot by the introduction of multi-version concurrency control
   several years ago.
 
+- Added support for the transaction retry convenience
+  (transaction-manager attempts method) introduced in the
+  ``transaction`` 1.1.0 release.
+
 Bugs Fixed
 ----------
 

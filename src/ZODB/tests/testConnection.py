@@ -380,6 +380,37 @@ class UserMethodTests(unittest.TestCase):
         -1
         """
 
+def test_transaction_retry_convenience():
+    """
+
+    Simple test to verify integration with the transaction retry
+    helper my verifying that we can raise ConflictError and have it
+    handled properly.
+
+    This is an adaptation of the convenience tests in transaction.
+
+    >>> db = ZODB.tests.util.DB()
+    >>> conn = db.open()
+    >>> dm = conn.root()
+
+    >>> ntry = 0
+    >>> with transaction:
+    ...      dm['ntry'] = 0
+
+    >>> import ZODB.POSException
+    >>> for attempt in transaction.manager.attempts():
+    ...     with attempt as t:
+    ...         t.note('test')
+    ...         print dm['ntry'], ntry
+    ...         ntry += 1
+    ...         dm['ntry'] = ntry
+    ...         if ntry % 3:
+    ...             raise ZODB.POSException.ConflictError()
+    0 0
+    0 1
+    0 2
+    """
+
 class InvalidationTests(unittest.TestCase):
 
     # It's harder to write serious tests, because some of the critical

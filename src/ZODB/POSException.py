@@ -22,6 +22,7 @@ from ZODB.utils import oid_repr, readable_tid_repr
 # BBB: We moved the two transactions to the transaction package
 from transaction.interfaces import TransactionError, TransactionFailedError
 
+import transaction.interfaces
 
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
@@ -67,7 +68,7 @@ class POSKeyError(POSError, KeyError):
         return oid_repr(self.args[0])
 
 
-class ConflictError(POSError, TransactionError):
+class ConflictError(POSError, transaction.interfaces.TransientError):
     """Two transactions tried to modify the same object at once.
 
     This transaction should be resubmitted.
@@ -234,7 +235,7 @@ class BTreesConflictError(ConflictError):
         return "BTrees conflict error at %d/%d/%d: %s" % (
             self.p1, self.p2, self.p3, self.msgs[self.reason])
 
-class DanglingReferenceError(POSError, TransactionError):
+class DanglingReferenceError(POSError, transaction.interfaces.TransactionError):
     """An object has a persistent reference to a missing object.
 
     If an object is stored and it has a reference to another object
@@ -265,7 +266,7 @@ class VersionError(POSError):
 class VersionCommitError(VersionError):
     """An invalid combination of versions was used in a version commit."""
 
-class VersionLockError(VersionError, TransactionError):
+class VersionLockError(VersionError, transaction.interfaces.TransactionError):
     """Modification to an object modified in an unsaved version.
 
     An attempt was made to modify an object that has been modified in an
