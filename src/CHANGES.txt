@@ -73,6 +73,9 @@ New Features
 Bugs Fixed
 ----------
 
+- Fixed bug in copying a BTrees.Length instance.
+  (https://bugs.launchpad.net/zodb/+bug/516653)
+
 - Fixed bug in cPickleCache's byte size estimation logic.
   (https://bugs.launchpad.net/zodb/+bug/533015)
 
