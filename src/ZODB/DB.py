@@ -386,7 +386,7 @@ class DB(object):
                  databases=None,
                  xrefs=True,
                  max_saved_oids=999,
-                 ):
+                 **storage_args):
         """Create an object database.
 
         :Parameters:
@@ -409,7 +409,10 @@ class DB(object):
         """
         if isinstance(storage, basestring):
             from ZODB import FileStorage
-            storage = ZODB.FileStorage.FileStorage(storage)
+            storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
+        elif storage is None:
+            from ZODB import MappingStorage
+            storage = ZODB.MappingStorage.MappingStorage(**storage_args)
 
         # Allocate lock.
         x = threading.RLock()

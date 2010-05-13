@@ -24,6 +24,14 @@ New Features
   (transaction-manager attempts method) introduced in the
   ``transaction`` 1.1.0 release.
 
+- Enhanced the database opening conveniences:
+
+  - You can now pass storage keyword arguments to ZODB.DB and
+    ZODB.connection.
+
+  - You can now pass None (rather than a storage or file name) to get
+    a database with a mapping storage.
+
 Bugs Fixed
 ----------
 

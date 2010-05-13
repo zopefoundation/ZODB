@@ -161,6 +161,17 @@ def passing_a_file_name_to_DB():
     >>> db.close()
     """
 
+def passing_None_to_DB():
+    """You can pass None DB to get a MappingStorage.
+
+    (Also note that we can access DB in ZODB.)
+
+    >>> db = ZODB.DB(None)
+    >>> db.storage # doctest: +ELLIPSIS
+    <ZODB.MappingStorage.MappingStorage object at ...
+    >>> db.close()
+    """
+
 def open_convenience():
     """Often, we just want to open a single connection.
 
@@ -180,6 +191,22 @@ def open_convenience():
     >>> conn.root()
     {'x': 1}
     >>> db.close()
+
+
+    We can pass storage-specific arguments if they don't conflict with
+    DB arguments.
+
+    >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
+    >>> conn.root()['b'] = ZODB.blob.Blob('test')
+    >>> transaction.commit()
+    >>> conn.close()
+
+    >>> db = ZODB.DB('data.fs', blob_dir='blobs')
+    >>> conn = db.open()
+    >>> conn.root()['b'].open().read()
+    'test'
+    >>> db.close()
+
     """
 
 if sys.version_info >= (2, 6):
