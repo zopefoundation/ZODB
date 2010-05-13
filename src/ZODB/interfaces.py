@@ -287,23 +287,32 @@ class IConnection(Interface):
         """
 
 
-class IStorageDB(Interface):
-    """Database interface exposed to storages
+class IStorageWrapper(Interface):
+    """Storage wrapper interface
 
-    This interface provides 2 facilities:
+    This interface provides 3 facilities:
 
     - Out-of-band invalidation support
 
-      A storage can notify it's database of object invalidations that
+      A storage can notify it's wrapper of object invalidations that
       don't occur due to direct operations on the storage.  Currently
       this is only used by ZEO client storages to pass invalidation
       messages sent from a server.
 
-    - Record-reference extraction.
+    - Record-reference extraction
 
       The references method can be used to extract referenced object
       IDs from a database record.  This can be used by storages to
-      provide more advanced garbage collection.
+      provide more advanced garbage collection.  A wrapper storage
+      that transforms data will provide a references method that
+      untransforms data passed to it and then pass the data to the
+      layer above it.
+
+    - Record transformation
+
+      A storage wrapper may transform data, for example for
+      compression or encryption.  Methods are provided to transform or
+      untransform data.
 
     This interface may be implemented by storage adapters or other
     intermediaries.  For example, a storage adapter that provides
@@ -336,6 +345,16 @@ class IStorageDB(Interface):
         then it will be used and augmented. Otherwise, a new list will
         be created and returned.
         """
+
+    def transform_record_data(data):
+        """Return transformed data
+        """
+
+    def untransform_record_data(data):
+        """Return untransformed data
+        """
+
+IStorageDB = IStorageWrapper # for backward compatibility
 
 
 class IDatabase(IStorageDB):
@@ -595,12 +614,18 @@ class IStorage(Interface):
         revisions.
         """
 
-    def registerDB(db):
-        """Register an IStorageDB.
+    def registerDB(wrapper):
+        """Register a storage wrapper IStorageWrapper.
+
+        The passed object is a wrapper object that provides an upcall
+        interface to support composition.
 
         Note that, for historical reasons, an implementation may
         require a second argument, however, if required, the None will
         be passed as the second argument.
+
+        Also, for historical reasons, this is called registerDB rather
+        than register_wrapper.
         """
 
     def sortKey():
