@@ -16,6 +16,10 @@ New Features
 
 - Removed the dependency on zope.proxy.
 
+- Removed support for the _p_independent mini framework, which was
+  made moot by the introduction of multi-version concurrency control
+  several years ago.
+
 Bugs Fixed
 ----------
 

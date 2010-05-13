@@ -246,15 +246,6 @@ class IPersistent(Interface):
         object data to be reloaded.
         """
 
-class IPersistentNoReadConflicts(IPersistent):
-    def _p_independent():
-        """Hook for subclasses to prevent read conflict errors.
-
-        A specific persistent object type can define this method and
-        have it return true if the data manager should ignore read
-        conflicts for this object.
-        """
-
 # TODO:  document conflict resolution.
 
 class IPersistentDataManager(Interface):

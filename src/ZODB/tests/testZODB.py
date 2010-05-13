@@ -30,16 +30,6 @@ import ZODB.tests.util
 class P(Persistent):
     pass
 
-class Independent(Persistent):
-
-    def _p_independent(self):
-        return 1
-
-class DecoyIndependent(Persistent):
-
-    def _p_independent(self):
-        return 0
-
 class ZODBTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
@@ -495,14 +485,6 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
         self.obj = P()
         self.readConflict()
 
-    def checkIndependent(self):
-        self.obj = Independent()
-        self.readConflict(shouldFail=False)
-
-    def checkNotIndependent(self):
-        self.obj = DecoyIndependent()
-        self.readConflict()
-    
     def checkReadConflictIgnored(self):
         # Test that an application that catches a read conflict and
         # continues can not commit the transaction later.

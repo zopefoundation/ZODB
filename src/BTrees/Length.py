@@ -47,11 +47,6 @@ class Length(persistent.Persistent):
     def _p_resolveConflict(self, old, s1, s2):
         return s1 + s2 - old
 
-    def _p_independent(self):
-        # My state doesn't depend on or materially effect the state of
-        # other objects.
-        return 1
-
     def change(self, delta):
         self.value += delta
 

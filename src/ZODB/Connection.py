@@ -828,16 +828,9 @@ class Connection(ExportImport, object):
         # load.  We can only be sure about invalidations after the
         # load.
 
-        # If an object has been invalidated, there are several cases
-        # to consider:
-        # 1. Check _p_independent()
-        # 2. Try MVCC
-        # 3. Raise ConflictError.
-
-        # Does anything actually use _p_independent()?  It would simplify
-        # the code if we could drop support for it.
-        # (BTrees.Length does.)
-
+        # If an object has been invalidated, among the cases to consider:
+        # - Try MVCC
+        # - Raise ConflictError.
 
         if self.before is not None:
             # Load data that was current before the time we have.
@@ -855,9 +848,7 @@ class Connection(ExportImport, object):
             if self._invalidatedCache:
                 raise ReadConflictError()
 
-            if (obj._p_oid in self._invalidated and
-                    not myhasattr(obj, "_p_independent")):
-                # If the object has _p_independent(), we will handle it below.
+            if (obj._p_oid in self._invalidated):
                 self._load_before_or_conflict(obj)
                 return
 
@@ -871,13 +862,8 @@ class Connection(ExportImport, object):
                 self._inv_lock.release()
 
             if invalid:
-                if myhasattr(obj, "_p_independent"):
-                    # This call will raise a ReadConflictError if something
-                    # goes wrong
-                    self._handle_independent(obj)
-                else:
-                    self._load_before_or_conflict(obj)
-                    return
+                self._load_before_or_conflict(obj)
+                return
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
@@ -925,25 +911,6 @@ class Connection(ExportImport, object):
             obj._p_blob_committed = self._storage.loadBlob(obj._p_oid, start)
 
         return True
-
-    def _handle_independent(self, obj):
-        # Helper method for setstate() handles possibly independent objects
-        # Call _p_independent(), if it returns True, setstate() wins.
-        # Otherwise, raise a ConflictError.
-
-        if obj._p_independent():
-            self._inv_lock.acquire()
-            try:
-                try:
-                    self._invalidated.remove(obj._p_oid)
-                except KeyError:
-                    pass
-            finally:
-                self._inv_lock.release()
-        else:
-            self._conflicts[obj._p_oid] = 1
-            self._register(obj)
-            raise ReadConflictError(object=obj)
 
     def register(self, obj):
         """Register obj with the current transaction manager.
