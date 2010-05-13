@@ -592,7 +592,7 @@ class InvqTests(CommonSetupTearDown):
     invq = 3
 
     def checkQuickVerificationWith2Clients(self):
-        perstorage = self.openClientStorage(cache="test")
+        perstorage = self.openClientStorage(cache="test", cache_size=4000)
         self.assertEqual(perstorage.verify_result, "empty cache")
 
         self._storage = self.openClientStorage()
@@ -610,14 +610,19 @@ class InvqTests(CommonSetupTearDown):
         revid2 = self._dostore(oid2)
         revid2 = self._dostore(oid2, revid2)
 
-        # sync() is needed to prevent invalidation for oid from arriving
-        # in the middle of the load() call.
-        perstorage.sync()
         perstorage.load(oid, '')
         perstorage.close()
 
+        forker.wait_until(lambda : os.path.exists('test-1.zec'))
+
         revid = self._dostore(oid, revid)
+
         perstorage = self.openClientStorage(cache="test")
+
+        forker.wait_until(
+            (lambda : perstorage.verify_result == "quick verification"),
+            onfail=(lambda : None))
+
         self.assertEqual(perstorage.verify_result, "quick verification")
         self.assertEqual(perstorage._server._last_invals,
                          (revid, [oid]))

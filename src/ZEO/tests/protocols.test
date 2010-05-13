@@ -47,10 +47,10 @@ A current client should be able to connect to a old server:
     >>> conn2.root()['blob2'].open('w').write('blob data 2')
     >>> transaction.commit()
 
-
-    >>> conn.sync()
-    >>> conn.root().x
-    5
+    >>> @wait_until("Get the new data")
+    ... def f():
+    ...     conn.sync()
+    ...     return conn.root().x == 5
 
     >>> db.close()
 
@@ -132,9 +132,10 @@ Note that we'll have to pull some hijinks:
     >>> transaction.commit()
 
 
-    >>> conn.sync()
-    >>> conn.root().x
-    5
+    >>> @wait_until()
+    ... def x_to_be_5():
+    ...     conn.sync()
+    ...     return conn.root().x == 5
 
     >>> db.close()
 
