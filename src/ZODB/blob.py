@@ -35,9 +35,6 @@ from ZODB import utils
 from ZODB.POSException import POSKeyError
 import persistent
 
-from zope.proxy import getProxiedObject, non_overridable
-from zope.proxy.decorator import SpecificationDecoratorBase
-
 logger = logging.getLogger('ZODB.blob')
 
 BLOB_SUFFIX = ".blob"
@@ -694,23 +691,16 @@ class BlobStorageMixin(object):
         return self.fshelper.temp_dir
 
 
-class BlobStorage(SpecificationDecoratorBase):
-    """A storage to support blobs."""
+class BlobStorage(BlobStorageMixin):
+    """A wrapper/proxy storage to support blobs.
+    """
 
     zope.interface.implements(ZODB.interfaces.IBlobStorage)
 
-    # Proxies can't have a __dict__ so specifying __slots__ here allows
-    # us to have instance attributes explicitly on the proxy.
-    __slots__ = ('fshelper', 'dirty_oids', '_BlobStorage__supportsUndo',
-                 '_blobs_pack_is_in_progress', )
-
-
-    def __new__(self, base_directory, storage, layout='automatic'):
-        return SpecificationDecoratorBase.__new__(self, storage)
-
     def __init__(self, base_directory, storage, layout='automatic'):
-        # XXX Log warning if storage is ClientStorage
-        SpecificationDecoratorBase.__init__(self, storage)
+        assert not ZODB.interfaces.IBlobStorage.providedBy(storage)
+        self.__storage = storage
+
         self._blob_init(base_directory, layout)
         try:
             supportsUndo = storage.supportsUndo
@@ -722,32 +712,38 @@ class BlobStorage(SpecificationDecoratorBase):
         self._blobs_pack_is_in_progress = False
 
         if ZODB.interfaces.IStorageRestoreable.providedBy(storage):
-            zope.interface.alsoProvides(self,
-                                        ZODB.interfaces.IBlobStorageRestoreable)
+            iblob = ZODB.interfaces.IBlobStorageRestoreable
+        else:
+            iblob = ZODB.interfaces.IBlobStorage
 
-    @non_overridable
+        zope.interface.directlyProvides(
+            self, iblob, zope.interface.providedBy(storage))
+
+    def __getattr__(self, name):
+        return getattr(self.__storage, name)
+
+    def __len__(self):
+        return len(self.__storage)
+
     def __repr__(self):
-        normal_storage = getProxiedObject(self)
+        normal_storage = self.__storage
         return '<BlobStorage proxy for %r at %s>' % (normal_storage,
                                                      hex(id(self)))
 
-    @non_overridable
     def tpc_finish(self, *arg, **kw):
         # We need to override the base storage's tpc_finish instead of
         # providing a _finish method because methods found on the proxied
         # object aren't rebound to the proxy
-        getProxiedObject(self).tpc_finish(*arg, **kw)
+        self.__storage.tpc_finish(*arg, **kw)
         self._blob_tpc_finish()
 
-    @non_overridable
     def tpc_abort(self, *arg, **kw):
         # We need to override the base storage's abort instead of
         # providing an _abort method because methods found on the proxied object
         # aren't rebound to the proxy
-        getProxiedObject(self).tpc_abort(*arg, **kw)
+        self.__storage.tpc_abort(*arg, **kw)
         self._blob_tpc_abort()
 
-    @non_overridable
     def _packUndoing(self, packtime, referencesf):
         # Walk over all existing revisions of all blob files and check
         # if they are still needed by attempting to load the revision
@@ -766,7 +762,6 @@ class BlobStorage(SpecificationDecoratorBase):
             if not os.listdir(oid_path):
                 shutil.rmtree(oid_path)
 
-    @non_overridable
     def _packNonUndoing(self, packtime, referencesf):
         for oid, oid_path in self.fshelper.listOIDs():
             exists = True
@@ -789,7 +784,6 @@ class BlobStorage(SpecificationDecoratorBase):
             if not os.listdir(oid_path):
                 shutil.rmtree(oid_path)
 
-    @non_overridable
     def pack(self, packtime, referencesf):
         """Remove all unused OID/TID combinations."""
         self._lock_acquire()
@@ -803,7 +797,7 @@ class BlobStorage(SpecificationDecoratorBase):
         try:
             # Pack the underlying storage, which will allow us to determine
             # which serials are current.
-            unproxied = getProxiedObject(self)
+            unproxied = self.__storage
             result = unproxied.pack(packtime, referencesf)
 
             # Perform a pack on the blob data.
@@ -818,9 +812,8 @@ class BlobStorage(SpecificationDecoratorBase):
 
         return result
 
-    @non_overridable
     def undo(self, serial_id, transaction):
-        undo_serial, keys = getProxiedObject(self).undo(serial_id, transaction)
+        undo_serial, keys = self.__storage.undo(serial_id, transaction)
         # serial_id is the transaction id of the txn that we wish to undo.
         # "undo_serial" is the transaction id of txn in which the undo is
         # performed.  "keys" is the list of oids that are involved in the
@@ -870,7 +863,6 @@ class BlobStorage(SpecificationDecoratorBase):
             self._lock_release()
         return undo_serial, keys
 
-    @non_overridable
     def new_instance(self):
         """Implementation of IMVCCStorage.new_instance.
 
@@ -878,16 +870,9 @@ class BlobStorage(SpecificationDecoratorBase):
         a blob storage wrapper.
         """
         base_dir = self.fshelper.base_dir
-        s = getProxiedObject(self).new_instance()
+        s = self.__storage.new_instance()
         res = BlobStorage(base_dir, s)
         return res
-
-
-for name, v in BlobStorageMixin.__dict__.items():
-    if isinstance(v, type(BlobStorageMixin.__dict__['storeBlob'])):
-        assert name not in BlobStorage.__dict__
-        setattr(BlobStorage, name, non_overridable(v))
-del name, v
 
 copied = logging.getLogger('ZODB.blob.copied').debug
 def rename_or_copy_blob(f1, f2, chmod=True):

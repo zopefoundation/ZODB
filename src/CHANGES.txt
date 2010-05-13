@@ -14,6 +14,8 @@ New Features
 
   https://bugs.launchpad.net/zodb/+bug/118512
 
+- Removed the dependency on zope.proxy.
+
 Bugs Fixed
 ----------
 

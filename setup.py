@@ -194,7 +194,6 @@ setup(name="ZODB3",
         'zdaemon',
         'zope.event',
         'zope.interface',
-        'zope.proxy',
         ],
       zip_safe = False,
       entry_points = """
