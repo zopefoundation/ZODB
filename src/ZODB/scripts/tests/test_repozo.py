@@ -310,6 +310,60 @@ class Test_gen_filename(OptionsTestBase, unittest.TestCase):
         self.assertEqual(fn, '2010-05-14-12-52-31.deltafsz')
 
 
+class Test_find_files(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, options):
+        from ZODB.scripts.repozo import find_files
+        return find_files(options)
+
+    def _makeFile(self, hour, min, sec, ext):
+        # call _makeOptions first!
+        name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
+        fqn = os.path.join(self._repository_directory, name)
+        f = open(fqn, 'wb')
+        f.write(name)
+        f.flush()
+        f.close()
+        return fqn
+
+    def test_explicit_date(self):
+        options = self._makeOptions(date='2010-05-14-13-30-57')
+        files = []
+        for h, m, s, e in [(2, 13, 14, '.fs'),
+                           (2, 13, 14, '.dat'),
+                           (3, 14, 15, '.deltafs'),
+                           (4, 14, 15, '.deltafs'),
+                           (5, 14, 15, '.deltafs'),
+                           (12, 13, 14, '.fs'),
+                           (12, 13, 14, '.dat'),
+                           (13, 14, 15, '.deltafs'),
+                           (14, 15, 16, '.deltafs'),
+                          ]:
+            files.append(self._makeFile(h, m, s, e))
+        found = self._callFUT(options)
+        # Older files, .dat file not included
+        self.assertEqual(found, [files[5], files[7]])
+
+    def test_using_gen_filename(self):
+        options = self._makeOptions(date=None,
+                                    test_now=(2010, 5, 14, 13, 30, 57))
+        files = []
+        for h, m, s, e in [(2, 13, 14, '.fs'),
+                           (2, 13, 14, '.dat'),
+                           (3, 14, 15, '.deltafs'),
+                           (4, 14, 15, '.deltafs'),
+                           (5, 14, 15, '.deltafs'),
+                           (12, 13, 14, '.fs'),
+                           (12, 13, 14, '.dat'),
+                           (13, 14, 15, '.deltafs'),
+                           (14, 15, 16, '.deltafs'),
+                          ]:
+            files.append(self._makeFile(h, m, s, e))
+        found = self._callFUT(options)
+        # Older files, .dat file not included
+        self.assertEqual(found, [files[5], files[7]])
+
+
 class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
 
     def _makeOptions(self, filenames=()):
@@ -639,6 +693,7 @@ def test_suite():
         unittest.makeSuite(Test_copyfile),
         unittest.makeSuite(Test_concat),
         unittest.makeSuite(Test_gen_filename),
+        unittest.makeSuite(Test_find_files),
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
