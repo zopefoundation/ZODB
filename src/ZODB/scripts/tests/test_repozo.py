@@ -208,6 +208,62 @@ class Test_copyfile(OptionsTestBase, unittest.TestCase):
         self.assertEqual(gzip.open(target, 'rb').read(), 'x' * 100)
 
 
+class Test_concat(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, files, ofp):
+        from ZODB.scripts.repozo import concat
+        return concat(files, ofp)
+
+    def _makeFile(self, name, text, gzip_file=False):
+        import gzip
+        import tempfile
+        if self._repository_directory is None:
+            self._repository_directory = tempfile.mkdtemp()
+        fqn = os.path.join(self._repository_directory, name)
+        if gzip_file:
+            f = gzip.open(fqn, 'wb')
+        else:
+            f = open(fqn, 'wb')
+        f.write(text)
+        f.flush()
+        f.close()
+        return fqn
+
+    def test_empty_list_no_ofp(self):
+        bytes, sum = self._callFUT([], None)
+        self.assertEqual(bytes, 0)
+        self.assertEqual(sum, md5('').hexdigest())
+
+    def test_w_plain_files_no_ofp(self):
+        files = [self._makeFile(x, x, False) for x in 'ABC']
+        bytes, sum = self._callFUT(files, None)
+        self.assertEqual(bytes, 3)
+        self.assertEqual(sum, md5('ABC').hexdigest())
+
+    def test_w_gzipped_files_no_ofp(self):
+        files = [self._makeFile('%s.fsz' % x, x, True) for x in 'ABC']
+        bytes, sum = self._callFUT(files, None)
+        self.assertEqual(bytes, 3)
+        self.assertEqual(sum, md5('ABC').hexdigest())
+
+    def test_w_ofp(self):
+
+        class Faux:
+            _closed = False
+            def __init__(self):
+                self._written = []
+            def write(self, data):
+                self._written.append(data)
+            def close(self):
+                self._closed = True
+
+        files = [self._makeFile(x, x, False) for x in 'ABC']
+        ofp = Faux()
+        bytes, sum = self._callFUT(files, ofp)
+        self.assertEqual(ofp._written, [x for x in 'ABC'])
+        self.failUnless(ofp._closed)
+
+
 class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
 
     def _makeOptions(self, filenames=()):
@@ -535,6 +591,7 @@ def test_suite():
         unittest.makeSuite(Test_dofile),
         unittest.makeSuite(Test_checksum),
         unittest.makeSuite(Test_copyfile),
+        unittest.makeSuite(Test_concat),
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
