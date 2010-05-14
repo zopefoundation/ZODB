@@ -778,7 +778,6 @@ class StorageServerDB:
     def invalidateCache(self):
         self.server._invalidateCache(self.storage_id)
 
-    transform_record_data = untransform_record_data = lambda self, data: data
 
 class StorageServer:
 

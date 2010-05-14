@@ -705,8 +705,6 @@ class DB(object):
         """
         self._connectionMap(lambda c: c.invalidateCache())
 
-    transform_record_data = untransform_record_data = lambda self, data: data
-
     def objectCount(self):
         return len(self.storage)
 

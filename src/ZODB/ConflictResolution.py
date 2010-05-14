@@ -53,7 +53,6 @@ def find_global(*args):
 
 def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
-    p = self._crs_wrapper.untransform_record_data(p)
     file = StringIO(p)
     unpickler = Unpickler(file)
     unpickler.find_global = find_global
@@ -81,13 +80,13 @@ class IPersistentReference(zope.interface.Interface):
 
     def __cmp__(other):
         '''if other is equivalent reference, return 0; else raise ValueError.
-
+        
         Equivalent in this case means that oid and database_name are the same.
 
         If either is a weak reference, we only support `is` equivalence, and
         otherwise raise a ValueError even if the datbase_names and oids are
         the same, rather than guess at the correct semantics.
-
+        
         It is impossible to sort reliably, since the actual persistent
         class may have its own comparison, and we have no idea what it is.
         We assert that it is reasonably safe to assume that an object is
@@ -136,7 +135,7 @@ class PersistentReference(object):
 
     def __cmp__(self, other):
         if self is other or (
-            isinstance(other, PersistentReference) and
+            isinstance(other, PersistentReference) and 
             self.oid == other.oid and
             self.database_name == other.database_name and
             not self.weak and
@@ -180,7 +179,6 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
     try:
         prfactory = PersistentReferenceFactory()
-        newpickle = self._crs_wrapper.untransform_record_data(newpickle)
         file = StringIO(newpickle)
         unpickler = Unpickler(file)
         unpickler.find_global = find_global
@@ -217,7 +215,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.inst_persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)
-        return self._crs_wrapper.transform_record_data(file.getvalue(1))
+        return file.getvalue(1)
     except (ConflictError, BadClassName):
         return None
     except:
@@ -229,11 +227,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         logger.error("Unexpected error", exc_info=True)
         return None
 
-class ConflictResolvingStorage(object):
+class ConflictResolvingStorage:
     "Mix-in class that provides conflict resolution handling for storages"
 
     tryToResolveConflict = tryToResolveConflict
-
-    def registerDB(self, wrapper):
-        self._crs_wrapper = wrapper
-        super(ConflictResolvingStorage, self).registerDB(wrapper)
