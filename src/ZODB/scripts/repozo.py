@@ -93,6 +93,9 @@ READCHUNK = 16 * 1024
 VERBOSE = False
 
 
+class WouldOverwriteFiles(Exception):
+    pass
+
 def usage(code, msg=''):
     outfp = sys.stderr
     if code == 0:
@@ -301,7 +304,9 @@ def gen_filename(options, ext=None):
             ext = '.deltafs'
         if options.gzip:
             ext += 'z'
-    t = time.gmtime()[:6] + (ext,)
+    # Hook for testing
+    now = getattr(options, 'test_now', time.gmtime()[:6])
+    t = now + (ext,)
     return '%04d-%02d-%02d-%02d-%02d-%02d%s' % t
 
 # Return a list of files needed to reproduce state at time options.date.
@@ -419,8 +424,7 @@ def do_full_backup(options):
     options.full = True
     dest = os.path.join(options.repository, gen_filename(options))
     if os.path.exists(dest):
-        print >> sys.stderr, 'Cannot overwrite existing file:', dest
-        sys.exit(2)
+        raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     log('writing full backup: %s bytes to %s', pos, dest)
     sum = copyfile(options, dest, 0, pos)
     # Write the data file for this full backup
@@ -447,8 +451,7 @@ def do_incremental_backup(options, reposz, repofiles):
     options.full = False
     dest = os.path.join(options.repository, gen_filename(options))
     if os.path.exists(dest):
-        print >> sys.stderr, 'Cannot overwrite existing file:', dest
-        sys.exit(2)
+        raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     log('writing incremental: %s bytes to %s',  pos-reposz, dest)
     sum = copyfile(options, dest, reposz, pos - reposz)
     # The first file in repofiles points to the last full backup.  Use this to
@@ -570,7 +573,11 @@ def main(argv=None):
         argv = sys.argv[1:]
     options = parseargs(argv)
     if options.mode == BACKUP:
-        do_backup(options)
+        try:
+            do_backup(options)
+        except WouldOverwriteFiles, e:
+            print >> sys.stderr, str(e)
+            sys.exit(2)
     else:
         assert options.mode == RECOVER
         do_recover(options)
