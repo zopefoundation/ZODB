@@ -364,6 +364,62 @@ class Test_find_files(OptionsTestBase, unittest.TestCase):
         self.assertEqual(found, [files[5], files[7]])
 
 
+class Test_scandat(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, repofiles):
+        from ZODB.scripts.repozo import scandat
+        return scandat(repofiles)
+
+    def test_no_dat_file(self):
+        options = self._makeOptions()
+        fsfile = os.path.join(self._repository_directory, 'foo.fs')
+        fn, startpos, endpos, sum = self._callFUT([fsfile])
+        self.assertEqual(fn, None)
+        self.assertEqual(startpos, None)
+        self.assertEqual(endpos, None)
+        self.assertEqual(sum, None)
+
+    def test_empty_dat_file(self):
+        options = self._makeOptions()
+        fsfile = os.path.join(self._repository_directory, 'foo.fs')
+        datfile = os.path.join(self._repository_directory, 'foo.dat')
+        open(datfile, 'wb').close()
+        fn, startpos, endpos, sum = self._callFUT([fsfile])
+        self.assertEqual(fn, None)
+        self.assertEqual(startpos, None)
+        self.assertEqual(endpos, None)
+        self.assertEqual(sum, None)
+
+    def test_single_line(self):
+        options = self._makeOptions()
+        fsfile = os.path.join(self._repository_directory, 'foo.fs')
+        datfile = os.path.join(self._repository_directory, 'foo.dat')
+        f = open(datfile, 'wb')
+        f.write('foo.fs 0 123 ABC\n')
+        f.flush()
+        f.close()
+        fn, startpos, endpos, sum = self._callFUT([fsfile])
+        self.assertEqual(fn, 'foo.fs')
+        self.assertEqual(startpos, 0)
+        self.assertEqual(endpos, 123)
+        self.assertEqual(sum, 'ABC')
+
+    def test_multiple_lines(self):
+        options = self._makeOptions()
+        fsfile = os.path.join(self._repository_directory, 'foo.fs')
+        datfile = os.path.join(self._repository_directory, 'foo.dat')
+        f = open(datfile, 'wb')
+        f.write('foo.fs 0 123 ABC\n')
+        f.write('bar.deltafs 123 456 DEF\n')
+        f.flush()
+        f.close()
+        fn, startpos, endpos, sum = self._callFUT([fsfile])
+        self.assertEqual(fn, 'bar.deltafs')
+        self.assertEqual(startpos, 123)
+        self.assertEqual(endpos, 456)
+        self.assertEqual(sum, 'DEF')
+
+
 class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
 
     def _makeOptions(self, filenames=()):
@@ -694,6 +750,7 @@ def test_suite():
         unittest.makeSuite(Test_concat),
         unittest.makeSuite(Test_gen_filename),
         unittest.makeSuite(Test_find_files),
+        unittest.makeSuite(Test_scandat),
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
