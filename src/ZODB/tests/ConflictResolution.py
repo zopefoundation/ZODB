@@ -53,9 +53,15 @@ class PCounter4(PCounter):
     def _p_resolveConflict(self, oldState, savedState):
         raise RuntimeError("Can't get here; not enough args")
 
+class StorageWrapper:
+
+    transform_record_data = untransform_record_data = lambda self, data: data
+
 class ConflictResolvingStorage:
 
     def checkResolve(self):
+        self._storage.registerDB(StorageWrapper())
+
         obj = PCounter()
         obj.inc()
 
@@ -76,6 +82,8 @@ class ConflictResolvingStorage:
         self.assertEqual(inst._value, 5)
 
     def checkUnresolvable(self):
+        self._storage.registerDB(StorageWrapper())
+
         obj = PCounter2()
         obj.inc()
 
@@ -97,11 +105,15 @@ class ConflictResolvingStorage:
             self.fail("Expected ConflictError")
 
     def checkZClassesArentResolved(self):
+        self._storage.registerDB(StorageWrapper())
+
         from ZODB.ConflictResolution import find_global, BadClassName
         dummy_class_tuple = ('*foobar', ())
         self.assertRaises(BadClassName, find_global, '*foobar', ())
 
     def checkBuggyResolve1(self):
+        self._storage.registerDB(StorageWrapper())
+
         obj = PCounter3()
         obj.inc()
 
@@ -120,6 +132,8 @@ class ConflictResolvingStorage:
                           oid, revid=revid1, data=zodb_pickle(obj))
 
     def checkBuggyResolve2(self):
+        self._storage.registerDB(StorageWrapper())
+
         obj = PCounter4()
         obj.inc()
 
@@ -144,6 +158,8 @@ class ConflictResolvingTransUndoStorage:
         # TransactionalUndoStorage test suite.  Except here, conflict
         # resolution should allow us to undo the transaction anyway.
 
+        self._storage.registerDB(StorageWrapper())
+
         obj = PCounter()
         obj.inc()
         oid = self._storage.new_oid()
@@ -165,6 +181,8 @@ class ConflictResolvingTransUndoStorage:
         # This test is based on checkNotUndoable in the
         # TransactionalUndoStorage test suite.  Except here, conflict
         # resolution should allow us to undo the transaction anyway.
+
+        self._storage.registerDB(StorageWrapper())
 
         obj = PCounter2()
         obj.inc()

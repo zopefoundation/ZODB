@@ -32,6 +32,11 @@ New Features
   - You can now pass None (rather than a storage or file name) to get
     a database with a mapping storage.
 
+- Renamed IStorageDB to IStorageWrapper and expanded it to provide
+  methods for transforming and untransforming data records. This was
+  needed to make storage wrappers that transform data work with
+  conflict resolution.
+
 Bugs Fixed
 ----------
 
