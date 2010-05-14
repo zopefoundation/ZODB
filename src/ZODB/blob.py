@@ -617,29 +617,24 @@ class BlobStorageMixin(object):
         """
         self.dirty_oids = []
 
-    def copyTransactionsFrom(self, other):
-        for trans in other.iterator():
-            self.tpc_begin(trans, trans.tid, trans.status)
-            for record in trans:
-                blobfilename = None
-                if is_blob_record(record.data):
-                    try:
-                        blobfilename = other.loadBlob(record.oid, record.tid)
-                    except POSKeyError:
-                        pass
-                if blobfilename is not None:
-                    fd, name = tempfile.mkstemp(
-                        suffix='.tmp', dir=self.fshelper.temp_dir)
-                    os.close(fd)
-                    utils.cp(open(blobfilename, 'rb'), open(name, 'wb'))
-                    self.restoreBlob(record.oid, record.tid, record.data,
-                                     name, record.data_txn, trans)
-                else:
-                    self.restore(record.oid, record.tid, record.data,
-                                 '', record.data_txn, trans)
+    def registerDB(self, db):
+        self.__untransform_record_data = db.untransform_record_data
+        try:
+            m = super(BlobStorageMixin, self).registerDB
+        except AttributeError:
+            pass
+        else:
+            m(db)
 
-            self.tpc_vote(trans)
-            self.tpc_finish(trans)
+    def __untransform_record_data(self, record):
+        return record
+
+    def is_blob_record(self, record):
+        if record:
+            return is_blob_record(self.__untransform_record_data(record))
+
+    def copyTransactionsFrom(self, other):
+        copyTransactionsFromTo(other, self)
 
     def loadBlob(self, oid, serial):
         """Return the filename where the blob file can be found.
@@ -943,3 +938,27 @@ def is_blob_record(record):
             pass
 
     return False
+
+def copyTransactionsFromTo(source, destination):
+    for trans in source.iterator():
+        destination.tpc_begin(trans, trans.tid, trans.status)
+        for record in trans:
+            blobfilename = None
+            if is_blob_record(record.data):
+                try:
+                    blobfilename = source.loadBlob(record.oid, record.tid)
+                except POSKeyError:
+                    pass
+            if blobfilename is not None:
+                fd, name = tempfile.mkstemp(
+                    suffix='.tmp', dir=destination.fshelper.temp_dir)
+                os.close(fd)
+                utils.cp(open(blobfilename, 'rb'), open(name, 'wb'))
+                destination.restoreBlob(record.oid, record.tid, record.data,
+                                 name, record.data_txn, trans)
+            else:
+                destination.restore(record.oid, record.tid, record.data,
+                             '', record.data_txn, trans)
+
+        destination.tpc_vote(trans)
+        destination.tpc_finish(trans)

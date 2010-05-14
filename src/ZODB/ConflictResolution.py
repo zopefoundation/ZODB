@@ -53,7 +53,7 @@ def find_global(*args):
 
 def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
-    p = self._crs_wrapper.untransform_record_data(p)
+    p = self._crs_untransform_record_data(p)
     file = StringIO(p)
     unpickler = Unpickler(file)
     unpickler.find_global = find_global
@@ -180,7 +180,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
     try:
         prfactory = PersistentReferenceFactory()
-        newpickle = self._crs_wrapper.untransform_record_data(newpickle)
+        newpickle = self._crs_untransform_record_data(newpickle)
         file = StringIO(newpickle)
         unpickler = Unpickler(file)
         unpickler.find_global = find_global
@@ -196,7 +196,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
             newargs = ()
 
         if klass in _unresolvable:
-            return None
+            raise ConflictError
 
         newstate = unpickler.load()
         inst = klass.__new__(klass, *newargs)
@@ -205,7 +205,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
             resolve = inst._p_resolveConflict
         except AttributeError:
             _unresolvable[klass] = 1
-            return None
+            raise ConflictError
 
         old = state(self, oid, oldSerial, prfactory)
         committed = state(self, oid, committedSerial, prfactory, committedData)
@@ -217,9 +217,9 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.inst_persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)
-        return self._crs_wrapper.transform_record_data(file.getvalue(1))
+        return self._crs_transform_record_data(file.getvalue(1))
     except (ConflictError, BadClassName):
-        return None
+        pass
     except:
         # If anything else went wrong, catch it here and avoid passing an
         # arbitrary exception back to the client.  The error here will mask
@@ -227,13 +227,19 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         # ConflictError, but not necessarily from other errors.  But log
         # the error so that any problems can be fixed.
         logger.error("Unexpected error", exc_info=True)
-        return None
+
+    raise ConflictError(oid=oid, serials=(committedSerial, oldSerial),
+                        data=newpickle)
 
 class ConflictResolvingStorage(object):
     "Mix-in class that provides conflict resolution handling for storages"
 
     tryToResolveConflict = tryToResolveConflict
 
+    _crs_transform_record_data = _crs_untransform_record_data = (
+        lambda self, o: o)
+
     def registerDB(self, wrapper):
-        self._crs_wrapper = wrapper
+        self._crs_untransform_record_data = wrapper.untransform_record_data
+        self._crs_transform_record_data = wrapper.transform_record_data
         super(ConflictResolvingStorage, self).registerDB(wrapper)

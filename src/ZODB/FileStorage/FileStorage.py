@@ -476,14 +476,8 @@ class FileStorage(
                 committed_tid = h.tid
 
                 if oldserial != committed_tid:
-                    rdata = self.tryToResolveConflict(oid, committed_tid,
+                    data = self.tryToResolveConflict(oid, committed_tid,
                                                      oldserial, data)
-                    if rdata is None:
-                        raise POSException.ConflictError(
-                            oid=oid, serials=(committed_tid, oldserial),
-                            data=data)
-                    else:
-                        data = rdata
 
             pos = self._pos
             here = pos + self._tfile.tell() + self._thl
@@ -843,10 +837,11 @@ class FileStorage(
         except KeyError:
             # couldn't find oid; what's the real explanation for this?
             raise UndoError("_loadBack() failed for %s", oid)
-        data = self.tryToResolveConflict(oid, ctid, tid, bdata, cdata)
-
-        if data:
+        try:
+            data = self.tryToResolveConflict(oid, ctid, tid, bdata, cdata)
             return data, 0, ipos
+        except POSException.ConflictError:
+            pass
 
         raise UndoError("Some data were modified by a later transaction", oid)
 
@@ -961,7 +956,7 @@ class FileStorage(
                     except ZODB.POSException.POSKeyError:
                         pass # It was removed, so no need to copy data
                     else:
-                        if ZODB.blob.is_blob_record(up):
+                        if self.is_blob_record(up):
                             # We're undoing a blob modification operation.
                             # We have to copy the blob data
                             tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)

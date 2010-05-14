@@ -145,7 +145,7 @@ class BlobUndoTests(BlobTestBase):
         # the blob footprint object should exist no longer
         self.assertRaises(KeyError, root.__getitem__, 'blob')
         database.close()
-        
+
     def testUndo(self):
         database = DB(self._storage)
         connection = database.open()
@@ -178,7 +178,7 @@ class BlobUndoTests(BlobTestBase):
         blob.consumeFile('consume1')
         root['blob'] = blob
         transaction.commit()
-        
+
         transaction.begin()
         blob = root['blob']
         open('consume2', 'w').write('this is state 2')
@@ -279,7 +279,7 @@ class RecoveryBlobStorage(BlobTestBase,
         transaction.commit()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
-    
+
 
 def gc_blob_removes_uncommitted_data():
     """
@@ -335,7 +335,7 @@ Works with savepoints too:
 
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
-    
+
     >>> root['blob2'].open().read()
     'test2'
 
@@ -625,7 +625,7 @@ def storage_reusable_suite(prefix, factory,
             return factory(name, blob_dir)
 
         test.globs['create_storage'] = create_storage
-    
+
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocFileSuite(
         "blob_connection.txt", "blob_importexport.txt",
