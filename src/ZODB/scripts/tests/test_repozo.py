@@ -263,6 +263,52 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         self.assertEqual(ofp._written, [x for x in 'ABC'])
         self.failUnless(ofp._closed)
 
+_marker = object()
+class Test_gen_filename(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, options, ext=_marker):
+        from ZODB.scripts.repozo import gen_filename
+        if ext is _marker:
+            return gen_filename(options)
+        return gen_filename(options, ext)
+
+    def test_explicit_ext(self):
+        options = self._makeOptions(test_now = (2010, 5, 14, 12, 52, 31))
+        fn = self._callFUT(options, '.txt')
+        self.assertEqual(fn, '2010-05-14-12-52-31.txt')
+
+    def test_full_no_gzip(self):
+        options = self._makeOptions(test_now = (2010, 5, 14, 12, 52, 31),
+                                    full = True,
+                                    gzip = False,
+                                   )
+        fn = self._callFUT(options)
+        self.assertEqual(fn, '2010-05-14-12-52-31.fs')
+
+    def test_full_w_gzip(self):
+        options = self._makeOptions(test_now = (2010, 5, 14, 12, 52, 31),
+                                    full = True,
+                                    gzip = True,
+                                   )
+        fn = self._callFUT(options)
+        self.assertEqual(fn, '2010-05-14-12-52-31.fsz')
+
+    def test_incr_no_gzip(self):
+        options = self._makeOptions(test_now = (2010, 5, 14, 12, 52, 31),
+                                    full = False,
+                                    gzip = False,
+                                   )
+        fn = self._callFUT(options)
+        self.assertEqual(fn, '2010-05-14-12-52-31.deltafs')
+
+    def test_incr_w_gzip(self):
+        options = self._makeOptions(test_now = (2010, 5, 14, 12, 52, 31),
+                                    full = False,
+                                    gzip = True,
+                                   )
+        fn = self._callFUT(options)
+        self.assertEqual(fn, '2010-05-14-12-52-31.deltafsz')
+
 
 class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
 
@@ -592,6 +638,7 @@ def test_suite():
         unittest.makeSuite(Test_checksum),
         unittest.makeSuite(Test_copyfile),
         unittest.makeSuite(Test_concat),
+        unittest.makeSuite(Test_gen_filename),
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
