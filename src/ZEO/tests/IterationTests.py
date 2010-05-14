@@ -47,13 +47,14 @@ class IterationTests:
     def checkIteratorGCSpanTransactions(self):
         # Keep a hard reference to the iterator so it won't be automatically
         # garbage collected at the transaction boundary.
+        self._dostore()
         iterator = self._storage.iterator()
         self._dostore()
         # As the iterator was not garbage collected, we can still use it. (We
         # don't see the transaction we just wrote being picked up, because
         # iterators only see the state from the point in time when they were
         # created.)
-        self.assertEquals([], list(iterator))
+        self.assert_(list(iterator))
 
     def checkIteratorGCStorageCommitting(self):
         # We want the iterator to be garbage-collected, so we don't keep any

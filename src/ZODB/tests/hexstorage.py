@@ -158,7 +158,4 @@ class ZConfig:
 
     def open(self):
         base = self.config.base.open()
-        compress = self.config.compress
-        if compress is None:
-            compress = True
-        return Storage(base, compress)
+        return HexStorage(base)

@@ -317,6 +317,16 @@ class FileStorageTests(FullGenericTests):
         </filestorage>
         """
 
+    _expected_interfaces = (
+        ('ZODB.interfaces', 'IStorageRestoreable'),
+        ('ZODB.interfaces', 'IStorageIteration'),
+        ('ZODB.interfaces', 'IStorageUndoable'),
+        ('ZODB.interfaces', 'IStorageCurrentRecordIteration'),
+        ('ZODB.interfaces', 'IExternalGC'),
+        ('ZODB.interfaces', 'IStorage'),
+        ('zope.interface', 'Interface'),
+        )
+
     def checkInterfaceFromRemoteStorage(self):
         # ClientStorage itself doesn't implement IStorageIteration, but the
         # FileStorage on the other end does, and thus the ClientStorage
@@ -326,17 +336,31 @@ class FileStorageTests(FullGenericTests):
         self.failUnless(ZODB.interfaces.IStorageIteration.providedBy(
             self._storage))
         # This is communicated using ClientStorage's _info object:
-        self.assertEquals(
-            (('ZODB.interfaces', 'IStorageRestoreable'),
-             ('ZODB.interfaces', 'IStorageIteration'),
-             ('ZODB.interfaces', 'IStorageUndoable'),
-             ('ZODB.interfaces', 'IStorageCurrentRecordIteration'),
-             ('ZODB.interfaces', 'IExternalGC'),
-             ('ZODB.interfaces', 'IStorage'),
-             ('zope.interface', 'Interface'),
-             ),
+        self.assertEquals(self._expected_interfaces,
             self._storage._info['interfaces']
             )
+
+class FileStorageHexTests(FileStorageTests):
+    _expected_interfaces = (
+        ('ZODB.interfaces', 'IStorageRestoreable'),
+        ('ZODB.interfaces', 'IStorageIteration'),
+        ('ZODB.interfaces', 'IStorageUndoable'),
+        ('ZODB.interfaces', 'IStorageCurrentRecordIteration'),
+        ('ZODB.interfaces', 'IExternalGC'),
+        ('ZODB.interfaces', 'IStorage'),
+        ('ZODB.interfaces', 'IStorageWrapper'),
+        ('zope.interface', 'Interface'),
+        )
+
+    def getConfig(self):
+        return """\
+        %import ZODB.tests
+        <hexstorage>
+        <filestorage 1>
+        path Data.fs
+        </filestorage>
+        </hexstorage>
+        """
 
 
 class MappingStorageTests(GenericTests):
@@ -1405,7 +1429,8 @@ def quick_close_doesnt_kill_server():
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
-    DemoStorageTests, FileStorageTests, MappingStorageTests,
+    DemoStorageTests, FileStorageTests, FileStorageHexTests,
+    MappingStorageTests,
     ]
 
 quick_test_classes = [

@@ -13,6 +13,7 @@
 ##############################################################################
 import ZODB.MappingStorage
 import unittest
+import ZODB.tests.hexstorage
 
 
 from ZODB.tests import (
@@ -48,13 +49,21 @@ class MappingStorageTests(
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
         pass
-        
+
     def checkLoadBeforeUndo(self):
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
+class MappingStorageHexTests(MappingStorageTests):
+
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self, )
+        self._storage = ZODB.tests.hexstorage.HexStorage(
+            ZODB.MappingStorage.MappingStorage())
+
 def test_suite():
     suite = unittest.makeSuite(MappingStorageTests, 'check')
+    suite = unittest.makeSuite(MappingStorageHexTests, 'check')
     return suite
 
 if __name__ == "__main__":
