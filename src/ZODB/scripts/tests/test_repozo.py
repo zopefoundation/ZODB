@@ -77,11 +77,7 @@ class OurDB:
         self.close()
 
 
-class Test_dofile(unittest.TestCase):
-
-    def _callFUT(self, func, fp, n):
-        from ZODB.scripts.repozo import dofile
-        return dofile(func, fp, n)
+class FileopsBase:
 
     def _makeChunks(self):
         from ZODB.scripts.repozo import READCHUNK
@@ -92,6 +88,13 @@ class Test_dofile(unittest.TestCase):
         if text is None:
             text = ''.join(self._makeChunks())
         return StringIO(text)
+
+
+class Test_dofile(unittest.TestCase, FileopsBase):
+
+    def _callFUT(self, func, fp, n):
+        from ZODB.scripts.repozo import dofile
+        return dofile(func, fp, n)
 
     def test_empty_read_all(self):
         chunks = []
@@ -120,6 +123,35 @@ class Test_dofile(unittest.TestCase):
         bytes = self._callFUT(chunks.append, file, 42)
         self.assertEqual(bytes, 42)
         self.assertEqual(chunks, ['x' * 42])
+
+
+class Test_checksum(unittest.TestCase, FileopsBase):
+
+    def _callFUT(self, fp, n):
+        from ZODB.scripts.repozo import checksum
+        return checksum(fp, n)
+
+    def test_empty_read_all(self):
+        file = self._makeFile('')
+        sum = self._callFUT(file, None)
+        self.assertEqual(sum, md5('').hexdigest())
+
+    def test_empty_read_count(self):
+        file = self._makeFile('')
+        sum = self._callFUT(file, 42)
+        self.assertEqual(sum, md5('').hexdigest())
+
+    def test_nonempty_read_all(self):
+        file = self._makeFile()
+        sum = self._callFUT(file, None)
+        self.assertEqual(sum, md5(''.join(self._makeChunks())).hexdigest())
+
+    def test_nonempty_read_count(self):
+        chunks = []
+        file = self._makeFile()
+        sum = self._callFUT(file, 42)
+        self.assertEqual(sum, md5('x' * 42).hexdigest())
+
 
 class TestBase:
 
@@ -469,6 +501,7 @@ class MonteCarloTests(unittest.TestCase):
 def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(Test_dofile),
+        unittest.makeSuite(Test_checksum),
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
