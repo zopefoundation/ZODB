@@ -153,7 +153,7 @@ class Test_checksum(unittest.TestCase, FileopsBase):
         self.assertEqual(sum, md5('x' * 42).hexdigest())
 
 
-class TestBase:
+class OptionsTestBase:
 
     _repository_directory = None
     _data_directory = None
@@ -176,7 +176,39 @@ class TestBase:
         return Options(**kw)
 
 
-class Test_delete_old_backups(TestBase, unittest.TestCase):
+class Test_copyfile(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, options, dest, start, n):
+        from ZODB.scripts.repozo import copyfile
+        return copyfile(options, dest, start, n)
+
+    def test_no_gzip(self):
+        options = self._makeOptions(gzip=False)
+        source = options.file = os.path.join(self._repository_directory,
+                                             'source.txt')
+        f = open(source, 'wb')
+        f.write('x' * 1000)
+        f.close()
+        target = os.path.join(self._repository_directory, 'target.txt')
+        sum = self._callFUT(options, target, 0, 100)
+        self.assertEqual(sum, md5('x' * 100).hexdigest())
+        self.assertEqual(open(target, 'rb').read(), 'x' * 100)
+
+    def test_w_gzip(self):
+        import gzip
+        options = self._makeOptions(gzip=True)
+        source = options.file = os.path.join(self._repository_directory,
+                                             'source.txt')
+        f = open(source, 'wb')
+        f.write('x' * 1000)
+        f.close()
+        target = os.path.join(self._repository_directory, 'target.txt')
+        sum = self._callFUT(options, target, 0, 100)
+        self.assertEqual(sum, md5('x' * 100).hexdigest())
+        self.assertEqual(gzip.open(target, 'rb').read(), 'x' * 100)
+
+
+class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
 
     def _makeOptions(self, filenames=()):
         options = super(Test_delete_old_backups, self)._makeOptions()
@@ -253,7 +285,7 @@ class Test_delete_old_backups(TestBase, unittest.TestCase):
             self.failUnless(os.path.isfile(fqn))
 
 
-class Test_do_full_backup(TestBase, unittest.TestCase):
+class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
 
     def _callFUT(self, options):
         from ZODB.scripts.repozo import do_full_backup
@@ -300,7 +332,7 @@ class Test_do_full_backup(TestBase, unittest.TestCase):
                             (target, len(original), md5(original).hexdigest()))
 
 
-class Test_do_incremental_backup(TestBase, unittest.TestCase):
+class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
 
     def _callFUT(self, options, reposz, repofiles):
         from ZODB.scripts.repozo import do_incremental_backup
@@ -502,6 +534,7 @@ def test_suite():
     return unittest.TestSuite([
         unittest.makeSuite(Test_dofile),
         unittest.makeSuite(Test_checksum),
+        unittest.makeSuite(Test_copyfile),
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
