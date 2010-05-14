@@ -245,6 +245,7 @@
         "0" means no limit.
       </description>
     </key>
+    <key name="large-record-size" datatype="byte-size" />
     <key name="pool-size" datatype="integer" default="7"/>
       <description>
         The expected maximum number of simultaneously open connections.

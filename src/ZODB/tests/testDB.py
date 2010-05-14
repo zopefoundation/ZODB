@@ -284,6 +284,85 @@ def connection_allows_empty_version_for_idiots():
     >>> db.close()
     """
 
+def warn_when_data_records_are_big():
+    """
+When data records are large, a warning is issued to try to prevent new
+users from shooting themselves in the foot.
+
+    >>> import warnings
+    >>> old_warn = warnings.warn
+    >>> def faux_warn(message, *args):
+    ...     print message,
+    ...     if args: print args
+    >>> warnings.warn = faux_warn
+
+    >>> db = ZODB.DB('t.fs', create=True)
+    >>> conn = db.open()
+    >>> conn.root.x = 'x'*(1<<24)
+    >>> transaction.commit()
+    The <class 'persistent.mapping.PersistentMapping'>
+    object you're saving is large. (16777284 bytes.)
+    <BLANKLINE>
+    Perhaps you're storing media which should be stored in blobs.
+    <BLANKLINE>
+    Perhaps you're using a non-scalable data structure, such as a
+    PersistentMapping or PersistentList.
+    <BLANKLINE>
+    Perhaps you're storing data in objects that aren't persistent at
+    all. In cases like that, the data is stored in the record of the
+    containing persistent object.
+    <BLANKLINE>
+    In any case, storing records this big is probably a bad idea.
+    <BLANKLINE>
+    If you insist and want to get rid of this warning, use the
+    large_record_size option of the ZODB.DB constructor (or the
+    large-record-size option in a configuration file) to specify a larger
+    size.
+
+    >>> db.close()
+
+The large_record_size option can be used to control the record size:
+
+    >>> db = ZODB.DB('t.fs', create=True, large_record_size=999)
+    >>> conn = db.open()
+    >>> conn.root.x = 'x'
+    >>> transaction.commit()
+
+    >>> conn.root.x = 'x'*999
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    The <class 'persistent.mapping.PersistentMapping'>
+    object you're saving is large. (1067 bytes.)
+    ...
+
+    >>> db.close()
+
+We can also specify it using a configuration option:
+
+    >>> import ZODB.config
+    >>> db = ZODB.config.databaseFromString('''
+    ...     <zodb>
+    ...         large-record-size 1MB
+    ...         <filestorage>
+    ...             path t.fs
+    ...             create true
+    ...         </filestorage>
+    ...     </zodb>
+    ... ''')
+    >>> conn = db.open()
+    >>> conn.root.x = 'x'
+    >>> transaction.commit()
+
+    >>> conn.root.x = 'x'*(1<<20)
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    The <class 'persistent.mapping.PersistentMapping'>
+    object you're saving is large. (1048644 bytes.)
+    ...
+
+    >>> db.close()
+
+    >>> warnings.warn = old_warn
+    """
+
 def test_suite():
     s = unittest.makeSuite(DBTests)
     s.addTest(doctest.DocTestSuite(

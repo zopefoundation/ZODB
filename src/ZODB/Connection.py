@@ -88,6 +88,7 @@ class Connection(ExportImport, object):
         self._debug_info = ()
 
         self._db = db
+        self.large_record_size = db.large_record_size
 
         # historical connection
         self.before = before
@@ -632,6 +633,8 @@ class Connection(ExportImport, object):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
             p = writer.serialize(obj)  # This calls __getstate__ of obj
+            if len(p) >= self.large_record_size:
+                warnings.warn(large_object_message % (obj.__class__, len(p)))
 
             if isinstance(obj, Blob):
                 if not IBlobStorage.providedBy(self._storage):
@@ -1319,3 +1322,23 @@ class RootConvenience(object):
         if len(names) > 60:
             names = names[:57].rsplit(' ', 1)[0] + ' ...'
         return "<root: %s>" % names
+
+large_object_message = """The %s
+object you're saving is large. (%s bytes.)
+
+Perhaps you're storing media which should be stored in blobs.
+
+Perhaps you're using a non-scalable data structure, such as a
+PersistentMapping or PersistentList.
+
+Perhaps you're storing data in objects that aren't persistent at
+all. In cases like that, the data is stored in the record of the
+containing persistent object.
+
+In any case, storing records this big is probably a bad idea.
+
+If you insist and want to get rid of this warning, use the
+large_record_size option of the ZODB.DB constructor (or the
+large-record-size option in a configuration file) to specify a larger
+size.
+"""

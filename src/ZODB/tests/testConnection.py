@@ -873,6 +873,8 @@ class StubDatabase:
 
     save_oid = lambda self, oid: None
 
+    large_record_size = 1<<30
+
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')
     s.addTest(doctest.DocTestSuite())

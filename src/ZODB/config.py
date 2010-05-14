@@ -110,6 +110,7 @@ class ZODBDatabase(BaseConfig):
 
         _option('pool_timeout')
         _option('allow_implicit_cross_references', 'xrefs')
+        _option('large_record_size')
 
         try:
             return ZODB.DB(

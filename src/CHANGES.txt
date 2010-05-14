@@ -32,6 +32,11 @@ New Features
   - You can now pass None (rather than a storage or file name) to get
     a database with a mapping storage.
 
+- Databases now warn when committing very large records (> 16MB).
+  This is to tr to warn people of likely design mistakes.  There is a
+  new option (large_record_size/large-record-size) to control the
+  record size at which the warning is issued.
+
 Bugs Fixed
 ----------
 

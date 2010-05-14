@@ -386,6 +386,7 @@ class DB(object):
                  databases=None,
                  xrefs=True,
                  max_saved_oids=999,
+                 large_record_size=1<<24,
                  **storage_args):
         """Create an object database.
 
@@ -487,6 +488,7 @@ class DB(object):
 
         self._saved_oids = []
         self._max_saved_oids = max_saved_oids
+        self.large_record_size = large_record_size
 
     def _setupUndoMethods(self):
         storage = self.storage
