@@ -74,6 +74,7 @@ class OurDB:
                     del tree[keys[0]]
         transaction.commit()
         self.pos = self.db.storage._pos
+        self.maxkey = self.db.storage._oid
         self.close()
 
 
@@ -326,6 +327,11 @@ class Test_find_files(OptionsTestBase, unittest.TestCase):
         f.close()
         return fqn
 
+    def test_no_files(self):
+        options = self._makeOptions(date='2010-05-14-13-30-57')
+        found = self._callFUT(options)
+        self.assertEqual(found, [])
+
     def test_explicit_date(self):
         options = self._makeOptions(date='2010-05-14-13-30-57')
         files = []
@@ -525,7 +531,9 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
         self.assertRaises(WouldOverwriteFiles, self._callFUT, options)
 
     def test_empty(self):
+        import struct
         from ZODB.scripts.repozo import gen_filename
+        from ZODB.fsIndex import fsIndex
         db = self._makeDB()
         options = self._makeOptions(file=db._file_name,
                                     gzip=False,
@@ -542,6 +550,15 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
         self.assertEqual(open(datfile).read(),
                          '%s 0 %d %s\n' %
                             (target, len(original), md5(original).hexdigest()))
+        ndxfile = os.path.join(self._repository_directory,
+                               gen_filename(options, '.index'))
+        ndx_info = fsIndex.load(ndxfile)
+        self.assertEqual(ndx_info['pos'], len(original))
+        index = ndx_info['index']
+        pZero = struct.pack(">Q", 0)
+        pOne = struct.pack(">Q", 1)
+        self.assertEqual(index.minKey(), pZero)
+        self.assertEqual(index.maxKey(), pOne)
 
 
 class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
@@ -576,7 +593,9 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
                           self._callFUT, options, 0, repofiles)
 
     def test_no_changes(self):
+        import struct
         from ZODB.scripts.repozo import gen_filename
+        from ZODB.fsIndex import fsIndex
         db = self._makeDB()
         oldpos = db.pos
         options = self._makeOptions(file=db._file_name,
@@ -603,9 +622,20 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
         self.assertEqual(open(datfile).read(),
                          '%s %d %d %s\n' %
                             (target, oldpos, oldpos, md5('').hexdigest()))
+        ndxfile = os.path.join(self._repository_directory,
+                               gen_filename(options, '.index'))
+        ndx_info = fsIndex.load(ndxfile)
+        self.assertEqual(ndx_info['pos'], oldpos)
+        index = ndx_info['index']
+        pZero = struct.pack(">Q", 0)
+        pOne = struct.pack(">Q", 1)
+        self.assertEqual(index.minKey(), pZero)
+        self.assertEqual(index.maxKey(), pOne)
 
     def test_w_changes(self):
+        import struct
         from ZODB.scripts.repozo import gen_filename
+        from ZODB.fsIndex import fsIndex
         db = self._makeDB()
         oldpos = db.pos
         options = self._makeOptions(file=db._file_name,
@@ -637,7 +667,108 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
                          '%s %d %d %s\n' %
                             (target, oldpos, newpos,
                              md5(increment).hexdigest()))
+        ndxfile = os.path.join(self._repository_directory,
+                               gen_filename(options, '.index'))
+        ndx_info = fsIndex.load(ndxfile)
+        self.assertEqual(ndx_info['pos'], newpos)
+        index = ndx_info['index']
+        pZero = struct.pack(">Q", 0)
+        self.assertEqual(index.minKey(), pZero)
+        self.assertEqual(index.maxKey(), db.maxkey)
 
+
+class Test_do_recover(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, options):
+        from ZODB.scripts.repozo import do_recover
+        return do_recover(options)
+
+    def _makeFile(self, hour, min, sec, ext, text=None):
+        # call _makeOptions first!
+        name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
+        if text is None:
+            text = name
+        fqn = os.path.join(self._repository_directory, name)
+        f = open(fqn, 'wb')
+        f.write(text)
+        f.flush()
+        f.close()
+        return fqn
+
+    def test_no_files(self):
+        from ZODB.scripts.repozo import NoFiles
+        options = self._makeOptions(date=None,
+                                    test_now=(2010, 5, 15, 13, 30, 57))
+        self.assertRaises(NoFiles, self._callFUT, options)
+
+    def test_no_files_before_explicit_date(self):
+        from ZODB.scripts.repozo import NoFiles
+        options = self._makeOptions(date='2010-05-13-13-30-57')
+        files = []
+        for h, m, s, e in [(2, 13, 14, '.fs'),
+                           (2, 13, 14, '.dat'),
+                           (3, 14, 15, '.deltafs'),
+                           (4, 14, 15, '.deltafs'),
+                           (5, 14, 15, '.deltafs'),
+                           (12, 13, 14, '.fs'),
+                           (12, 13, 14, '.dat'),
+                           (13, 14, 15, '.deltafs'),
+                           (14, 15, 16, '.deltafs'),
+                          ]:
+            files.append(self._makeFile(h, m, s, e))
+        self.assertRaises(NoFiles, self._callFUT, options)
+
+    def test_w_full_backup_latest_no_index(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.fs', 'BBB')
+        self._callFUT(options)
+        self.assertEqual(open(output, 'rb').read(), 'BBB')
+
+    def test_w_full_backup_latest_index(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.fs', 'BBB')
+        self._makeFile(4, 5, 6, '.index', 'CCC')
+        self._callFUT(options)
+        self.assertEqual(open(output, 'rb').read(), 'BBB')
+        self.assertEqual(open(index, 'rb').read(), 'CCC')
+
+    def test_w_incr_backup_latest_no_index(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBB')
+        self._callFUT(options)
+        self.assertEqual(open(output, 'rb').read(), 'AAABBB')
+
+    def test_w_incr_backup_latest_index(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBB')
+        self._makeFile(4, 5, 6, '.index', 'CCC')
+        self._callFUT(options)
+        self.assertEqual(open(output, 'rb').read(), 'AAABBB')
+        self.assertEqual(open(index, 'rb').read(), 'CCC')
 
 class MonteCarloTests(unittest.TestCase):
 
@@ -754,5 +885,9 @@ def test_suite():
         unittest.makeSuite(Test_delete_old_backups),
         unittest.makeSuite(Test_do_full_backup),
         unittest.makeSuite(Test_do_incremental_backup),
+        #unittest.makeSuite(Test_do_backup),  #TODO
+        unittest.makeSuite(Test_do_recover),
+        # N.B.:  this test take forever to run (~40sec on a fast laptop),
+        # *and* it is non-deterministic.
         unittest.makeSuite(MonteCarloTests),
     ])

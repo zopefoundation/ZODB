@@ -69,6 +69,7 @@ Options for -R/--recover:
 """
 
 import os
+import shutil
 import sys
 try:
     # the hashlib package is available from Python 2.5
@@ -95,6 +96,11 @@ VERBOSE = False
 
 class WouldOverwriteFiles(Exception):
     pass
+
+
+class NoFiles(Exception):
+    pass
+
 
 def usage(code, msg=''):
     outfp = sys.stderr
@@ -412,6 +418,10 @@ def delete_old_backups(options):
         os.unlink(os.path.join(options.repository, fname))
 
 def do_full_backup(options):
+    options.full = True
+    dest = os.path.join(options.repository, gen_filename(options))
+    if os.path.exists(dest):
+        raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     # Find the file position of the last completed transaction.
     fs = FileStorage(options.file, read_only=True)
     # Note that the FileStorage ctor calls read_index() which scans the file
@@ -420,11 +430,12 @@ def do_full_backup(options):
     # because we only want to copy stuff from the beginning of the file to the
     # last valid transaction record.
     pos = fs.getSize()
+    # Save the storage index into the repository
+    index_file = os.path.join(options.repository,
+                              gen_filename(options, '.index'))
+    log('writing index')
+    fs._index.save(pos, index_file)
     fs.close()
-    options.full = True
-    dest = os.path.join(options.repository, gen_filename(options))
-    if os.path.exists(dest):
-        raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     log('writing full backup: %s bytes to %s', pos, dest)
     sum = copyfile(options, dest, 0, pos)
     # Write the data file for this full backup
@@ -439,6 +450,10 @@ def do_full_backup(options):
 
 
 def do_incremental_backup(options, reposz, repofiles):
+    options.full = False
+    dest = os.path.join(options.repository, gen_filename(options))
+    if os.path.exists(dest):
+        raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     # Find the file position of the last completed transaction.
     fs = FileStorage(options.file, read_only=True)
     # Note that the FileStorage ctor calls read_index() which scans the file
@@ -447,11 +462,11 @@ def do_incremental_backup(options, reposz, repofiles):
     # because we only want to copy stuff from the beginning of the file to the
     # last valid transaction record.
     pos = fs.getSize()
+    log('writing index')
+    index_file = os.path.join(options.repository,
+                              gen_filename(options, '.index'))
+    fs._index.save(pos, index_file)
     fs.close()
-    options.full = False
-    dest = os.path.join(options.repository, gen_filename(options))
-    if os.path.exists(dest):
-        raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     log('writing incremental: %s bytes to %s',  pos-reposz, dest)
     sum = copyfile(options, dest, reposz, pos - reposz)
     # The first file in repofiles points to the last full backup.  Use this to
@@ -552,10 +567,9 @@ def do_recover(options):
     repofiles = find_files(options)
     if not repofiles:
         if options.date:
-            log('No files in repository before %s', options.date)
+            raise NoFiles('No files in repository before %s', options.date)
         else:
-            log('No files in repository')
-        return
+            raise NoFiles('No files in repository')
     if options.output is None:
         log('Recovering file to stdout')
         outfp = sys.stdout
@@ -567,6 +581,16 @@ def do_recover(options):
         outfp.close()
     log('Recovered %s bytes, md5: %s', reposz, reposum)
 
+    if options.output is not None:
+        last_base = os.path.splitext(repofiles[-1])[0]
+        source_index = '%s.index' % last_base
+        target_index = '%s.index' % options.output
+        if os.path.exists(source_index):
+            log('Restoring index file %s to %s', source_index, target_index)
+            shutil.copyfile(source_index, target_index)
+        else:
+            log('No index file to restore: %s', source_index)
+
 
 def main(argv=None):
     if argv is None:
@@ -577,10 +601,14 @@ def main(argv=None):
             do_backup(options)
         except WouldOverwriteFiles, e:
             print >> sys.stderr, str(e)
-            sys.exit(2)
+            sys.exit(1)
     else:
         assert options.mode == RECOVER
-        do_recover(options)
+        try:
+            do_recover(options)
+        except NoFiles, e:
+            print >> sys.stderr, str(e)
+            sys.exit(1)
 
 
 if __name__ == '__main__':
