@@ -5,7 +5,7 @@
 # Originally written by Anthony Baxter
 # Significantly modified by Barry Warsaw
 
-"""repozo.py -- incremental and full backups of a Data.fs file.
+"""repozo.py -- incremental and full backups of a Data.fs file and index.
 
 Usage: %(program)s [options]
 Where:
@@ -66,6 +66,9 @@ Options for -R/--recover:
     --output=filename
         Write recovered ZODB to given file.  By default, the file is
         written to stdout.
+        
+        Note:  for the stdout case, the index file will **not** be restored
+        automatically.
 """
 
 import os
