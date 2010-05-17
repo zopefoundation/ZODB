@@ -1,0 +1,6 @@
+<component>
+  <sectiontype name="hexstorage" datatype="ZODB.tests.hexstorage.ZConfig"
+               implements="ZODB.storage">
+    <section type="ZODB.storage" name="*" attribute="base" required="yes" />
+  </sectiontype>
+</component>
