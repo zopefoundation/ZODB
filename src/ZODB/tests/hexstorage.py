@@ -81,12 +81,8 @@ class HexStorage(object):
             transaction)
 
     def iterator(self, start=None, stop=None):
-        def it(start, stop):
-            for t in self.base.iterator(start, stop):
-                yield Transaction(self, t)
-
-        return it(start, stop)
-
+        for t in self.base.iterator(start, stop):
+            yield Transaction(self, t)
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
