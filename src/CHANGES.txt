@@ -37,6 +37,10 @@ New Features
   new option (large_record_size/large-record-size) to control the
   record size at which the warning is issued.
 
+- The file-storage backup script, repoze, will now create a backup
+  index file if an output file name is given via the --output/-o
+  option.
+
 Bugs Fixed
 ----------
 
