@@ -46,22 +46,22 @@ class HexStorage(object):
 
     def load(self, oid, version=''):
         data, serial = self.base.load(oid, version)
-        return data.decode('hex'), serial
+        return data[2:].decode('hex'), serial
 
     def loadBefore(self, oid, tid):
         r = self.base.loadBefore(oid, tid)
         if r is not None:
             data, serial, after = r
-            return data.decode('hex'), serial, after
+            return data[2:].decode('hex'), serial, after
         else:
             return r
 
     def loadSerial(self, oid, serial):
-        return self.base.loadSerial(oid, serial).decode('hex')
+        return self.base.loadSerial(oid, serial)[2:].decode('hex')
 
     def pack(self, pack_time, referencesf, gc=True):
         def refs(p, oids=None):
-            return referencesf(p.decode('hex'), oids)
+            return referencesf(p[2:].decode('hex'), oids)
         return self.base.pack(pack_time, refs, gc)
 
     def registerDB(self, db):
@@ -73,11 +73,11 @@ class HexStorage(object):
 
     def store(self, oid, serial, data, version, transaction):
         return self.base.store(
-            oid, serial, data.encode('hex'), version, transaction)
+            oid, serial, '.h'+data.encode('hex'), version, transaction)
 
     def restore(self, oid, serial, data, version, prev_txn, transaction):
         return self.base.restore(
-            oid, serial, data and data.encode('hex'), version, prev_txn,
+            oid, serial, data and ('.h'+data.encode('hex')), version, prev_txn,
             transaction)
 
     def iterator(self, start=None, stop=None):
@@ -86,12 +86,13 @@ class HexStorage(object):
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
-        return self.base.storeBlob(oid, oldserial, data.encode('hex'),
+        return self.base.storeBlob(oid, oldserial, '.h'+data.encode('hex'),
                                    blobfilename, version, transaction)
 
     def restoreBlob(self, oid, serial, data, blobfilename, prev_txn,
                     transaction):
-        return self.base.restoreBlob(oid, serial, data and data.encode('hex'),
+        return self.base.restoreBlob(oid, serial,
+                                     data and ('.h'+data.encode('hex')),
                                      blobfilename, prev_txn, transaction)
 
     def invalidateCache(self):
@@ -101,17 +102,17 @@ class HexStorage(object):
         return self.db.invalidate(transaction_id, oids, version)
 
     def references(self, record, oids=None):
-        return self.db.references(record.decode('hex'), oids)
+        return self.db.references(record[2:].decode('hex'), oids)
 
     def transform_record_data(self, data):
-        return self._db_transform(data).encode('hex')
+        return '.h'+self._db_transform(data).encode('hex')
 
     def untransform_record_data(self, data):
-        return self._db_untransform(data.decode('hex'))
+        return self._db_untransform(data[2:].decode('hex'))
 
     def record_iternext(self, next=None):
         oid, tid, data, next = self.base.record_iternext(next)
-        return oid, tid, data.decode('hex'), next
+        return oid, tid, data[2:].decode('hex'), next
 
     def copyTransactionsFrom(self, other):
         ZODB.blob.copyTransactionsFromTo(other, self)
