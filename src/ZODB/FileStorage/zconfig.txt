@@ -134,6 +134,33 @@ packer
 
     >>> fs.close()
 
+    If the packer contains a ':', then the text after the first ':' is
+    interpreted as an expression. This is handy to pass limited
+    configuration information to the packer:
+
+    >>> def packer_factory(name):
+    ...     def packer(storage, referencesf, stop, gc):
+    ...         print repr(name), referencesf, storage is fs, gc,
+    ...         print storage.pack_keep_old
+    ...     return packer
+    >>> ZODB.FileStorage.config_demo_printing_packer_factory = packer_factory
+
+    >>> fs = ZODB.config.storageFromString("""
+    ... <filestorage>
+    ...     path my.fs
+    ...     packer ZODB.FileStorage:config_demo_printing_packer_factory('bob ')
+    ... </filestorage>
+    ... """)
+
+    >>> import time
+    >>> db = ZODB.DB(fs) # writes object 0
+    >>> fs.pack(time.time(), 42)
+    'bob ' 42 True True True
+
+    >>> fs.close()
+
+
+
 pack-gc
     If false, then no garbage collection will be performed when
     packing.  This can make packing go much faster and can avoid

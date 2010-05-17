@@ -41,6 +41,10 @@ New Features
   index file if an output file name is given via the --output/-o
   option.
 
+- The filestorage packer configuration option noe accepts calues of
+  the form ``modname:expression``, allowing the use of packer
+  factories with options.
+
 Bugs Fixed
 ----------
 

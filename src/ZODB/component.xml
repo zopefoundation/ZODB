@@ -44,7 +44,7 @@
         raised.
       </description>
     </key>
-    <key name="packer" datatype="dotted-name">
+    <key name="packer" datatype="string">
       <description>
         The dotted name (dotted module name and object name) of a
         packer object.  This is used to provide an alternative pack

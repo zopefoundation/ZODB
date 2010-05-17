@@ -158,8 +158,15 @@ class FileStorage(BaseConfig):
         config = self.config
         options = {}
         if getattr(config, 'packer', None):
-            m, name = config.packer.rsplit('.', 1)
-            options['packer'] = getattr(__import__(m, {}, {}, ['*']), name)
+            packer = config.packer
+            if ':' in packer:
+                m, expr = packer.split(':', 1)
+                m = __import__(m, {}, {}, ['*'])
+                options['packer'] = eval(expr, m.__dict__)
+            else:
+                m, name = config.packer.rsplit('.', 1)
+                m = __import__(m, {}, {}, ['*'])
+                options['packer'] = getattr(m, name)
 
         for name in ('blob_dir', 'create', 'read_only', 'quota', 'pack_gc',
                      'pack_keep_old'):
