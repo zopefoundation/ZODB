@@ -47,6 +47,7 @@ import ZEO.tests.ConnectionTests
 import ZEO.zrpc.connection
 import ZODB
 import ZODB.blob
+import ZODB.tests.hexstorage
 import ZODB.tests.testblob
 import ZODB.tests.util
 import ZODB.utils
@@ -59,6 +60,7 @@ class DummyDB:
         pass
     def invalidateCache(*unused):
         pass
+    transform_record_data = untransform_record_data = lambda self, v: v
 
 
 class CreativeGetState(persistent.Persistent):
@@ -94,7 +96,8 @@ class MiscZEOTests:
 
     def checkZEOInvalidation(self):
         addr = self._storage._addr
-        storage2 = ClientStorage(addr, wait=1, min_disconnect_poll=0.1)
+        storage2 = self._wrap_client(
+            ClientStorage(addr, wait=1, min_disconnect_poll=0.1))
         try:
             oid = self._storage.new_oid()
             ob = MinPO('first')
@@ -196,12 +199,15 @@ class GenericTests(
             self.blob_cache_dir = tempfile.mkdtemp(
                 'blob_cache',
                 dir=os.path.abspath(os.getcwd()))
-        self._storage = ClientStorage(
+        self._storage = self._wrap_client(ClientStorage(
             zport, '1', cache_size=20000000,
             min_disconnect_poll=0.5, wait=1,
             wait_timeout=60, blob_dir=self.blob_cache_dir,
-            shared_blob_dir=self.shared_blob_dir)
+            shared_blob_dir=self.shared_blob_dir))
         self._storage.registerDB(DummyDB())
+
+    def _wrap_client(self, client):
+        return client
 
     def tearDown(self):
         self._storage.close()
@@ -361,6 +367,22 @@ class FileStorageHexTests(FileStorageTests):
         </filestorage>
         </hexstorage>
         """
+
+class FileStorageClientHexTests(FileStorageHexTests):
+
+    def getConfig(self):
+        return """\
+        %import ZODB.tests
+        <serverhexstorage>
+        <filestorage 1>
+        path Data.fs
+        </filestorage>
+        </serverhexstorage>
+        """
+
+    def _wrap_client(self, client):
+        return ZODB.tests.hexstorage.HexStorage(client)
+
 
 
 class MappingStorageTests(GenericTests):
@@ -1429,8 +1451,8 @@ def quick_close_doesnt_kill_server():
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
-    DemoStorageTests, FileStorageTests, FileStorageHexTests,
-    MappingStorageTests,
+    MappingStorageTests, DemoStorageTests,
+    FileStorageTests, FileStorageHexTests, FileStorageClientHexTests,
     ]
 
 quick_test_classes = [

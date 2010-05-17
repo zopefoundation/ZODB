@@ -35,7 +35,12 @@ class IterationTests:
 
     def checkIteratorExhaustionStorage(self):
         # Test the storage's garbage collection mechanism.
+        self._dostore()
         iterator = self._storage.iterator()
+
+        # At this point, a wrapping iterator might not have called the CS
+        # iterator yet. We'll consume one item to make sure this happens.
+        iterator.next()
         self.assertEquals(1, len(self._storage._iterator_ids))
         iid = list(self._storage._iterator_ids)[0]
         self.assertEquals([], list(iterator))
@@ -59,7 +64,13 @@ class IterationTests:
     def checkIteratorGCStorageCommitting(self):
         # We want the iterator to be garbage-collected, so we don't keep any
         # hard references to it. The storage tracks its ID, though.
-        self._storage.iterator()
+
+        # The odd little jig we do below arises from the fact that the
+        # CS iterator may not be constructed right away if the CS is wrapped.
+        # We need to actually do some iteration to get the iterator created.
+        # We do a store to make sure the iterator isn't exhausted right away.
+        self._dostore()
+        self._storage.iterator().next()
 
         self.assertEquals(1, len(self._storage._iterator_ids))
         iid = list(self._storage._iterator_ids)[0]
@@ -71,8 +82,15 @@ class IterationTests:
         self.assertRaises(KeyError, self._storage._server.iterator_next, iid)
 
     def checkIteratorGCStorageTPCAborting(self):
-        self._storage.iterator()
+        # The odd little jig we do below arises from the fact that the
+        # CS iterator may not be constructed right away if the CS is wrapped.
+        # We need to actually do some iteration to get the iterator created.
+        # We do a store to make sure the iterator isn't exhausted right away.
+        self._dostore()
+        self._storage.iterator().next()
+
         iid = list(self._storage._iterator_ids)[0]
+
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.tpc_abort(t)
@@ -80,7 +98,14 @@ class IterationTests:
         self.assertRaises(KeyError, self._storage._server.iterator_next, iid)
 
     def checkIteratorGCStorageDisconnect(self):
-        self._storage.iterator()
+
+        # The odd little jig we do below arises from the fact that the
+        # CS iterator may not be constructed right away if the CS is wrapped.
+        # We need to actually do some iteration to get the iterator created.
+        # We do a store to make sure the iterator isn't exhausted right away.
+        self._dostore()
+        self._storage.iterator().next()
+
         iid = list(self._storage._iterator_ids)[0]
         t = transaction.Transaction()
         self._storage.tpc_begin(t)

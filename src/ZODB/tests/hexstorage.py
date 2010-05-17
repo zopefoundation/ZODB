@@ -29,21 +29,24 @@ class MadIterator(object):
         except StopIteration:
             raise ZODB.interfaces.StorageStopIteration()
 
+
 class HexStorage(object):
 
     zope.interface.implements(ZODB.interfaces.IStorageWrapper)
 
-    def __init__(self, base):
-        self.base = base
-        base.registerDB(self)
-
-        for name in (
+    copied_methods = (
             'close', 'getName', 'getSize', 'history', 'isReadOnly',
             'lastTransaction', 'new_oid', 'sortKey',
             'tpc_abort', 'tpc_begin', 'tpc_finish', 'tpc_vote',
             'loadBlob', 'openCommittedBlobFile', 'temporaryDirectory',
             'supportsUndo', 'undo', 'undoLog', 'undoInfo',
-            ):
+            )
+
+    def __init__(self, base):
+        self.base = base
+        base.registerDB(self)
+
+        for name in self.copied_methods:
             v = getattr(base, name, None)
             if v is not None:
                 setattr(self, name, v)
@@ -132,6 +135,18 @@ class HexStorage(object):
     def copyTransactionsFrom(self, other):
         ZODB.blob.copyTransactionsFromTo(other, self)
 
+class ServerHexStorage(HexStorage):
+    """Use on ZEO storage server when Hex is used on client
+
+    Don't do conversion as part of load/store, but provide
+    pickle decoding.
+    """
+
+    copied_methods = HexStorage.copied_methods + (
+        'load', 'loadBefore', 'loadSerial', 'store', 'restore',
+        'iterator', 'storeBlob', 'restoreBlob', 'record_iternext',
+        )
+
 class Transaction(object):
 
     def __init__(self, store, trans):
@@ -150,7 +165,9 @@ class Transaction(object):
     def __getattr__(self, name):
         return getattr(self.__trans, name)
 
-class ZConfig:
+class ZConfigHex:
+
+    _factory = HexStorage
 
     def __init__(self, config):
         self.config = config
@@ -158,4 +175,8 @@ class ZConfig:
 
     def open(self):
         base = self.config.base.open()
-        return HexStorage(base)
+        return self._factory(base)
+
+class ZConfigServerHex(ZConfigHex):
+
+    _factory = ServerHexStorage
