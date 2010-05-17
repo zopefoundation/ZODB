@@ -183,6 +183,13 @@ def find_global(modulename, globalname,
 
          >>> broken_cache.clear()
        """
+
+    # short circuit common case:
+    try:
+        return getattr(sys.modules[modulename], globalname)
+    except (AttributeError, KeyError):
+        pass
+
     try:
         __import__(modulename)
     except ImportError:
