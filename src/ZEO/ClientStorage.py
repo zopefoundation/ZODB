@@ -1530,7 +1530,7 @@ class TransactionIterator(object):
 
     def next(self):
         if self._ended:
-            raise ZODB.interfaces.StorageStopIteration()
+            raise StopIteration()
 
         if self._iid < 0:
             raise ClientDisconnected("Disconnected iterator")
@@ -1541,7 +1541,7 @@ class TransactionIterator(object):
             # disposed it.
             self._ended = True
             self._storage._forget_iterator(self._iid)
-            raise ZODB.interfaces.StorageStopIteration()
+            raise StopIteration()
 
         return ClientStorageTransactionInformation(
             self._storage, self, *tx_data)
@@ -1582,13 +1582,13 @@ class RecordIterator(object):
         if self._completed:
             # We finished iteration once already and the server can't know
             # about the iteration anymore.
-            raise ZODB.interfaces.StorageStopIteration()
+            raise StopIteration()
         item = self._storage._server.iterator_record_next(self._riid)
         if item is None:
             # The iterator is exhausted, and the server has already
             # disposed it.
             self._completed = True
-            raise ZODB.interfaces.StorageStopIteration()
+            raise StopIteration()
         return ZODB.BaseStorage.DataRecord(*item)
 
 

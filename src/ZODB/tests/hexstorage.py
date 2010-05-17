@@ -15,21 +15,6 @@ import ZODB.blob
 import ZODB.interfaces
 import zope.interface
 
-class MadIterator(object):
-
-    def __init__(self, it):
-        self.it = it
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        try:
-            return self.it.next()
-        except StopIteration:
-            raise ZODB.interfaces.StorageStopIteration()
-
-
 class HexStorage(object):
 
     zope.interface.implements(ZODB.interfaces.IStorageWrapper)
@@ -100,7 +85,7 @@ class HexStorage(object):
             for t in self.base.iterator(start, stop):
                 yield Transaction(self, t)
 
-        return MadIterator(it(start, stop))
+        return it(start, stop)
 
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
@@ -154,13 +139,10 @@ class Transaction(object):
         self.__trans = trans
 
     def __iter__(self):
-        def it(self):
-            for r in self.__trans:
-                if r.data:
-                    r.data = self.__store.untransform_record_data(r.data)
-                yield r
-
-        return MadIterator(it(self))
+        for r in self.__trans:
+            if r.data:
+                r.data = self.__store.untransform_record_data(r.data)
+            yield r
 
     def __getattr__(self, name):
         return getattr(self.__trans, name)

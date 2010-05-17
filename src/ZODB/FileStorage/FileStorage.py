@@ -1763,7 +1763,7 @@ class FileIterator(FileStorageFormatter):
 
     def next(self):
         if self._file is None:
-            raise ZODB.interfaces.StorageStopIteration()
+            raise StopIteration()
 
         pos = self._pos
         while True:
@@ -1852,7 +1852,7 @@ class FileIterator(FileStorageFormatter):
             return result
 
         self.close()
-        raise ZODB.interfaces.StorageStopIteration()
+        raise StopIteration()
 
 
 class TransactionRecord(BaseStorage.TransactionRecord):
@@ -1911,7 +1911,7 @@ class TransactionRecordIterator(FileStorageFormatter):
 
             return Record(h.oid, h.tid, data, prev_txn, pos)
 
-        raise ZODB.interfaces.StorageStopIteration()
+        raise StopIteration()
 
 
 class Record(BaseStorage.DataRecord):

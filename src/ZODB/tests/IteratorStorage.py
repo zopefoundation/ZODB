@@ -229,13 +229,9 @@ class IteratorDeepCompare:
             # meaning they were the same length.
             # Additionally, check that we're backwards compatible to the
             # IndexError we used to raise before.
-            self.assertRaises(IndexError, itxn1.next)
-            self.assertRaises(IndexError, itxn2.next)
             self.assertRaises(StopIteration, itxn1.next)
             self.assertRaises(StopIteration, itxn2.next)
         # Make sure ther are no more records left in txn1 and txn2, meaning
         # they were the same length
-        self.assertRaises(IndexError, iter1.next)
-        self.assertRaises(IndexError, iter2.next)
         self.assertRaises(StopIteration, iter1.next)
         self.assertRaises(StopIteration, iter2.next)
