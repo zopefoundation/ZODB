@@ -134,7 +134,7 @@ def alltests():
 
     class NullHandler(logging.Handler):
         level = 50
-        
+
         def emit(self, record):
             pass
 
