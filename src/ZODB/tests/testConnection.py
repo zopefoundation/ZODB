@@ -13,7 +13,9 @@
 ##############################################################################
 """Unit tests for the Connection class."""
 
-from zope.testing import doctest
+from __future__ import with_statement
+
+import doctest
 import unittest
 import warnings
 
@@ -382,7 +384,6 @@ class UserMethodTests(unittest.TestCase):
 
 def test_transaction_retry_convenience():
     """
-
     Simple test to verify integration with the transaction retry
     helper my verifying that we can raise ConflictError and have it
     handled properly.
