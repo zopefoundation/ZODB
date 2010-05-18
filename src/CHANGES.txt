@@ -37,6 +37,21 @@ New Features
   new option (large_record_size/large-record-size) to control the
   record size at which the warning is issued.
 
+- Added support for wrapper storages that transform pickle data.
+  Applications for this include compression and encryption.  An
+  example wrapper storage implementation, ZODB.tests.hexstorage, was
+  included for testing.
+
+  It is important that storage implementations not assume that
+  storages contain pickles.  Renamed IStorageDB to IStorageWrapper and
+  expanded it to provide methods for transforming and untransforming
+  data records.  Storages implementations should use these methods to
+  get pickle data from stored records.
+
+- Deprecated ZODB.interfaces.StorageStopIteration.  Storage
+  iterator implementations should just raise StopIteration, which
+  means they can now be implemented as generators.
+
 - The file-storage backup script, repoze, will now create a backup
   index file if an output file name is given via the --output/-o
   option.
