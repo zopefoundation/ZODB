@@ -185,8 +185,8 @@ setup(name="ZODB3",
         read_file("README.txt")  + "\n\n" +
         read_file("src", "CHANGES.txt")),
       test_suite="__main__.alltests", # to support "setup.py test"
-      tests_require = ['zope.testing'],
-      extras_require = dict(test=['zope.testing']),
+      tests_require = ['zope.testing', 'manuel'],
+      extras_require = dict(test=['zope.testing', 'manuel']),
       install_requires = [
         'transaction',
         'zc.lockfile',

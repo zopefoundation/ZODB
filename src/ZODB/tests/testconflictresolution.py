@@ -11,33 +11,30 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
-$Id$
-"""
+import manuel.doctest
+import manuel.footnote
+import manuel.capture
+import manuel.testing
 import unittest
-from zope.testing import doctest, module
+import ZODB.ConflictResolution
 import ZODB.tests.util
+import zope.testing.module
 
 def setUp(test):
     ZODB.tests.util.setUp(test)
-    module.setUp(test, 'ConflictResolution_txt')
+    zope.testing.module.setUp(test, 'ConflictResolution_txt')
 
 def tearDown(test):
-    test.globs['db'].close()
-    test.globs['db1'].close()
-    test.globs['db2'].close()
-    module.tearDown(test)
+    zope.testing.module.tearDown(test)
     ZODB.tests.util.tearDown(test)
+    ZODB.ConflictResolution._class_cache.clear()
 
 def test_suite():
-    return unittest.TestSuite((
-        doctest.DocFileSuite('../ConflictResolution.txt',
-                             setUp=setUp,
-                             tearDown=tearDown,
-                             optionflags=doctest.INTERPRET_FOOTNOTES,
-                             ),
-        ))
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    return manuel.testing.TestSuite(
+        manuel.doctest.Manuel()
+        + manuel.footnote.Manuel()
+        + manuel.capture.Manuel(),
+        '../ConflictResolution.txt',
+        setUp=setUp, tearDown=tearDown,
+        )
 

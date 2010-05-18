@@ -29,55 +29,62 @@ use:
     on the object. If the method succeeds, then the object change can be
     committed, otherwise a ConflictError is raised as usual.
 
-    ::
+    def _p_resolveConflict(oldState, savedState, newState):
+        Return the state of the object after resolving different changes.
 
-        def _p_resolveConflict(oldState, savedState, newState):
-            Return the state of the object after resolving different changes.
+        Arguments:
 
-            Arguments:
+        oldState
+            The state of the object that the changes made by the current
+            transaction were based on.
 
-            oldState
-                The state of the object that the changes made by the current
-                transaction were based on.
+            The method is permitted to modify this value.
 
-                The method is permitted to modify this value.
-            savedState
-                The state of the object that is currently stored in the
-                database. This state was written after oldState and reflects
-                changes made by a transaction that committed before the
-                current transaction.
+        savedState
+            The state of the object that is currently stored in the
+            database. This state was written after oldState and reflects
+            changes made by a transaction that committed before the
+            current transaction.
 
-                The method is permitted to modify this value.
-            newState
-                The state after changes made by the current transaction.
+            The method is permitted to modify this value.
 
-                The method is not permitted to modify this value.
+        newState
+            The state after changes made by the current transaction.
 
-                This method should compute a new state by merging changes
-                reflected in savedState and newState, relative to oldState.
+            The method is not permitted to modify this value.
 
-            If the method cannot resolve the changes, then it should raise
-            ZODB.POSException.ConflictError.
-            
+            This method should compute a new state by merging changes
+            reflected in savedState and newState, relative to oldState.
 
-    Consider an extremely simple example, a counter::
+        If the method cannot resolve the changes, then it should raise
+        ZODB.POSException.ConflictError.
 
-        >>> from persistent import Persistent
-        >>> class PCounter(Persistent):
-        ...     '`value` is readonly; increment it with `inc`.'
-        ...     _val = 0
-        ...     def inc(self):
-        ...         self._val += 1
-        ...     @property
-        ...     def value(self):
-        ...         return self._val
-        ...     def _p_resolveConflict(self, oldState, savedState, newState):
-        ...         oldState['_val'] = (
-        ...             savedState.get('_val', 0) +
-        ...             newState.get('_val', 0) -
-        ...             oldState.get('_val', 0))
-        ...         return oldState
-        ...
+
+        Consider an extremely simple example, a counter::
+
+            from persistent import Persistent
+            class PCounter(Persistent):
+                '`value` is readonly; increment it with `inc`.'
+                _val = 0
+                def inc(self):
+                    self._val += 1
+                @property
+                def value(self):
+                    return self._val
+                def _p_resolveConflict(self, oldState, savedState, newState):
+                    oldState['_val'] = (
+                        savedState.get('_val', 0) +
+                        newState.get('_val', 0) -
+                        oldState.get('_val', 0))
+                    return oldState
+
+        .. -> src
+
+            >>> import ConflictResolution_txt
+            >>> exec src in ConflictResolution_txt.__dict__
+            >>> PCounter = ConflictResolution_txt.PCounter
+            >>> PCounter.__module__ = 'ConflictResolution_txt'
+
 
 By "state", the excerpt above means the value used by __getstate__ and
 __setstate__: a dictionary, in most cases.  We'll look at more details below,
@@ -149,7 +156,7 @@ But for now, the _p_resolveConflict method is what we have.
 Caveats and Dangers
 ===================
 
-Here are caveats for working with this conflict resolution approach. 
+Here are caveats for working with this conflict resolution approach.
 Each sub-section has a "DANGERS" section that outlines what might happen
 if you ignore the warning.  We work from the least danger to the most.
 
@@ -174,16 +181,21 @@ DANGERS: The changes you make to the instance will be discarded.  The
 instance is not initialized, so other methods that depend on instance
 attributes will not work.
 
-Here's an example of a broken _p_resolveConflict method.
+Here's an example of a broken _p_resolveConflict method::
 
-    >>> class PCounter2(PCounter):
-    ...     def __init__(self):
-    ...         self.data = []
-    ...     def _p_resolveConflict(self, oldState, savedState, newState):
-    ...         self.data.append('bad idea')
-    ...         return super(PCounter2, self)._p_resolveConflict(
-    ...             oldState, savedState, newState)
-    ...
+    class PCounter2(PCounter):
+        def __init__(self):
+            self.data = []
+        def _p_resolveConflict(self, oldState, savedState, newState):
+            self.data.append('bad idea')
+            return super(PCounter2, self)._p_resolveConflict(
+                oldState, savedState, newState)
+
+.. -> src
+
+    >>> exec src in ConflictResolution_txt.__dict__
+    >>> PCounter2 = ConflictResolution_txt.PCounter2
+    >>> PCounter2.__module__ = 'ConflictResolution_txt'
 
 Now we'll prepare for the conflict again.
 
@@ -235,35 +247,35 @@ instances.  These objects have the following interface::
     class IPersistentReference(zope.interface.Interface):
         '''public contract for references to persistent objects from an object
         with conflicts.'''
-    
+
         oid = zope.interface.Attribute(
             'The oid of the persistent object that this reference represents')
-    
+
         database_name = zope.interface.Attribute(
             '''The name of the database of the reference, *if* different.
-    
+
             If not different, None.''')
 
         klass = zope.interface.Attribute(
             '''class meta data.  Presence is not reliable.''')
-    
+
         weak = zope.interface.Attribute(
             '''bool: whether this reference is weak''')
 
         def __cmp__(other):
             '''if other is equivalent reference, return 0; else raise ValueError.
-            
+
             Equivalent in this case means that oid and database_name are the same.
-    
+
             If either is a weak reference, we only support `is` equivalence, and
             otherwise raise a ValueError even if the datbase_names and oids are
             the same, rather than guess at the correct semantics.
-            
+
             It is impossible to sort reliably, since the actual persistent
             class may have its own comparison, and we have no idea what it is.
             We assert that it is reasonably safe to assume that an object is
             equivalent to itself, but that's as much as we can say.
-    
+
             We don't compare on 'is other', despite the
             PersistentReferenceFactory.data cache, because it is possible to
             have two references to the same object that are spelled with different
@@ -380,12 +392,18 @@ the situation above.
     >>> tm_A.abort()
 
 However, the story highlights the kinds of subtle problems that units
-made up of multiple composite Persistent objects need to contemplate. 
+made up of multiple composite Persistent objects need to contemplate.
 Any structure made up of objects that contain persistent objects with
 conflict resolution code, as a catalog index is made up of multiple
 BTree Buckets and Sets, each with conflict resolution, needs to think
 through these kinds of problems or be faced with potential data
 integrity issues.
+
+.. cleanup
+
+    >>> db.close()
+    >>> db1.close()
+    >>> db2.close()
 
 .. ......... ..
 .. FOOTNOTES ..
@@ -394,16 +412,24 @@ integrity issues.
 .. [#get_persistent_reference] We'll catch persistent references with a class
     mutable.
 
-    >>> class PCounter3(PCounter):
-    ...     data = []
-    ...     def _p_resolveConflict(self, oldState, savedState, newState):
-    ...         PCounter3.data.append(
-    ...             (oldState.get('other'),
-    ...              savedState.get('other'),
-    ...              newState.get('other')))
-    ...         return super(PCounter3, self)._p_resolveConflict(
-    ...             oldState, savedState, newState)
-    ...
+    ::
+
+        class PCounter3(PCounter):
+            data = []
+            def _p_resolveConflict(self, oldState, savedState, newState):
+                PCounter3.data.append(
+                    (oldState.get('other'),
+                     savedState.get('other'),
+                     newState.get('other')))
+                return super(PCounter3, self)._p_resolveConflict(
+                    oldState, savedState, newState)
+
+    .. -> src
+
+        >>> exec src in ConflictResolution_txt.__dict__
+        >>> PCounter3 = ConflictResolution_txt.PCounter3
+        >>> PCounter3.__module__ = 'ConflictResolution_txt'
+
     >>> p3_A = conn_A.root()['p3'] = PCounter3()
     >>> p3_A.other = conn_A.root()['p']
     >>> tm_A.commit()
@@ -441,7 +467,7 @@ integrity issues.
 
 .. [#instantiation_test] We'll simply instantiate PersistentReferences
     with examples of types described in ZODB/serialize.py.
-    
+
     >>> from ZODB.ConflictResolution import PersistentReference
 
     >>> ref1 = PersistentReference('my_oid')
@@ -522,13 +548,13 @@ integrity issues.
     True
 
     Non-weak references with the same oid and database_name are equal.
-    
+
     >>> ref1 == ref2 and ref4 == ref5
     True
 
     Everything else raises a ValueError: weak references with the same oid and
     database, and references with a different database_name or oid.
-    
+
     >>> ref3 == ref6
     Traceback (most recent call last):
     ...

@@ -13,7 +13,7 @@ development continues on a "development" head.
 
 A database can be opened historically ``at`` or ``before`` a given transaction
 serial or datetime. Here's a simple example. It should work with any storage
-that supports ``loadBefore``. 
+that supports ``loadBefore``.
 
 We'll begin our example with a fairly standard set up.  We
 
@@ -29,25 +29,25 @@ We'll begin our example with a fairly standard set up.  We
     >>> conn = db.open()
 
     >>> import persistent.mapping
-    
+
     >>> conn.root()['first'] = persistent.mapping.PersistentMapping(count=0)
-    
+
     >>> import transaction
     >>> transaction.commit()
 
 We wait for some time to pass, record he time, and then make some other changes.
-    
+
     >>> import time
     >>> time.sleep(.01)
 
     >>> import datetime
     >>> now = datetime.datetime.utcnow()
     >>> time.sleep(.01)
-    
+
     >>> root = conn.root()
     >>> root['second'] = persistent.mapping.PersistentMapping()
     >>> root['first']['count'] += 1
-    
+
     >>> transaction.commit()
 
 Now we will show a historical connection. We'll open one using the ``now``
@@ -56,14 +56,14 @@ connection, at the mutable head of the database, is different than the
 historical state.
 
     >>> transaction1 = transaction.TransactionManager()
-    
+
     >>> historical_conn = db.open(transaction_manager=transaction1, at=now)
-    
+
     >>> sorted(conn.root().keys())
     ['first', 'second']
     >>> conn.root()['first']['count']
     1
-    
+
     >>> historical_conn.root().keys()
     ['first']
     >>> historical_conn.root()['first']['count']
@@ -93,7 +93,7 @@ commit.
 
     >>> historical_serial = historical_conn.root()._p_serial
     >>> historical_conn.close()
-    
+
     >>> historical_conn = db.open(transaction_manager=transaction1,
     ...                           at=historical_serial)
     >>> historical_conn.root().keys()
@@ -155,7 +155,7 @@ historical connection should be kept.
     >>> db.getHistoricalTimeout()
     400
 
-All three of these values can be specified in a ZConfig file. 
+All three of these values can be specified in a ZConfig file.
 
     >>> import ZODB.config
     >>> db2 = ZODB.config.databaseFromString('''
@@ -286,6 +286,12 @@ you can, and reuse the exact same values for ``at`` or ``before`` when
 possible. If historical connections are used for conflict resolution, these
 connections will probably be temporary--not saved in a pool--so that the extra
 memory usage would also be brief and unlikely to overlap.
+
+
+.. cleanup
+
+    >>> db.close()
+    >>> db2.close()
 
 .. ......... ..
 .. Footnotes ..
