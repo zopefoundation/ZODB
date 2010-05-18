@@ -188,7 +188,7 @@ setup(name="ZODB3",
       tests_require = ['zope.testing', 'manuel'],
       extras_require = dict(test=['zope.testing', 'manuel']),
       install_requires = [
-        'transaction',
+        'transaction >=1.1.0',
         'zc.lockfile',
         'ZConfig',
         'zdaemon',
