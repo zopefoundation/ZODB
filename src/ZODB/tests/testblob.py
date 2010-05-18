@@ -19,8 +19,8 @@ from ZODB.blob import Blob
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
-from zope.testing import doctest
 
+import doctest
 import os
 import random
 import re
