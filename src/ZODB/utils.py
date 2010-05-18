@@ -87,10 +87,10 @@ U64 = u64
 
 def cp(f1, f2, length=None):
     """Copy all data from one file to another.
-    
+
     It copies the data from the current position of the input file (f1)
-    appending it to the current position of the output file (f2). 
-    
+    appending it to the current position of the output file (f2).
+
     It copies at most 'length' bytes. If 'length' isn't given, it copies
     until the end of the input file.
     """
@@ -103,7 +103,7 @@ def cp(f1, f2, length=None):
         f1.seek(0,2)
         length = f1.tell()
         f1.seek(old_pos)
-    
+
     while length > 0:
         if n > length:
             n = length
@@ -206,7 +206,6 @@ def get_pickle_metadata(data):
     try:
         class_info = u.load()
     except Exception, err:
-        print "Error", err
         return '', ''
     if isinstance(class_info, tuple):
         if isinstance(class_info[0], tuple):
@@ -251,7 +250,7 @@ class Locked(object):
                     raise AssertionError(
                         "Failed precondition: ",
                         precondition.__doc__.strip())
-            
+
             return func(*args, **kw)
         finally:
             inst._lock_release()
@@ -269,4 +268,4 @@ class locked(object):
 
     def __call__(self, func):
         return Locked(func, preconditions=self.preconditions)
-        
+
