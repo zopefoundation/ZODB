@@ -15,8 +15,6 @@
 
 This module tests and documents, through example, overriding attribute
 access methods.
-
-$Id$
 """
 
 from persistent import Persistent # ouch!
@@ -379,5 +377,5 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
 
 
 def test_suite():
-    from zope.testing.doctest import DocTestSuite
+    from doctest import DocTestSuite
     return DocTestSuite()

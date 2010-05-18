@@ -11,13 +11,12 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
+import doctest
 import unittest
-from zope.testing import doctest
 
 __test__ = dict(
     cross_db_refs_to_blank_db_name = """
-    
+
     There was a bug that caused bad refs to be generated is a database
     name was blank.
 
@@ -38,7 +37,7 @@ __test__ = dict(
 
     >>> list(conn2.root()[0].keys())
     []
-    
+
     """,
     )
 

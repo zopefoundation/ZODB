@@ -67,7 +67,7 @@ Clean up.
 >>> st.close()
 """
 
-from zope.testing import doctest
+import doctest
 import zope.testing.setupstack
 
 def test_suite():

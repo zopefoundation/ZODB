@@ -11,8 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Tests of the serializer."""
-
+import doctest
 import cPickle
 import cStringIO as StringIO
 import sys
@@ -121,7 +120,6 @@ class SerializerTestCase(unittest.TestCase):
 
 
 def test_suite():
-    from zope.testing import doctest
     suite = unittest.makeSuite(SerializerTestCase)
     suite.addTest(doctest.DocTestSuite("ZODB.serialize"))
     return suite

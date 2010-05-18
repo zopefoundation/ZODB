@@ -22,8 +22,8 @@ from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-from zope.testing import doctest
 import cPickle
+import doctest
 import time
 import transaction
 import ZODB.interfaces

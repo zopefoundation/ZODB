@@ -23,7 +23,7 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB.tests.MinPO import MinPO
 from ZODB.utils import p64
-from zope.testing import doctest
+import doctest
 import gc
 import threading
 import time

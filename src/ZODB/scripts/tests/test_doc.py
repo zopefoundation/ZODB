@@ -11,17 +11,15 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Test harness for scripts.
-
-$Id$
-"""
-import unittest
+import doctest
 import re
-from zope.testing import doctest, renormalizing
+import unittest
 import ZODB.tests.util
+import zope.testing.renormalizing
 
-checker = renormalizing.RENormalizing([
-    (re.compile('[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+'),
+checker = zope.testing.renormalizing.RENormalizing([
+    (re.compile(
+        '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]+'),
      '2007-11-10 15:18:48.543001'),
     (re.compile('hash=[0-9a-f]{40}'),
      'hash=b16422d09fabdb45d4e4325e4b42d7d6f021d3c3')])

@@ -11,17 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""ZClass tests
-
-$Id$
-"""
-
-import os, sys
-import unittest
-import ZODB.tests.util
+import doctest
+import os
+import sys
 import transaction
-from zope.testing import doctest
+import unittest
 import ZODB.persistentclass
+import ZODB.tests.util
 
 def class_with_circular_ref_to_self():
     """
@@ -41,7 +37,7 @@ It should be possible for a class to reger to itself.
     >>> c = C2()
     >>> c.__class__.__name__
     'C'
-    
+
 """
 
 # XXX need to update files to get newer testing package

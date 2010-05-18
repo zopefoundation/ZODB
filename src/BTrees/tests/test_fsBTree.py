@@ -11,8 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import doctest
 import unittest
-from zope.testing import doctest
 
 def test_fsbucket_string_conversion():
     """

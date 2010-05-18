@@ -11,7 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from zope.testing import doctest, setupstack, renormalizing
+from zope.testing import setupstack, renormalizing
+import doctest
 import logging
 import pprint
 import re

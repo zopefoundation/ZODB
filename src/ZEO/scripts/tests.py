@@ -11,12 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""XXX short summary goes here.
-
-$Id$
-"""
-import re, unittest
-from zope.testing import doctest, renormalizing
+import doctest, re, unittest
+from zope.testing import renormalizing
 
 def test_suite():
     return unittest.TestSuite((

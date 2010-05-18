@@ -11,8 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import doctest
 import unittest
-from zope.testing import doctest, setupstack
+from zope.testing import setupstack
 
 def test_suite():
     return unittest.TestSuite((

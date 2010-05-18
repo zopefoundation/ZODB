@@ -13,10 +13,10 @@
 ##############################################################################
 """Test the routines to convert between long and 64-bit strings"""
 
+from persistent import Persistent
+import doctest
 import random
 import unittest
-from persistent import Persistent
-from zope.testing import doctest
 
 NUM = 100
 

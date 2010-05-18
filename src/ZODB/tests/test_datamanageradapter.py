@@ -11,11 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
-$Id$
-"""
 import unittest
-from zope.testing.doctest import DocTestSuite
+from doctest import DocTestSuite
 from transaction._transaction import DataManagerAdapter
 from ZODB.tests.sampledm import DataManager
 

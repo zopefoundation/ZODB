@@ -11,10 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
-from zope.testing import doctest
-
 import cPickle
+import doctest
 import os
 import time
 import transaction

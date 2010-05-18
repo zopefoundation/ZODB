@@ -13,8 +13,8 @@
 ##############################################################################
 
 from ZODB.tests.MinPO import MinPO
-from zope.testing import doctest
 import datetime
+import doctest
 import os
 import sys
 import time

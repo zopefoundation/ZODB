@@ -11,12 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
-$Id$
-"""
-import unittest
-from zope.testing import doctest
+import doctest
 import persistent
+import unittest
 
 class MyClass(persistent.Persistent):
     pass

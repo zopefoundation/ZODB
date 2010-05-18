@@ -11,15 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest
-import random
-import transaction
 from ZODB.DB import DB
-from zope.testing import doctest
-import ZODB.tests.hexstorage
-import ZODB.tests.util
-import ZODB.utils
-import ZODB.DemoStorage
 from ZODB.tests import (
     BasicStorage,
     HistoryStorage,
@@ -30,6 +22,14 @@ from ZODB.tests import (
     StorageTestBase,
     Synchronization,
     )
+import doctest
+import random
+import transaction
+import unittest
+import ZODB.DemoStorage
+import ZODB.tests.hexstorage
+import ZODB.tests.util
+import ZODB.utils
 
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,

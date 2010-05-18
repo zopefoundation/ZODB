@@ -14,7 +14,7 @@
 """Basic unit tests for a client cache."""
 
 from ZODB.utils import p64, repr_to_oid
-from zope.testing import doctest
+import doctest
 import os
 import random
 import string

@@ -11,10 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Unit tests for PickleCache
-
-$Id$
-"""
 
 class DummyConnection:
 
@@ -114,7 +110,7 @@ Peristent meta classes work too:
     """
 
 
-from zope.testing.doctest import DocTestSuite
+from doctest import DocTestSuite
 import unittest
 
 def test_suite():

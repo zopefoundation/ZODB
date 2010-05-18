@@ -11,9 +11,9 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest
-from zope.testing import doctest
 from persistent import Persistent, simple_new
+import doctest
+import unittest
 
 class P(Persistent):
     def __init__(self):

@@ -16,9 +16,9 @@
 The actual tests are in ConnectionTests.py; this file provides the
 platform-dependent scaffolding.
 """
-
 from ZEO.tests import ConnectionTests, InvalidationTests
-from zope.testing import doctest, setupstack
+from zope.testing import setupstack
+import doctest
 import unittest
 import ZEO.tests.forker
 import ZEO.tests.testMonitor

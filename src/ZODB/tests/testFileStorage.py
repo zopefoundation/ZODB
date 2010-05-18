@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import cPickle
+import doctest
 import os, unittest
 import transaction
 import ZODB.FileStorage
@@ -657,8 +658,6 @@ def pack_with_open_blob_files():
     """
 
 def test_suite():
-    from zope.testing import doctest
-
     suite = unittest.TestSuite()
     for klass in [
         FileStorageTests, FileStorageHexTests,

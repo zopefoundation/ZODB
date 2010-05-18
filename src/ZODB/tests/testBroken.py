@@ -12,15 +12,13 @@
 #
 ##############################################################################
 """Test broken-object suppport
-
-$Id$
 """
 
 import sys
 import unittest
 import persistent
 import transaction
-from zope.testing.doctest import DocTestSuite
+from doctest import DocTestSuite
 from ZODB.tests.util import DB
 
 def test_integration():

@@ -11,14 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Tests of savepoint feature
-
-$Id$
-"""
-import unittest
-from zope.testing import doctest
+import doctest
 import persistent.mapping
 import transaction
+import unittest
 
 def testAddingThenModifyThenAbort():
     """\

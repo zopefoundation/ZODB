@@ -11,11 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Basic pickling tests
-
-$Id$
-"""
-
 from persistent import Persistent
 import pickle
 
@@ -269,7 +264,7 @@ def test_pickling_w_slots_w_empty_dict():
 
     """
 
-from zope.testing.doctest import DocTestSuite
+from doctest import DocTestSuite
 import unittest
 
 def test_suite():

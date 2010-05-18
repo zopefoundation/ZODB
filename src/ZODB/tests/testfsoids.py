@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
 r"""
 fsoids test, of the workhorse fsoids.Trace class
 ================================================
@@ -168,7 +167,7 @@ Clean up.
 >>> st.cleanup() # remove .fs, .index, etc
 """
 
-from zope.testing import doctest
+import doctest
 
 def test_suite():
     return doctest.DocTestSuite()

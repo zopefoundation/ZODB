@@ -12,12 +12,10 @@
 #
 ##############################################################################
 """Test behavior of Connection plus cPickleCache."""
-
-from zope.testing import doctest
-
 from persistent import Persistent
-import transaction
 from ZODB.config import databaseFromString
+import doctest
+import transaction
 
 class RecalcitrantObject(Persistent):
     """A Persistent object that will not become a ghost."""
