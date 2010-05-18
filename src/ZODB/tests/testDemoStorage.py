@@ -16,6 +16,7 @@ import random
 import transaction
 from ZODB.DB import DB
 from zope.testing import doctest
+import ZODB.tests.hexstorage
 import ZODB.tests.util
 import ZODB.utils
 import ZODB.DemoStorage
@@ -78,6 +79,13 @@ class DemoStorageTests(
     checkUndoZombie = checkLoadBeforeUndo
 
 
+class DemoStorageHexTests(DemoStorageTests):
+
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = ZODB.tests.hexstorage.HexStorage(
+            ZODB.DemoStorage.DemoStorage())
+
 class DemoStorageWrappedBase(DemoStorageTests):
 
     def setUp(self):
@@ -111,6 +119,11 @@ class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
         from ZODB.FileStorage import FileStorage
         return FileStorage('FileStorageTests.fs')
 
+class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
+
+    def _makeBaseStorage(self):
+        from ZODB.MappingStorage import MappingStorage
+        return ZODB.tests.hexstorage.HexStorage(MappingStorage())
 
 
 def setUp(test):
@@ -232,8 +245,11 @@ def test_suite():
             ),
         ))
     suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageHexTests, 'check'))
     suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,
                                      'check'))
     suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundMappingStorage,
+                                     'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage,
                                      'check'))
     return suite

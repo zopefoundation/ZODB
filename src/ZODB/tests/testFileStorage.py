@@ -15,6 +15,7 @@ import cPickle
 import os, unittest
 import transaction
 import ZODB.FileStorage
+import ZODB.tests.hexstorage
 import ZODB.tests.testblob
 import ZODB.tests.util
 import zope.testing.setupstack
@@ -279,13 +280,29 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
+class FileStorageHexTests(FileStorageTests):
+
+    def open(self, **kwargs):
+        self._storage = ZODB.tests.hexstorage.HexStorage(
+            ZODB.FileStorage.FileStorage('FileStorageTests.fs',**kwargs))
+
+
 class FileStorageTestsWithBlobsEnabled(FileStorageTests):
 
     def open(self, **kwargs):
         if 'blob_dir' not in kwargs:
             kwargs = kwargs.copy()
             kwargs['blob_dir'] = 'blobs'
-        return FileStorageTests.open(self, **kwargs)
+        FileStorageTests.open(self, **kwargs)
+
+class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
+
+    def open(self, **kwargs):
+        if 'blob_dir' not in kwargs:
+            kwargs = kwargs.copy()
+            kwargs['blob_dir'] = 'blobs'
+        FileStorageTests.open(self, **kwargs)
+        self._storage = ZODB.tests.hexstorage.HexStorage(self._storage)
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
@@ -303,6 +320,15 @@ class FileStorageRecoveryTest(
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
+
+class FileStorageHexRecoveryTest(FileStorageRecoveryTest):
+
+    def setUp(self):
+        StorageTestBase.StorageTestBase.setUp(self)
+        self._storage = ZODB.tests.hexstorage.HexStorage(
+            ZODB.FileStorage.FileStorage("Source.fs", create=True))
+        self._dst = ZODB.tests.hexstorage.HexStorage(
+            ZODB.FileStorage.FileStorage("Dest.fs", create=True))
 
 
 class FileStorageNoRestore(ZODB.FileStorage.FileStorage):
@@ -634,10 +660,14 @@ def test_suite():
     from zope.testing import doctest
 
     suite = unittest.TestSuite()
-    for klass in [FileStorageTests, Corruption.FileStorageCorruptTests,
-                  FileStorageRecoveryTest, FileStorageNoRestoreRecoveryTest,
-                  FileStorageTestsWithBlobsEnabled, AnalyzeDotPyTest,
-                  ]:
+    for klass in [
+        FileStorageTests, FileStorageHexTests,
+        Corruption.FileStorageCorruptTests,
+        FileStorageRecoveryTest, FileStorageHexRecoveryTest,
+        FileStorageNoRestoreRecoveryTest,
+        FileStorageTestsWithBlobsEnabled, FileStorageHexTestsWithBlobsEnabled,
+        AnalyzeDotPyTest,
+        ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
@@ -649,9 +679,18 @@ def test_suite():
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'BlobFileHexStorage',
+        lambda name, blob_dir:
+        ZODB.tests.hexstorage.HexStorage(
+            ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
+        test_blob_storage_recovery=True,
+        test_packing=True,
+        ))
     suite.addTest(PackableStorage.IExternalGC_suite(
         lambda : ZODB.FileStorage.FileStorage(
             'data.fs', blob_dir='blobs', pack_gc=False)))
+    suite.layer = ZODB.tests.util.MininalTestLayer('testFileStorage')
     return suite
 
 if __name__=='__main__':

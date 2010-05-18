@@ -30,7 +30,6 @@ from ZODB.utils import p64, u64, z64
 
 import logging
 import os
-import ZODB.blob
 import ZODB.fsIndex
 import ZODB.POSException
 
@@ -502,7 +501,7 @@ class FileStoragePacker(FileStorageFormatter):
                         data = self._file.read(h.plen)
                     else:
                         data = self.fetchDataViaBackpointer(h.oid, h.back)
-                    if data and ZODB.blob.is_blob_record(data):
+                    if data and self._storage.is_blob_record(data):
                         # We need to remove the blob record. Maybe we
                         # need to remove oid:
 
