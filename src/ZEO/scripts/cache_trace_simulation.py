@@ -297,8 +297,10 @@ class CircularCacheEntry(object):
         self.end_tid = end_tid
         self.offset = offset
 
-from ZEO.cache import ZEC3_HEADER_SIZE
+from ZEO.cache import ZEC_HEADER_SIZE
 
+TOTAL_FIXED_SIZE = 22
+OBJECT_HEADER_SIZE = 21
 class CircularCacheSimulation(Simulation):
     """Simulate the ZEO 3.0 cache."""
 
@@ -316,11 +318,11 @@ class CircularCacheSimulation(Simulation):
         self.total_evicts = 0  # number of cache evictions
 
         # Current offset in file.
-        self.offset = ZEC3_HEADER_SIZE
+        self.offset = ZEC_HEADER_SIZE
 
         # Map offset in file to (size, CircularCacheEntry) pair, or to
         # (size, None) if the offset starts a free block.
-        self.filemap = {ZEC3_HEADER_SIZE: (self.cachelimit - ZEC3_HEADER_SIZE,
+        self.filemap = {ZEC_HEADER_SIZE: (self.cachelimit - ZEC_HEADER_SIZE,
                                            None)}
         # Map key to CircularCacheEntry.  A key is an (oid, tid) pair.
         self.key2entry = {}
@@ -334,8 +336,7 @@ class CircularCacheSimulation(Simulation):
 
         # The number of overhead bytes needed to store an object pickle
         # on disk (all bytes beyond those needed for the object pickle).
-        self.overhead = (cache.Object.TOTAL_FIXED_SIZE +
-                         cache.OBJECT_HEADER_SIZE)
+        self.overhead = cache.allocated_record_overhead
 
     def restart(self):
         Simulation.restart(self)
@@ -468,7 +469,7 @@ class CircularCacheSimulation(Simulation):
     # freed is the return value, and will be >= need.
     def makeroom(self, need):
         if self.offset + need > self.cachelimit:
-            self.offset = ZEC3_HEADER_SIZE
+            self.offset = ZEC_HEADER_SIZE
         pos = self.offset
         while need > 0:
             assert pos < self.cachelimit
@@ -489,7 +490,7 @@ class CircularCacheSimulation(Simulation):
             pos += size
         return pos - self.offset  # total number of bytes freed
 
-    def report(self):
+    def report(self, extratext=''):
         self.check()
         free = used = total = 0
         for size, e in self.filemap.itervalues():
@@ -501,11 +502,11 @@ class CircularCacheSimulation(Simulation):
 
         self.inuse = round(100.0 * used / total, 1)
         self.total_inuse = self.inuse
-        Simulation.report(self)
+        Simulation.report(self, extratext)
 
     def check(self):
         oidcount = 0
-        pos = ZEC3_HEADER_SIZE
+        pos = ZEC_HEADER_SIZE
         while pos < self.cachelimit:
             size, e = self.filemap[pos]
             if e:
@@ -1024,13 +1025,11 @@ class ARCCacheSimulation(Simulation):
             )
         print fmt % self.__dict__
 
-    def report(self):
+    def report(self, extratext=''):
         self.total_p = self.p
-        Simulation.report(self)
-##        self.stats()
+        Simulation.report(self, extratext)
 
     def load(self, oid, size):
-##        maybe(self.stats, p=0.002)
         node = self.cache.get(oid)
         if node is None:
             # cache miss: We're going to insert a new object in fifoT.
