@@ -127,6 +127,12 @@ def main():
             # and try again.  Why 8?  Lost in the mist of history.
             f.seek(f.tell() - FMT_SIZE + 8)
             continue
+
+
+        if (sim.ts0 is not None) and (ts - sim.ts0 > 900):
+            sim.report()
+            sim.restart()
+
         oid = f_read(oidlen)
         if len(oid) < oidlen:
             break
