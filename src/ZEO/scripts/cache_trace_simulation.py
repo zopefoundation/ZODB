@@ -26,6 +26,8 @@ import getopt
 import struct
 import math
 import bisect
+import BTrees.OOBTree
+
 from sets import Set
 
 from ZODB.utils import z64
@@ -38,15 +40,18 @@ def main():
     # Parse options.
     MB = 1024**2
     cachelimit = 20*MB
+    itemlimit = 1<<30
     simclass = CircularCacheSimulation
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "cs:")
+        opts, args = getopt.getopt(sys.argv[1:], "ci:s:")
     except getopt.error, msg:
         usage(msg)
         return 2
     for o, a in opts:
         if o == '-s':
-            cachelimit = int(float(a)*MB)
+            cachelimit = int(a)*MB
+        elif o == '-i':
+            itemlimit = int(a)
         elif o == '-c':
             simclass = CircularCacheSimulation
         else:
@@ -57,36 +62,38 @@ def main():
         return 2
     filename = args[0]
 
-    # Open file.
-    if filename.endswith(".gz"):
-        # Open gzipped file.
-        try:
-            import gzip
-        except ImportError:
-            print >> sys.stderr, "can't read gzipped files (no module gzip)"
-            return 1
-        try:
-            f = gzip.open(filename, "rb")
-        except IOError, msg:
-            print >> sys.stderr, "can't open %s: %s" % (filename, msg)
-            return 1
-    elif filename == "-":
-        # Read from stdin.
-        f = sys.stdin
-    else:
-        # Open regular file.
-        try:
-            f = open(filename, "rb")
-        except IOError, msg:
-            print >> sys.stderr, "can't open %s: %s" % (filename, msg)
-            return 1
-
-    sim = simclass(cachelimit)
+    sim = simclass(cachelimit, itemlimit)
 
     # Print output header.
     sim.printheader()
 
-    # Read trace file, simulating cache behavior.
+    for ts, dlen, code, oid, start_tid, end_tid in events(filename):
+        if (sim.ts0 is not None) and (ts/900 - sim.ts0/900):
+            sim.report()
+            sim.restart()
+        sim.event(ts, dlen, code, oid, start_tid, end_tid)
+
+    # Finish simulation.
+    sim.finish()
+
+    # Exit code from main().
+    return 0
+
+def events(f):
+    if isinstance(f, str):
+        # Open file.
+        filename = f
+        if filename.endswith(".gz"):
+            # Open gzipped file.
+            import gzip
+            f = gzip.open(filename, "rb")
+        elif filename == "-":
+            # Read from stdin.
+            f = sys.stdin
+        else:
+            # Open regular file.
+            f = open(filename, "rb")
+
     f_read = f.read
     unpack = struct.unpack
     FMT = ">iiH8s8s"
@@ -104,27 +111,23 @@ def main():
             f.seek(f.tell() - FMT_SIZE + 8)
             continue
 
-
-        if (sim.ts0 is not None) and (ts - sim.ts0 > 900):
-            sim.report()
-            sim.restart()
-
         oid = f_read(oidlen)
         if len(oid) < oidlen:
             break
+
         # Decode the code.
         dlen, version, code = (code & 0x7fffff00,
                                code & 0x80,
                                code & 0x7e)
-        # And pass it to the simulation.
-        sim.event(ts, dlen, version, code, oid, start_tid, end_tid)
+        # work around a trace bug
+        if dlen > 255:
+            dlen -= 127
+
+        assert not version
+
+        yield ts, dlen, code, oid, start_tid, end_tid
 
     f.close()
-    # Finish simulation.
-    sim.finish()
-
-    # Exit code from main().
-    return 0
 
 class Simulation(object):
     """Base class for simulations.
@@ -136,8 +139,9 @@ class Simulation(object):
     finish() method also calls report().
     """
 
-    def __init__(self, cachelimit):
+    def __init__(self, cachelimit, itemlimit):
         self.cachelimit = cachelimit
+        self.itemlimit = itemlimit
         # Initialize global statistics.
         self.epoch = None
         self.total_loads = 0
@@ -158,8 +162,7 @@ class Simulation(object):
         self.writes = 0
         self.ts0 = None
 
-    def event(self, ts, dlen, _version, code, oid,
-              start_tid, end_tid):
+    def event(self, ts, dlen, code, oid, start_tid, end_tid):
         # Record first and last timestamp seen.
         if self.ts0 is None:
             self.ts0 = ts
@@ -180,7 +183,7 @@ class Simulation(object):
             self.total_loads += 1
             # Asserting that dlen is 0 iff it's a load miss.
             # assert (dlen == 0) == (code in (0x20, 0x24))
-            self.load(oid, dlen, start_tid)
+            self.load(oid, dlen, start_tid, end_tid, code)
         elif action == 0x50:
             # Store.
             assert dlen
@@ -198,7 +201,7 @@ class Simulation(object):
     def write(self, oid, size, start_tid, end_tid):
         pass
 
-    def load(self, oid, size, start_tid):
+    def load(self, oid, size, start_tid, end_tid, code):
         # Must increment .hits and .total_hits as appropriate.
         pass
 
@@ -293,10 +296,10 @@ class CircularCacheSimulation(Simulation):
 
     extras = "evicts", "inuse"
 
-    def __init__(self, cachelimit):
+    def __init__(self, cachelimit, itemlimit):
         from ZEO import cache
 
-        Simulation.__init__(self, cachelimit)
+        Simulation.__init__(self, cachelimit, itemlimit)
         self.total_evicts = 0  # number of cache evictions
 
         # Current offset in file.
@@ -320,23 +323,33 @@ class CircularCacheSimulation(Simulation):
         # on disk (all bytes beyond those needed for the object pickle).
         self.overhead = cache.allocated_record_overhead
 
+        self.write_calls = {}
+
     def restart(self):
         Simulation.restart(self)
         self.evicts = 0
 
-    def load(self, oid, size, tid):
-        if tid == z64:
+    def load(self, oid, size, tid, end_tid, code):
+        if not (code & 4):
             # Trying to load current revision.
             if oid in self.current: # else it's a cache miss
                 self.hits += 1
                 self.total_hits += 1
-            return
+                return
 
-        # May or may not be trying to load current revision.
-        cur_tid = self.current.get(oid)
-        if cur_tid == tid:
-            self.hits += 1
-            self.total_hits += 1
+            # simulate the subsequent write, if we can.  This is to
+            # overcome the fact that the recorded trace only has
+            # actual writes, which result, in part from evictions.  If
+            # we're simularing a smaller cache size we'll get more
+            # evictions, and we need to simulate the writes that would
+            # have occurred when loads following evictions happen.
+
+            oid_writes = self.write_calls.get(oid)
+            if oid_writes:
+                start_tid, (size, end_tid) = oid_writes.items()[-1]
+                if (oid, start_tid) not in self.key2entry:
+                    self.write(oid, size, start_tid, end_tid)
+
             return
 
         # It's a load for non-current data.  Do we know about this oid?
@@ -407,6 +420,15 @@ class CircularCacheSimulation(Simulation):
         e.end_tid = tid
 
     def write(self, oid, size, start_tid, end_tid):
+
+        if size > self.itemlimit:
+            return
+
+        oid_writes = self.write_calls.get(oid)
+        if not oid_writes:
+            oid_writes = self.write_calls[oid] = BTrees.OOBTree.Bucket()
+        oid_writes[start_tid] = size, end_tid
+
         if end_tid == z64:
             # Storing current revision.
             if oid in self.current:  # we already have it in cache
@@ -433,7 +455,7 @@ class CircularCacheSimulation(Simulation):
         key = oid, start_tid
         assert key not in self.key2entry
         size += self.overhead
-        avail = self.makeroom(size)
+        avail = self.makeroom(size+1)
         e = CircularCacheEntry(key, end_tid, self.offset)
         self.filemap[self.offset] = size, e
         self.key2entry[key] = e
