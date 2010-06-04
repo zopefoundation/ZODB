@@ -750,7 +750,7 @@ class ClientCache(object):
             # The first hex digit shows the operation, the second the outcome.
             # This method has been carefully tuned to be as fast as possible.
             # Note: when tracing is disabled, this method is hidden by a dummy.
-            encoded = (dlen + 255) & 0x7fffff00 | code
+            encoded = (dlen << 8) + code
             if tid is None:
                 tid = z64
             if end_tid is None:
