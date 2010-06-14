@@ -33,7 +33,7 @@ New Features
     a database with a mapping storage.
 
 - Databases now warn when committing very large records (> 16MB).
-  This is to tr to warn people of likely design mistakes.  There is a
+  This is to try to warn people of likely design mistakes.  There is a
   new option (large_record_size/large-record-size) to control the
   record size at which the warning is issued.
 
