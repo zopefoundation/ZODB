@@ -5,6 +5,61 @@
 3.9.6 (unreleased)
 ==================
 
+New Features
+------------
+
+- DemoStorages now accept constructor athuments, close_base_on_close
+  and close_changes_on_close, to control whether underlying storages
+  are closed when the DemoStorage is closed.
+
+  https://bugs.launchpad.net/zodb/+bug/118512
+
+- Removed the dependency on zope.proxy.
+
+- Removed support for the _p_independent mini framework, which was
+  made moot by the introduction of multi-version concurrency control
+  several years ago.
+
+- Added support for the transaction retry convenience
+  (transaction-manager attempts method) introduced in the
+  ``transaction`` 1.1.0 release.
+
+- Enhanced the database opening conveniences:
+
+  - You can now pass storage keyword arguments to ZODB.DB and
+    ZODB.connection.
+
+  - You can now pass None (rather than a storage or file name) to get
+    a database with a mapping storage.
+
+- Databases now warn when committing very large records (> 16MB).
+  This is to try to warn people of likely design mistakes.  There is a
+  new option (large_record_size/large-record-size) to control the
+  record size at which the warning is issued.
+
+- Added support for wrapper storages that transform pickle data.
+  Applications for this include compression and encryption.  An
+  example wrapper storage implementation, ZODB.tests.hexstorage, was
+  included for testing.
+
+  It is important that storage implementations not assume that
+  storages contain pickles.  Renamed IStorageDB to IStorageWrapper and
+  expanded it to provide methods for transforming and untransforming
+  data records.  Storages implementations should use these methods to
+  get pickle data from stored records.
+
+- Deprecated ZODB.interfaces.StorageStopIteration.  Storage
+  iterator implementations should just raise StopIteration, which
+  means they can now be implemented as generators.
+
+- The file-storage backup script, repoze, will now create a backup
+  index file if an output file name is given via the --output/-o
+  option.
+
+- The filestorage packer configuration option noe accepts calues of
+  the form ``modname:expression``, allowing the use of packer
+  factories with options.
+
 Bugs Fixed
 ----------
 
