@@ -269,16 +269,10 @@ if sys.version_info >= (2, 6):
 
 def connection_allows_empty_version_for_idiots():
     r"""
-    >>> import sys, StringIO
-    >>> stderr = sys.stderr
-    >>> sys.stderr = StringIO.StringIO()
     >>> db = ZODB.DB('t.fs')
-    >>> c = db.open('')
-    >>> sys.stderr.getvalue() # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
-    '...: DeprecationWarning: A version string was passed to
-    open.\nThe first argument is a transaction manager...
-
-    >>> sys.stderr = stderr
+    >>> c = ZODB.tests.util.assert_deprecated(
+    ...       (lambda : db.open('')),
+    ...       'A version string was passed to open')
     >>> c.root()
     {}
     >>> db.close()
@@ -289,36 +283,11 @@ def warn_when_data_records_are_big():
 When data records are large, a warning is issued to try to prevent new
 users from shooting themselves in the foot.
 
-    >>> import warnings
-    >>> old_warn = warnings.warn
-    >>> def faux_warn(message, *args):
-    ...     print message,
-    ...     if args: print args
-    >>> warnings.warn = faux_warn
-
     >>> db = ZODB.DB('t.fs', create=True)
     >>> conn = db.open()
     >>> conn.root.x = 'x'*(1<<24)
-    >>> transaction.commit()
-    The <class 'persistent.mapping.PersistentMapping'>
-    object you're saving is large. (16777284 bytes.)
-    <BLANKLINE>
-    Perhaps you're storing media which should be stored in blobs.
-    <BLANKLINE>
-    Perhaps you're using a non-scalable data structure, such as a
-    PersistentMapping or PersistentList.
-    <BLANKLINE>
-    Perhaps you're storing data in objects that aren't persistent at
-    all. In cases like that, the data is stored in the record of the
-    containing persistent object.
-    <BLANKLINE>
-    In any case, storing records this big is probably a bad idea.
-    <BLANKLINE>
-    If you insist and want to get rid of this warning, use the
-    large_record_size option of the ZODB.DB constructor (or the
-    large-record-size option in a configuration file) to specify a larger
-    size.
-
+    >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
+    ...    "object you're saving is large.")
     >>> db.close()
 
 The large_record_size option can be used to control the record size:
@@ -329,10 +298,8 @@ The large_record_size option can be used to control the record size:
     >>> transaction.commit()
 
     >>> conn.root.x = 'x'*999
-    >>> transaction.commit() # doctest: +ELLIPSIS
-    The <class 'persistent.mapping.PersistentMapping'>
-    object you're saving is large. (1067 bytes.)
-    ...
+    >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
+    ...    "object you're saving is large.")
 
     >>> db.close()
 
@@ -353,14 +320,10 @@ We can also specify it using a configuration option:
     >>> transaction.commit()
 
     >>> conn.root.x = 'x'*(1<<20)
-    >>> transaction.commit() # doctest: +ELLIPSIS
-    The <class 'persistent.mapping.PersistentMapping'>
-    object you're saving is large. (1048644 bytes.)
-    ...
+    >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
+    ...    "object you're saving is large.")
 
     >>> db.close()
-
-    >>> warnings.warn = old_warn
     """
 
 def test_suite():

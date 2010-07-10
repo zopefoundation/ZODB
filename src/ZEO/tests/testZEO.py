@@ -1294,7 +1294,7 @@ Invalidations could cause errors when closing client storages,
     >>> thread = threading.Thread(target=mad_write_thread)
     >>> thread.setDaemon(True)
     >>> thread.start()
-    >>> writing.wait()
+    >>> _ = writing.wait()
     >>> time.sleep(.01)
     >>> for i in range(10):
     ...     conn = ZEO.connection(addr)
