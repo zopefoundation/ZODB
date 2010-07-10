@@ -39,7 +39,7 @@ class DemoStorage(object):
         )
 
     def __init__(self, name=None, base=None, changes=None,
-                 close_base_on_close=None, close_changes_on_close=None):
+                 close_base_on_close=None, close_changes_on_close=True):
 
         if close_base_on_close is None:
             if base is None:
@@ -56,13 +56,9 @@ class DemoStorage(object):
             self._temporary_changes = True
             changes = ZODB.MappingStorage.MappingStorage()
             zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
-            if close_changes_on_close is None:
-                close_changes_on_close = False
         else:
             if ZODB.interfaces.IBlobStorage.providedBy(changes):
                 zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
-            if close_changes_on_close is None:
-                close_changes_on_close = True
 
         self.changes = changes
         self.close_changes_on_close = close_changes_on_close
@@ -81,11 +77,12 @@ class DemoStorage(object):
 
         self._next_oid = random.randint(1, 1<<62)
 
+    __temporary_blobdir = None
     def _blobify(self):
         if (self._temporary_changes and
             isinstance(self.changes, ZODB.MappingStorage.MappingStorage)
             ):
-            blob_dir = tempfile.mkdtemp('.demoblobs')
+            blob_dir = self.__temporary_blobdir = tempfile.mkdtemp('.demoblobs')
             _temporary_blobdirs[
                 weakref.ref(self, cleanup_temporary_blobdir)
                 ] = blob_dir
@@ -102,6 +99,9 @@ class DemoStorage(object):
             self.base.close()
         if self.close_changes_on_close:
             self.changes.close()
+            if (self.__temporary_blobdir and
+                os.path.exists(self.__temporary_blobdir)):
+                ZODB.blob.remove_committed_dir(self.__temporary_blobdir)
 
     def _copy_methods_from_changes(self, changes):
         for meth in (

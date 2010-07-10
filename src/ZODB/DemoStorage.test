@@ -185,30 +185,6 @@ The pop method closes the changes storage and returns the base
     >>> changes.opened()
     False
 
-Special backward compatibility support
---------------------------------------
-
-Normally, when a demo storage is closed, it's base and changes
-storage are closed.
-
-Older versions of DemoStorage didn't have a separate changes storage
-and didn't close or discard their changes when they were closed.  When
-a stack was built solely of demo storages, the close method
-effectively did nothing.  To maintain backward compatibility, when no
-base or changes storage is supplied in the constructor, the underlying
-storage created by the demo storage isn't closed by the demo storage.
-This backward-compatibility is deprecated.
-
-    >>> demo = DemoStorage()
-    >>> demo.close()
-    >>> demo.changes.opened(), demo.base.opened()
-    (True, True)
-
-    >>> demo = DemoStorage(base=MappingStorage())
-    >>> demo2 = demo.push()
-    >>> demo2.close()
-    >>> demo2.changes.opened(), demo2.base.base.opened()
-    (True, False)
 
 Blob Support
 ============
@@ -355,32 +331,70 @@ and base options:
     >>> storage.base.getName()
     'base.fs'
 
+    >>> storage.close()
 
 Generating OIDs
 ===============
 
-When asked for a new OID DemoStorage randomly chooses a value and then verifies
-that neither the base or changes storages already contain that OID.
+When asked for a new OID DemoStorage chooses a value and then
+verifies that neither the base or changes storages already contain
+that OID.  It chooses values sequentially from random starting
+points, picking new starting points whenever a chosen value us already
+in the changes or base.
 
-Under rare circumstances an OID can be chosen that has already been handed out,
-but which hasn't yet been comitted.  Lets verify that if the same OID is chosen
-twice during a transaction that everything will still work.
+Under rare circumstances an OID can be chosen that has already been
+handed out, but which hasn't yet been comitted.  Lets verify that if
+the same OID is chosen twice during a transaction that everything will
+still work.
 
-First we'll get a single OID.
+To test this, we need to hack random.randint a bit.
 
     >>> import random
-    >>> storage = DemoStorage.push(storage)
-    >>> random.seed(47)
-    >>> storage.new_oid()
-    '8\xaa-\tz\x1dP\x07'
+    >>> randint = random.randint
 
-Then we'll force the random number generator to use the same seed for the
-subsequent call to "new_oid" and show that we get a different OID.
+    >>> rv = 42
+    >>> def faux_randint(min, max):
+    ...     print 'called randint'
+    ...     global rv
+    ...     rv += 1000
+    ...     return rv
 
-    >>> random.seed(47)
+    >>> random.randint = faux_randint
+
+Now, we create a demostorage.
+
+    >>> storage = DemoStorage()
+    called randint
+
+If we ask for an oid, we'll get 1042.
+
+    >>> u64(storage.new_oid())
+    1042
+
+oids are allocated seuentially:
+
+    >>> u64(storage.new_oid())
+    1043
+
+Now, we'll save 1044 in changes so that it has to pick a new one randomly.
+
+    >>> t = transaction.get()
+    >>> ZODB.tests.util.store(storage.changes, 1044)
+
+    >>> u64(storage.new_oid())
+    called randint
+    2042
+
+Now, we hack rv to 1042 is given out again and we'll save 2043 in base
+to force another attempt:
+
+    >>> rv -= 1000
+    >>> ZODB.tests.util.store(storage.changes, 2043)
     >>> oid = storage.new_oid()
-    >>> oid
-    '8\xaa-\tz\x1dP\x08'
+    called randint
+    called randint
+    >>> u64(oid)
+    3042
 
 DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 
@@ -389,27 +403,20 @@ DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 
 ...but once data is stored with a given OID...
 
-    >>> t = transaction.begin()
-    >>> storage.tpc_begin(t)
-    >>> tid = storage.store(oid, 0, 'data', '', t)
-    >>> storage.tpc_vote(t)
-    >>> oid in storage._issued_oids
-    True
-    >>> storage.tpc_finish(t)
+    >>> ZODB.tests.util.store(storage, oid)
 
 ...there's no need to remember it any longer:
 
     >>> oid in storage._issued_oids
     False
 
-We're done with the storage, so "unwrap" the underlying storage.
+    >>> storage.close()
 
-    >>> storage = storage.pop()
+.. restore randint
+
+    >>> random.randint = randint
 
 .. restore time
 
     >>> time.time = real_time_time
 
-.. clean up
-
-    >>> storage.close()
