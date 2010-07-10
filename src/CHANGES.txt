@@ -2,6 +2,15 @@
  Change History
 ================
 
+3.10.0b2 (2010-07-??)
+=====================
+
+Bugs fixed
+----------
+
+- DemoStorages didn't close their changes databases when they were
+  created temporarily (not passed to the constructor).
+
 3.10.0b1 (2010-05-18)
 =====================
 
