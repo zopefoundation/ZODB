@@ -12,9 +12,9 @@
 #
 ##############################################################################
 """Conventience function for creating test databases
-
-$Id$
 """
+
+from __future__ import with_statement
 
 from ZODB.MappingStorage import DB
 
@@ -24,8 +24,12 @@ import tempfile
 import time
 import unittest
 import persistent
+import sys
+import time
 import transaction
+import warnings
 import zope.testing.setupstack
+import ZODB.utils
 
 def setUp(test, name='test'):
     transaction.abort()
@@ -99,3 +103,38 @@ class AAAA_Test_Runner_Hack(unittest.TestCase):
     def testNothing(self):
         pass
 
+def assert_warning(category, func, warning_text=''):
+    if sys.version_info < (2, 6):
+        return func() # Can't use catch_warnings :(
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter('default')
+        result = func()
+        for warning in w:
+            if ((warning.category is category)
+                and (warning_text in str(warning.message))):
+                return result
+        raise AssertionError(w)
+
+def assert_deprecated(func, warning_text=''):
+    return assert_warning(DeprecationWarning, func, warning_text)
+
+def wait(func=None, timeout=30):
+    if func is None:
+        return lambda f: wait(f, timeout)
+    for i in xrange(int(timeout*100)):
+        if func():
+            return
+        time.sleep(.01)
+    raise AssertionError
+
+def store(storage, oid, value='x', serial=ZODB.utils.z64):
+    if not isinstance(oid, str):
+        oid = ZODB.utils.p64(oid)
+    if not isinstance(serial, str):
+        serial = ZODB.utils.p64(serial)
+    t = transaction.get()
+    storage.tpc_begin(t)
+    storage.store(oid, serial, value, '', t)
+    storage.tpc_vote(t)
+    storage.tpc_finish(t)
