@@ -94,7 +94,12 @@ class DemoStorage(object):
         self.base.cleanup()
         self.changes.cleanup()
 
+    __opened = True
+    def opened(self):
+        return self.__opened
+
     def close(self):
+        self.__opened = False
         if self.close_base_on_close:
             self.base.close()
         if self.close_changes_on_close:
@@ -253,7 +258,8 @@ class DemoStorage(object):
         return self.base
 
     def push(self, changes=None):
-        return self.__class__(base=self, changes=changes)
+        return self.__class__(base=self, changes=changes,
+                              close_base_on_close=False)
 
     def store(self, oid, serial, data, version, transaction):
         assert version=='', "versions aren't supported"

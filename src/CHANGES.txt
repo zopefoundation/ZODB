@@ -8,6 +8,10 @@
 Bugs fixed
 ----------
 
+- When a demo storage push method was used to create a new demo
+  storage and the new storage was closed, the original was
+  (incorrectly) closed.
+
 - DemoStorages didn't close their changes databases when they were
   created temporarily (not passed to the constructor).
 

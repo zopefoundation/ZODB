@@ -185,6 +185,11 @@ The pop method closes the changes storage and returns the base
     >>> changes.opened()
     False
 
+If storage returned by push is closed, the original storage isn't:
+
+    >>> demo3.push().close()
+    >>> demo2.opened()
+    True
 
 Blob Support
 ============
