@@ -8,6 +8,11 @@
 Bugs fixed
 ----------
 
+- Updating blobs in save points could cause spurious "invalidations
+  out of order" errors.  https://bugs.launchpad.net/zodb/+bug/509801
+
+  (Thanks to Christian Zagrodnick for chasing this down.)
+
 - When a demo storage push method was used to create a new demo
   storage and the new storage was closed, the original was
   (incorrectly) closed.

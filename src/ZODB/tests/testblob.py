@@ -563,6 +563,35 @@ def savepoint_isolation():
     >>> db.close()
     """
 
+def savepoint_commits_without_invalidations_out_of_order():
+    """Make sure transactions with blobs can be commited without the
+    invalidations out of order error (LP #509801)
+
+    >>> bs = create_storage()
+    >>> db = DB(bs)
+    >>> tm1 = transaction.TransactionManager()
+    >>> conn1 = db.open(transaction_manager=tm1)
+    >>> conn1.root.b = ZODB.blob.Blob('initial')
+    >>> tm1.commit()
+    >>> conn1.root.b.open('w').write('1')
+    >>> _ = tm1.savepoint()
+
+    >>> tm2 = transaction.TransactionManager()
+    >>> conn2 = db.open(transaction_manager=tm2)
+    >>> conn2.root.b.open('w').write('2')
+    >>> _ = tm1.savepoint()
+    >>> conn1.root.b.open().read()
+    '1'
+    >>> conn2.root.b.open().read()
+    '2'
+    >>> tm2.commit()
+    >>> tm1.commit()  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    ConflictError: database conflict error...
+    >>> db.close()
+    """
+
 def savepoint_cleanup():
     """Make sure savepoint data gets cleaned up.
 
