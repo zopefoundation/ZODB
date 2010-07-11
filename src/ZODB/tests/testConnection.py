@@ -395,7 +395,7 @@ def test_transaction_retry_convenience():
     >>> dm = conn.root()
 
     >>> ntry = 0
-    >>> with transaction:
+    >>> with transaction.manager:
     ...      dm['ntry'] = 0
 
     >>> import ZODB.POSException
