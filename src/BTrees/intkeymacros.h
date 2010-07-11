@@ -21,9 +21,16 @@
 #define KEY_TYPE int
 #define KEY_CHECK PyInt_Check
 #define COPY_KEY_TO_OBJECT(O, K) O=PyInt_FromLong(K)
-#define COPY_KEY_FROM_ARG(TARGET, ARG, STATUS) \
-  if (PyInt_Check(ARG)) TARGET=PyInt_AS_LONG(ARG); else { \
-      PyErr_SetString(PyExc_TypeError, "expected integer key"); \
+#define COPY_KEY_FROM_ARG(TARGET, ARG, STATUS)                    \
+  if (PyInt_Check(ARG)) {                                         \
+      long vcopy = PyInt_AS_LONG(ARG);                            \
+      if ((int)vcopy != vcopy) {                                  \
+        PyErr_SetObject(PyExc_OverflowError, ARG);                \
+        (STATUS)=0; (TARGET)=0;                                   \
+      }                                                           \
+      else TARGET = vcopy;                                        \
+  } else {                                                        \
+      PyErr_SetString(PyExc_TypeError, "expected integer key");   \
       (STATUS)=0; (TARGET)=0; }
 #endif
 

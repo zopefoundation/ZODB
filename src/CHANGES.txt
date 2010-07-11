@@ -20,6 +20,12 @@ Bugs fixed
 - DemoStorages didn't close their changes databases when they were
   created temporarily (not passed to the constructor).
 
+- Passing keys or values outside the range of 32-bit ints on 64-bit
+  platforms led to undetected overflow errors. Now these cases cause
+  Overflow errors to be raised.
+
+  https://bugs.launchpad.net/zodb/+bug/143237
+
 3.10.0b1 (2010-05-18)
 =====================
 

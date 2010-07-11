@@ -18,11 +18,20 @@
 #else
 #define VALUE_TYPE int
 #define VALUE_PARSE "i"
-#define COPY_VALUE_TO_OBJECT(O, K) O=PyInt_FromLong(K) 
-#define COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS) \
-  if (PyInt_Check(ARG)) TARGET=PyInt_AsLong(ARG); else { \
-      PyErr_SetString(PyExc_TypeError, "expected integer value"); \
-      (STATUS)=0; (TARGET)=0; } 
+#define COPY_VALUE_TO_OBJECT(O, K) O=PyInt_FromLong(K)
+
+#define COPY_VALUE_FROM_ARG(TARGET, ARG, STATUS)                  \
+  if (PyInt_Check(ARG)) {                                         \
+      long vcopy = PyInt_AS_LONG(ARG);                            \
+      if ((int)vcopy != vcopy) {                                  \
+        PyErr_SetObject(PyExc_OverflowError, ARG);                \
+        (STATUS)=0; (TARGET)=0;                                   \
+      }                                                           \
+      else TARGET = vcopy;                                        \
+  } else {                                                        \
+      PyErr_SetString(PyExc_TypeError, "expected integer key");   \
+      (STATUS)=0; (TARGET)=0; }
+
 #endif
 
 #undef VALUE_TYPE_IS_PYOBJECT
