@@ -937,6 +937,7 @@ class ReconnectionTests(CommonSetupTearDown):
         self.shutdownServer()
         logging.info("checkReconnection(): About to restart server")
         self.startServer(create=0)
+        forker.wait_until('reconnect', self._storage.is_connected)
         oid = self._storage.new_oid()
         obj = MinPO(12)
         while 1:
