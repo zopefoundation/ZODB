@@ -379,6 +379,7 @@ class ClientCache(object):
     # Close the underlying file.  No methods accessing the cache should be
     # used after this.
     def close(self):
+        self._unsetup_trace()
         f = self.f
         self.f = None
         if f is not None:
@@ -726,6 +727,10 @@ class ClientCache(object):
     # self._tracefile.  If not, or we can't write to the trace file, disable
     # tracing by setting self._trace to a dummy function, and set
     # self._tracefile to None.
+    _tracefile = None
+    def _trace(self, *a, **kw):
+        pass
+
     def _setup_trace(self, path):
         _tracefile = None
         if path and os.environ.get("ZEO_CACHE_TRACE"):
@@ -738,7 +743,6 @@ class ClientCache(object):
                 logger.info("opened tracefile %r", tfn)
 
         if _tracefile is None:
-            self._trace = lambda *a, **k: None
             return
 
         now = time.time
@@ -747,7 +751,7 @@ class ClientCache(object):
             # The first hex digit shows the operation, the second the outcome.
             # This method has been carefully tuned to be as fast as possible.
             # Note: when tracing is disabled, this method is hidden by a dummy.
-            encoded = (dlen + 255) & 0x7fffff00 | code
+            encoded = (dlen << 8) + code
             if tid is None:
                 tid = z64
             if end_tid is None:
@@ -762,7 +766,14 @@ class ClientCache(object):
                 raise
 
         self._trace = _trace
+        self._tracefile = _tracefile
         _trace(0x00)
+
+    def _unsetup_trace(self):
+        if self._tracefile is not None:
+            del self._trace
+            self._tracefile.close()
+            del self._tracefile
 
 def sync(f):
     f.flush()

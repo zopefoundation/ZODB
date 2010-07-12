@@ -138,3 +138,20 @@ def store(storage, oid, value='x', serial=ZODB.utils.z64):
     storage.store(oid, serial, value, '', t)
     storage.tpc_vote(t)
     storage.tpc_finish(t)
+
+def mess_with_time(test=None, globs=None, now=1278864701.5):
+    now = [now]
+    def faux_time():
+        now[0] += 1
+        return now[0]
+
+    if test is None and globs is not None:
+        # sigh
+        faux_time.globs = globs
+        test = faux_time
+
+    import time
+    zope.testing.setupstack.register(test, setattr, time, 'time', time.time)
+
+    time.time = faux_time
+

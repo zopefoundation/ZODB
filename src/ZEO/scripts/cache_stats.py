@@ -66,7 +66,9 @@ def usage(msg):
     print >> sys.stderr, msg
     print >> sys.stderr, __doc__
 
-def main():
+def main(args=None):
+    if args is None:
+        args = sys.argv[1:]
     # Parse options
     verbose = False
     quiet = False
@@ -76,7 +78,7 @@ def main():
     interval = 15*60 # Every 15 minutes
     heuristic = False
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:qsSvX")
+        opts, args = getopt.getopt(args, "hi:qsSvX")
     except getopt.error, msg:
         usage(msg)
         return 2
@@ -154,6 +156,8 @@ def main():
     FMT_SIZE = struct.calcsize(FMT)
     assert FMT_SIZE == 26
     # Read file, gathering statistics, and printing each record if verbose.
+    print ' '*16, "%7s %7s %7s %7s" % ('loads', 'hits', 'inv(h)', 'writes'),
+    print 'hitrate'
     try:
         while 1:
             r = f_read(FMT_SIZE)
@@ -182,7 +186,7 @@ def main():
                 thisinterval = ts // interval
                 h0 = ts
             he = ts
-            dlen, code = code & 0x7fffff00, code & 0xff
+            dlen, code = (code & 0x7fffff00) >> 8, code & 0xff
             if dlen:
                 datarecords += 1
                 datasize += dlen
@@ -245,10 +249,10 @@ def main():
         print "First time: %s" % time.ctime(t0)
         print "Last time:  %s" % time.ctime(te)
         print "Duration:   %s seconds" % addcommas(te-t0)
-        print "Data recs:  %s (%.1f%%), average size %.1f KB" % (
+        print "Data recs:  %s (%.1f%%), average size %d bytes" % (
             addcommas(datarecords),
             100.0 * datarecords / records,
-            datasize / 1024.0 / datarecords)
+            datasize / datarecords)
         print "Hit rate:   %.1f%% (load hits / loads)" % hitrate(bycode)
         print
         codes = bycode.keys()
@@ -303,22 +307,27 @@ def dumpbysize(bysize, how, how2):
                                 loads)
 
 def dumpbyinterval(byinterval, h0, he):
-    loads = hits = 0
+    loads = hits = invals = writes = 0
     for code in byinterval:
-        if code & 0x70 == 0x20:
+        if code & 0x20:
             n = byinterval[code]
             loads += n
             if code in (0x22, 0x26):
                 hits += n
-    if not loads:
-        return
+        elif code & 0x40:
+            writes +=  byinterval[code]
+        elif code & 0x10:
+            if code != 0x10:
+                invals += byinterval[code]
+
     if loads:
-        hr = 100.0 * hits / loads
+        hr = "%5.1f%%" % (100.0 * hits / loads)
     else:
-        hr = 0.0
-    print "%s-%s %10s loads, %10s hits,%5.1f%% hit rate" % (
+        hr = 'n/a'
+
+    print "%s-%s %7s %7s %7s %7s %7s" % (
         time.ctime(h0)[4:-8], time.ctime(he)[14:-8],
-        addcommas(loads), addcommas(hits), hr)
+        loads, hits, invals, writes, hr)
 
 def hitrate(bycode):
     loads = hits = 0

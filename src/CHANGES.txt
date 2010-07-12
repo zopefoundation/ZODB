@@ -26,6 +26,13 @@ Bugs fixed
 
   https://bugs.launchpad.net/zodb/+bug/143237
 
+- There were numerous bugs in the ZEO cache tracing and analysys code.
+  Cache simulation, while not perfect, seems to be much more accurate
+  now than it was before.
+
+  The ZEO cache trace statistics and simulation scripts have been
+  given more descriptive names and moved to the ZEO scripts package.
+
 3.10.0b1 (2010-05-18)
 =====================
 
