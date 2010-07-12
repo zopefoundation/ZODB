@@ -589,6 +589,7 @@ def savepoint_commits_without_invalidations_out_of_order():
     Traceback (most recent call last):
         ...
     ConflictError: database conflict error...
+    >>> tm1.abort()
     >>> db.close()
     """
 
