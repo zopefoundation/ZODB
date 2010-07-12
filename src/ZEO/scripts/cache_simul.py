@@ -30,7 +30,6 @@ Note:
 
 """
 
-from sets import Set
 import bisect
 import getopt
 import math
