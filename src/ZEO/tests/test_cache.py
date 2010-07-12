@@ -1058,7 +1058,7 @@ An attempt to open a bad cache file will cause it to be dropped and recreated.
     >>> cache.close()
     >>> f = open('cache')
     >>> f.seek(0, 2)
-    >>> f.tell()
+    >>> print f.tell()
     1000
     >>> f.close()
 
@@ -1073,13 +1073,13 @@ An attempt to open a bad cache file will cause it to be dropped and recreated.
     >>> cache.close()
     >>> f = open('cache')
     >>> f.seek(0, 2)
-    >>> f.tell()
+    >>> print f.tell()
     1000
     >>> f.close()
 
     >>> f = open('cache.bad')
     >>> f.seek(0, 2)
-    >>> f.tell()
+    >>> print f.tell()
     100
     >>> f.close()
 
