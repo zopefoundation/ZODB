@@ -210,6 +210,7 @@ class ClientCache(object):
         try:
             self._initfile(fsize)
         except:
+            self.f.close()
             if not path:
                 raise # unrecoverable temp file error :(
             badpath = path+'.bad'
