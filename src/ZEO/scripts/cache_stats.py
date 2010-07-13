@@ -62,6 +62,9 @@ import getopt
 import struct
 from types import StringType
 
+# we assign ctime locally to facilitate test replacement!
+from time import ctime
+
 def usage(msg):
     print >> sys.stderr, msg
     print >> sys.stderr, __doc__
@@ -206,14 +209,14 @@ def main(args=None):
                     bysizew[dlen] = d = bysizew.get(dlen) or {}
                     d[oid] = d.get(oid, 0) + 1
             if verbose:
-                print "%s %02x %s %016x %016x %c %s" % (
-                    time.ctime(ts)[4:-5],
+                print "%s %02x %s %016x %016x %c%s" % (
+                    ctime(ts)[4:-5],
                     code,
                     oid_repr(oid),
                     U64(start_tid),
                     U64(end_tid),
                     version,
-                    dlen and str(dlen) or "")
+                    dlen and (' '+str(dlen)) or "")
             if code & 0x70 == 0x20:
                 oids[oid] = oids.get(oid, 0) + 1
                 total_loads += 1
@@ -224,7 +227,7 @@ def main(args=None):
                 thisinterval = ts // interval
                 h0 = he = ts
                 if not quiet:
-                    print time.ctime(ts)[4:-5],
+                    print ctime(ts)[4:-5],
                     print '='*20, "Restart", '='*20
     except KeyboardInterrupt:
         print "\nInterrupted.  Stats so far:\n"
@@ -246,8 +249,8 @@ def main(args=None):
         print "Read %s trace records (%s bytes) in %.1f seconds" % (
             addcommas(records), addcommas(end_pos), rte-rt0)
         print "Versions:   %s records used a version" % addcommas(versions)
-        print "First time: %s" % time.ctime(t0)
-        print "Last time:  %s" % time.ctime(te)
+        print "First time: %s" % ctime(t0)
+        print "Last time:  %s" % ctime(te)
         print "Duration:   %s seconds" % addcommas(te-t0)
         print "Data recs:  %s (%.1f%%), average size %d bytes" % (
             addcommas(datarecords),
@@ -326,7 +329,7 @@ def dumpbyinterval(byinterval, h0, he):
         hr = 'n/a'
 
     print "%s-%s %7s %7s %7s %7s %7s" % (
-        time.ctime(h0)[4:-8], time.ctime(he)[14:-8],
+        ctime(h0)[4:-8], ctime(he)[14:-8],
         loads, hits, invals, writes, hr)
 
 def hitrate(bycode):

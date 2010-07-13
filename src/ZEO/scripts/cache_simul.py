@@ -41,6 +41,9 @@ import ZEO.cache
 
 from ZODB.utils import z64, u64
 
+# we assign ctime locally to facilitate test replacement!
+from time import ctime
+
 def usage(msg):
     print >> sys.stderr, msg
     print >> sys.stderr, __doc__
@@ -250,7 +253,7 @@ class Simulation(object):
 
     def report(self):
         self.nreports += 1
-        args = (time.ctime(self.ts0)[4:-8],
+        args = (ctime(self.ts0)[4:-8],
                 duration(self.ts1 - self.ts0),
                 self.loads, self.hits, self.invals, self.writes,
                 hitrate(self.loads, self.hits))
@@ -267,7 +270,7 @@ class Simulation(object):
         else:
             self.report()
             args = (
-                time.ctime(self.epoch)[4:-8],
+                ctime(self.epoch)[4:-8],
                 duration(self.ts1 - self.epoch),
                 self.total_loads,
                 self.total_hits,
