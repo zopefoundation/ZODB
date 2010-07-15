@@ -2,6 +2,16 @@
  Change History
 ================
 
+3.10.0b4 (2010-07-15)
+=====================
+
+Bugs fixed
+----------
+
+- When an integer too large to fit in a 32-bit integer was provided as
+  a 32-bit-integer BTree key or value on 64-bit machines, an
+  OverflowError was raised. Now a TypeError is raised.
+
 3.10.0b3 (2010-07-15)
 =====================
 
