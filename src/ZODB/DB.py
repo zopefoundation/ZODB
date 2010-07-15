@@ -483,29 +483,9 @@ class DB(object):
         databases[database_name] = self
         self.xrefs = xrefs
 
-        self._setupUndoMethods()
-        self.history = storage.history
-
         self._saved_oids = []
         self._max_saved_oids = max_saved_oids
         self.large_record_size = large_record_size
-
-    def _setupUndoMethods(self):
-        storage = self.storage
-        try:
-            self.supportsUndo = storage.supportsUndo
-        except AttributeError:
-            self.supportsUndo = lambda : False
-
-        if self.supportsUndo():
-            self.undoLog = storage.undoLog
-            if hasattr(storage, 'undoInfo'):
-                self.undoInfo = storage.undoInfo
-        else:
-            self.undoLog = self.undoInfo = lambda *a,**k: ()
-            def undo(*a, **k):
-                raise NotImplementedError
-            self.undo = undo
 
     @property
     def _storage(self):      # Backward compatibility
@@ -654,7 +634,17 @@ class DB(object):
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
         """
+        noop = lambda *a: None
+        self.close = noop
+
+        @self._connectionMap
+        def _(c):
+            c.transaction_manager.abort()
+            c.afterCompletion = c.newTransaction = c.close = noop
+            c._storage = c._normal_storage = None
+
         self.storage.close()
+        del self.storage
 
     def getCacheSize(self):
         return self._cache_size
@@ -908,6 +898,26 @@ class DB(object):
         finally:
             self._r()
 
+    def history(self, *args, **kw):
+        return self.storage.history(*args, **kw)
+
+    def supportsUndo(self):
+        try:
+            f = self.storage.supportsUndo
+        except AttributeError:
+            return False
+        return f()
+
+    def undoLog(self, *args, **kw):
+        if not self.supportsUndo():
+            return ()
+        return self.storage.undoLog(*args, **kw)
+
+    def undoInfo(self, *args, **kw):
+        if not self.supportsUndo():
+            return ()
+        return self.storage.undoInfo(*args, **kw)
+
     def undoMultiple(self, ids, txn=None):
         """Undo multiple transactions identified by ids.
 
@@ -925,6 +935,8 @@ class DB(object):
           - `txn`: transaction context to use for undo().
             By default, uses the current transaction.
         """
+        if not self.supportsUndo():
+            raise NotImplementedError
         if txn is None:
             txn = transaction.get()
         if isinstance(ids, basestring):
