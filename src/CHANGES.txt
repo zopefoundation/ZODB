@@ -2,6 +2,19 @@
  Change History
 ================
 
+3.10.0b3 (2010-07-15)
+=====================
+
+Bugs fixed
+----------
+
+- A change in 3.10.0b2:
+
+  "DemoStorages didn't close their changes databases when they were
+   created temporarily (not passed to the constructor)."
+
+  Introduced a backward-compatibility problem for some applications.
+
 3.10.0b2 (2010-07-13)
 =====================
 

@@ -278,9 +278,8 @@ storage wrapped around it when necessary:
    For now, it won't go until the storage does.
 
    >>> transaction.abort()
-   >>> conn.close()
    >>> blobdir = storage.temporaryDirectory()
-   >>> del db, conn, storage, _
+   >>> del storage, _
 
    >>> import gc
    >>> _ = gc.collect()
