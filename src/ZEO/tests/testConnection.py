@@ -135,7 +135,7 @@ def test_suite():
         suite.addTest(sub)
     suite.addTest(doctest.DocFileSuite(
         'invalidations_while_connecting.test',
-        setUp=setupstack.setUpDirectory, tearDown=setupstack.tearDown,
+        setUp=ZEO.tests.forker.setUp, tearDown=setupstack.tearDown,
         ))
     suite.layer = ZODB.tests.util.MininalTestLayer('ZEO Connection Tests')
     return suite

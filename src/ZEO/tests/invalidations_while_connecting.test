@@ -4,7 +4,7 @@ Invalidations while connecting
 As soon as a client registers with a server, it will recieve
 invalidations from the server.  The client must be careful to queue
 these invalidations until it is ready to deal with them.  At the time
-of the writing of this test, clients weren't careful enogh about
+of the writing of this test, clients weren't careful enough about
 queing invalidations.  This led to cache corruption in the form of
 both low-level file corruption as well as out-of-date records marked
 as current.
@@ -72,11 +72,13 @@ This tests tries to provoke this bug by:
     ...    db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
     ...    _ = lock.acquire()
     ...    try:
-    ...      time.sleep(.1)
-    ...      assert (db.storage.lastTransaction()
-    ...              == db.storage._server.lastTransaction()), (
-    ...                  db.storage.lastTransaction(),
-    ...                  db.storage._server.lastTransactiion())
+    ...      wait_until("connected and we've caught up",
+    ...                 lambda :
+    ...                    db.storage.is_connected()
+    ...                    and db.storage.lastTransaction()
+    ...                        == db.storage._server.lastTransaction()
+    ...                  )
+    ...
     ...      conn = db.open()
     ...      for i in range(1000):
     ...        if conn.root()[i].value != conn2.root()[i].value:
