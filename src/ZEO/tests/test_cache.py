@@ -540,7 +540,7 @@ Check to make sure the cache analysis scripts work.
     >>> def ctime(t):
     ...     return time.asctime(time.gmtime(t-3600*4))
     >>> ZEO.scripts.cache_stats.ctime = ctime
-    >>> ZEO.scripts.cache_stats.simul = ctime
+    >>> ZEO.scripts.cache_simul.ctime = ctime
 
     ############################################################
     Stats
@@ -1022,7 +1022,7 @@ Cleanup:
     >>> del os.environ["ZEO_CACHE_TRACE"]
     >>> time.time = timetime
     >>> ZEO.scripts.cache_stats.ctime = time.ctime
-    >>> ZEO.scripts.cache_stats.simul = time.ctime
+    >>> ZEO.scripts.cache_simul.ctime = time.ctime
 
 """
 
