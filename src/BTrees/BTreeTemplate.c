@@ -372,14 +372,14 @@ BTree_grow(BTree *self, int index, int noval)
     if (self->size) {
       d = BTree_Realloc(self->data, sizeof(BTreeItem) * self->size * 2);
       if (d == NULL)
-	      return -1;
+        return -1;
       self->data = d;
       self->size *= 2;
     }
     else {
       d = BTree_Malloc(sizeof(BTreeItem) * 2);
       if (d == NULL)
-	      return -1;
+        return -1;
       self->data = d;
       self->size = 2;
     }
@@ -564,7 +564,7 @@ _BTree_clear(BTree *self)
 
     for (i = 1; i < len; i++) {
 #ifdef KEY_TYPE_IS_PYOBJECT
-	    DECREF_KEY(self->data[i].key);
+      DECREF_KEY(self->data[i].key);
 #endif
       Py_DECREF(self->data[i].child);
     }
@@ -625,13 +625,13 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   if (self_was_empty) {
     /* We're empty.  Make room. */
     if (value) {
-	    if (BTree_grow(self, 0, noval) < 0)
+      if (BTree_grow(self, 0, noval) < 0)
         goto Error;
     }
     else {
-	    /* Can't delete a key from an empty BTree. */
-	    PyErr_SetObject(PyExc_KeyError, keyarg);
-	    goto Error;
+      /* Can't delete a key from an empty BTree. */
+      PyErr_SetObject(PyExc_KeyError, keyarg);
+      goto Error;
     }
   }
 
@@ -699,7 +699,7 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
           the smallest key of the node child.
 
           This doesn't apply to the 0th node, whos key is unused.
-        */
+       */
       int _cmp = 1;
       TEST_KEY_SET_OR(_cmp, key, d->key) goto Error;
       if (_cmp == 0)
@@ -724,7 +724,8 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
         }
     }
 
-  if (status == 2) {  /*  this is the last reference to child status */
+  if (status == 2) {
+    /* The child must be a BTree because bucket.set never returns 2 */
     /* Two problems to solve:  May have to adjust our own firstbucket,
      * and the bucket that went away needs to get unlinked.
      */
@@ -765,8 +766,8 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
    * But first, if we're a bottom-level node, we've got more bucket-fiddling
    * to set up.
    */
-  if (!SameType_Check(self, d->child)) {
-    /* We're about to delete a bucket. */
+  if (! SameType_Check(self, d->child)) {
+    /* We're about to delete a bucket, so need to adjust bucket pointers. */
     if (min) {
       /* It's not our first bucket, so we can tell the previous
        * bucket to adjust its reference to it.  It can't be anyone
@@ -874,26 +875,26 @@ BTree__p_deactivate(BTree *self, PyObject *args, PyObject *keywords)
     int size = PyDict_Size(keywords);
     force = PyDict_GetItemString(keywords, "force");
     if (force)
-	    size--;
+      size--;
     if (size) {
-	    PyErr_SetString(PyExc_TypeError,
+      PyErr_SetString(PyExc_TypeError,
                       "_p_deactivate only accepts keyword arg force");
-	    return NULL;
+      return NULL;
     }
   }
 
   if (self->jar && self->oid) {
     ghostify = self->state == cPersistent_UPTODATE_STATE;
     if (!ghostify && force) {
-	    if (PyObject_IsTrue(force))
+      if (PyObject_IsTrue(force))
         ghostify = 1;
-	    if (PyErr_Occurred())
+      if (PyErr_Occurred())
         return NULL;
     }
     if (ghostify) {
-	    if (_BTree_clear(self) < 0)
+      if (_BTree_clear(self) < 0)
         return NULL;
-	    PER_GHOSTIFY(self);
+      PER_GHOSTIFY(self);
     }
   }
 
@@ -964,7 +965,7 @@ BTree_getstate(BTree *self)
   if (self->len) {
     r = PyTuple_New(self->len * 2 - 1);
     if (r == NULL)
-	    goto err;
+      goto err;
 
     if (self->len == 1
         && self->data->child->ob_type != self->ob_type
@@ -972,15 +973,15 @@ BTree_getstate(BTree *self)
         && BUCKET(self->data->child)->oid == NULL
 #endif
         ) {
-	    /* We have just one bucket. Save its data directly. */
-	    o = bucket_getstate((Bucket *)self->data->child);
-	    if (o == NULL)
+      /* We have just one bucket. Save its data directly. */
+      o = bucket_getstate((Bucket *)self->data->child);
+      if (o == NULL)
         goto err;
-	    PyTuple_SET_ITEM(r, 0, o);
-	    ASSIGN(r, Py_BuildValue("(O)", r));
+      PyTuple_SET_ITEM(r, 0, o);
+      ASSIGN(r, Py_BuildValue("(O)", r));
     }
     else {
-	    for (i=0, l=0; i < self->len; i++) {
+      for (i=0, l=0; i < self->len; i++) {
         if (i) {
           COPY_KEY_TO_OBJECT(o, self->data[i].key);
           PyTuple_SET_ITEM(r, l, o);
@@ -991,7 +992,7 @@ BTree_getstate(BTree *self)
         PyTuple_SET_ITEM(r,l,o);
         l++;
       }
-	    ASSIGN(r, Py_BuildValue("OO", r, self->firstbucket));
+      ASSIGN(r, Py_BuildValue("OO", r, self->firstbucket));
     }
 
   }
@@ -1055,31 +1056,31 @@ _BTree_setstate(BTree *self, PyObject *state, int noval)
   for (i = 0, d = self->data, l = 0; i < len; i++, d++) {
     PyObject *v;
     if (i) { /* skip the first key slot */
-	    COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items, l), copied);
-	    l++;
-	    if (!copied)
+      COPY_KEY_FROM_ARG(d->key, PyTuple_GET_ITEM(items, l), copied);
+      l++;
+      if (!copied)
         return -1;
-	    INCREF_KEY(d->key);
+      INCREF_KEY(d->key);
     }
     v = PyTuple_GET_ITEM(items, l);
     if (PyTuple_Check(v)) {
-	    /* Handle the special case in __getstate__() for a BTree
-	       with a single bucket. */
-	    d->child = BTree_newBucket(self);
-	    if (!d->child)
+      /* Handle the special case in __getstate__() for a BTree
+         with a single bucket. */
+      d->child = BTree_newBucket(self);
+      if (!d->child)
         return -1;
-	    if (noval) {
+      if (noval) {
         if (_set_setstate(BUCKET(d->child), v) < 0)
           return -1;
-	    }
-	    else {
+      }
+      else {
         if (_bucket_setstate(BUCKET(d->child), v) < 0)
           return -1;
-	    }
+      }
     }
     else {
-	    d->child = (Sized *)v;
-	    Py_INCREF(v);
+      d->child = (Sized *)v;
+      Py_INCREF(v);
     }
     l++;
   }
@@ -1142,43 +1143,43 @@ BTree_setstate(BTree *self, PyObject *arg)
 PyObject *
 get_bucket_state(PyObject *t)
 {
-	if (t == Py_None)
-		return Py_None;		/* an empty BTree */
-	if (! PyTuple_Check(t)) {
-		PyErr_SetString(PyExc_TypeError,
+  if (t == Py_None)
+    return Py_None;		/* an empty BTree */
+  if (! PyTuple_Check(t)) {
+    PyErr_SetString(PyExc_TypeError,
                     "_p_resolveConflict: expected tuple or None for state");
-		return NULL;
-	}
+    return NULL;
+  }
 
-	if (PyTuple_GET_SIZE(t) == 2) {
-		/* A non-degenerate BTree. */
-		return merge_error(-1, -1, -1, 11);
-	}
+  if (PyTuple_GET_SIZE(t) == 2) {
+    /* A non-degenerate BTree. */
+    return merge_error(-1, -1, -1, 11);
+  }
 
-	/* We're in the one-bucket case. */
+  /* We're in the one-bucket case. */
 
-	if (PyTuple_GET_SIZE(t) != 1) {
-		PyErr_SetString(PyExc_TypeError,
+  if (PyTuple_GET_SIZE(t) != 1) {
+    PyErr_SetString(PyExc_TypeError,
                     "_p_resolveConflict: expected 1- or 2-tuple for state");
-		return NULL;
-	}
+    return NULL;
+  }
 
-	t = PyTuple_GET_ITEM(t, 0);
-	if (! PyTuple_Check(t) || PyTuple_GET_SIZE(t) != 1) {
-		PyErr_SetString(PyExc_TypeError,
+  t = PyTuple_GET_ITEM(t, 0);
+  if (! PyTuple_Check(t) || PyTuple_GET_SIZE(t) != 1) {
+    PyErr_SetString(PyExc_TypeError,
                     "_p_resolveConflict: expected 1-tuple containing "
                     "bucket state");
-		return NULL;
-	}
+    return NULL;
+  }
 
-	t = PyTuple_GET_ITEM(t, 0);
-	if (! PyTuple_Check(t)) {
-		PyErr_SetString(PyExc_TypeError,
+  t = PyTuple_GET_ITEM(t, 0);
+  if (! PyTuple_Check(t)) {
+    PyErr_SetString(PyExc_TypeError,
                     "_p_resolveConflict: expected tuple for bucket state");
-		return NULL;
-	}
+    return NULL;
+  }
 
-	return t;
+  return t;
 }
 
 /* Tricky.  The only kind of BTree conflict we can actually potentially
@@ -1484,7 +1485,7 @@ BTree_rangeSearch(BTree *self, PyObject *args, PyObject *kw, char type)
                                       &max,
                                       &excludemin,
                                       &excludemax))
-	    return NULL;
+      return NULL;
   }
 
   UNLESS (PER_USE(self)) return NULL;
@@ -1509,8 +1510,8 @@ BTree_rangeSearch(BTree *self, PyObject *args, PyObject *kw, char type)
       PER_UNUSE(lowbucket);
       if (bucketlen > 1)
         lowoffset = 1;
-	    else if (self->len < 2)
-	    	goto empty;
+      else if (self->len < 2)
+        goto empty;
       else {	/* move to first item in next bucket */
         Bucket *next;
         UNLESS (PER_USE(lowbucket)) goto err;
@@ -1543,25 +1544,25 @@ BTree_rangeSearch(BTree *self, PyObject *args, PyObject *kw, char type)
     PER_UNUSE(highbucket);
     highoffset = bucketlen - 1;
     if (excludemax) {
-	    if (highoffset > 0)
-	    	--highoffset;
-	    else if (self->len < 2)
-	    	goto empty_and_decref_buckets;
-	    else {	/* move to last item of preceding bucket */
-	    	int status;
-	    	assert(highbucket != self->firstbucket);
-	    	Py_DECREF(highbucket);
-	    	status = PreviousBucket(&highbucket, self->firstbucket);
-	    	if (status < 0) {
+      if (highoffset > 0)
+        --highoffset;
+      else if (self->len < 2)
+        goto empty_and_decref_buckets;
+      else {	/* move to last item of preceding bucket */
+        int status;
+        assert(highbucket != self->firstbucket);
+        Py_DECREF(highbucket);
+        status = PreviousBucket(&highbucket, self->firstbucket);
+        if (status < 0) {
           Py_DECREF(lowbucket);
           goto err;
-	    	}
-	    	assert(status > 0);
-	    	Py_INCREF(highbucket);
+        }
+        assert(status > 0);
+        Py_INCREF(highbucket);
         UNLESS (PER_USE(highbucket)) goto err_and_decref_buckets;
         highoffset = highbucket->len - 1;
         PER_UNUSE(highbucket);
-	    }
+      }
     }
     assert(highoffset >= 0);
   }
