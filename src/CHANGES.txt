@@ -2,6 +2,16 @@
  Change History
 ================
 
+3.10.0b5 (2010-09-??)
+=====================
+
+Bugs fixed
+----------
+
+- Shutting down a process while committing a transaction could cause
+  ZEO client caches to have invalid data.  This, in turn caused stale
+  data to remain in the cache until it was updated.
+
 3.10.0b4 (2010-07-19)
 =====================
 

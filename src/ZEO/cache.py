@@ -676,7 +676,9 @@ class ClientCache(object):
         if ofs is None:
             # 0x10 == invalidate (miss)
             self._trace(0x10, oid, tid)
-            return self.setLastTid(tid)
+            if server_invalidation:
+                self.setLastTid(tid)
+            return
 
         self.f.seek(ofs)
         read = self.f.read
@@ -702,7 +704,8 @@ class ClientCache(object):
             # 0x1C = invalidate (hit, saving non-current)
             self._trace(0x1C, oid, tid)
 
-        return self.setLastTid(tid)
+        if server_invalidation:
+            self.setLastTid(tid)
 
     ##
     # Generates (oid, serial) oairs for all objects in the
