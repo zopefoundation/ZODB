@@ -134,6 +134,10 @@ class Connection(ExportImport, object):
         # of this list are either in _cache or in _added.
         self._registered_objects = []
 
+        # ids and serials of objects for which readCurrent was called
+        # in a transaction.
+        self._readCurrent = {}
+
         # Dict of oid->obj added explicitly through add(). Used as a
         # preliminary cache until commit time when objects are all moved
         # to the real _cache. The objects are moved to _creating at
@@ -552,6 +556,9 @@ class Connection(ExportImport, object):
         else:
             self._commit(transaction)
 
+        for oid, serial in self._readCurrent.iteritems():
+            self._storage.checkCurrentSerialInTransaction(oid, serial)
+
     def _commit(self, transaction):
         """Commit changes to an object"""
 
@@ -674,6 +681,11 @@ class Connection(ExportImport, object):
             self._handle_serial(oid, s)
 
     def _handle_serial(self, oid, serial, change=True):
+
+        # if we write an object, we don't want to check if it was read
+        # while current.  This is a convenient choke point to do this.
+        self._readCurrent.pop(oid, None)
+
         if not serial:
             return
         if not isinstance(serial, str):
@@ -782,6 +794,7 @@ class Connection(ExportImport, object):
     # pending invalidations regardless.  Of course this should only be
     # called at transaction boundaries.
     def _storage_sync(self, *ignored):
+        self._readCurrent.clear()
         sync = getattr(self._storage, 'sync', 0)
         if sync:
             sync()
@@ -949,6 +962,10 @@ class Connection(ExportImport, object):
         if obj is not None:
             self._registered_objects.append(obj)
 
+    def readCurrent(self, ob):
+        assert ob._p_jar is self
+        assert ob._p_oid is not None and ob._p_serial is not None
+        self._readCurrent[ob._p_oid] = ob._p_serial
 
     # persistent.interfaces.IPersistentDatamanager
     ##########################################################################

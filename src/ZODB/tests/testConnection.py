@@ -611,6 +611,148 @@ See https://bugs.launchpad.net/zodb/+bug/185066
 
     """
 
+def readCurrent():
+    r"""
+The connection's readCurrent method is called to provide a higher
+level of consistency in cases where an object if read to compute an
+update to a separate object.  When this is used, the
+checkCurrentSerialInTransaction method on the storage is called in
+2-phase commit.
+
+To demonstrate this, we'll create a storage and give it a test
+implementation of checkCurrentSerialInTransaction.
+
+    >>> import ZODB.MappingStorage
+    >>> store = ZODB.MappingStorage.MappingStorage()
+
+    >>> from ZODB.POSException import ConflictError
+    >>> bad = set()
+    >>> def checkCurrentSerialInTransaction(oid, serial):
+    ...     print 'checkCurrentSerialInTransaction', `oid`
+    ...     if oid in bad:
+    ...         raise ConflictError(oid=oid)
+
+    >>> store.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
+
+Now, we'll use the storage as usual.  checkCurrentSerialInTransaction
+won't normally be called:
+
+    >>> db = ZODB.DB(store)
+    >>> conn = db.open()
+    >>> conn.root.a = ZODB.tests.util.P('a')
+    >>> conn.root.b = ZODB.tests.util.P('b')
+    >>> transaction.commit()
+
+If we call readCurrent for an object and we modify another object,
+then checkCurrentSerialInTransaction will be called for the object
+readCurrent was called on.
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.root.b.x = 0
+    >>> transaction.commit()
+    checkCurrentSerialInTransaction '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+It doesn't matter how often we call readCurrent,
+checkCurrentSerialInTransaction will be called only once:
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.root.b.x += 1
+    >>> transaction.commit()
+    checkCurrentSerialInTransaction '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+checkCurrentSerialInTransaction won't be called if another object
+isn't modified:
+
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> transaction.commit()
+
+Or if the object it was called on is modified:
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.root.a.x = 0
+    >>> conn.root.b.x += 1
+    >>> transaction.commit()
+
+If the storage raises a conflict error, it'll be propigated:
+
+    >>> bad.add(conn.root.a._p_oid)
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.root.b.x += 1
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    ConflictError: database conflict error (oid 0x01)
+
+    >>> transaction.abort()
+
+The storage may raise it later:
+
+    >>> def checkCurrentSerialInTransaction(oid, serial):
+    ...     print 'checkCurrentSerialInTransaction', `oid`
+    ...     store.badness = ConflictError(oid=oid)
+
+    >>> def tpc_vote(t):
+    ...     if store.badness:
+    ...        badness = store.badness
+    ...        store.badness = None
+    ...        raise badness
+
+    >>> store.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
+    >>> store.badness = None
+    >>> store.tpc_vote = tpc_vote
+
+It will still be propigated:
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.root.b.x = +1
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    ConflictError: database conflict error (oid 0x01)
+
+    >>> transaction.abort()
+
+Read checks don't leak accross transactions:
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> transaction.commit()
+    >>> conn.root.b.x = +1
+    >>> transaction.commit()
+
+Read checks to work accross savepoints.
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> conn.root.b.x = +1
+    >>> _ = transaction.savepoint()
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    ConflictError: database conflict error (oid 0x01)
+
+    >>> transaction.abort()
+
+    >>> conn.readCurrent(conn.root.a)
+    >>> _ = transaction.savepoint()
+    >>> conn.root.b.x = +1
+    >>> transaction.commit()
+    Traceback (most recent call last):
+    ...
+    ConflictError: database conflict error (oid 0x01)
+
+    >>> transaction.abort()
+
+    """
+
+# check interaction w savepoint
+# check call in read-only trans followed by write trans
+
+
+
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
