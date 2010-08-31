@@ -625,13 +625,13 @@ implementation of checkCurrentSerialInTransaction.
     >>> import ZODB.MappingStorage
     >>> store = ZODB.MappingStorage.MappingStorage()
 
-    >>> from ZODB.POSException import ConflictError
+    >>> from ZODB.POSException import ReadConflictError
     >>> bad = set()
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     print 'checkCurrentSerialInTransaction', `oid`
     ...     if not trans == transaction.get(): print 'oops'
     ...     if oid in bad:
-    ...         raise ConflictError(oid=oid)
+    ...         raise ReadConflictError(oid=oid)
 
     >>> store.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
 
@@ -686,7 +686,7 @@ If the storage raises a conflict error, it'll be propigated:
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x01)
+    ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
@@ -695,7 +695,7 @@ The storage may raise it later:
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     if not trans == transaction.get(): print 'oops'
     ...     print 'checkCurrentSerialInTransaction', `oid`
-    ...     store.badness = ConflictError(oid=oid)
+    ...     store.badness = ReadConflictError(oid=oid)
 
     >>> def tpc_vote(t):
     ...     if store.badness:
@@ -714,7 +714,7 @@ It will still be propigated:
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x01)
+    ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
@@ -733,7 +733,7 @@ Read checks to work accross savepoints.
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x01)
+    ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
@@ -743,7 +743,7 @@ Read checks to work accross savepoints.
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x01)
+    ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
