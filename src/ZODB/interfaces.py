@@ -1135,7 +1135,7 @@ class ReadVerifyingStorage(IStorage):
         The method is called during the first phase of 2-phase commit
         to verify that data read in a transaction is current.
 
-        The storage should raise a ConflictError if the serial is not
+        The storage should raise a ReadConflictError if the serial is not
         current, although it may raise the exception later, in a call
         to store or in a call to tpc_vote.
 
