@@ -161,11 +161,11 @@ class ReadConflictError(ConflictError):
     An attempt was made to read an object that has changed in another
     transaction (eg. another thread or process).
     """
-    def __init__(self, message=None, object=None, serials=None):
+    def __init__(self, message=None, object=None, serials=None, **kw):
         if message is None:
             message = "database read conflict error"
         ConflictError.__init__(self, message=message, object=object,
-                               serials=serials)
+                               serials=serials, **kw)
 
 class BTreesConflictError(ConflictError):
     """A special subclass for BTrees conflict errors."""
