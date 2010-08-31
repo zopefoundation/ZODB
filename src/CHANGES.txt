@@ -12,6 +12,8 @@ Bugs fixed
   a 32-bit-integer BTree key or value on 64-bit machines, an
   OverflowError was raised. Now a TypeError is raised.
 
+- Removed untested unsupported dbmstorage fossile.
+
 3.10.0b3 (2010-07-15)
 =====================
 
