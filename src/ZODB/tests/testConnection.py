@@ -627,8 +627,9 @@ implementation of checkCurrentSerialInTransaction.
 
     >>> from ZODB.POSException import ConflictError
     >>> bad = set()
-    >>> def checkCurrentSerialInTransaction(oid, serial):
+    >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     print 'checkCurrentSerialInTransaction', `oid`
+    ...     if not trans == transaction.get(): print 'oops'
     ...     if oid in bad:
     ...         raise ConflictError(oid=oid)
 
@@ -691,7 +692,8 @@ If the storage raises a conflict error, it'll be propigated:
 
 The storage may raise it later:
 
-    >>> def checkCurrentSerialInTransaction(oid, serial):
+    >>> def checkCurrentSerialInTransaction(oid, serial, trans):
+    ...     if not trans == transaction.get(): print 'oops'
     ...     print 'checkCurrentSerialInTransaction', `oid`
     ...     store.badness = ConflictError(oid=oid)
 

@@ -557,7 +557,8 @@ class Connection(ExportImport, object):
             self._commit(transaction)
 
         for oid, serial in self._readCurrent.iteritems():
-            self._storage.checkCurrentSerialInTransaction(oid, serial)
+            self._storage.checkCurrentSerialInTransaction(
+                oid, serial, transaction)
 
     def _commit(self, transaction):
         """Commit changes to an object"""

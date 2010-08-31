@@ -1129,7 +1129,7 @@ class IExternalGC(IStorage):
 
 class ReadVerifyingStorage(IStorage):
 
-    def checkCurrentSerialInTransaction(oid, serial):
+    def checkCurrentSerialInTransaction(oid, serial, transaction):
         """Check whether the given serial number is current.
 
         The method is called during the first phase of 2-phase commit
