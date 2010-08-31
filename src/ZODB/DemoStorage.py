@@ -24,6 +24,7 @@ import random
 import weakref
 import tempfile
 import threading
+import ZODB.BaseStorage
 import ZODB.blob
 import ZODB.interfaces
 import ZODB.MappingStorage
@@ -303,6 +304,9 @@ class DemoStorage(object):
                 return self.changes.storeBlob(
                     oid, oldserial, data, blobfilename, '', transaction)
             raise
+
+    checkCurrentSerialInTransaction = (
+        ZODB.BaseStorage.checkCurrentSerialInTransaction)
 
     def temporaryDirectory(self):
         try:

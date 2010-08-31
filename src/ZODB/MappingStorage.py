@@ -21,6 +21,7 @@ import BTrees
 import cPickle
 import time
 import threading
+import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
 import ZODB.TimeStamp
@@ -260,6 +261,9 @@ class MappingStorage(object):
         self._tdata[oid] = data
 
         return self._tid
+
+    checkCurrentSerialInTransaction = (
+        ZODB.BaseStorage.checkCurrentSerialInTransaction)
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)

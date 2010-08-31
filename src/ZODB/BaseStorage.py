@@ -399,6 +399,19 @@ def copy(source, dest, verbose=0):
         dest.tpc_finish(transaction)
 
 
+# defined outside of BaseStorage to facilitate independent reuse.
+# just depends on _transaction attr and getTid method.
+def checkCurrentSerialInTransaction(self, oid, serial, transaction):
+    if transaction is not self._transaction:
+        raise POSException.StorageTransactionError(self, transaction)
+
+    committed_tid = self.getTid(oid)
+    if committed_tid != serial:
+        raise POSException.ReadConflictError(
+            oid=oid, serials=(committed_tid, serial))
+
+BaseStorage.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
+
 class TransactionRecord(object):
     """Abstract base class for iterator protocol"""
 

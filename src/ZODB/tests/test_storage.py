@@ -73,7 +73,8 @@ class MinimalMemoryStorage(BaseStorage, object):
     def _clear_temp(self):
         pass
 
-    def load(self, oid, version):
+    def load(self, oid, version=''):
+        assert version == ''
         self._lock_acquire()
         try:
             assert not version
