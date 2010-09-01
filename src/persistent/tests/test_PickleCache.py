@@ -109,8 +109,35 @@ Peristent meta classes work too:
 
     """
 
+def cache_invalidate_used_to_leak_None_ref():
+    """Persistent weak references
 
-from doctest import DocTestSuite
+    >>> import transaction
+    >>> import ZODB.tests.util
+
+    >>> db = ZODB.tests.util.DB()
+
+    >>> conn = db.open()
+    >>> conn.root.p = p = conn.root().__class__()
+    >>> transaction.commit()
+
+    >>> import sys
+    >>> old = sys.getrefcount(None)
+    >>> conn._cache.invalidate(p._p_oid)
+    >>> sys.getrefcount(None) - old
+    0
+
+    >>> db.close()
+
+    """
+
+
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing.doctest import DocTestSuite
+else:
+    from doctest import DocTestSuite
+
 import unittest
 
 def test_suite():
