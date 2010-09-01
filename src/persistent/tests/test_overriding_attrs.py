@@ -377,5 +377,9 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
 
 
 def test_suite():
-    from doctest import DocTestSuite
+    import os
+    if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+        from zope.testing.doctest import DocTestSuite
+    else:
+        from doctest import DocTestSuite
     return DocTestSuite()

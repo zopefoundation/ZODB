@@ -12,7 +12,12 @@
 #
 ##############################################################################
 from persistent import Persistent, simple_new
-import doctest
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing import doctest
+else:
+    import doctest
+
 import unittest
 
 class P(Persistent):
