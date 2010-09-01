@@ -639,6 +639,10 @@ _BTree_set(BTree *self, PyObject *keyarg, PyObject *value,
   BTREE_SEARCH(min, self, key, goto Error);
   d = self->data + min;
 
+#ifdef PERSISTENT
+  PER_READCURRENT(self, goto Error);
+#endif
+
   if (SameType_Check(self, d->child))
     status = _BTree_set(BTREE(d->child), keyarg, value, unique, noval);
   else {
