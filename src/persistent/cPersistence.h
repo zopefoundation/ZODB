@@ -103,6 +103,7 @@ typedef struct {
     void (*ghostify)(cPersistentObject*);
     int (*setstate)(PyObject*);
     percachedelfunc percachedel;
+    int (*readCurrent)(cPersistentObject*);
 } cPersistenceCAPIstruct;
 
 #define cPersistenceType cPersistenceCAPI->pertype
@@ -118,6 +119,9 @@ static cPersistenceCAPIstruct *cPersistenceCAPI;
 #define PER_USE_OR_RETURN(O,R) {if((O)->state==cPersistent_GHOST_STATE && cPersistenceCAPI->setstate((PyObject*)(O)) < 0) return (R); else if ((O)->state==cPersistent_UPTODATE_STATE) (O)->state=cPersistent_STICKY_STATE;}
 
 #define PER_CHANGED(O) (cPersistenceCAPI->changed((cPersistentObject*)(O)))
+
+#define PER_READCURRENT(O, E)                                     \
+  if (cPersistenceCAPI->readCurrent((cPersistentObject*)(O)) < 0) { E; }
 
 #define PER_GHOSTIFY(O) (cPersistenceCAPI->ghostify((cPersistentObject*)(O)))
 
