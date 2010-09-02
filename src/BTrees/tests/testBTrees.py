@@ -184,9 +184,9 @@ class Base(TestCase):
 
         transaction.abort()
         conn.cacheMinimize()
-        # list(t)
-        # self.assert_(100 in t)
-        # self.assert_(not read)
+        list(t)
+        self.assert_(100 in t)
+        self.assert_(not read)
 
 
 class MappingBase(Base):
