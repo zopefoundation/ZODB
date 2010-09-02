@@ -286,6 +286,14 @@ class IConnection(Interface):
         begins or until the connection os reopned.
         """
 
+    def readCurrent(obj):
+        """Make sure an object being read is current
+
+        This is used when applications want to ensure a higher level
+        of consistency for some operations. This should be called when
+        an object is read and the information read is used to write a
+        separate object.
+        """
 
 class IStorageWrapper(Interface):
     """Storage wrapper interface
@@ -1118,6 +1126,22 @@ class IExternalGC(IStorage):
        This method can only be called in the first phase of 2-phase
        commit.
        """
+
+class ReadVerifyingStorage(IStorage):
+
+    def checkCurrentSerialInTransaction(oid, serial, transaction):
+        """Check whether the given serial number is current.
+
+        The method is called during the first phase of 2-phase commit
+        to verify that data read in a transaction is current.
+
+        The storage should raise a ReadConflictError if the serial is not
+        current, although it may raise the exception later, in a call
+        to store or in a call to tpc_vote.
+
+        If no exception is raised, then the serial must remain current
+        through the end of the transaction.
+        """
 
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
