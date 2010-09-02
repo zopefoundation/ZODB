@@ -12,6 +12,27 @@ Bugs fixed
   ZEO client caches to have invalid data.  This, in turn caused stale
   data to remain in the cache until it was updated.
 
+- Removed untested unsupported dbmstorage fossile.
+
+- Added a new API that allows applications to make sure that current
+  data are read. For example, with::
+
+    self._p_jar.readCurrent(ob)
+
+  A conflict error will be raised if the version of ob read by the
+  transaction isn't current when the transaction is committed.
+
+  Normally, ZODB only assures that objects read are consistent, but not
+  necessarily up to date.  Checking whether an object is up to date is
+  important when information read from one object is used to update
+  another.
+
+  BTrees are an important case of reading one object to update
+  another.  Internal nodes are read to decide which leave notes are
+  updated when a BTree is updated.  BTrees now use this new API to
+  make sure that internal nodes are up to date on updates.
+
+
 3.10.0b4 (2010-07-19)
 =====================
 
