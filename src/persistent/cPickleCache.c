@@ -354,6 +354,7 @@ _invalidate(ccobject *self, PyObject *key)
 {
   static PyObject *_p_invalidate = NULL;
   PyObject *meth, *v;
+  int result;
 
   v = PyDict_GetItem(self->data, key);
   if (v == NULL)
@@ -391,7 +392,9 @@ _invalidate(ccobject *self, PyObject *key)
 
   v = PyObject_CallObject(meth, NULL);
   Py_DECREF(meth);
-  return v == NULL ? -1 : 0;
+  result = v == NULL ? -1 : 0;
+  Py_DECREF(v);
+  return result;
 }
 
 static PyObject *
