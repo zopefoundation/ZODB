@@ -242,6 +242,7 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             undoa
     #         Doesn't support undo for older clients.
     #         Undone oid info returned by vote.
+    #         readCurrent
 
     # Protocol variables:
     # Our preferred protocol.
