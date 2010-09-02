@@ -242,6 +242,8 @@ scan_gc_items(ccobject *self, int target, PY_LONG_LONG target_bytes)
               Py_DECREF(method);
               if (temp == NULL)
                 error_occurred = 1;
+              else
+                Py_DECREF(temp);
             }
 
           here = placeholder.r_next;
@@ -354,7 +356,6 @@ _invalidate(ccobject *self, PyObject *key)
 {
   static PyObject *_p_invalidate = NULL;
   PyObject *meth, *v;
-  int result;
 
   v = PyDict_GetItem(self->data, key);
   if (v == NULL)
@@ -392,9 +393,10 @@ _invalidate(ccobject *self, PyObject *key)
 
   v = PyObject_CallObject(meth, NULL);
   Py_DECREF(meth);
-  result = v == NULL ? -1 : 0;
+  if (v == NULL)
+    return -1;
   Py_DECREF(v);
-  return result;
+  return 0;
 }
 
 static PyObject *
@@ -1039,9 +1041,11 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     return -1;
   if (! PyString_Check(oid))
     {
+      Py_DECREF(oid);
       PyErr_Format(PyExc_TypeError,
                    "Cached object oid must be a string, not a %s",
                    oid->ob_type->tp_name);
+      
       return -1;
     }
 

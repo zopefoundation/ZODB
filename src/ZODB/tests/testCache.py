@@ -25,6 +25,7 @@ from ZODB.tests.MinPO import MinPO
 from ZODB.utils import p64
 import doctest
 import gc
+import sys
 import threading
 import time
 import transaction
@@ -337,6 +338,8 @@ class CacheErrors(unittest.TestCase):
         def add(key, obj):
             self.cache[key] = obj
 
+        nones = sys.getrefcount(None)
+
         key = p64(2)
         # value isn't persistent
         self.assertRaises(TypeError, add, key, 12)
@@ -359,6 +362,8 @@ class CacheErrors(unittest.TestCase):
 
         # same object, different keys
         self.assertRaises(ValueError, add, p64(0), o)
+
+        self.assertEqual(sys.getrefcount(None), nones)
 
     def checkTwoCaches(self):
         jar2 = StubDataManager()

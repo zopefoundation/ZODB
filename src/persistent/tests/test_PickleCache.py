@@ -109,7 +109,7 @@ Peristent meta classes work too:
 
     """
 
-def cache_invalidate_used_to_leak_None_ref():
+def cache_invalidate_and_minimize_used_to_leak_None_ref():
     """Persistent weak references
 
     >>> import transaction
@@ -124,6 +124,12 @@ def cache_invalidate_used_to_leak_None_ref():
     >>> import sys
     >>> old = sys.getrefcount(None)
     >>> conn._cache.invalidate(p._p_oid)
+    >>> sys.getrefcount(None) - old
+    0
+
+    >>> _ = conn.root.p.keys()
+    >>> old = sys.getrefcount(None)
+    >>> conn._cache.minimize()
     >>> sys.getrefcount(None) - old
     0
 
