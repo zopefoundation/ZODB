@@ -348,6 +348,7 @@ Works with savepoints too:
     >>> logger.propagate = True
     >>> logger.setLevel(0)
     >>> logger.removeHandler(handler)
+    >>> handler.close()
 
     >>> database.close()
     """
