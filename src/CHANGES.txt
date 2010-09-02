@@ -2,17 +2,11 @@
  Change History
 ================
 
-3.10.0b5 (2010-09-??)
+3.10.0b5 (2010-09-02)
 =====================
 
 Bugs fixed
 ----------
-
-- Shutting down a process while committing a transaction could cause
-  ZEO client caches to have invalid data.  This, in turn caused stale
-  data to remain in the cache until it was updated.
-
-- Removed untested unsupported dbmstorage fossile.
 
 - Added a new API that allows applications to make sure that current
   data are read. For example, with::
@@ -32,6 +26,11 @@ Bugs fixed
   updated when a BTree is updated.  BTrees now use this new API to
   make sure that internal nodes are up to date on updates.
 
+- Shutting down a process while committing a transaction could cause
+  ZEO client caches to have invalid data.  This, in turn caused stale
+  data to remain in the cache until it was updated.
+
+- Removed untested unsupported dbmstorage fossile.
 
 3.10.0b4 (2010-07-19)
 =====================
