@@ -20,6 +20,14 @@ l0 = []
 l1 = [0]
 l2 = [0, 1]
 
+class OtherList:
+    def __init__(self, initlist):
+        self.__data = initlist
+    def __len__(self):
+        return len(self.__data)
+    def __getitem__(self, i):
+        return self.__data[i]
+
 class TestPList(unittest.TestCase):
 
     def _getTargetClass(self):
@@ -49,13 +57,6 @@ class TestPList(unittest.TestCase):
         uu2 = pl(u2)
 
         v = pl(tuple(u))
-        class OtherList:
-            def __init__(self, initlist):
-                self.__data = initlist
-            def __len__(self):
-                return len(self.__data)
-            def __getitem__(self, i):
-                return self.__data[i]
         v0 = pl(OtherList(u0))
         vv = pl("this is also a sequence")
 
