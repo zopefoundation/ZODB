@@ -18,7 +18,11 @@ import sys
 import unittest
 import persistent
 import transaction
-from doctest import DocTestSuite
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing.doctest import DocTestSuite
+else:
+    from doctest import DocTestSuite
 from ZODB.tests.util import DB
 
 def test_integration():

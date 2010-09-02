@@ -20,7 +20,12 @@ from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
 
-import doctest
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing import doctest
+else:
+    import doctest
+
 import os
 import random
 import re
