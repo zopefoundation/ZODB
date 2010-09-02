@@ -931,6 +931,11 @@ class ClientStorage(object):
         self._tbuf.store(oid, data)
         return self._check_serials()
 
+    def checkCurrentSerialInTransaction(self, oid, serial, transaction):
+        self._check_trans(transaction)
+        self._server.checkCurrentSerialInTransaction(oid, serial,
+                                                     id(transaction))
+
     def storeBlob(self, oid, serial, data, blobfilename, version, txn):
         """Storage API: store a blob object."""
         assert not version

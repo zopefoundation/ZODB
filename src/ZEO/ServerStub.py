@@ -199,6 +199,9 @@ class StorageServer:
     def storea(self, oid, serial, data, id):
         self.rpc.callAsync('storea', oid, serial, data, id)
 
+    def checkCurrentSerialInTransaction(self, oid, serial, id):
+        self.rpc.callAsync('checkCurrentSerialInTransaction', oid, serial, id)
+
     def restorea(self, oid, serial, data, prev_txn, id):
         self.rpc.callAsync('restorea', oid, serial, data, prev_txn, id)
 

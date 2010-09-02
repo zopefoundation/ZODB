@@ -22,7 +22,6 @@ exported for invocation by the server.
 
 from __future__ import with_statement
 
-from ZEO.CommitLog import CommitLog
 from ZEO.Exceptions import AuthError
 from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay, Result
@@ -477,6 +476,7 @@ class ZEOStorage:
                     if not getattr(self, op)(*args):
                         break
 
+
                 # Blob support
                 while self.blob_log and not self.store_failed:
                     oid, oldserial, data, blobfilename = self.blob_log.pop()
@@ -531,6 +531,10 @@ class ZEOStorage:
         self.stats.stores += 1
         self.txnlog.store(oid, serial, data)
 
+    def checkCurrentSerialInTransaction(self, oid, serial, id):
+        self._check_tid(id, exc=StorageTransactionError)
+        self.txnlog.checkread(oid, serial)
+
     def restorea(self, oid, serial, data, prev_txn, id):
         self._check_tid(id, exc=StorageTransactionError)
         self.stats.stores += 1
@@ -581,6 +585,20 @@ class ZEOStorage:
         self._check_tid(tid, exc=StorageTransactionError)
         self.txnlog.undo(trans_id)
 
+    def _op_error(self, oid, err, op):
+        self.store_failed = 1
+        if isinstance(err, ConflictError):
+            self.stats.conflicts += 1
+            self.log("conflict error oid=%s msg=%s" %
+                     (oid_repr(oid), str(err)), BLATHER)
+        if not isinstance(err, TransactionError):
+            # Unexpected errors are logged and passed to the client
+            self.log("%s error: %s, %s" % ((op,)+ sys.exc_info()[:2]),
+                     logging.ERROR, exc_info=True)
+        err = self._marshal_error(err)
+        # The exception is reported back as newserial for this oid
+        self.serials.append((oid, err))
+
     def _delete(self, oid, serial):
         err = None
         try:
@@ -588,20 +606,21 @@ class ZEOStorage:
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
-            self.store_failed = 1
-            if isinstance(err, ConflictError):
-                self.stats.conflicts += 1
-                self.log("conflict error oid=%s msg=%s" %
-                         (oid_repr(oid), str(err)), BLATHER)
-            if not isinstance(err, TransactionError):
-                # Unexpected errors are logged and passed to the client
-                self.log("store error: %s, %s" % sys.exc_info()[:2],
-                         logging.ERROR, exc_info=True)
-            err = self._marshal_error(err)
-            # The exception is reported back as newserial for this oid
-            self.serials.append((oid, err))
+            self._op_error(oid, err, 'delete')
         else:
             self.invalidated.append(oid)
+
+        return err is None
+
+    def _checkread(self, oid, serial):
+        err = None
+        try:
+            self.storage.checkCurrentSerialInTransaction(
+                oid, serial, self.transaction)
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except Exception, err:
+            self._op_error(oid, err, 'checkCurrentSerialInTransaction')
 
         return err is None
 
@@ -617,18 +636,7 @@ class ZEOStorage:
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
-            self.store_failed = 1
-            if isinstance(err, ConflictError):
-                self.stats.conflicts += 1
-                self.log("conflict error oid=%s msg=%s" %
-                         (oid_repr(oid), str(err)), BLATHER)
-            if not isinstance(err, TransactionError):
-                # Unexpected errors are logged and passed to the client
-                self.log("store error: %s, %s" % sys.exc_info()[:2],
-                         logging.ERROR, exc_info=True)
-            err = self._marshal_error(err)
-            # The exception is reported back as newserial for this oid
-            newserial = [(oid, err)]
+            self._op_error(oid, err, 'store')
         else:
             if serial != "\0\0\0\0\0\0\0\0":
                 self.invalidated.append(oid)
@@ -636,8 +644,7 @@ class ZEOStorage:
             if isinstance(newserial, str):
                 newserial = [(oid, newserial)]
 
-        if newserial:
-            for oid, s in newserial:
+            for oid, s in newserial or ():
 
                 if s == ResolvedSerial:
                     self.stats.conflicts_resolved += 1
@@ -656,14 +663,7 @@ class ZEOStorage:
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
-            self.store_failed = 1
-            if not isinstance(err, TransactionError):
-                # Unexpected errors are logged and passed to the client
-                self.log("store error: %s, %s" % sys.exc_info()[:2],
-                         logging.ERROR, exc_info=True)
-            err = self._marshal_error(err)
-            # The exception is reported back as newserial for this oid
-            self.serials.append((oid, err))
+            self._op_error(oid, err, 'restore')
 
         return err is None
 
@@ -674,14 +674,7 @@ class ZEOStorage:
         except (SystemExit, KeyboardInterrupt):
             raise
         except Exception, err:
-            self.store_failed = 1
-            if not isinstance(err, TransactionError):
-                # Unexpected errors are logged and passed to the client
-                self.log("store error: %s, %s" % sys.exc_info()[:2],
-                         logging.ERROR, exc_info=True)
-            err = self._marshal_error(err)
-            # The exception is reported back as newserial for this oid
-            self.serials.append((z64, err))
+            self._op_error(z64, err, 'undo')
         else:
             self.invalidated.extend(oids)
             self.serials.extend((oid, ResolvedSerial) for oid in oids)
@@ -1535,3 +1528,44 @@ def _addr_label(addr):
         host, port = addr
         return str(host) + ":" + str(port)
 
+class CommitLog:
+
+    def __init__(self):
+        self.file = tempfile.TemporaryFile(suffix=".comit-log")
+        self.pickler = cPickle.Pickler(self.file, 1)
+        self.pickler.fast = 1
+        self.stores = 0
+
+    def size(self):
+        return self.file.tell()
+
+    def delete(self, oid, serial):
+        self.pickler.dump(('_delete', (oid, serial)))
+        self.stores += 1
+
+    def checkread(self, oid, serial):
+        self.pickler.dump(('_checkread', (oid, serial)))
+        self.stores += 1
+
+    def store(self, oid, serial, data):
+        self.pickler.dump(('_store', (oid, serial, data)))
+        self.stores += 1
+
+    def restore(self, oid, serial, data, prev_txn):
+        self.pickler.dump(('_restore', (oid, serial, data, prev_txn)))
+        self.stores += 1
+
+    def undo(self, transaction_id):
+        self.pickler.dump(('_undo', (transaction_id, )))
+        self.stores += 1
+
+    def __iter__(self):
+        self.file.seek(0)
+        unpickler = cPickle.Unpickler(self.file)
+        for i in range(self.stores):
+            yield unpickler.load()
+
+    def close(self):
+        if self.file:
+            self.file.close()
+            self.file = None
