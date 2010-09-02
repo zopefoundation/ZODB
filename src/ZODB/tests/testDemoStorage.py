@@ -22,7 +22,12 @@ from ZODB.tests import (
     StorageTestBase,
     Synchronization,
     )
-import doctest
+
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing import doctest
+else:
+    import doctest
 import random
 import transaction
 import unittest
