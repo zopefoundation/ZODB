@@ -146,6 +146,49 @@ class Base(TestCase):
         self.assertEqual(list(t.keys(0, 2, excludemin=True, excludemax=True)),
                          [1])
 
+    def testUpdatesDoReadChecksOnInternalNodes(self):
+        t = self.t
+        if not hasattr(t, '_firstbucket'):
+            return
+        self._populate(t, 1000)
+        store = MappingStorage()
+        db = DB(store)
+        conn = db.open()
+        conn.root.t = t
+        transaction.commit()
+
+        read = []
+        def readCurrent(ob):
+            read.append(ob)
+            conn.__class__.readCurrent(conn, ob)
+            return 1
+
+        conn.readCurrent = readCurrent
+
+        try:
+            add = t.add
+            remove = t.remove
+        except AttributeError:
+            def add(i):
+                t[i] = i
+            def remove(i):
+                del t[i]
+
+        # Modifying a thing
+        remove(100)
+        self.assert_(t in read)
+        del read[:]
+        add(100)
+        self.assert_(t in read)
+        del read[:]
+
+        transaction.abort()
+        conn.cacheMinimize()
+        # list(t)
+        # self.assert_(100 in t)
+        # self.assert_(not read)
+
+
 class MappingBase(Base):
     """ Tests common to mappings (buckets, btrees) """
 
