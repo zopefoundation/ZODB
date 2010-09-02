@@ -13,7 +13,10 @@
 ##############################################################################
 import cPickle
 import doctest
-import os, unittest
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing import doctest
+import unittest
 import transaction
 import ZODB.FileStorage
 import ZODB.tests.hexstorage
