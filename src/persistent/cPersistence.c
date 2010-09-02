@@ -223,6 +223,29 @@ changed(cPersistentObject *self)
   return 0;
 }
 
+static int
+readCurrent(cPersistentObject *self)
+{
+  if ((self->state == cPersistent_UPTODATE_STATE ||
+       self->state == cPersistent_STICKY_STATE)
+      && self->jar && self->oid)
+    {
+      static PyObject *s_readCurrent=NULL;
+      PyObject *r;
+
+      if (s_readCurrent == NULL)
+        s_readCurrent = PyString_InternFromString("readCurrent");
+
+      r = PyObject_CallMethodObjArgs(self->jar, s_readCurrent, self, NULL);
+      if (r == NULL)
+        return -1;
+
+      Py_DECREF(r);
+    }
+
+  return 0;
+}
+
 static PyObject *
 Per__p_deactivate(cPersistentObject *self)
 {
@@ -1262,9 +1285,10 @@ truecPersistenceCAPI = {
   accessed,
   ghostify,
   (intfunctionwithpythonarg)Per_setstate,
-  NULL /* The percachedel slot is initialized in cPickleCache.c when
+  NULL, /* The percachedel slot is initialized in cPickleCache.c when
           the module is loaded.  It uses a function in a different
           shared library. */
+  readCurrent
 };
 
 void
