@@ -632,6 +632,11 @@ class ClientStorage(object):
         if self._client_label and conn.peer_protocol_version >= "Z310":
             stub.set_client_label(self._client_label)
 
+        if conn.peer_protocol_version < "Z3101":
+            logger.warning("Old server doesn't suppport "
+                           "checkCurrentSerialInTransaction")
+            self.checkCurrentSerialInTransaction = lambda *args: None
+
         self._oids = []
         self.verify_cache(stub)
 
