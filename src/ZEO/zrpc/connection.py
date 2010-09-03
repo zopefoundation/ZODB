@@ -242,20 +242,21 @@ class Connection(smac.SizedMessageAsyncConnection, object):
     #             undoa
     #         Doesn't support undo for older clients.
     #         Undone oid info returned by vote.
-    #         readCurrent
+    #
+    # Z3101 -- checkCurrentSerialInTransaction
 
     # Protocol variables:
     # Our preferred protocol.
-    current_protocol = "Z310"
+    current_protocol = "Z3101"
 
     # If we're a client, an exhaustive list of the server protocols we
     # can accept.
-    servers_we_can_talk_to = ["Z308", "Z309", current_protocol]
+    servers_we_can_talk_to = ["Z308", "Z309", "Z310", current_protocol]
 
     # If we're a server, an exhaustive list of the client protocols we
     # can accept.
     clients_we_can_talk_to = [
-        "Z200", "Z201", "Z303", "Z308", "Z309", current_protocol]
+        "Z200", "Z201", "Z303", "Z308", "Z309", "Z310", current_protocol]
 
     # This is pretty excruciating.  Details:
     #
