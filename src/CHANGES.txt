@@ -18,6 +18,8 @@ Bugs fixed
   3.10.0b5.) Invalidating read data when there is a conflict error
   provides some extra insurance.
 
+- The interface, ZODB.interfaces.IStorage was incorrect. The store
+  method should never return a sequence of oid and serial pairs.
 
 3.10.0b5 (2010-09-02)
 =====================

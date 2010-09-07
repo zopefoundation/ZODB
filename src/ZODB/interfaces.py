@@ -680,15 +680,14 @@ class IStorage(Interface):
 
         The return value may be:
 
-        - None
+        - None, or
 
-        - A new serial (string) for the object, or
+        - A new serial (string) for the object
 
-        - An iterable of object-id and serial pairs giving new serials
-          for objects.
+        If None is returned, then a new serial (or other special
+        values) must ve returned in tpc_vote results.
 
-        A serial, returned as a string or in a sequence of oid/serial
-        pairs, may be the special value
+        A serial, returned as a string, may be the special value
         ZODB.ConflictResolution.ResolvedSerial to indicate that a
         conflict occured and that the object should be invalidated.
 
