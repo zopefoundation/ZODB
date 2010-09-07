@@ -2,6 +2,23 @@
  Change History
 ================
 
+3.10.0b6 (2010-09-??)
+=====================
+
+Bugs fixed
+----------
+
+- Database connections didn't invalidate cache entries when conflict
+  errors were raised in response to checkCurrentSerialInTransaction
+  errors. Normally, this shouldn't be a problem, since there should be
+  pending invalidations for these oids which will cause the object to
+  be invalidated. There have been issues with ZEO persistent cache
+  management that have caused out of date data to remain in the cache.
+  (It's possible that the last of these were addressed in the
+  3.10.0b5.) Invalidating read data when there is a conflict error
+  provides some extra insurance.
+
+
 3.10.0b5 (2010-09-02)
 =====================
 

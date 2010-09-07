@@ -680,6 +680,7 @@ Or if the object it was called on is modified:
 
 If the storage raises a conflict error, it'll be propigated:
 
+    >>> _ = str(conn.root.a) # do read
     >>> bad.add(conn.root.a._p_oid)
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x += 1
@@ -689,6 +690,10 @@ If the storage raises a conflict error, it'll be propigated:
     ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
+
+The conflict error will cause the affected object to be invalidated:
+
+    >>> conn.root.a._p_changed
 
 The storage may raise it later:
 
@@ -709,6 +714,7 @@ The storage may raise it later:
 
 It will still be propigated:
 
+    >>> _ = str(conn.root.a) # do read
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x = +1
     >>> transaction.commit()
@@ -717,6 +723,10 @@ It will still be propigated:
     ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
+
+The conflict error will cause the affected object to be invalidated:
+
+    >>> conn.root.a._p_changed
 
 Read checks don't leak accross transactions:
 

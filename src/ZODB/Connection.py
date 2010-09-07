@@ -557,8 +557,12 @@ class Connection(ExportImport, object):
             self._commit(transaction)
 
         for oid, serial in self._readCurrent.iteritems():
-            self._storage.checkCurrentSerialInTransaction(
-                oid, serial, transaction)
+            try:
+                self._storage.checkCurrentSerialInTransaction(
+                    oid, serial, transaction)
+            except ConflictError:
+                self._cache.invalidate(oid)
+                raise
 
     def _commit(self, transaction):
         """Commit changes to an object"""
@@ -754,7 +758,13 @@ class Connection(ExportImport, object):
             vote = self._storage.tpc_vote
         except AttributeError:
             return
-        s = vote(transaction)
+        try:
+            s = vote(transaction)
+        except ReadConflictError, v:
+            if v.oid:
+                self._cache.invalidate(v.oid)
+            raise
+
         if s:
             for oid, serial in s:
                 self._handle_serial(oid, serial)
