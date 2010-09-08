@@ -123,7 +123,7 @@ class Suicide(threading.Thread):
         # The client threads in the ConcurrentUpdate tests will run for
         # as long as 300 seconds.  Set this timeout to 330 to minimize
         # chance that the server gives up before the clients.
-        time.sleep(330)
+        time.sleep(999)
         log(str(os.getpid()), "suicide thread invoking shutdown")
 
         # If the server hasn't shut down yet, the client may not be
