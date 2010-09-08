@@ -1213,7 +1213,7 @@ class ClientStorage(object):
             return
 
         for oid, _ in self._seriald.iteritems():
-            self._cache.invalidate(oid, tid, False)
+            self._cache.invalidate(oid, tid)
 
         for oid, data in self._tbuf:
             # If data is None, we just invalidate.
@@ -1224,7 +1224,7 @@ class ClientStorage(object):
                     self._cache.store(oid, s, None, data)
             else:
                 # object deletion
-                self._cache.invalidate(oid, tid, False)
+                self._cache.invalidate(oid, tid)
 
         if self.fshelper is not None:
             blobs = self._tbuf.blobs
@@ -1479,6 +1479,7 @@ class ClientStorage(object):
             if oid == self._load_oid:
                 self._load_status = 0
             self._cache.invalidate(oid, tid)
+        self._cache.setLastTid(tid)
 
         if self._db is not None:
             self._db.invalidate(tid, oids)

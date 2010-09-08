@@ -664,20 +664,13 @@ class ClientCache(object):
     # - oid object id
     # - tid the id of the transaction that wrote a new revision of oid,
     #        or None to forget all cached info about oid.
-    # - server_invalidation, a flag indicating whether the
-    #       invalidation has come from the server. It's possible, due
-    #       to threading issues, that when applying a local
-    #       invalidation after a store, that later invalidations from
-    #       the server may already have arrived.
 
     @locked
-    def invalidate(self, oid, tid, server_invalidation=True):
+    def invalidate(self, oid, tid):
         ofs = self.current.get(oid)
         if ofs is None:
             # 0x10 == invalidate (miss)
             self._trace(0x10, oid, tid)
-            if server_invalidation:
-                self.setLastTid(tid)
             return
 
         self.f.seek(ofs)
@@ -703,9 +696,6 @@ class ClientCache(object):
             self._set_noncurrent(oid, saved_tid, ofs)
             # 0x1C = invalidate (hit, saving non-current)
             self._trace(0x1C, oid, tid)
-
-        if server_invalidation:
-            self.setLastTid(tid)
 
     ##
     # Generates (oid, serial) oairs for all objects in the

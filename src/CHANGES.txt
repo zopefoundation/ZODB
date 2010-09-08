@@ -8,6 +8,9 @@
 Bugs fixed
 ----------
 
+- Process exits or database closes could cause ZEO caches to have
+  incorrect data due to a problem in the way invalidations were processed.
+
 - Database connections didn't invalidate cache entries when conflict
   errors were raised in response to checkCurrentSerialInTransaction
   errors. Normally, this shouldn't be a problem, since there should be
