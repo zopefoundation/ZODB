@@ -50,46 +50,43 @@ This tests tries to provoke this bug by:
     ...         i = random.randint(0, nobs-1)
     ...         if stop:
     ...             return
-    ...         lock.acquire()
-    ...         try:
+    ...         with lock:
     ...             conn2.root()[i].value += 1
     ...             tm.commit()
-    ...         finally:
-    ...             lock.release()
-    ...             time.sleep(0)
+    ...         time.sleep(0)
     >>> thread = threading.Thread(target=run)
+    >>> thread.setDaemon(True)
     >>> thread.start()
 
-- restarting the first client, and 
+- restarting the first client, and
 - testing for cache validity.
 
     >>> import zope.testing.loggingsupport, logging
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.ERROR)
 
-    >>> for c in range(10):
-    ...    time.sleep(.1)
-    ...    db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
-    ...    _ = lock.acquire()
-    ...    try:
-    ...      wait_until("connected and we've caught up",
-    ...                 lambda :
-    ...                    db.storage.is_connected()
-    ...                    and db.storage.lastTransaction()
-    ...                        == db.storage._server.lastTransaction()
-    ...                  )
+    >>> try:
+    ...     for c in range(10):
+    ...        time.sleep(.1)
+    ...        db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
+    ...        with lock:
+    ...            @wait_until("connected and we've caught up", timeout=199)
+    ...            def _():
+    ...                return (db.storage.is_connected()
+    ...                        and db.storage.lastTransaction()
+    ...                            == db.storage._server.lastTransaction()
+    ...                        )
     ...
-    ...      conn = db.open()
-    ...      for i in range(1000):
-    ...        if conn.root()[i].value != conn2.root()[i].value:
-    ...            print 'bad', c, i, conn.root()[i].value,
-    ...            print  conn2.root()[i].value
-    ...    finally:
-    ...      _ = lock.release()
-    ...    db.close()
+    ...            conn = db.open()
+    ...            for i in range(1000):
+    ...                if conn.root()[i].value != conn2.root()[i].value:
+    ...                    print 'bad', c, i, conn.root()[i].value,
+    ...                    print  conn2.root()[i].value
+    ...        db.close()
+    ... finally:
+    ...     stop = True
+    ...     thread.join(10)
 
-    >>> stop = True
-    >>> thread.join(10)
     >>> thread.isAlive()
     False
 
