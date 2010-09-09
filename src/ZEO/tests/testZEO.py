@@ -249,6 +249,30 @@ class GenericTests(
         key = '%s:%s' % (self._storage._storage, self._storage._server_addr)
         self.assertEqual(self._storage.sortKey(), key)
 
+    def _do_store_in_separate_thread(self, oid, revid):
+
+        def do_store():
+            store = ZEO.ClientStorage.ClientStorage(self._storage._addr)
+            try:
+                t = transaction.get()
+                store.tpc_begin(t)
+                store.store(oid, revid, 'x', '', t)
+                store.tpc_vote(t)
+                store.tpc_finish(t)
+            except Exception, v:
+                import traceback
+                print 'E'*70
+                print v
+                traceback.print_exception(*sys.exc_info())
+            finally:
+                store.close()
+
+        thread = threading.Thread(name='T2', target=do_store)
+        thread.setDaemon(True)
+        thread.start()
+        thread.join(.2)
+        return thread
+
 class FullGenericTests(
     GenericTests,
     Cache.TransUndoStorageWithCache,
