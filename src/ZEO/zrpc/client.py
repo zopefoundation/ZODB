@@ -22,13 +22,16 @@ import time
 import traceback
 import types
 import logging
+import ZEO.zrpc.trigger
+
+
+from ZEO.zrpc.connection import ManagedClientConnection
+from ZEO.zrpc.log import log
+from ZEO.zrpc.error import DisconnectedError
 
 from ZODB.POSException import ReadOnlyError
 from ZODB.loglevels import BLATHER
 
-from ZEO.zrpc.log import log
-import ZEO.zrpc.trigger
-from ZEO.zrpc.connection import ManagedClientConnection
 
 def client_timeout():
     return 30.0
