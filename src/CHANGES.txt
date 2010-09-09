@@ -2,6 +2,20 @@
  Change History
 ================
 
+3.10.0b7 (2010-09-??)
+=====================
+
+Bugs fixed
+----------
+
+- When objects were added in savepoints and either the savepoint was
+  rolled back (https://bugs.launchpad.net/zodb/+bug/143560) or the
+  transaction was aborted
+  (https://mail.zope.org/pipermail/zodb-dev/2010-June/013488.html)
+  The objects' _p_oid and _p_jar variables weren't cleared, leading to
+  surprizing errors.
+
+
 3.10.0b6 (2010-09-08)
 =====================
 
