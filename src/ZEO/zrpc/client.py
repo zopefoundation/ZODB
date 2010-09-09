@@ -131,6 +131,8 @@ def client_loop(map):
 class ConnectionManager(object):
     """Keeps a connection up over time"""
 
+    sync_wait = 30
+
     def __init__(self, addrs, client, tmin=1, tmax=180):
         self.client = client
         self._start_asyncore_loop()
@@ -273,14 +275,13 @@ class ConnectionManager(object):
                 t.setDaemon(1)
                 t.start()
             if sync:
-                while self.connection is None:
-                    self.cond.wait(30)
+                while self.connection is None and t.isAlive():
+                    self.cond.wait(self.sync_wait)
                     if self.connection is None:
                         log("CM.connect(sync=1): still waiting...")
+                assert self.connection is not None
         finally:
             self.cond.release()
-        if sync:
-            assert self.connection is not None
 
     def connect_done(self, conn, preferred):
         # Called by ConnectWrapper.notify_client() after notifying the client
