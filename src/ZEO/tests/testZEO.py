@@ -249,7 +249,7 @@ class GenericTests(
         key = '%s:%s' % (self._storage._storage, self._storage._server_addr)
         self.assertEqual(self._storage.sortKey(), key)
 
-    def _do_store_in_separate_thread(self, oid, revid):
+    def _do_store_in_separate_thread(self, oid, revid, voted):
 
         def do_store():
             store = ZEO.ClientStorage.ClientStorage(self._storage._addr)
@@ -270,7 +270,7 @@ class GenericTests(
         thread = threading.Thread(name='T2', target=do_store)
         thread.setDaemon(True)
         thread.start()
-        thread.join(.2)
+        thread.join(voted and .1 or 9)
         return thread
 
 class FullGenericTests(

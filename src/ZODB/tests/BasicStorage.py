@@ -206,13 +206,13 @@ class BasicStorage:
         self._storage.tpc_finish(t)
         t.commit()
 
-    def _do_store_in_separate_thread(self, oid, revid):
+    def _do_store_in_separate_thread(self, oid, revid, voted):
         # We'll run the competing trans in a separate thread:
         thread = threading.Thread(name='T2',
             target=self._dostore, args=(oid,), kwargs=dict(revid=revid))
         thread.setDaemon(True)
         thread.start()
-        thread.join(.2)
+        thread.join(.1)
         return thread
 
     def check_checkCurrentSerialInTransaction(self):
@@ -262,7 +262,7 @@ class BasicStorage:
         self._storage.tpc_vote(t)
 
         # We'll run the competing trans in a separate thread:
-        thread = self._do_store_in_separate_thread(oid, tid2)
+        thread = self._do_store_in_separate_thread(oid, tid2, True)
         self._storage.tpc_finish(t)
         thread.join(1)
 
@@ -278,7 +278,7 @@ class BasicStorage:
                             '\0\0\0\0\0\0\0\0', 'x', '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid3, t)
 
-        thread = self._do_store_in_separate_thread(oid, tid3)
+        thread = self._do_store_in_separate_thread(oid, tid3, False)
 
         # There are 2 possibilities:
         # 1. The store happens before this transaction completes,
