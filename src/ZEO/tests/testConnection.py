@@ -145,18 +145,13 @@ This tests tries to provoke this bug by:
 
 - starting a server
 
-    >>> import ZEO.tests.testZEO, ZEO.tests.forker
-    >>> addr = 'localhost', ZEO.tests.testZEO.get_port()
-    >>> zconf = ZEO.tests.forker.ZEOConfig(addr)
-    >>> sconf = '<filestorage 1>\npath Data.fs\n</filestorage>\n'
-    >>> _, adminaddr, pid, conf_path = ZEO.tests.forker.start_zeo_server(
-    ...     sconf, zconf, addr[1])
+    >>> addr, _ = start_server()
 
 - opening a client to the server that writes some objects, filling
   it's cache at the same time,
 
-    >>> import ZEO.ClientStorage, ZODB.tests.MinPO, transaction
-    >>> db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
+    >>> import ZODB.tests.MinPO, transaction
+    >>> db = ZEO.DB(addr, client='x')
     >>> conn = db.open()
     >>> nobs = 1000
     >>> for i in range(nobs):
@@ -172,7 +167,7 @@ This tests tries to provoke this bug by:
 
     >>> import random, threading, time
     >>> stop = False
-    >>> db2 = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr))
+    >>> db2 = ZEO.DB(addr)
     >>> tm = transaction.TransactionManager()
     >>> conn2 = db2.open(transaction_manager=tm)
     >>> random = random.Random(0)
@@ -197,6 +192,7 @@ This tests tries to provoke this bug by:
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.ERROR)
 
+    >>> bad = False
     >>> try:
     ...     for c in range(10):
     ...        time.sleep(.1)
@@ -214,10 +210,14 @@ This tests tries to provoke this bug by:
     ...                if conn.root()[i].value != conn2.root()[i].value:
     ...                    print 'bad', c, i, conn.root()[i].value,
     ...                    print  conn2.root()[i].value
+    ...                    bad = True
     ...        db.close()
     ... finally:
     ...     stop = True
     ...     thread.join(10)
+
+    >>> if bad:
+    ...    print open('server-%s.log' % addr[1]).read()
 
     >>> thread.isAlive()
     False
@@ -230,9 +230,6 @@ This tests tries to provoke this bug by:
 
     >>> db.close()
     >>> db2.close()
-    >>> ZEO.tests.forker.shutdown_zeo_server(adminaddr)
-
-
     """ # '
 
 def test_suite():
