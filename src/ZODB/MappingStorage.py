@@ -325,7 +325,7 @@ class MappingStorage(object):
     # ZODB.interfaces.IStorage
     def tpc_vote(self, transaction):
         if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(
+            raise ZODB.POSException.StorageTransactionError(
                 "tpc_vote called with wrong transaction")
 
 class TransactionRecord:
