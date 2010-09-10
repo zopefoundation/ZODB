@@ -21,7 +21,11 @@ from __future__ import with_statement
 
 from ZEO.tests import ConnectionTests, InvalidationTests
 from zope.testing import setupstack
-import doctest
+import os
+if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+    from zope.testing import doctest
+else:
+    import doctest
 import unittest
 import ZEO.tests.forker
 import ZEO.tests.testMonitor
@@ -191,6 +195,8 @@ This tests tries to provoke this bug by:
     >>> import zope.testing.loggingsupport, logging
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.ERROR)
+    >>> debughandler = zope.testing.loggingsupport.InstalledHandler(
+    ...    'ZEO', level=logging.DEBUG)
 
     >>> bad = False
     >>> try:
@@ -218,6 +224,11 @@ This tests tries to provoke this bug by:
 
     >>> if bad:
     ...    print open('server-%s.log' % addr[1]).read()
+    ...    print 'client debug log'
+    ...    for record in debughandler.records:
+    ...        print record.name, record.levelname
+    ...        print debughandler.format(record)
+    >>> debughandler.uninstall()
 
     >>> thread.isAlive()
     False
