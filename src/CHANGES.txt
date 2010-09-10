@@ -15,6 +15,8 @@ Bugs fixed
   The objects' _p_oid and _p_jar variables weren't cleared, leading to
   surprizing errors.
 
+- ZEO extension methods failed when a client reconnected to a
+  storage. (https://bugs.launchpad.net/zodb/+bug/143344)
 
 3.10.0b6 (2010-09-08)
 =====================

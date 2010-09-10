@@ -1568,6 +1568,31 @@ def sync_connect_doesnt_hang():
     >>> ZEO.zrpc.client.ConnectThread = ConnectThread
     """
 
+def lp143344_extension_methods_not_lost_on_server_restart():
+    r"""
+Make sure we don't lose exension methods on server restart.
+
+    >>> addr, adminaddr = start_server(keep=True)
+    >>> conn = ZEO.connection(addr)
+    >>> conn.root.x = 1
+    >>> transaction.commit()
+    >>> conn.db().storage.answer_to_the_ultimate_question()
+    42
+
+    >>> stop_server(adminaddr)
+    >>> wait_until('not connected',
+    ...            lambda : not conn.db().storage.is_connected())
+    >>> _ = start_server(addr=addr)
+    >>> wait_until('connected', conn.db().storage.is_connected)
+
+    >>> conn.root.x
+    1
+    >>> conn.db().storage.answer_to_the_ultimate_question()
+    42
+
+    >>> conn.close()
+    """
+
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     MappingStorageTests, DemoStorageTests,
