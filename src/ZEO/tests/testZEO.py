@@ -1541,8 +1541,8 @@ def quick_close_doesnt_kill_server():
     True
 
     >>> db.close()
-
     """
+
 def sync_connect_doesnt_hang():
     r"""
     >>> import threading
@@ -1566,9 +1566,10 @@ def sync_connect_doesnt_hang():
     >>> cm.thread.isAlive()
     False
     >>> ZEO.zrpc.client.ConnectThread = ConnectThread
-
     """
 
+if sys.platform.startswith('win'):
+    del sync_connect_doesnt_hang
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
