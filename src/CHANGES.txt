@@ -18,6 +18,9 @@ Bugs fixed
 - ZEO extension methods failed when a client reconnected to a
   storage. (https://bugs.launchpad.net/zodb/+bug/143344)
 
+- Objects added in transactions that were later aborted could have
+  _p_changed still set (https://bugs.launchpad.net/zodb/+bug/615758).
+
 3.10.0b6 (2010-09-08)
 =====================
 
