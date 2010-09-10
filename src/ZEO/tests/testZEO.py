@@ -1568,9 +1568,6 @@ def sync_connect_doesnt_hang():
     >>> ZEO.zrpc.client.ConnectThread = ConnectThread
     """
 
-if sys.platform.startswith('win'):
-    del sync_connect_doesnt_hang
-
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     MappingStorageTests, DemoStorageTests,
