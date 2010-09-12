@@ -217,6 +217,13 @@ This tests tries to provoke this bug by:
     ...                    print 'bad', c, i, conn.root()[i].value,
     ...                    print  conn2.root()[i].value
     ...                    bad = True
+    ...        if bad:
+    ...           print open('server-%s.log' % addr[1]).read()
+    ...           print 'client debug log'
+    ...           for record in debughandler.records:
+    ...               print record.name, record.levelname
+    ...               print debughandler.format(record)
+    ...           debughandler.clear()
     ...        db.close()
     ... finally:
     ...     stop = True
