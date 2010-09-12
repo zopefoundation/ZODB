@@ -484,7 +484,7 @@ class HeartbeatTests(ZEO.tests.ConnectionTests.CommonSetupTearDown):
                           )
         self._dostore()
 
-        if hasattr(os, 'kill'):
+        if hasattr(os, 'kill') and hasattr(signal, 'SIGKILL'):
             # Kill server violently, in hopes of provoking problem
             os.kill(self._pids[0], signal.SIGKILL)
             self._servers[0] = None
