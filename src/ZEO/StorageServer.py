@@ -920,6 +920,12 @@ class StorageServer:
     def _setup_invq(self, name, storage):
         lastInvalidations = getattr(storage, 'lastInvalidations', None)
         if lastInvalidations is None:
+            # Using None below doesn't look right, but the first
+            # element in invq is never used.  See get_invalidations.
+            # (If it was used, it would generate an error, which would
+            # be good. :) Doing this allows clients that were up to
+            # date when a server was restarted to pick up transactions
+            # it subsequently missed.
             self.invq[name] = [(storage.lastTransaction(), None)]
         else:
             self.invq[name] = list(
