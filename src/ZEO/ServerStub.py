@@ -15,6 +15,7 @@
 
 import os
 import time
+from ZODB.utils import z64
 
 ##
 # ZEO storage server.
@@ -86,7 +87,7 @@ class StorageServer:
 
     def lastTransaction(self):
         # Not in protocol version 2.0.0; see __init__()
-        return self.rpc.call('lastTransaction')
+        return self.rpc.call('lastTransaction') or z64
 
     ##
     # Return invalidations for all transactions after tid.

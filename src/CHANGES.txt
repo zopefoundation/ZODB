@@ -21,6 +21,10 @@ Bugs fixed
 - Objects added in transactions that were later aborted could have
   _p_changed still set (https://bugs.launchpad.net/zodb/+bug/615758).
 
+- Clarified the return Value for lastTransaction in the case when
+  there aren't any transactions.  Now a string of 8 nulls (aka "z64")
+  is specified.
+
 3.10.0b6 (2010-09-08)
 =====================
 

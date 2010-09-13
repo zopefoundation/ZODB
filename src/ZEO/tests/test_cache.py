@@ -27,7 +27,7 @@ import ZODB.tests.util
 import zope.testing.setupstack
 
 import ZEO.cache
-from ZODB.utils import p64, u64
+from ZODB.utils import p64, u64, z64
 
 n1 = p64(1)
 n2 = p64(2)
@@ -79,7 +79,7 @@ class CacheTests(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.tearDown(self)
 
     def testLastTid(self):
-        self.assertEqual(self.cache.getLastTid(), None)
+        self.assertEqual(self.cache.getLastTid(), z64)
         self.cache.setLastTid(n2)
         self.assertEqual(self.cache.getLastTid(), n2)
         self.assertEqual(self.cache.getLastTid(), n2)

@@ -128,7 +128,7 @@ class MiscZEOTests:
         addr = self._storage._addr
         storage2 = ClientStorage(addr)
         self.assert_(storage2.is_connected())
-        self.assertEquals(None, storage2.lastTransaction())
+        self.assertEquals(ZODB.utils.z64, storage2.lastTransaction())
         storage2.close()
 
         self._dostore()

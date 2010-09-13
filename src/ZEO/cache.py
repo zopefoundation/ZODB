@@ -473,13 +473,9 @@ class ClientCache(object):
     ##
     # Return the last transaction seen by the cache.
     # @return a transaction id
-    # @defreturn string, or None if no transaction is yet known
+    # @defreturn string, or 8 nulls if no transaction is yet known
     def getLastTid(self):
-        tid = self.tid
-        if tid == z64:
-            return None
-        else:
-            return tid
+        return self.tid
 
     ##
     # Return the current data record for oid.

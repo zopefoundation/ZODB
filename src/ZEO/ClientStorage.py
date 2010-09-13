@@ -1343,7 +1343,7 @@ class ClientStorage(object):
         if not self._cache:
             logger.info("%s No verification necessary -- empty cache",
                         self.__name__)
-            if ltid and ltid != utils.z64:
+            if ltid != utils.z64:
                 self._cache.setLastTid(ltid)
             self.finish_verification()
             return "empty cache"
@@ -1375,13 +1375,13 @@ class ClientStorage(object):
                             self.__name__, len(pair[1]))
                 self.finish_verification(pair)
                 return "quick verification"
-        elif ltid and ltid != utils.z64:
+        elif ltid != utils.z64:
 
-            # XXX Hm, to have gotten here, the cache is non-empty, but
+            # Hm, to have gotten here, the cache is non-empty, but
             # it has no last tid. This doesn't seem like good situation.
-            # We shouldn't treat it so lightly.
-
+            # We'll have to verify the cache, if we're willing.
             self._cache.setLastTid(ltid)
+
 
         zope.event.notify(ZEO.interfaces.StaleCache(self))
 

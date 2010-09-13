@@ -34,6 +34,8 @@ ZERO = '\0'*8
 
 class BasicStorage:
     def checkBasics(self):
+        self.assertEqual(self._storage.lastTransaction(), '\0'*8)
+
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self.assertRaises(POSException.StorageTransactionError,

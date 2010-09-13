@@ -60,6 +60,8 @@ class MinimalMemoryStorage(BaseStorage, object):
         # _cur maps oid to current tid
         self._cur = {}
 
+        self._ltid = z64
+
     def isCurrent(self, oid, serial):
         return serial == self._cur[oid]
 

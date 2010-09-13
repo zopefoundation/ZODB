@@ -39,7 +39,7 @@ class MappingStorage(object):
         self.__name__ = name
         self._data = {}                               # {oid->{tid->pickle}}
         self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
-        self._ltid = None
+        self._ltid = ZODB.utils.z64
         self._last_pack = None
         _lock = threading.RLock()
         self._lock_acquire = _lock.acquire
@@ -129,8 +129,7 @@ class MappingStorage(object):
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def lastTransaction(self):
-        if self._ltid is not None:
-            return self._ltid
+        return self._ltid
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)

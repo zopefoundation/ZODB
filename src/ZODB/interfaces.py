@@ -532,7 +532,10 @@ class IStorage(Interface):
         # transiently.  It would be better to just have read-only errors.
 
     def lastTransaction():
-        """Return the id of the last committed transaction
+        """Return the id of the last committed transaction.
+
+        If no transactions have been committed, return a string of 8
+        null (0) characters.
         """
 
     def __len__():
