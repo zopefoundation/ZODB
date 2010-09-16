@@ -853,6 +853,9 @@ class StorageServerWrapper:
     def send_reply(self, *args):        # Masquerade as conn
         pass
 
+    def tpc_abort(self, transaction):
+        self.server.tpc_abort(id(transaction))
+
     def tpc_finish(self, transaction, func = lambda: None):
         self.server.tpc_finish(id(transaction)).set_sender(0, self)
 
