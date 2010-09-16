@@ -169,6 +169,10 @@ This tests tries to provoke this bug by:
 - starting a second client that writes objects more or less
   constantly,
 
+    >>> import zope.testing.loggingsupport, logging
+    >>> debughandler = zope.testing.loggingsupport.InstalledHandler(
+    ...    'ZEO', level=logging.DEBUG)
+
     >>> import random, threading, time
     >>> stop = False
     >>> db2 = ZEO.DB(addr)
@@ -184,6 +188,9 @@ This tests tries to provoke this bug by:
     ...         with lock:
     ...             conn2.root()[i].value += 1
     ...             tm.commit()
+    ...             logging.getLogger('ZEO').debug(
+    ...                'COMMIT %s %s %r' % (
+    ...                    i, conn2.root()[i].value, conn2.root()[i]._p_serial))
     ...         time.sleep(0)
     >>> thread = threading.Thread(target=run)
     >>> thread.setDaemon(True)
@@ -192,11 +199,8 @@ This tests tries to provoke this bug by:
 - restarting the first client, and
 - testing for cache validity.
 
-    >>> import zope.testing.loggingsupport, logging
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.ERROR)
-    >>> debughandler = zope.testing.loggingsupport.InstalledHandler(
-    ...    'ZEO', level=logging.DEBUG)
 
     >>> bad = False
     >>> try:

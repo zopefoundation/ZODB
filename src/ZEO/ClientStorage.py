@@ -1352,8 +1352,9 @@ class ClientStorage(object):
         if last_inval_tid is not None:
             if ltid == last_inval_tid:
                 logger.info(
-                    "%s No verification necessary (last_inval_tid up-to-date)",
-                    self.__name__)
+                    "%s No verification necessary"
+                    " (last_inval_tid up-to-date %r)",
+                    self.__name__, ltid)
                 self.finish_verification()
                 return "no verification"
             elif ltid < last_inval_tid:
