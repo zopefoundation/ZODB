@@ -648,6 +648,7 @@ class Connection(ExportImport, object):
                     and not hasattr(obj, '_p_resolveConflict')):
                     raise ConflictError(object=obj)
                 self._modified.append(oid)
+
             p = writer.serialize(obj)  # This calls __getstate__ of obj
             if len(p) >= self.large_record_size:
                 warnings.warn(large_object_message % (obj.__class__, len(p)))
@@ -659,8 +660,12 @@ class Connection(ExportImport, object):
                         repr(self._storage))
                 if obj.opened():
                     raise ValueError("Can't commit with opened blobs.")
-                s = self._storage.storeBlob(oid, serial, p,
-                                            obj._uncommitted(),
+                blobfilename = obj._uncommitted()
+                if blobfilename is None:
+                    assert serial is not None # See _uncommitted
+                    self._modified.pop() # not modified
+                    continue
+                s = self._storage.storeBlob(oid, serial, p, blobfilename,
                                             '', transaction)
                 # we invalidate the object here in order to ensure
                 # that that the next attribute access of its name

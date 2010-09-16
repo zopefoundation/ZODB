@@ -626,7 +626,21 @@ def savepoint_cleanup():
 
     >>> db.close()
     """
+def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
+    r"""
+    >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
+    >>> blob = ZODB.blob.Blob('blah')
+    >>> conn.add(blob)
+    >>> transaction.commit()
+    >>> old_serial = blob._p_serial
+    >>> blob._p_changed = True
+    >>> transaction.commit()
+    >>> blob.open().read()
+    'blah'
+    >>> old_serial == blob._p_serial
+    True
 
+    """
 
 def setUp(test):
     ZODB.tests.util.setUp(test)

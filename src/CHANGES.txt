@@ -25,6 +25,10 @@ Bugs fixed
   there aren't any transactions.  Now a string of 8 nulls (aka "z64")
   is specified.
 
+- Setting _p_changed on a blob wo actually writing anything caused an
+  error. (https://bugs.launchpad.net/zodb/+bug/440234)
+
+
 3.10.0b6 (2010-09-08)
 =====================
 
