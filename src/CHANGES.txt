@@ -28,6 +28,8 @@ Bugs fixed
 - Setting _p_changed on a blob wo actually writing anything caused an
   error. (https://bugs.launchpad.net/zodb/+bug/440234)
 
+- The verbose mode of the fstest was broken.
+  (https://bugs.launchpad.net/zodb/+bug/475996)
 
 3.10.0b6 (2010-09-08)
 =====================
