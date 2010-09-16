@@ -223,7 +223,6 @@ This tests tries to provoke this bug by:
     ...           for record in debughandler.records:
     ...               print record.name, record.levelname
     ...               print debughandler.format(record)
-    ...           debughandler.clear()
     ...        else:
     ...           logging.getLogger('ZEO').debug('GOOD %s' % c)
     ...        db.close()
