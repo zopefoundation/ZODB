@@ -170,7 +170,7 @@ This tests tries to provoke this bug by:
   constantly,
 
     >>> import zope.testing.loggingsupport, logging
-    >>> debughandler = zope.testing.loggingsupport.InstalledHandler(
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...    'ZEO', level=logging.DEBUG)
 
     >>> import random, threading, time
@@ -199,9 +199,6 @@ This tests tries to provoke this bug by:
 - restarting the first client, and
 - testing for cache validity.
 
-    >>> handler = zope.testing.loggingsupport.InstalledHandler(
-    ...    'ZEO', level=logging.ERROR)
-
     >>> bad = False
     >>> try:
     ...     for c in range(10):
@@ -223,10 +220,10 @@ This tests tries to provoke this bug by:
     ...                    bad = True
     ...        if bad:
     ...           print open('server-%s.log' % addr[1]).read()
-    ...           print 'client debug log'
-    ...           for record in debughandler.records:
+    ...           print 'client debug log', handler
+    ...           for record in handler.records:
     ...               print record.name, record.levelname
-    ...               print debughandler.format(record)
+    ...               print handler.format(record)
     ...        else:
     ...           logging.getLogger('ZEO').debug('GOOD %s' % c)
     ...        db.close()
@@ -234,18 +231,12 @@ This tests tries to provoke this bug by:
     ...     stop = True
     ...     thread.join(10)
 
-    >>> if bad:
-    ...    print open('server-%s.log' % addr[1]).read()
-    ...    print 'client debug log'
-    ...    for record in debughandler.records:
-    ...        print record.name, record.levelname
-    ...        print debughandler.format(record)
-    >>> debughandler.uninstall()
-
     >>> thread.isAlive()
     False
 
     >>> for record in handler.records:
+    ...     if record.levelno < logging.ERROR:
+    ...         continue
     ...     print record.name, record.levelname
     ...     print handler.format(record)
 
