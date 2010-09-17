@@ -8,6 +8,9 @@
 Bugs fixed
 ----------
 
+- Updated the 'repozo --kill-old-on-full' option to remove any '.index'
+  files corresponding to backups being removed.
+
 - When objects were added in savepoints and either the savepoint was
   rolled back (https://bugs.launchpad.net/zodb/+bug/143560) or the
   transaction was aborted
@@ -204,7 +207,7 @@ New Features
   iterator implementations should just raise StopIteration, which
   means they can now be implemented as generators.
 
-- The file-storage backup script, repoze, will now create a backup
+- The file-storage backup script, repozo, will now create a backup
   index file if an output file name is given via the --output/-o
   option.
 
@@ -225,9 +228,10 @@ Bugs Fixed
 New Features
 ------------
 
-- Added a '--kill-old-on-full' argument to the backup options:  if passed,
-  remove any older full or incremental backup files from the repository after
-  doing a full backup. (https://bugs.launchpad.net/zope2/+bug/143158)
+- Added a '--kill-old-on-full' argument to the repozo backup options:
+  if passed, remove any older full or incremental backup files from the
+  repository after doing a full backup.
+  (https://bugs.launchpad.net/zope2/+bug/143158)
 
 - When transactions are aborted, new object ids allocated during the
   transaction are saved and used in subsequent transactions. This can

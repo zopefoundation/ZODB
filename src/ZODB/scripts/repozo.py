@@ -410,12 +410,19 @@ def delete_old_backups(options):
     dat = root + '.dat'
     if dat in deletable:
         deletable.remove(dat)
+    index = root + '.index'
+    if index in deletable:
+        deletable.remove(index)
 
     for fname in deletable:
-        log('removing old backup file %s (and .dat)', fname)
+        log('removing old backup file %s (and .dat / .index)', fname)
         root, ext = os.path.splitext(fname)
         try:
             os.unlink(os.path.join(options.repository, root + '.dat'))
+        except OSError:
+            pass
+        try:
+            os.unlink(os.path.join(options.repository, root + '.index'))
         except OSError:
             pass
         os.unlink(os.path.join(options.repository, fname))

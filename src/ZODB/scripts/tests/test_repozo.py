@@ -457,7 +457,10 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
             self.failUnless(os.path.isfile(fqn))
 
     def test_doesnt_remove_current_repozo_files(self):
-        FILENAMES = ['2009-12-20-10-08-03.fs', '2009-12-20-10-08-03.dat']
+        FILENAMES = ['2009-12-20-10-08-03.fs',
+                     '2009-12-20-10-08-03.dat',
+                     '2009-12-20-10-08-03.index',
+                    ]
         self._callFUT(filenames=FILENAMES)
         remaining = os.listdir(self._repository_directory)
         self.assertEqual(len(remaining), len(FILENAMES))
@@ -466,9 +469,19 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
             self.failUnless(os.path.isfile(fqn))
 
     def test_removes_older_repozo_files(self):
-        OLDER_FULL = ['2009-12-20-00-01-03.fs', '2009-12-20-00-01-03.dat']
-        DELTAS = ['2009-12-21-00-00-01.deltafs', '2009-12-22-00-00-01.deltafs']
-        CURRENT_FULL = ['2009-12-23-00-00-01.fs', '2009-12-23-00-00-01.dat']
+        OLDER_FULL = ['2009-12-20-00-01-03.fs',
+                      '2009-12-20-00-01-03.dat',
+                      '2009-12-20-00-01-03.index',
+                     ]
+        DELTAS = ['2009-12-21-00-00-01.deltafs',
+                  '2009-12-21-00-00-01.index',
+                  '2009-12-22-00-00-01.deltafs',
+                  '2009-12-22-00-00-01.index',
+                 ]
+        CURRENT_FULL = ['2009-12-23-00-00-01.fs',
+                        '2009-12-23-00-00-01.dat',
+                        '2009-12-23-00-00-01.index',
+                       ]
         FILENAMES = OLDER_FULL + DELTAS + CURRENT_FULL
         self._callFUT(filenames=FILENAMES)
         remaining = os.listdir(self._repository_directory)
@@ -484,10 +497,19 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
             self.failUnless(os.path.isfile(fqn))
 
     def test_removes_older_repozo_files_zipped(self):
-        OLDER_FULL = ['2009-12-20-00-01-03.fsz', '2009-12-20-00-01-03.dat']
+        OLDER_FULL = ['2009-12-20-00-01-03.fsz',
+                      '2009-12-20-00-01-03.dat',
+                      '2009-12-20-00-01-03.index',
+                     ]
         DELTAS = ['2009-12-21-00-00-01.deltafsz',
-                  '2009-12-22-00-00-01.deltafsz']
-        CURRENT_FULL = ['2009-12-23-00-00-01.fsz', '2009-12-23-00-00-01.dat']
+                  '2009-12-21-00-00-01.index',
+                  '2009-12-22-00-00-01.deltafsz',
+                  '2009-12-22-00-00-01.index',
+                 ]
+        CURRENT_FULL = ['2009-12-23-00-00-01.fsz',
+                        '2009-12-23-00-00-01.dat',
+                        '2009-12-23-00-00-01.index',
+                       ]
         FILENAMES = OLDER_FULL + DELTAS + CURRENT_FULL
         self._callFUT(filenames=FILENAMES)
         remaining = os.listdir(self._repository_directory)
