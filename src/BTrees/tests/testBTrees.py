@@ -1811,6 +1811,7 @@ class IIBTreeTest(BTreeTests):
         b = self.t
 
         def trial(i):
+            i = int(i)
             try:
                 b[i] = 0
             except (OverflowError, TypeError), v:
