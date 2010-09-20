@@ -4,10 +4,15 @@ Whats new in ZODB 3.8.6 (2010-??-??)
 
 Bug Fixed:
 
+- BTree sets and tree sets didn't correctly check values passed to
+  update or to constructors, causing Python to exit under certain
+  circumstances.
+
 - Fixed a serious bug that caused cache failures when run
   with Python optimization turned on.
 
   https://bugs.launchpad.net/zodb/+bug/544305
+
 
 Whats new in ZODB 3.8.5 (2009-12-16)
 ====================================

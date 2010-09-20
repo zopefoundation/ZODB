@@ -32,10 +32,9 @@ Set_insert(Bucket *self, PyObject *args)
 static int
 _Set_update(Bucket *self, PyObject *seq)
 {
-    int n = -1;
+    int n=0, ind=0;
     PyObject *iter, *v;
-    int ind;
-
+ 
     iter = PyObject_GetIter(seq);
     if (iter == NULL)
 	return -1;
@@ -55,15 +54,11 @@ _Set_update(Bucket *self, PyObject *seq)
 	else
 	    n += ind;
     }
-    /* n starts out at -1, which is the error return value.  If
-       this point is reached, then there is no error.  n must be
-       incremented to account for the initial value of -1 instead of
-       0.
-    */
-    n++;
 
  err:
     Py_DECREF(iter);
+    if (ind < 0)
+      return -1;
     return n;
 }
 
