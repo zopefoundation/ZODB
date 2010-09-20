@@ -17,6 +17,10 @@ Bugs Fixed
 
   Fixes: https://bugs.launchpad.net/zodb/+bug/135108
 
+- BTree sets and tree sets didn't correctly check values passed to
+  update or to constructors, causing Python to exit under certain
+  circumstances.
+
 3.9.5 (2010-04-23)
 ==================
 
