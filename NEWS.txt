@@ -2,7 +2,7 @@
 Whats new in ZODB 3.8.6 (2010-??-??)
 ====================================
 
-Bug Fixed:
+Bugs Fixed:
 
 - BTree sets and tree sets didn't correctly check values passed to
   update or to constructors, causing Python to exit under certain
