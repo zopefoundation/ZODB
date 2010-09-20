@@ -902,6 +902,7 @@ class ClientStorage(object):
             del self._serials[:l]
             for oid, s in r:
                 if isinstance(s, Exception):
+                    self._cache.invalidate(oid, None)
                     raise s
                 self._seriald[oid] = s
             return r

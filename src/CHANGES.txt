@@ -25,6 +25,8 @@ Bugs Fixed
   invalidation transaction ids matched the cached transaction ids
   should have been ignored.
 
+- Conflict errors didn't invalidate ZEO cache entries.
+
 - On Mac OS X, clients that connected and disconnected quickly could
   cause a ZEO server to stop accepting connections, due to a failure
   to catch errors in the initial part of the connection process.

@@ -24,7 +24,7 @@ from ZODB.tests import StorageTestBase, BasicStorage,  \
      MTStorage, ReadOnlyStorage, IteratorStorage, RecoveryStorage
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle
-
+from ZODB.utils import p64, u64
 import asyncore
 import doctest
 import logging
@@ -1225,6 +1225,78 @@ def runzeo_without_configfile():
     ------
     --T INFO ZEO.runzeo () closing storage '1'
     testing exit immediately
+    """
+
+def invalidate_client_cache_entry_on_server_commit_error():
+    """
+
+When the serials returned during commit includes an error, typically a
+conflict error, invalidate the cache entry.  This is important when
+the cache is messed up.
+
+    >>> addr, _ = start_server()
+    >>> conn1 = ZEO.connection(addr)
+    >>> conn1.root.x = conn1.root().__class__()
+    >>> transaction.commit()
+    >>> conn1.root.x
+    {}
+
+    >>> cs = ZEO.ClientStorage.ClientStorage(addr, client='cache')
+    >>> conn2 = ZODB.connection(cs)
+    >>> conn2.root.x
+    {}
+
+    >>> conn2.close()
+    >>> cs.close()
+
+    >>> conn1.root.x['x'] = 1
+    >>> transaction.commit()
+    >>> conn1.root.x
+    {'x': 1}
+
+Now, let's screw up the cache by making it have a last tid that is later than
+the root serial.
+
+    >>> import ZEO.cache
+    >>> cache = ZEO.cache.ClientCache('cache-1.zec')
+    >>> cache.setLastTid(p64(u64(conn1.root.x._p_serial)+1))
+    >>> cache.close()
+
+We'll also update the server so that it's last tid is newer than the cache's:
+
+    >>> conn1.root.y = 1
+    >>> transaction.commit()
+    >>> conn1.root.y = 2
+    >>> transaction.commit()
+
+Now, if we reopen the client storage, we'll get the wrong root:
+
+    >>> cs = ZEO.ClientStorage.ClientStorage(addr, client='cache')
+    >>> conn2 = ZODB.connection(cs)
+    >>> conn2.root.x
+    {}
+
+And, we'll get a conflict error if we try to modify it:
+
+    >>> conn2.root.x['y'] = 1
+    >>> transaction.commit() # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ConflictError: ...
+
+But, if we abort, we'll get up to date data and we'll see the changes.
+
+    >>> transaction.abort()
+    >>> conn2.root.x
+    {'x': 1}
+    >>> conn2.root.x['y'] = 1
+    >>> transaction.commit()
+    >>> sorted(conn2.root.x.items())
+    [('x', 1), ('y', 1)]
+
+    >>> cs.close()
+    >>> conn1.close()
+
     """
 
 def quick_close_doesnt_kill_server():
