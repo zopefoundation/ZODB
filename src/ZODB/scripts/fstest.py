@@ -203,11 +203,14 @@ def usage():
     print __doc__
     sys.exit(-1)
 
-def main():
+def main(args=None):
+    if args is None:
+        args = sys.argv[1:]
     import getopt
 
+    global VERBOSE
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'v')
+        opts, args = getopt.getopt(args, 'v')
         if len(args) != 1:
             raise ValueError("expected one argument")
         for k, v in opts:

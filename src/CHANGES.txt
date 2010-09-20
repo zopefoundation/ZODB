@@ -64,6 +64,9 @@ Bugs Fixed
   update or to constructors, causing Python to exit under certain
   circumstances.
 
+- The verbose mode of the fstest was broken.
+  (https://bugs.launchpad.net/zodb/+bug/475996)
+
 3.9.5 (2010-04-23)
 ==================
 
