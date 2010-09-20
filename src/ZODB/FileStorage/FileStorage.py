@@ -1331,7 +1331,15 @@ class FileStorage(
 
         return oid, tid, data, next_oid
 
+    ######################################################################
+    # The following 2 methods are for testing a ZEO extension mechanism
+    def getExtensionMethods(self):
+        return dict(answer_to_the_ultimate_question=None)
 
+    def answer_to_the_ultimate_question(self):
+        return 42
+    #
+    ######################################################################
 
 def shift_transactions_forward(index, tindex, file, pos, opos):
     """Copy transactions forward in the data file

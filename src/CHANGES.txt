@@ -39,6 +39,9 @@ Bugs Fixed
   The objects' _p_oid and _p_jar variables weren't cleared, leading to
   surprizing errors.
 
+- ZEO extension methods failed when a client reconnected to a
+  storage. (https://bugs.launchpad.net/zodb/+bug/143344)
+
 - On Mac OS X, clients that connected and disconnected quickly could
   cause a ZEO server to stop accepting connections, due to a failure
   to catch errors in the initial part of the connection process.
