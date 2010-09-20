@@ -25,6 +25,10 @@ Bugs Fixed
   invalidation transaction ids matched the cached transaction ids
   should have been ignored.
 
+- Shutting down a process while committing a transaction could cause
+  ZEO client caches to have invalid data.  This, in turn caused stale
+  data to remain in the cache until it was updated.
+
 - Conflict errors didn't invalidate ZEO cache entries.
 
 - On Mac OS X, clients that connected and disconnected quickly could

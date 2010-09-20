@@ -1213,6 +1213,7 @@ class ClientStorage(object):
             if had_blobs:
                 self._check_blob_size(self._blob_data_bytes_loaded)
 
+        self._cache.setLastTid(tid)
         self._tbuf.clear()
 
     def undo(self, trans_id, txn):
@@ -1341,6 +1342,11 @@ class ClientStorage(object):
                 self.finish_verification(pair)
                 return "quick verification"
         elif ltid and ltid != utils.z64:
+
+            # XXX Hm, to have gotten here, the cache is non-empty, but
+            # it has no last tid. This doesn't seem like good situation.
+            # We shouldn't treat it so lightly.
+
             self._cache.setLastTid(ltid)
 
         zope.event.notify(ZEO.interfaces.StaleCache(self))
