@@ -13,6 +13,18 @@ Bugs Fixed
 
   (Thanks to Christian Zagrodnick for chasing this down.)
 
+- If a ZEO client process was restarted while invalidating a ZEO cache
+  entry, the cache could be left in a stage when there is data marked
+  current that should be invalidated, leading to persistent conflict
+  errors.
+
+- Corrupted or invalid cache files prevented ZEO clients from
+  starting. Now, bad cache files are moved aside.
+
+- Invalidations of object records in ZEO caches, where the
+  invalidation transaction ids matched the cached transaction ids
+  should have been ignored.
+
 - On Mac OS X, clients that connected and disconnected quickly could
   cause a ZEO server to stop accepting connections, due to a failure
   to catch errors in the initial part of the connection process.

@@ -488,16 +488,79 @@ __test__ = dict(
     >>> logger.setLevel(logging.NOTSET)
     >>> logger.removeHandler(handler)
 
+    >>> logger.setLevel(logging.NOTSET)
+    >>> logger.removeHandler(handler)
     >>> cache.close()
     """,
-    bad_magic_number =
-    r"""
-    >>> open('cache', 'w').write("Hi world!")
-    >>> try: cache = ZEO.cache.ClientCache('cache', 1000)
-    ... except Exception, v: print v
-    unexpected magic number: 'Hi w'
-    """
     )
+
+def invalidations_with_current_tid_dont_wreck_cache():
+    """
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> cache.store(p64(1), p64(1), None, 'data')
+    >>> import logging, sys
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> logging.getLogger().addHandler(handler)
+    >>> old_level = logging.getLogger().getEffectiveLevel()
+    >>> logging.getLogger().setLevel(logging.WARNING)
+    >>> cache.invalidate(p64(1), p64(1))
+    Ignoring invalidation with same tid as current
+    >>> cache.close()
+    >>> cache = ZEO.cache.ClientCache('cache', 1000)
+    >>> cache.close()
+    >>> logging.getLogger().removeHandler(handler)
+    >>> logging.getLogger().setLevel(old_level)
+    """
+
+def rename_bad_cache_file():
+    """
+An attempt to open a bad cache file will cause it to be dropped and recreated.
+
+    >>> open('cache', 'w').write('x'*100)
+    >>> import logging, sys
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> logging.getLogger().addHandler(handler)
+    >>> old_level = logging.getLogger().getEffectiveLevel()
+    >>> logging.getLogger().setLevel(logging.WARNING)
+
+    >>> cache = ZEO.cache.ClientCache('cache', 1000) # doctest: +ELLIPSIS
+    Moving bad cache file to 'cache.bad'.
+    Traceback (most recent call last):
+    ...
+    ValueError: unexpected magic number: 'xxxx'
+
+    >>> cache.store(p64(1), p64(1), None, 'data')
+    >>> cache.close()
+    >>> f = open('cache')
+    >>> f.seek(0, 2)
+    >>> f.tell()
+    1000
+    >>> f.close()
+
+    >>> open('cache', 'w').write('x'*200)
+    >>> cache = ZEO.cache.ClientCache('cache', 1000) # doctest: +ELLIPSIS
+    Removing bad cache file: 'cache' (prev bad exists).
+    Traceback (most recent call last):
+    ...
+    ValueError: unexpected magic number: 'xxxx'
+
+    >>> cache.store(p64(1), p64(1), None, 'data')
+    >>> cache.close()
+    >>> f = open('cache')
+    >>> f.seek(0, 2)
+    >>> f.tell()
+    1000
+    >>> f.close()
+
+    >>> f = open('cache.bad')
+    >>> f.seek(0, 2)
+    >>> f.tell()
+    100
+    >>> f.close()
+
+    >>> logging.getLogger().removeHandler(handler)
+    >>> logging.getLogger().setLevel(old_level)
+    """
 
 def test_suite():
     suite = unittest.TestSuite()

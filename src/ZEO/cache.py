@@ -207,7 +207,24 @@ class ClientCache(object):
             self.f.write(magic+z64)
             logger.info("created temporary cache file %r", self.f.name)
 
-        self._initfile(fsize)
+        try:
+            self._initfile(fsize)
+        except:
+            if not path:
+                raise # unrecoverable temp file error :(
+            badpath = path+'.bad'
+            if os.path.exists(badpath):
+                logger.critical(
+                    'Removing bad cache file: %r (prev bad exists).',
+                    path, exc_info=1)
+                os.remove(path)
+            else:
+                logger.critical('Moving bad cache file to %r.',
+                                badpath, exc_info=1)
+                os.rename(path, badpath)
+            self.f = open(path, 'wb+')
+            self.f.write(magic+z64)
+            self._initfile(ZEC_HEADER_SIZE)
 
         # Statistics:  _n_adds, _n_added_bytes,
         #              _n_evicts, _n_evicted_bytes,
@@ -672,6 +689,9 @@ class ClientCache(object):
             self._trace(0x1E, oid, tid)
             self._len -= 1
         else:
+            if tid == saved_tid:
+                logger.warning("Ignoring invalidation with same tid as current")
+                return
             self.f.seek(ofs+21)
             self.f.write(tid)
             self._set_noncurrent(oid, saved_tid, ofs)
