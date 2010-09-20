@@ -379,10 +379,14 @@ class ClientCache(object):
     # recent tid.
     @locked
     def setLastTid(self, tid):
-        if self.tid is not None and tid <= self.tid:
+        if (not tid) or (tid == z64):
+            return
+        if (self.tid is not None) and (tid <= self.tid):
+            if tid == self.tid:
+                return                  # Be a little forgiving
             raise ValueError("new last tid (%s) must be greater than "
-                             "previous one (%s)" % (u64(tid),
-                                                    u64(self.tid)))
+                             "previous one (%s)"
+                             % (u64(tid), u64(self.tid)))
         assert isinstance(tid, str) and len(tid) == 8, tid
         self.tid = tid
         self.f.seek(len(magic))
@@ -631,20 +635,11 @@ class ClientCache(object):
 
     @locked
     def invalidate(self, oid, version, tid, server_invalidation=True):
-        if tid is not None:
-            if tid > self.tid:
-                self.setLastTid(tid)
-            elif tid < self.tid:
-                if server_invalidation:
-                    raise ValueError("invalidation tid (%s) must not be less"
-                                     " than previous one (%s)" %
-                                     (u64(tid), u64(self.tid)))
-
         ofs = self.current.get(oid)
         if ofs is None:
             # 0x10 == invalidate (miss)
             self._trace(0x10, oid, version, tid)
-            return
+            return self.setLastTid(tid)
 
         self.f.seek(ofs)
         read = self.f.read
@@ -671,6 +666,8 @@ class ClientCache(object):
             self._set_noncurrent(oid, saved_tid, ofs)
             # 0x1C = invalidate (hit, saving non-current)
             self._trace(0x1C, oid, version, tid)
+
+        return self.setLastTid(tid)
 
     ##
     # Generates (oid, serial, version) triples for all objects in the
