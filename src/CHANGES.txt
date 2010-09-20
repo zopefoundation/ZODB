@@ -22,6 +22,12 @@ Bugs Fixed
 
   Fixes: https://bugs.launchpad.net/zodb/+bug/135108
 
+- Passing keys or values outside the range of 32-bit ints on 64-bit
+  platforms led to undetected overflow errors. Now these cases cause
+  Overflow errors to be raised.
+
+  https://bugs.launchpad.net/zodb/+bug/143237
+
 - BTree sets and tree sets didn't correctly check values passed to
   update or to constructors, causing Python to exit under certain
   circumstances.

@@ -1805,6 +1805,28 @@ class BugFixes(TestCase):
 class IIBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IIBTree()
+
+    def testIIBTreeOverflow(self):
+        good = set()
+        b = self.t
+
+        def trial(i):
+            try:
+                b[i] = 0
+            except (OverflowError, TypeError), v:
+                self.assertRaises(v.__class__, b.__setitem__, 0, i)
+            else:
+                good.add(i)
+                b[0] = i
+                self.assertEqual(b[0], i)
+
+        for i in range((1<<31) - 3, (1<<31) + 3):
+            trial(i)
+            trial(-i)
+
+        del b[0]
+        self.assertEqual(sorted(good), sorted(b))
+
 class IFBTreeTest(BTreeTests):
     def setUp(self):
         self.t = IFBTree()
@@ -1934,14 +1956,9 @@ class FamilyTest(TestCase):
             self.assertRaises(TypeError, s.insert, big)
             self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
         else: # 64 bit Python
-            s.insert(BTrees.family32.maxint + 1)
-            self.assert_(BTrees.family32.maxint + 1 not in list(s))
-            # yeah, it's len of 1 now, and rolled over to the minint...
-            # don't look...don't look...
-            s = IOTreeSet()
-            s.insert(BTrees.family32.minint - 1)
-            self.assert_(BTrees.family32.minint - 1 not in list(s))
-            # similarly, this is a len of 1, rolling over to the maxint...
+            self.assertRaises(OverflowError, s.insert, big)
+            self.assertRaises(OverflowError, s.insert,
+                              BTrees.family32.minint - 1)
         self.check_pickling(BTrees.family32)
 
     def test64(self):
