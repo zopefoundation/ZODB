@@ -444,6 +444,8 @@ class Connection(ExportImport, object):
             assert oid is not None
             if oid in self._added:
                 del self._added[oid]
+                if self._cache.get(oid) is not None:
+                    del self._cache[oid]
                 del obj._p_jar
                 del obj._p_oid
             else:
@@ -749,7 +751,6 @@ class Connection(ExportImport, object):
         """Disown any objects newly saved in an uncommitted transaction."""
         if creating is None:
             creating = self._creating
-            self._creating = {}
 
         for oid in creating:
             o = self._cache.get(oid)
@@ -757,6 +758,8 @@ class Connection(ExportImport, object):
                 del self._cache[oid]
                 del o._p_jar
                 del o._p_oid
+
+        creating.clear()
 
     def tpc_vote(self, transaction):
         """Verify that a data manager can commit the transaction."""
@@ -1130,7 +1133,10 @@ class Connection(ExportImport, object):
         self._creating.clear()
         self._registered_objects = []
 
-        state = self._storage.position, self._storage.index.copy()
+        state = (self._storage.position,
+                 self._storage.index.copy(),
+                 self._storage.creating.copy(),
+                 )
         result = Savepoint(self, state)
         # While the interface doesn't guarantee this, savepoints are
         # sometimes used just to "break up" very long transactions, and as
@@ -1143,6 +1149,7 @@ class Connection(ExportImport, object):
         self._abort()
         self._registered_objects = []
         src = self._storage
+        self._invalidate_creating(src.creating)
         index = src.index
         src.reset(*state)
         self._cache.invalidate(index)
@@ -1186,6 +1193,7 @@ class Connection(ExportImport, object):
     def _abort_savepoint(self):
         """Discard all savepoint data."""
         src = self._savepoint_storage
+        self._invalidate_creating(src.creating)
         self._storage = self._normal_storage
         self._savepoint_storage = None
 
@@ -1205,8 +1213,11 @@ class Connection(ExportImport, object):
         # by another thread, so the risk of a reread is pretty low.
         # It's really not worth the effort to pursue this.
 
+        # Note that we do this *after* reseting the storage so that, if
+        # data are read, we read it from the reset storage!
+
         self._cache.invalidate(src.index)
-        self._invalidate_creating(src.creating)
+
         src.close()
 
     # Savepoint support
@@ -1334,7 +1345,7 @@ class TmpStore:
     def temporaryDirectory(self):
         return self._storage.temporaryDirectory()
 
-    def reset(self, position, index):
+    def reset(self, position, index, creating):
         self._file.truncate(position)
         self.position = position
         # Caution:  We're typically called as part of a savepoint rollback.
@@ -1347,6 +1358,7 @@ class TmpStore:
         # a copy of the index here.  An alternative would be to ensure that
         # all callers pass copies.  As is, our callers do not make copies.
         self.index = index.copy()
+        self.creating = creating
 
 class RootConvenience(object):
 

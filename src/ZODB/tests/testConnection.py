@@ -556,6 +556,82 @@ def connection_root_convenience():
     <root: rather_long_name rather_long_name2 rather_long_name4 ...>
     """
 
+class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
+    def __init__(self):
+        self.settings = 1
+
+    def _p_invalidate(self):
+        print 'INVALIDATE', self.settings
+        Persistent._p_invalidate(self)
+        print self.settings   # POSKeyError here
+
+def abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
+    r"""
+    Before, the following would fail with a POSKeyError, which was
+    somewhat surprizing, in a very edgy sort of way. :)
+
+    Really, when an object add is aborted, the object should be "removed" from
+    the db and its invalidatuon method shouldm't even be called:
+
+    >>> conn = ZODB.connection('data.fs')
+    >>> conn.root.x = x = C_invalidations_of_new_objects_work_after_savepoint()
+    >>> _ = transaction.savepoint()
+    >>> x._p_oid
+    '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+    >>> x._p_jar is conn
+    True
+
+    >>> transaction.abort()
+
+After the abort, the oid and jar are None:
+
+    >>> x._p_oid
+    >>> x._p_jar
+
+Cleanup:
+
+    >>> conn.close()
+
+    """
+
+class Clp9460655(Persistent):
+    def __init__(self, word, id):
+        super(Clp9460655, self).__init__()
+	self.id = id
+        self._word = word
+
+def lp9460655():
+    r"""
+    >>> conn = ZODB.connection('data.fs')
+    >>> root = conn.root()
+    >>> Word = Clp9460655
+
+    >>> from BTrees.OOBTree import OOBTree
+    >>> data = root['data'] = OOBTree()
+
+    >>> commonWords = []
+    >>> count = "0"
+    >>> for x in ('hello', 'world', 'how', 'are', 'you'):
+    ...         commonWords.append(Word(x, count))
+    ...         count = str(int(count) + 1)
+
+    >>> sv = transaction.savepoint()
+    >>> for word in commonWords:
+    ...         sv2 = transaction.savepoint()
+    ...         data[word.id] = word
+
+    >>> sv.rollback()
+    >>> print commonWords[1].id  # raises POSKeyError
+    1
+
+    Cleanup:
+
+    >>> transaction.abort()
+    >>> conn.close()
+
+    """
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
