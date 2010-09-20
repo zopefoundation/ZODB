@@ -332,7 +332,7 @@ class Connection(ExportImport, object):
         try:
             if self._txn_time is None:
                 self._txn_time = tid
-            elif tid < self._txn_time:
+            elif (tid < self._txn_time) and (tid is not None):
                 raise AssertionError("invalidations out of order, %r < %r"
                                      % (tid, self._txn_time))
 
@@ -346,7 +346,7 @@ class Connection(ExportImport, object):
             self._invalidatedCache = True
         finally:
             self._inv_lock.release()
-        
+
 
     def root(self):
         """Return the database root object."""
@@ -1137,7 +1137,7 @@ class Connection(ExportImport, object):
                 # that that the next attribute access of its name
                 # unghostify it, which will cause its blob data
                 # to be reattached "cleanly"
-                self.invalidate(s, {oid:True})
+                self.invalidate(None, (oid, ))
             else:
                 s = self._storage.store(oid, serial, data,
                                         self._version, transaction)

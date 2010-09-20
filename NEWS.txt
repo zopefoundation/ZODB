@@ -4,6 +4,11 @@ Whats new in ZODB 3.8.6 (2010-??-??)
 
 Bugs Fixed:
 
+- Updating blobs in save points could cause spurious "invalidations
+  out of order" errors.  https://bugs.launchpad.net/zodb/+bug/509801
+
+  (Thanks to Christian Zagrodnick for chasing this down.)
+
 - BTree sets and tree sets didn't correctly check values passed to
   update or to constructors, causing Python to exit under certain
   circumstances.

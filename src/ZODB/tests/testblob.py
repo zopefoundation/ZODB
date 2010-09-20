@@ -539,6 +539,44 @@ def loadblob_tmpstore():
     >>> os.unlink(storagefile+".tmp")
 """
 
+def savepoint_commits_without_invalidations_out_of_order():
+    """Make sure transactions with blobs can be commited without the
+    invalidations out of order error (LP #509801)
+
+    >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.blob import BlobStorage
+    >>> from ZODB.DB import DB
+    >>> from ZODB.serialize import referencesf
+    >>> from tempfile import mkdtemp
+
+    >>> base_storage = MappingStorage("test")
+    >>> blob_dir = mkdtemp()
+    >>> blob_storage = BlobStorage(blob_dir, base_storage)
+    >>> db = DB(blob_storage)
+    >>> tm1 = transaction.TransactionManager()
+    >>> conn1 = db.open(transaction_manager=tm1)
+    >>> conn1.root()['b'] = ZODB.blob.Blob()
+    >>> conn1.root()['b'].open('w').write('initial')
+    >>> tm1.commit()
+    >>> conn1.root()['b'].open('w').write('1')
+    >>> _ = tm1.savepoint()
+
+    >>> tm2 = transaction.TransactionManager()
+    >>> conn2 = db.open(transaction_manager=tm2)
+    >>> conn2.root()['b'].open('w').write('2')
+    >>> _ = tm1.savepoint()
+    >>> conn1.root()['b'].open().read()
+    '1'
+    >>> conn2.root()['b'].open().read()
+    '2'
+    >>> tm2.commit()
+    >>> tm1.commit()  # doctest: +IGNORE_EXCEPTION_DETAIL
+    Traceback (most recent call last):
+        ...
+    ConflictError: database conflict error...
+    >>> db.close()
+    """
+
 def setUp(test):
     ZODB.tests.util.setUp(test)
     def rmtree(path):
