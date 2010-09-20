@@ -1632,8 +1632,8 @@ class IIBTreeTest(BTreeTests):
             i = int(i)
             try:
                 b[i] = 0
-            except (OverflowError, TypeError), v:
-                self.assertRaises(v.__class__, b.__setitem__, 0, i)
+            except TypeError:
+                self.assertRaises(TypeError, b.__setitem__, 0, i)
             else:
                 good.add(i)
                 b[0] = i
@@ -1771,13 +1771,8 @@ class FamilyTest(TestCase):
         # the characteristics change to match the 64 bit version, please
         # feel free to change.
         big = BTrees.family32.maxint + 1
-        if isinstance(big, long):
-            self.assertRaises(TypeError, s.insert, big)
-            self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
-        else: # 64 bit Python
-            self.assertRaises(OverflowError, s.insert, big)
-            self.assertRaises(OverflowError, s.insert,
-                              BTrees.family32.minint - 1)
+        self.assertRaises(TypeError, s.insert, big)
+        self.assertRaises(TypeError, s.insert, BTrees.family32.minint - 1)
         self.check_pickling(BTrees.family32)
 
     def test64(self):
