@@ -25,7 +25,7 @@
   if (PyInt_Check(ARG)) {                                         \
       long vcopy = PyInt_AS_LONG(ARG);                            \
       if ((int)vcopy != vcopy) {                                  \
-        PyErr_SetObject(PyExc_OverflowError, ARG);                \
+        PyErr_SetString(PyExc_TypeError, "integer out of range"); \
         (STATUS)=0; (TARGET)=0;                                   \
       }                                                           \
       else TARGET = vcopy;                                        \

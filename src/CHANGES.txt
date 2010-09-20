@@ -38,7 +38,7 @@ Bugs Fixed
 
 - Passing keys or values outside the range of 32-bit ints on 64-bit
   platforms led to undetected overflow errors. Now these cases cause
-  Overflow errors to be raised.
+  Type errors to be raised.
 
   https://bugs.launchpad.net/zodb/+bug/143237
 
