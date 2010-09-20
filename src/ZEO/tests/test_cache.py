@@ -83,8 +83,10 @@ class CacheTests(ZODB.tests.util.TestCase):
         self.cache.setLastTid(n2)
         self.assertEqual(self.cache.getLastTid(), n2)
         self.assertEqual(self.cache.getLastTid(), n2)
-        self.cache.invalidate(n1, n3)
+        self.cache.setLastTid(n3)
         self.assertEqual(self.cache.getLastTid(), n3)
+
+        # Check that setting tids out of order gives an error:
 
         # the cache complains only when it's non-empty
         self.cache.store(n1, n3, None, 'x')
