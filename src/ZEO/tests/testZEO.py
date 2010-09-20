@@ -1326,6 +1326,32 @@ def quick_close_doesnt_kill_server():
     >>> db.close()
 
     """
+def sync_connect_doesnt_hang():
+    r"""
+    >>> import threading
+    >>> import ZEO.zrpc.client
+    >>> ConnectThread = ZEO.zrpc.client.ConnectThread
+    >>> ZEO.zrpc.client.ConnectThread = lambda *a, **kw: threading.Thread()
+
+    >>> class CM(ZEO.zrpc.client.ConnectionManager):
+    ...     sync_wait = 1
+    ...     _start_asyncore_loop = lambda self: None
+    >>> cm = CM('', object())
+
+    Calling connect results in an exception being raised, instead of hanging
+    indefinitely when the thread dies without setting up the connection.
+
+    >>> cm.connect(sync=1)
+    Traceback (most recent call last):
+    ...
+    AssertionError
+
+    >>> cm.thread.isAlive()
+    False
+    >>> ZEO.zrpc.client.ConnectThread = ConnectThread
+
+    """
+
 
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
@@ -1341,7 +1367,7 @@ class ServerManagingClientStorage(ClientStorage):
 
     class StorageServerStubClass(ZEO.ServerStub.StorageServer):
 
-        # Wait for abort for the benefit of blob_transacton.txt
+        # Wait for abort for the benefit of blob_transaction.txt
         def tpc_abort(self, id):
             self.rpc.call('tpc_abort', id)
 
