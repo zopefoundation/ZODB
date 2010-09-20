@@ -448,6 +448,8 @@ class Connection(ExportImport, object):
                     del self._cache[oid]
                 del obj._p_jar
                 del obj._p_oid
+                if obj._p_changed:
+                    obj._p_changed = False
             else:
 
                 # Note: If we invalidate a non-ghostifiable object
@@ -743,6 +745,8 @@ class Connection(ExportImport, object):
         self._invalidate_creating()
         while self._added:
             oid, obj = self._added.popitem()
+            if obj._p_changed:
+                obj._p_changed = False
             del obj._p_oid
             del obj._p_jar
         self._tpc_cleanup()
@@ -756,6 +760,8 @@ class Connection(ExportImport, object):
             o = self._cache.get(oid)
             if o is not None:
                 del self._cache[oid]
+                if o._p_changed:
+                    o._p_changed = False
                 del o._p_jar
                 del o._p_oid
 

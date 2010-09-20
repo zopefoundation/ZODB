@@ -39,6 +39,9 @@ Bugs Fixed
   The objects' _p_oid and _p_jar variables weren't cleared, leading to
   surprizing errors.
 
+- Objects added in transactions that were later aborted could have
+  _p_changed still set (https://bugs.launchpad.net/zodb/+bug/615758).
+
 - ZEO extension methods failed when a client reconnected to a
   storage. (https://bugs.launchpad.net/zodb/+bug/143344)
 

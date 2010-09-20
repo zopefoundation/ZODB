@@ -632,6 +632,28 @@ def lp9460655():
 
     """
 
+def lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
+    r"""
+
+As the following"DocTest" demonstrates, "abort" forgets to
+reset "_p_changed" for new (i.e. "added") objects.
+
+>>> class P(Persistent): pass
+...
+>>> c = ZODB.connection('t.fs')
+>>> obj = P()
+>>> c.add(obj)
+>>> obj.x = 1
+>>> obj._p_changed
+True
+>>> transaction.abort()
+>>> obj._p_changed
+False
+
+>>> c.close()
+    """
+
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
