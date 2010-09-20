@@ -335,13 +335,13 @@ class Connection(ExportImport, object):
     def invalidate(self, tid, oids):
         """Notify the Connection that transaction 'tid' invalidated oids."""
         if self.before is not None:
-            # this is an historical connection.  Invalidations are irrelevant.
+            # This is a historical connection.  Invalidations are irrelevant.
             return
         self._inv_lock.acquire()
         try:
             if self._txn_time is None:
                 self._txn_time = tid
-            elif tid < self._txn_time:
+            elif (tid < self._txn_time) and (tid is not None):
                 raise AssertionError("invalidations out of order, %r < %r"
                                      % (tid, self._txn_time))
 
@@ -1175,7 +1175,7 @@ class Connection(ExportImport, object):
                 # that that the next attribute access of its name
                 # unghostify it, which will cause its blob data
                 # to be reattached "cleanly"
-                self.invalidate(s, {oid:True})
+                self.invalidate(None, (oid, ))
             else:
                 s = self._storage.store(oid, serial, data,
                                         '', transaction)
