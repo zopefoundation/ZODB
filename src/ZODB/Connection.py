@@ -1167,34 +1167,38 @@ class Connection(ExportImport, object):
         self._storage = self._normal_storage
         self._savepoint_storage = None
 
-        self._log.debug("Committing savepoints of size %s", src.getSize())
-        oids = src.index.keys()
+        try:
+            self._log.debug("Committing savepoints of size %s", src.getSize())
+            oids = src.index.keys()
 
-        # Copy invalidating and creating info from temporary storage:
-        self._modified.extend(oids)
-        self._creating.update(src.creating)
+            # Copy invalidating and creating info from temporary storage:
+            self._modified.extend(oids)
+            self._creating.update(src.creating)
 
-        for oid in oids:
-            data, serial = src.load(oid, src)
-            obj = self._cache.get(oid, None)
-            if obj is not None:
-                self._cache.update_object_size_estimation(obj._p_oid, len(data))
-                obj._p_estimated_size = len(data)
-            if isinstance(self._reader.getGhost(data), Blob):
-                blobfilename = src.loadBlob(oid, serial)
-                s = self._storage.storeBlob(oid, serial, data, blobfilename,
+            for oid in oids:
+                data, serial = src.load(oid, src)
+                obj = self._cache.get(oid, None)
+                if obj is not None:
+                    self._cache.update_object_size_estimation(
+                        obj._p_oid, len(data))
+                    obj._p_estimated_size = len(data)
+                if isinstance(self._reader.getGhost(data), Blob):
+                    blobfilename = src.loadBlob(oid, serial)
+                    s = self._storage.storeBlob(
+                        oid, serial, data, blobfilename,
+                        '', transaction)
+                    # we invalidate the object here in order to ensure
+                    # that that the next attribute access of its name
+                    # unghostify it, which will cause its blob data
+                    # to be reattached "cleanly"
+                    self.invalidate(None, (oid, ))
+                else:
+                    s = self._storage.store(oid, serial, data,
                                             '', transaction)
-                # we invalidate the object here in order to ensure
-                # that that the next attribute access of its name
-                # unghostify it, which will cause its blob data
-                # to be reattached "cleanly"
-                self.invalidate(None, (oid, ))
-            else:
-                s = self._storage.store(oid, serial, data,
-                                        '', transaction)
 
-            self._handle_serial(s, oid, change=False)
-        src.close()
+                self._handle_serial(s, oid, change=False)
+        finally:
+            src.close()
 
     def _abort_savepoint(self):
         """Discard all savepoint data."""
