@@ -1336,7 +1336,7 @@ def sync_connect_doesnt_hang():
     >>> class CM(ZEO.zrpc.client.ConnectionManager):
     ...     sync_wait = 1
     ...     _start_asyncore_loop = lambda self: None
-    >>> cm = CM('', object())
+    >>> cm = CM(('', 0), object())
 
     Calling connect results in an exception being raised, instead of hanging
     indefinitely when the thread dies without setting up the connection.
