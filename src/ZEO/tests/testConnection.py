@@ -162,16 +162,19 @@ This tests tries to provoke this bug by:
     ...     conn.root()[i] = ZODB.tests.MinPO.MinPO(0)
     >>> transaction.commit()
 
+    >>> import zope.testing.loggingsupport, logging
+    >>> handler = zope.testing.loggingsupport.InstalledHandler(
+    ...    'ZEO', level=logging.DEBUG)
+
+    >>> logging.getLogger('ZEO').debug(
+    ...     'Initial tid %s' % conn.root()._p_serial)
+
 - disconnecting the first client (closing it with a persistent cache),
 
     >>> db.close()
 
 - starting a second client that writes objects more or less
   constantly,
-
-    >>> import zope.testing.loggingsupport, logging
-    >>> handler = zope.testing.loggingsupport.InstalledHandler(
-    ...    'ZEO', level=logging.DEBUG)
 
     >>> import random, threading, time
     >>> stop = False
@@ -218,12 +221,13 @@ This tests tries to provoke this bug by:
     ...                    print 'bad', c, i, conn.root()[i].value,
     ...                    print  conn2.root()[i].value
     ...                    bad = True
+    ...                    print 'client debug log'
+    ...                    while handler.records:
+    ...                          record = handler.records.pop(0)
+    ...                          print record.name, record.levelname
+    ...                          print handler.format(record)
     ...        if bad:
     ...           print open('server-%s.log' % addr[1]).read()
-    ...           print 'client debug log', handler
-    ...           for record in handler.records:
-    ...               print record.name, record.levelname
-    ...               print handler.format(record)
     ...        else:
     ...           logging.getLogger('ZEO').debug('GOOD %s' % c)
     ...        db.close()
