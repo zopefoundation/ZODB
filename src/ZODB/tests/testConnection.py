@@ -847,6 +847,70 @@ False
 >>> c.close()
     """
 
+class Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores(Persistent):
+
+    def __getstate__(self):
+        self.got = 1
+        return self.__dict__.copy()
+
+def lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
+    r"""
+    >>> C = Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores
+    >>> conn = ZODB.connection(None)
+    >>> oldstore = conn._storage.store
+    >>> def store(oid, *args):
+    ...     print 'storing', repr(oid)
+    ...     return oldstore(oid, *args)
+    >>> conn._storage.store = store
+
+When we commit a change, we only get a single store call
+
+    >>> conn.root.x = C()
+    >>> transaction.commit()
+    storing '\x00\x00\x00\x00\x00\x00\x00\x00'
+    storing '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+    >>> conn.add(C())
+    >>> transaction.commit()
+    storing '\x00\x00\x00\x00\x00\x00\x00\x02'
+
+We still see updates:
+
+    >>> conn.root.x.y = 1
+    >>> transaction.commit()
+    storing '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+Not not non-updates:
+
+    >>> transaction.commit()
+
+Let's try some combinations with savepoints:
+
+    >>> conn.root.n = 0
+    >>> _ = transaction.savepoint()
+
+    >>> oldspstore = conn._storage.store
+    >>> def store(oid, *args):
+    ...     print 'savepoint storing', repr(oid)
+    ...     return oldspstore(oid, *args)
+    >>> conn._storage.store = store
+
+    >>> conn.root.y = C()
+    >>> _ = transaction.savepoint()
+    savepoint storing '\x00\x00\x00\x00\x00\x00\x00\x00'
+    savepoint storing '\x00\x00\x00\x00\x00\x00\x00\x03'
+
+    >>> conn.root.y.x = 1
+    >>> _  = transaction.savepoint()
+    savepoint storing '\x00\x00\x00\x00\x00\x00\x00\x03'
+
+    >>> transaction.commit()
+    storing '\x00\x00\x00\x00\x00\x00\x00\x00'
+    storing '\x00\x00\x00\x00\x00\x00\x00\x03'
+
+    >>> conn.close()
+    """
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
