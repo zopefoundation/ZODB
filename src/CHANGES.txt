@@ -34,6 +34,9 @@ Bugs fixed
 - The verbose mode of the fstest was broken.
   (https://bugs.launchpad.net/zodb/+bug/475996)
 
+- Object ids created in a savepoint that is rolled back wren't being
+  reused. (https://bugs.launchpad.net/zodb/+bug/588389)
+
 3.10.0b6 (2010-09-08)
 =====================
 

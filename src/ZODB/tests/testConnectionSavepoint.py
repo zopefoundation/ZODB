@@ -15,6 +15,7 @@ import doctest
 import persistent.mapping
 import transaction
 import unittest
+import ZODB.tests.util
 
 def testAddingThenModifyThenAbort():
     """\
@@ -176,6 +177,57 @@ the wrong state.
     >>> sp.rollback()
     >>> p.foo  # This used to wrongly return 2
     1
+    """
+
+
+def testNewOidsGetReusedOnRollback():
+    """\
+    New oids assigned during a transaction should be reused on
+    rollback, not just on abort.
+
+    >>> connection = ZODB.connection(None)
+    >>> root = connection.root()
+
+    Let's make a savepoint (with a real change so that the connection
+    is involved, otherwise rolling back to the savepoint will just be
+    an abort).
+
+    >>> root._p_changed = True  # Important!
+    >>> sp = transaction.savepoint()
+
+    Add an object, and make a new savepoint so that it gets an oid.
+
+    >>> root['p'] = p = ZODB.tests.util.P()
+    >>> sp2 = transaction.savepoint()
+    >>> p._p_oid
+    '\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x01'
+
+    Rolling back to the first savepoint unassigns the oid, but not
+    before invalidating the object.  If a custom _p_invalidate method
+    tries to reactivate the object *during* rollback, a POSKeyError is
+    raised.
+
+    >>> sp.rollback()
+    >>> p._p_oid is None
+    True
+    >>> p._p_jar is None
+    True
+    >>> print p._p_changed
+    False
+
+    The rest of the state of p is undefined after the rollback.  Using
+    p in any way from this point is a bad idea.
+
+    >>> del p
+
+    If we create a new object and add it, the oid is reused.
+
+    >>> root['p'] = p = ZODB.tests.util.P()
+    >>> connection.add(p)
+    >>> p._p_oid
+    '\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x01'
+
+    >>> transaction.abort()
     """
 
 def tearDown(test):
