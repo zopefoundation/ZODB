@@ -188,6 +188,8 @@ class Base(TestCase):
         self.assert_(100 in t)
         self.assert_(not read)
 
+        db.close()
+
 
 class MappingBase(Base):
     """ Tests common to mappings (buckets, btrees) """

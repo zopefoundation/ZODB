@@ -42,6 +42,7 @@ class Base:
         if self.storage is not None:
             self.storage.close()
             self.storage.cleanup()
+            self.db.close()
 
     def openDB(self):
         from ZODB.FileStorage import FileStorage

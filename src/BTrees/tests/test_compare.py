@@ -42,6 +42,7 @@ class CompareTest(unittest.TestCase):
         self.assert_(self.bucket._p_changed != 2)
         self.assert_(self.set._p_changed != 2)
         transaction.abort()
+        self.db.close()
 
     def assertUE(self, callable, *args):
         self.assertRaises(UnicodeError, callable, *args)
