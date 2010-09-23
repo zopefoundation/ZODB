@@ -1050,6 +1050,12 @@ class Connection(ExportImport, object):
                 if connection is not self:
                     connection.open(transaction_manager, False)
 
+    def _close_permanently(self):
+        if self._mvcc_storage:
+            self._storage.release()
+        self._storage = self._normal_storage = None
+        self._cache.clear()
+
     def _resetCache(self):
         """Creates a new cache, discarding the old one.
 
@@ -1063,11 +1069,6 @@ class Connection(ExportImport, object):
         self._cache = cache = PickleCache(self, cache_size, cache_size_bytes)
         if getattr(self, '_reader', None) is not None:
             self._reader._cache = cache
-
-    def _releaseStorage(self):
-        """Tell the storage to release resources it's using"""
-        if self._mvcc_storage:
-            self._storage.release()
 
     ##########################################################################
     # Python protocol

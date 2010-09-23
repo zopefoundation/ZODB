@@ -16,7 +16,7 @@ class ResettingJar(object):
         self.cache[obj._p_oid] = obj
 
     def close(self):
-        pass
+        self.cache.clear()
 
     # the following methods must be implemented to be a jar
 
@@ -54,7 +54,7 @@ class RememberingJar(object):
         self.remembered = obj.__getstate__()
 
     def close(self):
-        pass
+        self.cache.clear()
 
     def fake_commit(self):
         self.remembered = self.obj.__getstate__()

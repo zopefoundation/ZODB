@@ -782,6 +782,7 @@ cc_new_ghost(ccobject *self, PyObject *args)
       if (PyDict_SetItem(self->data, key, v) < 0)
         return NULL;
       /* the dict should have a borrowed reference */
+      PyObject_GC_UnTrack(v);
       Py_DECREF(v);
 
       Py_INCREF(self);
@@ -791,6 +792,28 @@ cc_new_ghost(ccobject *self, PyObject *args)
       Py_INCREF(key);
       p->oid = key;
       p->state = cPersistent_GHOST_STATE;
+    }
+
+  Py_RETURN_NONE;
+}
+
+static int cc_del_item(ccobject *self, PyObject *key);
+
+static PyObject*
+cc_clear_method(ccobject *self)
+{
+  /* Cowardly mostly use other methods to clear the cache. */
+  while (1)
+    {
+        Py_ssize_t pos = 0;
+        PyObject *k, *v;
+        if (! PyDict_Next(self->data, &pos, &k, &v))
+          break;
+        Py_INCREF(k);
+        pos = cc_del_item(self, k);
+        Py_DECREF(k);
+        if (pos < 0)
+          return NULL;
     }
 
   Py_RETURN_NONE;
@@ -830,6 +853,8 @@ static struct PyMethodDef cc_methods[] = {
    "(if this is known to the cache)."},
   {"new_ghost", (PyCFunction)cc_new_ghost, METH_VARARGS,
    "new_ghost() -- Initialize a ghost and add it to the cache."},
+  {"clear", (PyCFunction)cc_clear_method, METH_NOARGS,
+   "Remove all items from the cache."},
   {NULL, NULL}		/* sentinel */
 };
 
@@ -915,6 +940,7 @@ cc_clear(ccobject *self)
       if (o->cache)
         {
           Py_INCREF(o); /* account for uncounted reference */
+          PyObject_GC_Track(o);
           if (PyDict_DelItem(self->data, o->oid) < 0)
             return -1;
         }
@@ -928,16 +954,21 @@ cc_clear(ccobject *self)
     }
 
   Py_XDECREF(self->jar);
+  self->jar = NULL;
 
   while (PyDict_Next(self->data, &pos, &k, &v))
     {
-      Py_INCREF(v);
+      if (! PyType_Check(v))
+        {
+          Py_INCREF(v);
+          PyObject_GC_Track(v);
+        }
       if (PyDict_SetItem(self->data, k, Py_None) < 0)
         return -1;
     }
   Py_XDECREF(self->data);
   self->data = NULL;
-  self->jar = NULL;
+
   return 0;
 }
 
@@ -1123,6 +1154,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
   if (PyDict_SetItem(self->data, key, v) < 0)
     return -1;
   /* the dict should have a borrowed reference */
+  PyObject_GC_UnTrack(v);
   Py_DECREF(v);
 
   p = (cPersistentObject *)v;
@@ -1180,6 +1212,7 @@ cc_del_item(ccobject *self, PyObject *key)
 
       Py_DECREF((PyObject *)p->cache);
       p->cache = NULL;
+      PyObject_GC_Track(p);
     }
 
   if (PyDict_DelItem(self->data, key) < 0)

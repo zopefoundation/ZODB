@@ -195,8 +195,7 @@ class ConnectionPool(AbstractConnectionPool):
             # strong reference to `c` now, breaking the cycle would not
             # reclaim `c` now, and `c` would be left in a user-visible
             # crazy state.
-            c._resetCache()
-            c._releaseStorage()
+            c._close_permanently()
 
     def reduce_size(self):
         self._reduce_size()
@@ -641,7 +640,7 @@ class DB(object):
         def _(c):
             c.transaction_manager.abort()
             c.afterCompletion = c.newTransaction = c.close = noop
-            c._storage = c._normal_storage = None
+            c._close_permanently()
 
         self.storage.close()
         del self.storage

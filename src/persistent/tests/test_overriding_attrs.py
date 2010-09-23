@@ -68,6 +68,8 @@ class SampleOverridingGetattr(Persistent):
 
         And we see that the object was activated before calling the
         __getattr__ method.
+
+        >>> jar.close() # cleanup
         """
         # Don't pretend we have any special attributes.
         if name.startswith("__") and name.endswrith("__"):
@@ -145,6 +147,8 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         0
 
         See the very important note in the comment below!
+
+        >>> jar.close() # cleanup
         """
 
         #################################################################
@@ -253,6 +257,8 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         0
         >>> o.tmp_foo
         3
+
+        >>> jar.close() # cleanup
         """
 
         #################################################################
@@ -353,6 +359,9 @@ class SampleOverridingGetattributeSetattrAndDelattr(Persistent):
         Traceback (most recent call last):
         ...
         AttributeError: tmp_z
+
+
+        >>> jar.close() # cleanup
 
         """
 
