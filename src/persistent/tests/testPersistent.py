@@ -53,6 +53,8 @@ class PersistenceTest(unittest.TestCase):
             obj._p_oid = 12
         self.assertRaises(ValueError, setoid)
 
+        jar.close()
+
     # The value returned for _p_changed can be one of:
     # 0 -- it is not changed
     # 1 -- it is changed
@@ -70,6 +72,8 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_state, CHANGED)
         self.assert_(obj in jar.registered)
 
+        jar.close()
+
     def test_setattr_then_mark_uptodate(self):
         from persistent import UPTODATE
         obj = self._makeOne()
@@ -82,6 +86,8 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_changed, 0)
         self.assertEqual(obj._p_state, UPTODATE)
 
+        jar.close()
+
     def test_set_changed_directly(self):
         from persistent import CHANGED
         obj = self._makeOne()
@@ -93,6 +99,8 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_changed, 1)
         self.assertEqual(obj._p_state, CHANGED)
         self.assert_(obj in jar.registered)
+
+        jar.close()
 
     def test_cant_ghostify_if_changed(self):
         from persistent import CHANGED
@@ -108,6 +116,8 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_changed, 1)
         self.assertEqual(obj._p_state, CHANGED)
 
+        jar.close()
+
     def test_can_ghostify_if_uptodate(self):
         from persistent import GHOST
         obj = self._makeOne()
@@ -120,6 +130,8 @@ class PersistenceTest(unittest.TestCase):
 
         self.assertEqual(obj._p_changed, None)
         self.assertEqual(obj._p_state, GHOST)
+
+        jar.close()
 
     def test_can_ghostify_if_changed_but_del__p_changed(self):
         from persistent import GHOST
@@ -134,6 +146,8 @@ class PersistenceTest(unittest.TestCase):
 
         self.assertEqual(obj._p_changed, None)
         self.assertEqual(obj._p_state, GHOST)
+
+        jar.close()
 
     def test__p_state_immutable(self):
         from persistent import CHANGED
@@ -166,6 +180,8 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_changed, None)
         self.assertEqual(obj._p_state, GHOST)
 
+        jar.close()
+
     def test_invalidate_activate_invalidate(self):
         from persistent import GHOST
         obj = self._makeOne()
@@ -179,6 +195,8 @@ class PersistenceTest(unittest.TestCase):
 
         self.assertEqual(obj._p_changed, None)
         self.assertEqual(obj._p_state, GHOST)
+
+        jar.close()
 
     def test_initial_serial(self):
         NOSERIAL = "\000" * 8
@@ -270,6 +288,8 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj.curly, 2)
         self.assertEqual(obj.moe, 3)
 
+        jar.close()
+
     def test___getattribute__(self):
         from persistent import CHANGED
         from persistent import Persistent
@@ -307,9 +327,10 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj.curly, 2)
         self.assertEqual(obj.moe, 3)
 
+        jar.close()
+
     # TODO:  Need to decide how __setattr__ and __delattr__ should work,
     # then write tests.
-
 
 def test_suite():
     return unittest.makeSuite(PersistenceTest)
