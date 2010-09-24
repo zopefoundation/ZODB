@@ -1339,25 +1339,25 @@ class ClientStorage(object):
         # it should set self._server.  If it goes through full cache
         # verification, then endVerify() should self._server.
 
-        ltid = server.lastTransaction()
+        server_tid = server.lastTransaction()
         if not self._cache:
             logger.info("%s No verification necessary -- empty cache",
                         self.__name__)
-            if ltid != utils.z64:
-                self._cache.setLastTid(ltid)
+            if server_tid != utils.z64:
+                self._cache.setLastTid(server_tid)
             self.finish_verification()
             return "empty cache"
 
-        last_inval_tid = self._cache.getLastTid()
-        if last_inval_tid is not None:
-            if ltid == last_inval_tid:
+        cache_tid = self._cache.getLastTid()
+        if cache_tid != utils.z64:
+            if server_tid == cache_tid:
                 logger.info(
                     "%s No verification necessary"
-                    " (last_inval_tid up-to-date %r)",
-                    self.__name__, ltid)
+                    " (cache_tid up-to-date %r)",
+                    self.__name__, server_tid)
                 self.finish_verification()
                 return "no verification"
-            elif ltid < last_inval_tid:
+            elif server_tid < cache_tid:
                 message = ("%s Client has seen newer transactions than server!"
                            % self.__name__)
                 logger.critical(message)
@@ -1365,23 +1365,24 @@ class ClientStorage(object):
 
             # log some hints about last transaction
             logger.info("%s last inval tid: %r %s\n",
-                        self.__name__, last_inval_tid,
-                        tid2time(last_inval_tid))
+                        self.__name__, cache_tid,
+                        tid2time(cache_tid))
             logger.info("%s last transaction: %r %s",
-                        self.__name__, ltid, ltid and tid2time(ltid))
+                        self.__name__, server_tid,
+                        server_tid and tid2time(server_tid))
 
-            pair = server.getInvalidations(last_inval_tid)
+            pair = server.getInvalidations(cache_tid)
             if pair is not None:
                 logger.info("%s Recovering %d invalidations",
                             self.__name__, len(pair[1]))
                 self.finish_verification(pair)
                 return "quick verification"
-        elif ltid != utils.z64:
+        elif server_tid != utils.z64:
 
             # Hm, to have gotten here, the cache is non-empty, but
             # it has no last tid. This doesn't seem like good situation.
             # We'll have to verify the cache, if we're willing.
-            self._cache.setLastTid(ltid)
+            self._cache.setLastTid(server_tid)
 
 
         zope.event.notify(ZEO.interfaces.StaleCache(self))
@@ -1398,8 +1399,8 @@ class ClientStorage(object):
         if self._cache and self._drop_cache_rather_verify:
             logger.critical("%s dropping stale cache", self.__name__)
             self._cache.clear()
-            if ltid:
-                self._cache.setLastTid(ltid)
+            if server_tid:
+                self._cache.setLastTid(server_tid)
             self.finish_verification()
             return "cache dropped"
 

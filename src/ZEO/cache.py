@@ -177,7 +177,7 @@ class ClientCache(object):
 
         # tid for the most recent transaction we know about.  This is also
         # stored near the start of the file.
-        self.tid = None
+        self.tid = z64
 
         # Always the offset into the file of the start of a block.
         # New and relocated objects are always written starting at
@@ -458,7 +458,7 @@ class ClientCache(object):
     def setLastTid(self, tid):
         if (not tid) or (tid == z64):
             return
-        if (self.tid is not None) and (tid <= self.tid) and self:
+        if (tid <= self.tid) and self._len:
             if tid == self.tid:
                 return                  # Be a little forgiving
             raise ValueError("new last tid (%s) must be greater than "

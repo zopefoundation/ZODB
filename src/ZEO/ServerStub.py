@@ -310,7 +310,7 @@ class StorageServer308(StorageServer):
 
     def __init__(self, rpc):
         if rpc.peer_protocol_version == 'Z200':
-            self.lastTransaction = lambda: None
+            self.lastTransaction = lambda: z64
             self.getInvalidations = lambda tid: None
             self.getAuthProtocol = lambda: None
 
