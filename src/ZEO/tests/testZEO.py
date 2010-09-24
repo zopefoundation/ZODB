@@ -1518,7 +1518,7 @@ def runzeo_logrotate_on_sigusr2():
 
     >>> oldlog = open('l').read()
     >>> os.rename('l', 'o')
-    >>> p.send_signal(signal.SIGUSR2)
+    >>> os.kill(p.pid, signal.SIGUSR2)
 
     >>> wait_until('new file', lambda : os.path.exists('l'))
     >>> s = ClientStorage(port)
@@ -1529,7 +1529,7 @@ def runzeo_logrotate_on_sigusr2():
 
     # Cleanup:
 
-    >>> p.kill()
+    >>> os.kill(p.pid, signal.SIGKILL)
     >>> _ = p.wait()
     """
 
