@@ -266,7 +266,7 @@ class BasicStorage:
         # We'll run the competing trans in a separate thread:
         thread = self._do_store_in_separate_thread(oid, tid2, True)
         self._storage.tpc_finish(t)
-        thread.join(1)
+        thread.join(33)
 
         tid3 = self._storage.load(oid)[1]
         self.assert_(tid3 > self._storage.load('\0\0\0\0\0\0\0\xf3')[1])
