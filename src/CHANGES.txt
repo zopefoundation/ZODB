@@ -8,6 +8,10 @@
 Bugs fixed
 ----------
 
+- Changes in way that garage collection treats dictionaries in Python
+  2.7 broke the object/connection cache implementation.
+  (https://bugs.launchpad.net/zodb/+bug/641481)
+
 - Updated the 'repozo --kill-old-on-full' option to remove any '.index'
   files corresponding to backups being removed.
 

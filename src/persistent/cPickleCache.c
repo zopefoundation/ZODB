@@ -767,6 +767,7 @@ cc_new_ghost(ccobject *self, PyObject *args)
         return NULL;
       if (PyDict_SetItem(self->data, key, v) < 0)
         return NULL;
+      PyObject_GC_UnTrack((void *)self->data);
       self->klass_count++;
     }
   else
@@ -782,6 +783,7 @@ cc_new_ghost(ccobject *self, PyObject *args)
       if (PyDict_SetItem(self->data, key, v) < 0)
         return NULL;
       /* the dict should have a borrowed reference */
+      PyObject_GC_UnTrack((void *)self->data);
       Py_DECREF(v);
 
       Py_INCREF(self);
@@ -1098,6 +1100,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     {
       if (PyDict_SetItem(self->data, key, v) < 0)
         return -1;
+      PyObject_GC_UnTrack((void *)self->data);
       self->klass_count++;
       return 0;
     }
@@ -1123,6 +1126,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
   if (PyDict_SetItem(self->data, key, v) < 0)
     return -1;
   /* the dict should have a borrowed reference */
+  PyObject_GC_UnTrack((void *)self->data);
   Py_DECREF(v);
 
   p = (cPersistentObject *)v;
