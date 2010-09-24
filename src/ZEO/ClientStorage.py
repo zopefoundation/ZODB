@@ -1447,6 +1447,7 @@ class ClientStorage(object):
             min_tid = self._cache.getLastTid()
             while 1:
                 tid, oids = unpickler.load()
+                logger.debug('pickled inval %r %r', tid, min_tid)
                 if oids is None:
                     break
                 if ((tid is None)
