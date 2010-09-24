@@ -167,7 +167,7 @@ This tests tries to provoke this bug by:
     ...    'ZEO', level=logging.DEBUG)
 
     >>> logging.getLogger('ZEO').debug(
-    ...     'Initial tid %s' % conn.root()._p_serial)
+    ...     'Initial tid %r' % conn.root()._p_serial)
 
 - disconnecting the first client (closing it with a persistent cache),
 
@@ -208,12 +208,16 @@ This tests tries to provoke this bug by:
     ...        time.sleep(.1)
     ...        db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
     ...        with lock:
-    ...            @wait_until("connected and we've caught up", timeout=199)
+    ...            logging.getLogger('ZEO').debug('Locked %s' % c)
+    ...            @wait_until("connected and we have caught up", timeout=199)
     ...            def _():
-    ...                return (db.storage.is_connected()
+    ...                if (db.storage.is_connected()
     ...                        and db.storage.lastTransaction()
     ...                            == db.storage._server.lastTransaction()
-    ...                        )
+    ...                        ):
+    ...                    logging.getLogger('ZEO').debug(
+    ...                       'Connected %r' % db.storage.lastTransaction())
+    ...                    return True
     ...
     ...            conn = db.open()
     ...            for i in range(1000):
@@ -221,10 +225,10 @@ This tests tries to provoke this bug by:
     ...                    print 'bad', c, i, conn.root()[i].value,
     ...                    print  conn2.root()[i].value
     ...                    bad = True
-    ...                    print 'client debug log'
+    ...                    print 'client debug log with lock held'
     ...                    while handler.records:
     ...                          record = handler.records.pop(0)
-    ...                          print record.name, record.levelname
+    ...                          print record.name, record.levelname,
     ...                          print handler.format(record)
     ...        if bad:
     ...           print open('server-%s.log' % addr[1]).read()
@@ -248,7 +252,7 @@ This tests tries to provoke this bug by:
 
     >>> db.close()
     >>> db2.close()
-    """ # '
+    """
 
 def test_suite():
     suite = unittest.TestSuite()
