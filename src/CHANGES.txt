@@ -41,6 +41,11 @@ Bugs fixed
 - Object ids created in a savepoint that is rolled back wren't being
   reused. (https://bugs.launchpad.net/zodb/+bug/588389)
 
+- Logrotation/repoening via a SIGUSR2 signal wasn't implemented.
+  (https://bugs.launchpad.net/zodb/+bug/143600)
+
+  (Untested on windows.)
+
 3.10.0b6 (2010-09-08)
 =====================
 

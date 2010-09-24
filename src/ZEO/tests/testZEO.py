@@ -1476,6 +1476,66 @@ But, if we abort, we'll get up to date data and we'll see the changes.
 
     """
 
+
+script_template = """
+import sys
+sys.path[:] = %(path)r
+
+%(src)s
+
+"""
+def generate_script(name, src):
+    open(name, 'w').write(script_template % dict(
+        exe=sys.executable,
+        path=sys.path,
+        src=src,
+        ))
+
+def runzeo_logrotate_on_sigusr2():
+    """
+    >>> port = get_port()
+    >>> open('c', 'w').write('''
+    ... <zeo>
+    ...    address %s
+    ... </zeo>
+    ... <mappingstorage>
+    ... </mappingstorage>
+    ... <eventlog>
+    ...    <logfile>
+    ...       path l
+    ...    </logfile>
+    ... </eventlog>
+    ... ''' % port)
+    >>> generate_script('s', '''
+    ... import ZEO.runzeo
+    ... ZEO.runzeo.main()
+    ... ''')
+    >>> import subprocess, signal
+    >>> p = subprocess.Popen([sys.executable, 's', '-Cc'], close_fds=True)
+    >>> wait_until('started',
+    ...   lambda : os.path.exists('l') and ('listening on' in open('l').read())
+    ...   )
+
+    >>> oldlog = open('l').read()
+    >>> os.rename('l', 'o')
+    >>> p.send_signal(signal.SIGUSR2)
+
+    >>> wait_until('new file', lambda : os.path.exists('l'))
+    >>> s = ClientStorage(port)
+    >>> s.close()
+    >>> wait_until('See logging', lambda : ('Log files ' in open('l').read()))
+    >>> open('o').read() == oldlog # No new data in old log
+    True
+
+    # Cleanup:
+
+    >>> p.kill()
+    >>> _ = p.wait()
+    """
+
+if sys.platform.startswith('win'):
+    del runzeo_logrotate_on_sigusr2
+
 if sys.version_info >= (2, 6):
     import multiprocessing
 
