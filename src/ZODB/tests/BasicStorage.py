@@ -221,6 +221,7 @@ class BasicStorage:
         oid = '\0\0\0\0\0\0\0\xf0'
         tid = self._dostore(oid)
         tid2 = self._dostore(oid, revid=tid)
+        data = 'cpersistent\nPersistent\nq\x01.N.' # a simple persistent obj
 
         #----------------------------------------------------------------------
         # stale read
@@ -229,7 +230,7 @@ class BasicStorage:
         self._storage.tpc_begin(t)
         try:
             self._storage.store('\0\0\0\0\0\0\0\xf1',
-                                '\0\0\0\0\0\0\0\0', 'x', '', t)
+                                '\0\0\0\0\0\0\0\0', data, '', t)
             self._storage.checkCurrentSerialInTransaction(oid, tid, t)
             self._storage.tpc_vote(t)
         except POSException.ReadConflictError, v:
@@ -247,7 +248,7 @@ class BasicStorage:
         t = transaction.get()
         self._storage.tpc_begin(t)
         self._storage.store('\0\0\0\0\0\0\0\xf2',
-                            '\0\0\0\0\0\0\0\0', 'x', '', t)
+                            '\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid2, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -259,7 +260,7 @@ class BasicStorage:
         t = transaction.get()
         self._storage.tpc_begin(t)
         self._storage.store('\0\0\0\0\0\0\0\xf3',
-                            '\0\0\0\0\0\0\0\0', 'x', '', t)
+                            '\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid2, t)
         self._storage.tpc_vote(t)
 
@@ -277,7 +278,7 @@ class BasicStorage:
         t = transaction.get()
         self._storage.tpc_begin(t)
         self._storage.store('\0\0\0\0\0\0\0\xf4',
-                            '\0\0\0\0\0\0\0\0', 'x', '', t)
+                            '\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid3, t)
 
         thread = self._do_store_in_separate_thread(oid, tid3, False)
