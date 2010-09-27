@@ -112,32 +112,6 @@ cause problems if the client transaction involved multiple storages.
 If it did, it is possible that some storages committed the client
 changes and others did not.
 
-Monitor server
-~~~~~~~~~~~~~~
-
-The ZEO server updates several counters while it is running.  It can
-be configured to run a separate monitor server that reports the
-counter values and other statistics.  If a client connects to the
-socket, the server send a text report and close the socket
-immediately.  It does not read any data from the client.
-
-An example of a monitor server report is included below::
-
-    ZEO monitor server version 2.1a1
-    Fri Apr  4 16:57:42 2003
- 
-    Storage: 1
-    Server started: Fri Apr  4 16:57:37 2003
-    Clients: 0
-    Clients verifying: 0
-    Active transactions: 0
-    Commits: 0
-    Aborts: 0
-    Loads: 0
-    Stores: 0
-    Conflicts: 0
-    Conflicts resolved: 0
-
 Connection management
 ~~~~~~~~~~~~~~~~~~~~~
 
