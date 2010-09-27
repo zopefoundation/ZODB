@@ -18,6 +18,7 @@ storage to use for unit tests.  MappingStorage isn't sufficient.
 Since even a minimal storage has some complexity, we run standard
 storage tests against the test storage.
 """
+from __future__ import with_statement
 
 import bisect
 import threading
@@ -77,14 +78,11 @@ class MinimalMemoryStorage(BaseStorage, object):
 
     def load(self, oid, version=''):
         assert version == ''
-        self._lock_acquire()
-        try:
+        with self._lock:
             assert not version
             tid = self._cur[oid]
             self.hook(oid, tid, '')
             return self._index[(oid, tid)], tid
-        finally:
-            self._lock_release()
 
     def _begin(self, tid, u, d, e):
         self._txn = Transaction(tid)
@@ -104,22 +102,15 @@ class MinimalMemoryStorage(BaseStorage, object):
         del self._txn
 
     def _finish(self, tid, u, d, e):
-        self._lock_acquire()
-        try:
+        with self._lock:
             self._index.update(self._txn.index)
             self._cur.update(self._txn.cur())
             self._ltid = self._tid
-        finally:
-            self._lock_release()
-
-    def lastTransaction(self):
-        return self._ltid
 
     def loadBefore(self, the_oid, the_tid):
         # It's okay if loadBefore() is really expensive, because this
         # storage is just used for testing.
-        self._lock_acquire()
-        try:
+        with self._lock:
             tids = [tid for oid, tid in self._index if oid == the_oid]
             if not tids:
                 raise KeyError(the_oid)
@@ -134,15 +125,9 @@ class MinimalMemoryStorage(BaseStorage, object):
             else:
                 end_tid = tids[j]
             return self._index[(the_oid, tid)], tid, end_tid
-        finally:
-            self._lock_release()
 
     def loadSerial(self, oid, serial):
-        self._lock_acquire()
-        try:
-            return self._index[(oid, serial)]
-        finally:
-            self._lock_release()
+        return self._index[(oid, serial)]
 
     def close(self):
         pass

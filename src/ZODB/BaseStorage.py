@@ -11,10 +11,14 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-"""Handy standard storage machinery
+"""Storage base class that is mostly a mistake
 
-$Id$
+The base class here is tightly coupled with its subclasses and
+its use is not recommended.  It's still here for historical reasons.
 """
+
+from __future__ import with_statement
+
 import cPickle
 import threading
 import time
@@ -305,6 +309,10 @@ class BaseStorage(UndoLogCompatible):
         """Subclasses should redefine this to supply transaction finish actions
         """
         pass
+
+    def lastTransaction(self):
+        with self._lock:
+            return self._ltid
 
     def getTid(self, oid):
         self._lock_acquire()

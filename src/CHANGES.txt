@@ -12,6 +12,10 @@ Bugs fixed
   2.7 broke the object/connection cache implementation.
   (https://bugs.launchpad.net/zodb/+bug/641481)
 
+- A file storage bug could cause ZEO clients to have incorrect
+  information about current object revisions after reconnecting to a
+  database server.
+
 - Updated the 'repozo --kill-old-on-full' option to remove any '.index'
   files corresponding to backups being removed.
 

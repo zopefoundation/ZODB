@@ -458,6 +458,36 @@ class IDatabase(IStorageDB):
 
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
+
+    Consistency and locking
+    -----------------------
+
+    When transactions are committed, a storage assigns monotonically
+    increasing transaction identifiers (tids) to the transactions and
+    to the object versions written by the transactions.  ZODB relies
+    on this to decide if data in object caches are up to date and to
+    implement multi-version concurrency control.
+
+    There are methods in IStorage and in derived interfaces that
+    provide information about the current revisions (tids) for objects
+    or for the database as a whole.  It is critical for the proper
+    working of ZODB that the resulting tids are increasing with
+    respect to the object identifier given or to the databases.  That
+    is, if there are 2 results for an object or for the database, R1
+    and R2, such that R1 is returned before R2, then the tid returned
+    by R2 must be greater than or equal to the tid returned by R1.
+    (When thinking about results for the database, think of these as
+    results for all objects in the database.)
+
+    This implies some sort of locking strategy.  The key method is
+    tcp_finish, which causes new tids to be generated and also,
+    through the callback passed to it, returns new current tids for
+    the objects stored in a transaction and for the database as a whole.
+
+    The IStorage methods affected are lastTransaction, load, store,
+    and tpc_finish.  Derived interfaces may introduce additional
+    methods.
+
     """
 
     def close():
@@ -1293,7 +1323,6 @@ class IBroken(Interface):
     __Broken_newargs__ = Attribute("Arguments passed to __new__.")
     __Broken_initargs__ = Attribute("Arguments passed to __init__.")
     __Broken_state__ = Attribute("Value passed to __setstate__.")
-
 
 class BlobError(Exception):
     pass

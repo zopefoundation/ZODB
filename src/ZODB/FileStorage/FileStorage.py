@@ -1221,10 +1221,6 @@ class FileStorage(
     def iterator(self, start=None, stop=None):
         return FileIterator(self._file_name, start, stop)
 
-    def lastTransaction(self):
-        """Return transaction id for last committed transaction"""
-        return self._ltid
-
     def lastInvalidations(self, count):
         file = self._file
         seek = file.seek

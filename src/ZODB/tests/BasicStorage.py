@@ -19,6 +19,8 @@ http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storag
 All storages should be able to pass these tests.
 """
 
+from __future__ import with_statement
+
 from ZODB import POSException
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
@@ -297,4 +299,102 @@ class BasicStorage:
             thread.join()
             tid4 = self._storage.load(oid)[1]
             self.assert_(tid4 > self._storage.load('\0\0\0\0\0\0\0\xf4')[1])
+
+
+    def check_tid_ordering_w_commit(self):
+
+        # It's important that storages always give a consistent
+        # ordering for revisions, tids.  This is most likely to fail
+        # around commit.  Here we'll do some basic tests to check this.
+
+        # We'll use threads to arrange for ordering to go wrong and
+        # verify that a storage gets it right.
+
+        # First, some initial data.
+        t = transaction.get()
+        self._storage.tpc_begin(t)
+        self._storage.store(ZERO, ZERO, 'x', '', t)
+        self._storage.tpc_vote(t)
+        tids = []
+        self._storage.tpc_finish(t, lambda tid: tids.append(tid))
+
+        # OK, now we'll start a new transaction, take it to finish,
+        # and then block finish while we do some other operations.
+
+        t = transaction.get()
+        self._storage.tpc_begin(t)
+        self._storage.store(ZERO, tids[0], 'y', '', t)
+        self._storage.tpc_vote(t)
+
+        to_join = []
+        def run_in_thread(func):
+            t = threading.Thread(target=func)
+            t.setDaemon(True)
+            t.start()
+            to_join.append(t)
+
+        started = threading.Event()
+        finish = threading.Event()
+        @run_in_thread
+        def commit():
+            def callback(tid):
+                started.set()
+                tids.append(tid)
+                finish.wait()
+
+            self._storage.tpc_finish(t, callback)
+
+        results = {}
+        started.wait()
+        attempts = []
+        attempts_cond = threading.Condition()
+
+        def update_attempts():
+            with attempts_cond:
+                attempts.append(1)
+                attempts_cond.notifyAll()
+
+
+        @run_in_thread
+        def lastTransaction():
+            update_attempts()
+            results['lastTransaction'] = self._storage.lastTransaction()
+
+        @run_in_thread
+        def load():
+            update_attempts()
+            results['load'] = self._storage.load(ZERO, '')[1]
+
+        expected_attempts = 2
+
+        if hasattr(self._storage, 'getTid'):
+            expected_attempts += 1
+            @run_in_thread
+            def getTid():
+                update_attempts()
+                results['getTid'] = self._storage.getTid(ZERO)
+
+        if hasattr(self._storage, 'lastInvalidations'):
+            expected_attempts += 1
+            @run_in_thread
+            def lastInvalidations():
+                update_attempts()
+                invals = self._storage.lastInvalidations(1)
+                if invals:
+                    results['lastInvalidations'] = invals[0][0]
+
+        with attempts_cond:
+            while len(attempts) < expected_attempts:
+                attempts_cond.wait()
+
+        time.sleep(.01) # for good measure :)
+        finish.set()
+
+        for t in to_join:
+            t.join(1)
+
+        self.assertEqual(results.pop('load'), tids[1])
+        self.assertEqual(results.pop('lastTransaction'), tids[1])
+        for m, tid in results.items():
+            self.assertEqual(tid, tids[1])
 
