@@ -15,6 +15,23 @@ import asyncore
 import socket
 import types
 
+# _has_dualstack: True if the dual-stack sockets are supported
+try:
+    # Check whether IPv6 sockets can be created
+    s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+except (socket.error, AttributeError):
+    _has_dualstack = False
+else:
+    # Check whether enabling dualstack (disabling v6only) works
+    try:
+        s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, False)
+    except (socket.error, AttributeError):
+        _has_dualstack = False
+    else:
+        _has_dualstack = True
+    s.close()
+    del s
+
 from ZEO.zrpc.connection import Connection
 from ZEO.zrpc.log import log
 import ZEO.zrpc.log
@@ -35,7 +52,21 @@ class Dispatcher(asyncore.dispatcher):
 
     def _open_socket(self):
         if type(self.addr) == types.TupleType:
-            self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+            if self.addr[0] == '' and _has_dualstack:
+                # Wildcard listen on all interfaces, both IPv4 and
+                # IPv6 if possible
+                self.create_socket(socket.AF_INET6, socket.SOCK_STREAM)
+                self.socket.setsockopt(
+                    socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, False)
+            elif ':' in self.addr[0]:
+                self.create_socket(socket.AF_INET6, socket.SOCK_STREAM)
+                if _has_dualstack:
+                    # On Linux, IPV6_V6ONLY is off by default.
+                    # If the user explicitly asked for IPv6, don't bind to IPv4
+                    self.socket.setsockopt(
+                        socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, True)
+            else:
+                self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.set_reuse_addr()
@@ -55,6 +86,9 @@ class Dispatcher(asyncore.dispatcher):
         except socket.error, msg:
             log("accepted failed: %s" % msg)
             return
+
+        # Drop flow-info from IPv6 addresses
+        addr = addr[:2]
 
         # We could short-circuit the attempt below in some edge cases
         # and avoid a log message by checking for addr being None.

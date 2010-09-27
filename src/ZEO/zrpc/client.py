@@ -188,7 +188,7 @@ class ConnectionManager(object):
         if (len(addr) == 2
             and isinstance(addr[0], types.StringType)
             and isinstance(addr[1], types.IntType)):
-            return socket.AF_INET
+            return socket.AF_INET # also denotes IPv6
 
         # not anything I know about
         return None
@@ -436,10 +436,25 @@ class ConnectThread(threading.Thread):
             del wrappers
         return 0
 
+    def _expand_addrlist(self):
+        for domain, (host, port) in self.addrlist:
+            # AF_INET really means either IPv4 or IPv6, possibly
+            # indirected by DNS. By design, DNS lookup is deferred
+            # until connections get established, so that DNS
+            # reconfiguration can affect failover
+            if domain == socket.AF_INET:
+                for (family, socktype, proto, cannoname, sockaddr
+                     ) in socket.getaddrinfo(host, port):
+                    # for IPv6, drop flowinfo, and restrict addresses
+                    # to [host]:port
+                    yield family, sockaddr[:2]
+            else:
+                yield domain, addr
+
     def _create_wrappers(self):
         # Create socket wrappers
         wrappers = {}  # keys are active wrappers
-        for domain, addr in self.addrlist:
+        for domain, addr in self._expand_addrlist():
             wrap = ConnectWrapper(domain, addr, self.mgr, self.client)
             wrap.connect_procedure()
             if wrap.state == "notified":

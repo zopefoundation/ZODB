@@ -125,7 +125,7 @@ An example of a monitor server report is included below::
 
     ZEO monitor server version 2.1a1
     Fri Apr  4 16:57:42 2003
-    
+ 
     Storage: 1
     Server started: Fri Apr  4 16:57:37 2003
     Clients: 0
@@ -163,6 +163,9 @@ supports the Zope Replication Services product,
 http://www.zope.com/Products/ZopeProducts/ZRS.  In general, it could
 be used to with a system that arranges to provide hot backups of
 servers in the case of failure.
+
+If a single address resolves to multiple IPv4 or IPv6 addresses,
+the client will connect to an arbitrary of these addresses.
 
 Authentication
 ~~~~~~~~~~~~~~

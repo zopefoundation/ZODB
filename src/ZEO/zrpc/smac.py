@@ -120,6 +120,10 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
 
         self.__super_init(sock, map)
 
+        # asyncore overwrites addr with the getpeername result
+        # restore our value
+        self.addr = addr
+
     def setSessionKey(self, sesskey):
         log("set session key %r" % sesskey)
 

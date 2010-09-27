@@ -1148,13 +1148,13 @@ def client_has_newer_data_than_server():
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
     ZEO.ClientStorage CRITICAL client
     Client has seen newer transactions than server!
-    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('localhost', ...))
+    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('127.0.0.1', ...))
     Traceback (most recent call last):
     ...
     ClientStorageError: client Client has seen newer transactions than server!
     ZEO.ClientStorage CRITICAL client
     Client has seen newer transactions than server!
-    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('localhost', ...))
+    ZEO.zrpc ERROR (...) CW: error in notifyConnected (('127.0.0.1', ...))
     Traceback (most recent call last):
     ...
     ClientStorageError: client Client has seen newer transactions than server!

@@ -16,6 +16,7 @@ import os
 import sys
 import time
 import random
+import socket
 import asyncore
 import threading
 import logging
@@ -1197,3 +1198,18 @@ class MSTThread(threading.Thread):
                 c.close()
             except:
                 pass
+
+# Run IPv6 tests if V6 sockets are supported
+try:
+    socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+except (socket.error, AttributeError):
+    pass
+else:
+    class V6Setup:
+        def _getAddr(self):
+            return '::1', forker.get_port(self)
+
+    _g = globals()
+    for name, value in _g.items():
+        if isinstance(value, type) and issubclass(value, CommonSetupTearDown):
+            _g[name+"V6"] = type(name+"V6", (V6Setup, value), {})
