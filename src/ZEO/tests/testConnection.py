@@ -164,10 +164,10 @@ This tests tries to provoke this bug by:
 
     >>> import zope.testing.loggingsupport, logging
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
-    ...    'ZEO', level=logging.DEBUG)
+    ...    'ZEO', level=logging.INFO)
 
-    >>> logging.getLogger('ZEO').debug(
-    ...     'Initial tid %r' % conn.root()._p_serial)
+    # >>> logging.getLogger('ZEO').debug(
+    # ...     'Initial tid %r' % conn.root()._p_serial)
 
 - disconnecting the first client (closing it with a persistent cache),
 
@@ -191,9 +191,9 @@ This tests tries to provoke this bug by:
     ...         with lock:
     ...             conn2.root()[i].value += 1
     ...             tm.commit()
-    ...             logging.getLogger('ZEO').debug(
-    ...                'COMMIT %s %s %r' % (
-    ...                    i, conn2.root()[i].value, conn2.root()[i]._p_serial))
+    ...             #logging.getLogger('ZEO').debug(
+    ...             #   'COMMIT %s %s %r' % (
+    ...             #   i, conn2.root()[i].value, conn2.root()[i]._p_serial))
     ...         time.sleep(0)
     >>> thread = threading.Thread(target=run)
     >>> thread.setDaemon(True)
@@ -208,15 +208,15 @@ This tests tries to provoke this bug by:
     ...        time.sleep(.1)
     ...        db = ZODB.DB(ZEO.ClientStorage.ClientStorage(addr, client='x'))
     ...        with lock:
-    ...            logging.getLogger('ZEO').debug('Locked %s' % c)
+    ...            #logging.getLogger('ZEO').debug('Locked %s' % c)
     ...            @wait_until("connected and we have caught up", timeout=199)
     ...            def _():
     ...                if (db.storage.is_connected()
     ...                        and db.storage.lastTransaction()
     ...                            == db.storage._server.lastTransaction()
     ...                        ):
-    ...                    logging.getLogger('ZEO').debug(
-    ...                       'Connected %r' % db.storage.lastTransaction())
+    ...                    #logging.getLogger('ZEO').debug(
+    ...                    #   'Connected %r' % db.storage.lastTransaction())
     ...                    return True
     ...
     ...            conn = db.open()
@@ -232,8 +232,8 @@ This tests tries to provoke this bug by:
     ...                          print handler.format(record)
     ...        if bad:
     ...           print open('server-%s.log' % addr[1]).read()
-    ...        else:
-    ...           logging.getLogger('ZEO').debug('GOOD %s' % c)
+    ...        #else:
+    ...        #   logging.getLogger('ZEO').debug('GOOD %s' % c)
     ...        db.close()
     ... finally:
     ...     stop = True
