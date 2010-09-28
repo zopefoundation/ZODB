@@ -2,6 +2,19 @@
  Change History
 ================
 
+3.9.7 (2010-09-28)
+==================
+
+Bugs Fixed
+----------
+
+- Changes in way that garbage collection treats dictionaries in Python
+  2.7 broke the object/connection cache implementation.
+  (https://bugs.launchpad.net/zodb/+bug/641481)
+
+  Python 2.7 wasn't officially supported, but we were releasing
+  binaries for it, so ...
+
 3.9.6 (2010-09-21)
 ==================
 

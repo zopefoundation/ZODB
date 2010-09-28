@@ -992,6 +992,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
     {
       if (PyDict_SetItem(self->data, key, v) < 0)
         return -1;
+      PyObject_GC_UnTrack((void *)self->data);
       self->klass_count++;
       return 0;
     }
@@ -1017,6 +1018,7 @@ cc_add_item(ccobject *self, PyObject *key, PyObject *v)
   if (PyDict_SetItem(self->data, key, v) < 0)
     return -1;
   /* the dict should have a borrowed reference */
+  PyObject_GC_UnTrack((void *)self->data);
   Py_DECREF(v);
 
   p = (cPersistentObject *)v;
