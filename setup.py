@@ -183,7 +183,7 @@ setup(name="ZODB3",
         "\n".join(doclines[2:]) + "\n\n" +
         ".. contents::\n\n" + 
         read_file("README.txt")  + "\n\n" +
-        read_file("src", "CHANGES.txt")),
+        read_file("src", "CHANGES.txt")).decode('latin-1'),
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = ['zope.testing', 'manuel'],
       extras_require = dict(test=['zope.testing', 'manuel']),
