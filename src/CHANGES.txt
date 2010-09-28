@@ -15,6 +15,9 @@ Bugs Fixed
   Python 2.7 wasn't officially supported, but we were releasing
   binaries for it, so ...
 
+- Logrotation/repoening via a SIGUSR2 signal wasn't implemented.
+  (https://bugs.launchpad.net/zodb/+bug/143600)
+
 3.9.6 (2010-09-21)
 ==================
 

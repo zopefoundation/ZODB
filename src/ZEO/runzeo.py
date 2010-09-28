@@ -269,10 +269,30 @@ class ZEOServer:
         sys.exit(1)
 
     def handle_sigusr2(self):
-        # TODO: this used to reinitialize zLOG. How do I achieve
-        # the same effect with Python's logging package?
-        # Should we restart as with SIGHUP?
-        log("received SIGUSR2, but it was not handled!", level=logging.WARNING)
+        # log rotation signal - do the same as Zope 2.7/2.8...
+        if self.options.config_logger is None or os.name not in ("posix", "nt"):
+            log("received SIGUSR2, but it was not handled!", 
+                level=logging.WARNING)
+            return
+
+        loggers = [self.options.config_logger]
+
+        if os.name == "posix":
+            for l in loggers:
+                l.reopen()
+            log("Log files reopened successfully", level=logging.INFO)
+        else: # nt - same rotation code as in Zope's Signals/Signals.py
+            for l in loggers:
+                for f in l.handler_factories:
+                    handler = f()
+                    if hasattr(handler, 'rotate') and callable(handler.rotate):
+                        handler.rotate()
+            log("Log files rotation complete", level=logging.INFO)
+
+
+
+
+
 
     def close_storages(self):
         for name, storage in self.storages.items():
