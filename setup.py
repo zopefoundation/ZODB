@@ -171,9 +171,7 @@ long_description = str(
      read_file("README.txt")  + "\n\n" +
      read_file("src", "CHANGES.txt")
     ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
-    )+ '''
-    .. |Lowis| unicode:: L\xf6wis
-    '''
+    )+ '''\n\n.. |Lowis| unicode:: L\\xf6wis\n'''
 
 setup(name="ZODB3",
       version=VERSION,
