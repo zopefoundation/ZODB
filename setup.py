@@ -165,6 +165,16 @@ def read_file(*path):
     file_path = (base_dir, ) + tuple(path)
     return file(os.path.join(*file_path)).read()
 
+long_description = str(
+    ("\n".join(doclines[2:]) + "\n\n" +
+     ".. contents::\n\n" +
+     read_file("README.txt")  + "\n\n" +
+     read_file("src", "CHANGES.txt")
+    ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
+    )+ '''
+    .. |Lowis| unicode:: L\xf6wis
+    '''
+
 setup(name="ZODB3",
       version=VERSION,
       maintainer="Zope Foundation and Contributors",
@@ -179,11 +189,7 @@ setup(name="ZODB3",
       platforms = ["any"],
       description = doclines[0],
       classifiers = filter(None, classifiers.split("\n")),
-      long_description = (
-        "\n".join(doclines[2:]) + "\n\n" +
-        ".. contents::\n\n" + 
-        read_file("README.txt")  + "\n\n" +
-        read_file("src", "CHANGES.txt")).decode('latin-1'),
+      long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = ['zope.testing', 'manuel'],
       extras_require = dict(test=['zope.testing', 'manuel']),
