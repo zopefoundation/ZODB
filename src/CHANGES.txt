@@ -18,6 +18,10 @@ Bugs Fixed
 - Logrotation/repoening via a SIGUSR2 signal wasn't implemented.
   (https://bugs.launchpad.net/zodb/+bug/143600)
 
+- When using multi-databases, cache-management operations on a
+  connection, cacheMinimize and cacheGC, weren't applied to
+  subconnections.
+
 3.9.6 (2010-09-21)
 ==================
 

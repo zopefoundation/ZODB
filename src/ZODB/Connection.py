@@ -262,13 +262,17 @@ class Connection(ExportImport, object):
         return obj
 
     def cacheMinimize(self):
-        """Deactivate all unmodified objects in the cache."""
-        self._cache.minimize()
+        """Deactivate all unmodified objects in the cache.
+        """
+        for connection in self.connections.itervalues():
+            connection._cache.minimize()
 
     # TODO: we should test what happens when cacheGC is called mid-transaction.
     def cacheGC(self):
-        """Reduce cache size to target size."""
-        self._cache.incrgc()
+        """Reduce cache size to target size.
+        """
+        for connection in self.connections.itervalues():
+            connection._cache.incrgc()
 
     __onCloseCallbacks = None
     def onCloseCallback(self, f):
