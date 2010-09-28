@@ -39,6 +39,10 @@ Bugs fixed
   there aren't any transactions.  Now a string of 8 nulls (aka "z64")
   is specified.
 
+- When using multi-databases, cache-management operations on a
+  connection, cacheMinimize and cacheGC, weren't applied to
+  subconnections.
+
 - Setting _p_changed on a blob wo actually writing anything caused an
   error. (https://bugs.launchpad.net/zodb/+bug/440234)
 

@@ -759,6 +759,72 @@ Read checks to work accross savepoints.
 
     """
 
+def cache_management_of_subconnections():
+    """Make that cache management works for subconnections.
+
+When we use multi-databases, we open a connection in one database and
+access connections to other databases through it.  This test verifies
+thatcache management is applied to all of the connections.
+
+Set up a multi-database:
+
+    >>> db1 = ZODB.DB(None)
+    >>> db2 = ZODB.DB(None, databases=db1.databases, database_name='2',
+    ...               cache_size=10)
+    >>> conn1 = db1.open()
+    >>> conn2 = conn1.get_connection('2')
+
+Populate it with some data, more than will fit in the cache:
+
+    >>> for i in range(100):
+    ...     conn2.root()[i] = conn2.root().__class__()
+
+Upon commit, the cache is reduced to the cache size:
+
+    >>> transaction.commit()
+    >>> conn2._cache.cache_non_ghost_count
+    10
+
+Fill it back up:
+
+    >>> for i in range(100):
+    ...     _ = str(conn2.root()[i])
+    >>> conn2._cache.cache_non_ghost_count
+    101
+
+Doing cache GC on the primary also does it on the secondary:
+
+    >>> conn1.cacheGC()
+    >>> conn2._cache.cache_non_ghost_count
+    10
+
+Ditto for cache minimize:
+
+    >>> conn1.cacheMinimize()
+    >>> conn2._cache.cache_non_ghost_count
+    0
+
+
+Fill it back up:
+
+    >>> for i in range(100):
+    ...     _ = str(conn2.root()[i])
+    >>> conn2._cache.cache_non_ghost_count
+    101
+
+GC is done on reopen:
+
+    >>> conn1.close()
+    >>> db1.open() is conn1
+    True
+    >>> conn2 is conn1.get_connection('2')
+    True
+
+    >>> conn2._cache.cache_non_ghost_count
+    10
+
+    """
+
 class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
     def __init__(self):
         self.settings = 1
