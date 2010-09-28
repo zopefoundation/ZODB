@@ -11,7 +11,7 @@ Bugs fixed
 - ZEO didn't work with IPv6 addrsses.
   Added IPv6 support contributed by Martin v. Löwis.
 
-- Changes in way that garage collection treats dictionaries in Python
+- Changes in way that garbage collection treats dictionaries in Python
   2.7 broke the object/connection cache implementation.
   (https://bugs.launchpad.net/zodb/+bug/641481)
 
