@@ -324,7 +324,27 @@ We can also specify it using a configuration option:
     ...    "object you're saving is large.")
 
     >>> db.close()
+    """ # '
+
+def minimally_test_connection_timeout():
+    """There's a mechanism to discard old connections.
+
+    Make sure it doesn't error. :)
+
+    >>> db = ZODB.DB(None, pool_timeout=.01)
+    >>> c1 = db.open()
+    >>> c2 = db.open()
+    >>> c1.close()
+    >>> c2.close()
+    >>> time.sleep(.02)
+    >>> db.open() is c2
+    True
+
+    >>> db.pool.available
+    []
+
     """
+
 
 def test_suite():
     s = unittest.makeSuite(DBTests)

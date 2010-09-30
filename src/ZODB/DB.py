@@ -182,21 +182,7 @@ class ConnectionPool(AbstractConnectionPool):
             ):
             t, c = available.pop(0)
             self.all.remove(c)
-            # While application code may still hold a reference to `c`,
-            # there's little useful that can be done with this Connection
-            # anymore. Its cache may be holding on to limited resources,
-            # and we replace the cache with an empty one now so that we
-            # don't have to wait for gc to reclaim it. Note that it's not
-            # possible for DB.open() to return `c` again: `c` can never be
-            # in an open state again.
-            # TODO: Perhaps it would be better to break the reference
-            # cycles between `c` and `c._cache`, so that refcounting
-            # reclaims both right now. But if user code _does_ have a
-            # strong reference to `c` now, breaking the cycle would not
-            # reclaim `c` now, and `c` would be left in a user-visible
-            # crazy state.
-            c._resetCache()
-            c._releaseStorage()
+            c._release_resources()
 
     def reduce_size(self):
         self._reduce_size()
@@ -226,13 +212,19 @@ class ConnectionPool(AbstractConnectionPool):
         If a connection is no longer viable because it has timed out, it is
         garbage collected."""
         threshhold = time.time() - self.timeout
-        for t, c in list(self.available):
+
+        to_remove = ()
+        for (t, c) in self.available:
             if t < threshhold:
-                del self.available[t]
+                to_remove += (c,)
                 self.all.remove(c)
-                c._resetCache()
+                c._release_resources()
             else:
                 c.cacheGC()
+
+        if to_remove:
+            self.available[:] = [i for i in self.available
+                                 if i[1] not in to_remove]
 
 class KeyedConnectionPool(AbstractConnectionPool):
     # this pool keeps track of keyed connections all together.  It makes
@@ -641,7 +633,7 @@ class DB(object):
         def _(c):
             c.transaction_manager.abort()
             c.afterCompletion = c.newTransaction = c.close = noop
-            c._storage = c._normal_storage = None
+            c._release_resources()
 
         self.storage.close()
         del self.storage

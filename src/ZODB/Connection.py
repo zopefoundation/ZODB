@@ -1068,10 +1068,12 @@ class Connection(ExportImport, object):
         if getattr(self, '_reader', None) is not None:
             self._reader._cache = cache
 
-    def _releaseStorage(self):
-        """Tell the storage to release resources it's using"""
-        if self._mvcc_storage:
-            self._storage.release()
+    def _release_resources(self):
+        for c in self.connections.itervalues():
+            if c._mvcc_storage:
+                c._storage.release()
+            c._storage = c._normal_storage = None
+            c._cache = PickleCache(self, 0, 0)
 
     ##########################################################################
     # Python protocol

@@ -12,6 +12,12 @@ Bugs fixed
   client led to a socket error. Now, ZEO clients treat '' as an alias
   for 'localhost'.
 
+- When a pool timeout was specified for a database and old connections
+  were removed due to timing out, an error occured due to a bug in the
+  connection cleanup logic.
+
+- When mulri-database connections were no longer used and cleaned up,
+  their subconnections weren't cleaned up properly.
 
 3.10.0b7 (2010-09-28)
 =====================
