@@ -1380,9 +1380,12 @@ constructor.
     >>> addr, _ = start_server()
     >>> db = ZEO.DB(addr, client_label='test-label-1')
     >>> db.close()
-    >>> for line in open('server-%s.log' % addr[1]):
-    ...     if 'test-label-1' in line:
-    ...         print line.split()[1:4]
+    >>> @wait_until
+    ... def check_for_test_label_1():
+    ...    for line in open('server-%s.log' % addr[1]):
+    ...        if 'test-label-1' in line:
+    ...            print line.split()[1:4]
+    ...            return True
     ['INFO', 'ZEO.StorageServer', '(test-label-1']
 
 You can specify the client label via a configuration file as well:
@@ -1397,9 +1400,12 @@ You can specify the client label via a configuration file as well:
     ... </zodb>
     ... ''' % addr[1])
     >>> db.close()
-    >>> for line in open('server-%s.log' % addr[1]):
-    ...     if 'test-label-2' in line:
-    ...         print line.split()[1:4]
+    >>> @wait_until
+    ... def check_for_test_label_2():
+    ...    for line in open('server-%s.log' % addr[1]):
+    ...        if 'test-label-2' in line:
+    ...            print line.split()[1:4]
+    ...            return True
     ['INFO', 'ZEO.StorageServer', '(test-label-2']
 
     """
