@@ -2,6 +2,17 @@
  Change History
 ================
 
+3.10.0b8 (2010-09-30)
+=====================
+
+Bugs fixed
+----------
+
+- On some systems, using an empty string in a server address of a ZEO
+  client led to a socket error. Now, ZEO clients treat '' as an alias
+  for 'localhost'.
+
+
 3.10.0b7 (2010-09-28)
 =====================
 

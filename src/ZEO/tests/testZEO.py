@@ -1656,6 +1656,19 @@ Make sure we don't lose exension methods on server restart.
     >>> conn.close()
     """
 
+def can_use_empty_string_for_local_host_on_client():
+    """We should be able to spell localhost with ''.
+
+    >>> (_, port), _ = start_server()
+    >>> conn = ZEO.connection(('', port))
+    >>> conn.root()
+    {}
+    >>> conn.root.x = 1
+    >>> transaction.commit()
+
+    >>> conn.close()
+    """
+
 slow_test_classes = [
     BlobAdaptedFileStorageTests, BlobWritableCacheTests,
     MappingStorageTests, DemoStorageTests,

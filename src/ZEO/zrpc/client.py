@@ -444,7 +444,7 @@ class ConnectThread(threading.Thread):
             # reconfiguration can affect failover
             if domain == socket.AF_INET:
                 for (family, socktype, proto, cannoname, sockaddr
-                     ) in socket.getaddrinfo(host, port):
+                     ) in socket.getaddrinfo(host or 'localhost', port):
                     # for IPv6, drop flowinfo, and restrict addresses
                     # to [host]:port
                     yield family, sockaddr[:2]
