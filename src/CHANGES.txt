@@ -19,6 +19,9 @@ Bugs fixed
 - When mulri-database connections were no longer used and cleaned up,
   their subconnections weren't cleaned up properly.
 
+- Changes to suppprt IPv6 broke a fix for a problem on Mac OS X that
+  could cause a server to stop accepting connections.
+
 3.10.0b7 (2010-09-28)
 =====================
 

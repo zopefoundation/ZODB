@@ -87,8 +87,6 @@ class Dispatcher(asyncore.dispatcher):
             log("accepted failed: %s" % msg)
             return
 
-        # Drop flow-info from IPv6 addresses
-        addr = addr[:2]
 
         # We could short-circuit the attempt below in some edge cases
         # and avoid a log message by checking for addr being None.
@@ -100,6 +98,10 @@ class Dispatcher(asyncore.dispatcher):
 
         # It might be better to check whether the socket has been
         # closed, but I don't see a way to do that. :(
+
+        # Drop flow-info from IPv6 addresses
+        if addr: # Sometimes None on Mac. See above.
+            addr = addr[:2]
 
         try:
             c = self.factory(sock, addr)
