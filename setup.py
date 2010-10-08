@@ -47,6 +47,7 @@ Topic :: Database
 Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
 Operating System :: Unix
+Framework :: ZODB
 """
 
 # Include directories for C extensions
