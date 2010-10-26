@@ -2,6 +2,18 @@
  Change History
 ================
 
+3.11.0 (2010-??-??)
+===================
+
+Bugs Fixed
+----------
+
+- BTrees allowed object keys with insane comparison. (Comparison
+  inherited from object, which compares based on in-process address.)
+  Now BTrees raise TypeError is an attempt is made to save a key with
+  comparison inherited from object. (This doesn't apply to old-style
+  class instances.)
+
 3.10.1 (2010-10-??)
 ===================
 

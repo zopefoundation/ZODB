@@ -465,6 +465,12 @@ INITMODULE (void)
 {
     PyObject *m, *d, *c;
 
+#ifdef KEY_TYPE_IS_PYOBJECT
+    object_ = PyTuple_GetItem(Py_None->ob_type->tp_bases, 0);
+    if (object_ == NULL)
+      return;
+#endif
+
     sort_str = PyString_InternFromString("sort");
     if (!sort_str)
 	return;

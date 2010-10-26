@@ -1884,6 +1884,39 @@ class OOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = OOBTree()
 
+    def testRejectDefaultComparison(self):
+        # Check that passing int keys w default comparison fails.
+        # Only applies to new-style class instances. Old-style
+        # instances are too hard to introspect.
+
+        # This is white box because we know that the check is being
+        # used in a function that's used in lots of places.
+        # Otherwise, there are many permutations that would have to be
+        # checked.
+
+        class C(object):
+            pass
+
+        self.assertRaises(TypeError, lambda : self.t.__setitem__(C(), 1))
+
+        class C(object):
+            def __cmp__(*args):
+                return 1
+
+        c = C()
+        self.t[c] = 1
+
+        self.t.clear()
+
+        class C(object):
+            def __lt__(*args):
+                return 1
+
+        c = C()
+        self.t[c] = 1
+
+        self.t.clear()
+
 if using64bits:
     class IIBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
         def setUp(self):
@@ -1922,9 +1955,6 @@ class OLBTreeTest(BTreeTests, TestLongIntValues):
         self.t = OLBTree()
     def getTwoKeys(self):
         return object(), object()
-class OOBTreeTest(BTreeTests):
-    def setUp(self):
-        self.t = OOBTree()
 
 
 # cmp error propagation tests
