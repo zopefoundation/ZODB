@@ -25,6 +25,9 @@ Bugs Fixed
   don't send invalidations. There's no reason to send them when an
   external garbage collector is used.
 
+- ZEO client cache simulation misshandled invalidations
+  causing incorrect statistics and errors.
+
 3.10.0 (2010-10-08)
 ===================
 

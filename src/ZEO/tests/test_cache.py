@@ -1028,6 +1028,36 @@ Cleanup:
 
 """
 
+def cache_simul_properly_handles_load_miss_after_eviction_and_inval():
+    r"""
+
+Set up evicted and then invalidated oid
+
+    >>> os.environ["ZEO_CACHE_TRACE"] = 'yes'
+    >>> cache = ZEO.cache.ClientCache('cache', 1<<21)
+    >>> cache.store(p64(1), p64(1), None, 'x')
+    >>> for i in range(10):
+    ...     cache.store(p64(2+i), p64(1), None, 'x'*(1<<19)) # Evict 1
+    >>> cache.store(p64(1), p64(1), None, 'x')
+    >>> cache.invalidate(p64(1), p64(2))
+    >>> cache.load(p64(1))
+    >>> cache.close()
+
+Now try to do simulation:
+
+    >>> import ZEO.scripts.cache_simul
+    >>> ZEO.scripts.cache_simul.main('-s 1 cache.trace'.split())
+    ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    CircularCacheSimulation, cache size 1,048,576 bytes
+      START TIME   DUR.   LOADS    HITS INVALS WRITES HITRATE  EVICTS   INUSE
+          ...         0       1       0      1     12    0.0%      10    50.0
+    --------------------------------------------------------------------------
+          ...         0       1       0      1     12    0.0%      10    50.0
+
+    >>> del os.environ["ZEO_CACHE_TRACE"]
+
+    """
+
 def invalidations_with_current_tid_dont_wreck_cache():
     """
     >>> cache = ZEO.cache.ClientCache('cache', 1000)

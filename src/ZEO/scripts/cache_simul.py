@@ -252,6 +252,8 @@ class Simulation(object):
     nreports = 0
 
     def report(self):
+        if not hasattr(self, 'ts1'):
+            return
         self.nreports += 1
         args = (ctime(self.ts0)[4:-8],
                 duration(self.ts1 - self.ts0),
@@ -416,6 +418,9 @@ class CircularCacheSimulation(Simulation):
             # This is part of startup cache verification:  forget everything
             # about this oid.
             self._remove_noncurrent_revisions(oid)
+
+        if oid in self.evicted:
+            del self.evicted[oid]
 
         cur_tid = self.current.get(oid)
         if cur_tid is None:
