@@ -437,12 +437,13 @@ class ConnectThread(threading.Thread):
         return 0
 
     def _expand_addrlist(self):
-        for domain, (host, port) in self.addrlist:
+        for domain, addr in self.addrlist:
             # AF_INET really means either IPv4 or IPv6, possibly
             # indirected by DNS. By design, DNS lookup is deferred
             # until connections get established, so that DNS
             # reconfiguration can affect failover
             if domain == socket.AF_INET:
+                host, port = addr
                 for (family, socktype, proto, cannoname, sockaddr
                      ) in socket.getaddrinfo(host or 'localhost', port):
                     # for IPv6, drop flowinfo, and restrict addresses

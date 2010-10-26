@@ -17,6 +17,9 @@ Bugs Fixed
 
   https://bugs.launchpad.net/zodb/+bug/665452
 
+- Unix domain sockets didn't work for ZEO (since the addition of IPv6
+  support). https://bugs.launchpad.net/zodb/+bug/663259
+
 - Removed a missfeature that can cause performance problems when using
   an external garbage collector with ZEO.  When objects were deleted
   from a storage, invalidations were sent to clients. This makes no

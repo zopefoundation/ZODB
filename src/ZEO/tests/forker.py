@@ -33,6 +33,11 @@ class ZEOConfig:
     """Class to generate ZEO configuration file. """
 
     def __init__(self, addr):
+        if isinstance(addr, str):
+            self.logpath = addr+'.log'
+        else:
+            self.logpath = 'server-%s.log' % addr[1]
+            addr = '%s:%s' % addr
         self.address = addr
         self.read_only = None
         self.invalidation_queue_size = None
@@ -46,7 +51,7 @@ class ZEOConfig:
 
     def dump(self, f):
         print >> f, "<zeo>"
-        print >> f, "address %s:%s" % self.address
+        print >> f, "address " + self.address
         if self.read_only is not None:
             print >> f, "read-only", self.read_only and "true" or "false"
         if self.invalidation_queue_size is not None:
@@ -69,10 +74,10 @@ class ZEOConfig:
         <eventlog>
           level %s
           <logfile>
-             path server-%s.log
+             path %s
           </logfile>
         </eventlog>
-        """ % (self.loglevel, self.address[1])
+        """ % (self.loglevel, self.logpath)
 
     def __str__(self):
         f = StringIO.StringIO()
@@ -110,8 +115,15 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     if port is None:
         raise AssertionError("The port wasn't specified")
 
+    if isinstance(port, int):
+        addr = 'localhost', port
+        adminaddr = 'localhost', port+1
+    else:
+        addr = port
+        adminaddr = port+'-test'
+
     if zeo_conf is None or isinstance(zeo_conf, dict):
-        z = ZEOConfig(('localhost', port))
+        z = ZEOConfig(addr)
         if zeo_conf:
             z.__dict__.update(zeo_conf)
         zeo_conf = z
@@ -149,15 +161,19 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     else:
         pid = subprocess.Popen(args, env=d, close_fds=True).pid
 
-    adminaddr = ('localhost', port + 1)
     # We need to wait until the server starts, but not forever.
     # 30 seconds is a somewhat arbitrary upper bound.  A BDBStorage
     # takes a long time to open -- more than 10 seconds on occasion.
-    for i in range(120):
-        time.sleep(0.25)
+    for i in range(300):
+        time.sleep(0.1)
         try:
+            if isinstance(adminaddr, str) and not os.path.exists(adminaddr):
+                continue
             logger.debug('connect %s', i)
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            if isinstance(adminaddr, str):
+                s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            else:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect(adminaddr)
             ack = s.recv(1024)
             s.close()
@@ -170,7 +186,7 @@ def start_zeo_server(storage_conf=None, zeo_conf=None, port=None, keep=False,
     else:
         logging.debug('boo hoo')
         raise
-    return ('localhost', port), adminaddr, pid, tmpfile
+    return addr, adminaddr, pid, tmpfile
 
 
 if sys.platform[:3].lower() == "win":
@@ -187,7 +203,10 @@ def shutdown_zeo_server(adminaddr):
     # only requires two iterations, but do a third for pure
     # superstition.
     for i in range(3):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if isinstance(adminaddr, str):
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(.3)
         try:
             s.connect(adminaddr)
