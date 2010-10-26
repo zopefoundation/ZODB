@@ -1489,8 +1489,20 @@ def runzeo_logrotate_on_sigusr2():
     >>> _ = p.wait()
     """
 
+def unix_domain_sockets():
+    """Make sure unix domain sockets work
+
+    >>> addr, _ = start_server(port='./sock')
+
+    >>> c = ZEO.connection(addr)
+    >>> c.root.x = 1
+    >>> transaction.commit()
+    >>> c.close()
+    """
+
 if sys.platform.startswith('win'):
     del runzeo_logrotate_on_sigusr2
+    del unix_domain_sockets
 
 if sys.version_info >= (2, 6):
     import multiprocessing

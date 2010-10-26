@@ -67,7 +67,10 @@ class ZEOTestServer(asyncore.dispatcher):
         # Count down to zero, the number of connects
         self._count = 1
         self._label ='%d @ %s' % (os.getpid(), addr)
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        if isinstance(addr, str):
+            self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        else:
+            self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         # Some ZEO tests attempt a quick start of the server using the same
         # port so we have to set the reuse flag.
         self.set_reuse_addr()
@@ -168,17 +171,15 @@ def main():
 
     zo = ZEO.runzeo.ZEOOptions()
     zo.realize(["-C", configfile])
-    zeo_port = int(zo.address[1])
+    addr = zo.address
 
     if zo.auth_protocol == "plaintext":
         __import__('ZEO.tests.auth_plaintext')
 
-    # Open the config file and let ZConfig parse the data there.  Then remove
-    # the config file, otherwise we'll leave turds.
-    # The rest of the args are hostname, portnum
-    test_port = zeo_port + 1
-    test_addr = ('localhost', test_port)
-    addr = ('localhost', zeo_port)
+    if isinstance(addr, tuple):
+        test_addr = addr[0], addr[1]+1
+    else:
+        test_addr = addr + '-test'
     log(label, 'creating the storage server')
     storage = zo.storages[0].open()
     mon_addr = None
