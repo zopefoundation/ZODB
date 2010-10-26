@@ -2,6 +2,21 @@
  Change History
 ================
 
+3.10.1 (2010-10-??)
+===================
+
+Bugs Fixed
+----------
+
+- When a transaction rolled back a savepoint after adding objects and
+  subsequently added more objects and committed, an error could be
+  raised "ValueError: A different object already has the same oid"
+  causing the transaction to fail. Worse, this could leave a database
+  in a state where subsequent transactions in the same process would
+  fail.
+
+  https://bugs.launchpad.net/zodb/+bug/665452
+
 3.10.0 (2010-10-08)
 ===================
 

@@ -757,6 +757,7 @@ class Connection(ExportImport, object):
         """Disown any objects newly saved in an uncommitted transaction."""
         if creating is None:
             creating = self._creating
+            self._creating = {}
 
         for oid in creating:
             self._db.save_oid(oid)
@@ -768,7 +769,6 @@ class Connection(ExportImport, object):
                 del o._p_jar
                 del o._p_oid
 
-        creating.clear()
 
     def tpc_vote(self, transaction):
         """Verify that a data manager can commit the transaction."""
@@ -1140,7 +1140,10 @@ class Connection(ExportImport, object):
         self._abort()
         self._registered_objects = []
         src = self._storage
-        self._invalidate_creating(src.creating)
+
+        # Invalidate objects created *after* the savepoint.
+        self._invalidate_creating((oid for oid in src.creating
+                                   if oid not in state[2]))
         index = src.index
         src.reset(*state)
         self._cache.invalidate(index)

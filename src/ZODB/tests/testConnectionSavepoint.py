@@ -230,6 +230,40 @@ def testNewOidsGetReusedOnRollback():
     >>> transaction.abort()
     """
 
+def testNewOidNotReusedAfterRollbackOfPostAddSavepoint():
+    """\
+    >>> connection = ZODB.connection(None)
+    >>> root = connection.root()
+
+    Add an item, and make a savepoint.
+
+    >>> root['p'] = p = ZODB.tests.util.P()
+    >>> sp = transaction.savepoint()
+
+    Now rollback the savepoint.
+
+    >>> sp.rollback()
+
+    At this point, the item still exists, since it was created before
+    the savepoint we rolled back.
+
+    >>> root['p']._p_oid
+    '\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x01'
+
+    Add another item, and make another savepoint.
+
+    >>> root['p2'] = p2 = ZODB.tests.util.P()
+    >>> sp2 = transaction.savepoint()
+
+    The second item should not reuse the oid of the first.
+
+    >>> p2._p_oid
+    '\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x02'
+
+    transaction.abort()
+    """
+
+
 def tearDown(test):
     transaction.abort()
 
