@@ -475,7 +475,7 @@ class DB(object):
         databases[database_name] = self
         self.xrefs = xrefs
 
-        self._saved_oids = []
+        self._saved_oids = set()
         self._max_saved_oids = max_saved_oids
         self.large_record_size = large_record_size
 
@@ -959,8 +959,10 @@ class DB(object):
 
 
     def save_oid(self, oid):
+        if oid in self._saved_oids:
+            raise ValueError("Duplicate saved object ids.")
         if len(self._saved_oids) < self._max_saved_oids:
-            self._saved_oids.append(oid)
+            self._saved_oids.add(oid)
 
     def new_oid(self):
         if self._saved_oids:
