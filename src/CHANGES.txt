@@ -17,6 +17,14 @@ Bugs Fixed
 
   https://bugs.launchpad.net/zodb/+bug/665452
 
+- Removed a missfeature that can cause performance problems when using
+  an external garbage collector with ZEO.  When objects were deleted
+  from a storage, invalidations were sent to clients. This makes no
+  sense.  It's wildly unlikely that the other connections/clients have
+  copies of the garbage.  In normal storage garbage collection, we
+  don't send invalidations. There's no reason to send them when an
+  external garbage collector is used.
+
 3.10.0 (2010-10-08)
 ===================
 
