@@ -65,6 +65,11 @@ use:
             from persistent import Persistent
             class PCounter(Persistent):
                 '`value` is readonly; increment it with `inc`.'
+
+                def __cmp__(self, other):
+                    'Fool BTree checks for sane comparison :/'
+                    return object.__cmp__(self, other)
+
                 _val = 0
                 def inc(self):
                     self._val += 1
