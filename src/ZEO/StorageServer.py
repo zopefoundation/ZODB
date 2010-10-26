@@ -607,8 +607,6 @@ class ZEOStorage:
             raise
         except Exception, err:
             self._op_error(oid, err, 'delete')
-        else:
-            self.invalidated.append(oid)
 
         return err is None
 

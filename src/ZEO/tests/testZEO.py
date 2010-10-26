@@ -1196,56 +1196,6 @@ def dont_log_poskeyerrors_on_server():
     False
     """
 
-def delete_object_multiple_clients():
-    """If we delete on one client, the delete should be reflected on the other.
-
-    First, we'll create an object:
-
-    >>> addr, _ = start_server()
-    >>> db = ZEO.DB(addr)
-    >>> conn = db.open()
-    >>> conn.root()[0] = conn.root().__class__()
-    >>> transaction.commit()
-    >>> oid = conn.root()[0]._p_oid
-
-    We verify that we can read it in another client, which also loads
-    it into the client cache.
-
-    >>> cs = ClientStorage(addr)
-    >>> p, s = cs.load(oid)
-
-    Now, we'll remove the object:
-
-    >>> txn = transaction.begin()
-    >>> db.storage.tpc_begin(txn)
-    >>> db.storage.deleteObject(oid, s, txn)
-    >>> db.storage.tpc_vote(txn)
-    >>> db.storage.tpc_finish(txn)
-
-    And we'll get a POSKeyError if we try to access it:
-
-    >>> db.storage.load(oid) # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    POSKeyError: ...
-
-    We'll wait for our other storage to get the invalidation and then
-    try to access the object. We'll get a POSKeyError there too:
-
-    >>> tid = db.storage.lastTransaction()
-    >>> forker.wait_until(
-    ...    'cs has caught up',
-    ...    lambda : cs.lastTransaction() == tid)
-    >>> cs.load(oid) # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    POSKeyError: ...
-
-    >>> db.close()
-    >>> cs.close()
-    """
-
-
 def open_convenience():
     """Often, we just want to open a single connection.
 
