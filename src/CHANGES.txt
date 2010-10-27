@@ -2,7 +2,7 @@
  Change History
 ================
 
-3.10.1 (2010-10-27)
+3.10.1 (2010-10-??)
 ===================
 
 Bugs Fixed
@@ -27,12 +27,6 @@ Bugs Fixed
   copies of the garbage.  In normal storage garbage collection, we
   don't send invalidations. There's no reason to send them when an
   external garbage collector is used.
-
-- BTrees allowed object keys with insane comparison. (Comparison
-  inherited from object, which compares based on in-process address.)
-  Now BTrees warn if an attempt is made to save a key with
-  comparison inherited from object. (This doesn't apply to old-style
-  class instances.) This will become an error in ZODB 3.11.
 
 - ZEO client cache simulation misshandled invalidations
   causing incorrect statistics and errors.

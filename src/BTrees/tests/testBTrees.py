@@ -15,7 +15,6 @@ import gc
 import pickle
 import random
 import StringIO
-import sys
 from unittest import TestCase, TestSuite, TextTestRunner, makeSuite
 from types import ClassType
 import zope.interface.verify
@@ -1885,55 +1884,6 @@ class OOBTreeTest(BTreeTests):
     def setUp(self):
         self.t = OOBTree()
 
-    def testRejectDefaultComparison(self):
-        # Check that passing int keys w default comparison fails.
-        # Only applies to new-style class instances. Old-style
-        # instances are too hard to introspect.
-
-        # This is white box because we know that the check is being
-        # used in a function that's used in lots of places.
-        # Otherwise, there are many permutations that would have to be
-        # checked.
-
-        import warnings
-
-        class C(object):
-            pass
-
-        with warnings.catch_warnings(record=True) as w:
-            # Cause all warnings to always be triggered.
-            warnings.simplefilter("always")
-
-            self.t[C()] = 1
-
-            # Verify some things
-            n = len(w) # somewhat unpredictable #
-
-            for m in w:
-                self.assertEqual(m.category, UserWarning)
-                self.assert_("Object has default comparison" in str(m.message))
-
-            self.t.clear()
-
-            class C(object):
-                def __cmp__(*args):
-                    return 1
-
-            self.t[C()] = 1
-            self.t.clear()
-
-            class C(object):
-                def __lt__(*args):
-                    return 1
-
-            self.t[C()] = 1
-            self.t.clear()
-
-            self.assertEqual(len(w), n)
-
-    if sys.version_info[:2] < (2, 6):
-        del testRejectDefaultComparison
-
 if using64bits:
     class IIBTreeTest(BTreeTests, TestLongIntKeys, TestLongIntValues):
         def setUp(self):
@@ -1972,6 +1922,9 @@ class OLBTreeTest(BTreeTests, TestLongIntValues):
         self.t = OLBTree()
     def getTwoKeys(self):
         return object(), object()
+class OOBTreeTest(BTreeTests):
+    def setUp(self):
+        self.t = OOBTree()
 
 
 # cmp error propagation tests
