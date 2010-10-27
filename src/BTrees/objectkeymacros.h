@@ -9,10 +9,20 @@ static PyObject *object_;
 static int
 check_argument_cmp(PyObject *arg)
 {
+  /* printf("check cmp %p %p %p %p\n",  */
+  /*        arg->ob_type->tp_richcompare, */
+  /*        ((PyTypeObject *)object_)->ob_type->tp_richcompare, */
+  /*        arg->ob_type->tp_compare, */
+  /*        ((PyTypeObject *)object_)->ob_type->tp_compare); */
+
   if (arg->ob_type->tp_richcompare == NULL
       &&
-      arg->ob_type->tp_compare ==
-      ((PyTypeObject *)object_)->ob_type->tp_compare
+#if PY_MAJOR_VERSION==2 && PY_MINOR_VERSION < 6
+       arg->ob_type->tp_compare == NULL
+#else
+       arg->ob_type->tp_compare ==
+       ((PyTypeObject *)object_)->ob_type->tp_compare
+#endif
       )
     {
       PyErr_SetString(PyExc_TypeError, "Object has default comparison");
