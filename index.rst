@@ -44,6 +44,8 @@ Documentation
    documentation/guide/index
    documentation/articles/index
 
+* `The ZODB Book (in progress) <http://www.zodb.org/zodbbook>`_
+
 Downloads
 =========
 
