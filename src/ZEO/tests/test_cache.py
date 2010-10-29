@@ -1050,9 +1050,9 @@ Now try to do simulation:
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
     CircularCacheSimulation, cache size 1,048,576 bytes
       START TIME   DUR.   LOADS    HITS INVALS WRITES HITRATE  EVICTS   INUSE
-          ...         0       1       0      1     12    0.0%      10    50.0
+          ...                1       0      1     12    0.0%      10    50.0
     --------------------------------------------------------------------------
-          ...         0       1       0      1     12    0.0%      10    50.0
+          ...                1       0      1     12    0.0%      10    50.0
 
     >>> del os.environ["ZEO_CACHE_TRACE"]
 
