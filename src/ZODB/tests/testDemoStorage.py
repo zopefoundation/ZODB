@@ -42,6 +42,8 @@ from zope.testing import renormalizing
 # With the following monkey-patch, we can test the different ways
 # to update _p_changed/_p_serial status of committed oids.
 
+from ZODB.ConflictResolution import ResolvedSerial
+
 class DemoStorage(ZODB.DemoStorage.DemoStorage):
 
     delayed_store = False
@@ -52,6 +54,9 @@ class DemoStorage(ZODB.DemoStorage.DemoStorage):
 
     def store(self, oid, *args):
         s = super(DemoStorage, self).store(oid, *args)
+        if s != ResolvedSerial:
+            assert type(s) is bytes, s
+            return
         if not self.delayed_store:
             return s
         self.__stored.append((oid, s))
@@ -62,6 +67,15 @@ class DemoStorage(ZODB.DemoStorage.DemoStorage):
         s = self.changes.tpc_vote(transaction)
         assert s is None, s
         return self.__stored if self.delayed_store else s
+
+    def tpc_finish(self, transaction, func = lambda tid: None):
+        r = []
+        def callback(tid):
+            func(tid)
+            r.append(tid)
+        tid = super(DemoStorage, self).tpc_finish(transaction, callback)
+        assert tid is None, tid
+        return r[0]
 
 ZODB.DemoStorage.DemoStorage = DemoStorage
 

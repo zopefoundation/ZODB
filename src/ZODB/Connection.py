@@ -808,7 +808,16 @@ class Connection(ExportImport, object):
 #       to be able to read any updated data until we've had a chance
 #       to send an invalidation message to all of the other
 #       connections!
-        self._storage.tpc_finish(transaction, callback)
+        serial = self._storage.tpc_finish(transaction, callback)
+        if serial is not None:
+            assert type(serial) is bytes, repr(serial)
+            for oid_iterator in self._modified, self._creating:
+                for oid in oid_iterator:
+                    obj = self._cache.get(oid)
+                    # Ignore missing objects and don't update ghosts.
+                    if obj is not None and obj._p_changed is not None:
+                        obj._p_changed = 0
+                        obj._p_serial = serial
         self._tpc_cleanup()
 
     def sortKey(self):
