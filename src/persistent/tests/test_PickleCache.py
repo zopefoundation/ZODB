@@ -23,12 +23,14 @@ def test_delitem():
     >>> from persistent import PickleCache
     >>> conn = DummyConnection()
     >>> cache = PickleCache(conn)
-    >>> del cache['']
+    >>> del cache[''] # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    KeyError: ''
+    KeyError:...
     >>> from persistent import Persistent
-    >>> p = Persistent()
+    >>> class Derived(Persistent):
+    ...    pass
+    >>> p = Derived()
     >>> p._p_oid = 'foo'
     >>> p._p_jar = conn
     >>> cache['foo'] = p

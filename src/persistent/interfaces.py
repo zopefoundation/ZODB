@@ -19,6 +19,11 @@ $Id$
 from zope.interface import Interface
 from zope.interface import Attribute
 
+try:
+    from cPersistence import GHOST, UPTODATE, CHANGED, STICKY
+except ImportError:
+    GHOST, UPTODATE, CHANGED, STICKY = range(4)
+
 class IPersistent(Interface):
     """Python persistent interface
 
@@ -297,3 +302,138 @@ class IPersistentDataManager(Interface):
 ##         is returned.  If non-None, the return value is the kind of
 ##         timestamp supplied by Python's time.time().
 ##         """
+
+
+class IPickleCache(Interface):
+    """ API of the cache for a ZODB connection.
+    """
+    def __getitem__(oid):
+        """ -> the persistent object for OID.
+
+        o Raise KeyError if not found.
+        """
+
+    def __setitem__(oid, value):
+        """ Save the persistent object under OID.
+
+        o 'oid' must be a string, else raise ValueError.
+
+        o Raise KeyError on duplicate
+        """
+
+    def __delitem__(oid):
+        """ Remove the persistent object for OID.
+
+        o 'oid' must be a string, else raise ValueError.
+
+        o Raise KeyError if not found.
+        """
+
+    def get(oid, default=None):
+        """ -> the persistent object for OID.
+
+        o Return 'default' if not found.
+        """
+
+    def mru(oid):
+        """ Move the element corresonding to 'oid' to the head.
+
+        o Raise KeyError if no element is found.
+        """
+
+    def __len__():
+        """ -> the number of OIDs in the cache.
+        """
+
+    def items():
+        """-> a sequence of tuples (oid, value) for cached objects.
+
+        o Only includes items in 'data' (no p-classes).
+        """
+
+    def ringlen():
+        """ -> the number of persistent objects in the ring.
+
+        o Only includes items in the ring (no ghosts or p-classes).
+        """
+
+    def lru_items():
+        """ -> a sequence of tuples (oid, value) for cached objects.
+
+        o Tuples will be in LRU order.
+
+        o Only includes items in the ring (no ghosts or p-classes).
+        """
+
+    def klass_items():
+        """-> a sequence of tuples (oid, value) for cached p-classes.
+
+        o Only includes persistent classes.
+        """
+
+    def incrgc():
+        """ Perform an incremental garbage collection sweep.
+
+        o Reduce number of non-ghosts to 'cache_size', if possible.
+        
+        o Ghostify in LRU order.
+
+        o Skip dirty or sticky objects.
+
+        o Quit once we get down to 'cache_size'.
+        """
+
+    def full_sweep():
+        """ Perform a full garbage collection sweep.
+
+        o Reduce number of non-ghosts to 0, if possible.
+
+        o Ghostify all non-sticky / non-changed objecs.
+        """
+
+    def minimize():
+        """ Alias for 'full_sweep'.
+
+        o XXX?
+        """
+
+    def reify(to_reify):
+        """ Reify the indicated objects.
+
+        o If 'to_reify' is a string, treat it as an OID.
+
+        o Otherwise, iterate over it as a sequence of OIDs.
+
+        o For each OID, if present in 'data' and in GHOST state:
+
+            o Call '_p_unghostify' on the object.
+
+            o Add it to the ring.
+
+        o If any OID is present but not in GHOST state, skip it.
+
+        o Raise KeyErrory if any OID is not present.
+        """
+
+    def invalidate(to_invalidate):
+        """ Invalidate the indicated objects.
+
+        o If 'to_invalidate' is a string, treat it as an OID.
+
+        o Otherwise, iterate over it as a sequence of OIDs.
+
+        o Any OID corresponding to a p-class will cause the corresponding
+            p-class to be removed from the cache.
+
+        o For all other OIDs, ghostify the corrsponding object and 
+            remove it from the ring.
+        """
+
+    cache_size = Attribute(u'Target size of the cache')
+    cache_drain_resistance = Attribute(u'Factor for draining cache below '
+                                        u'target size')
+    cache_non_ghost_count = Attribute(u'Number of non-ghosts in the cache '
+                                        u'(XXX how is it different from '
+                                        u'ringlen?')
+    cache_data = Attribute(u"Property:  copy of our 'data' dict")
+    cache_klass_count = Attribute(u"Property: len of 'persistent_classes'")

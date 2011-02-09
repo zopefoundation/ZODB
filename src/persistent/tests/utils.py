@@ -3,7 +3,7 @@ class ResettingJar(object):
     """Testing stub for _p_jar attribute.
     """
     def __init__(self):
-        from persistent.cPickleCache import PickleCache # XXX stub it!
+        from persistent import PickleCache # XXX stub it!
         self.cache = PickleCache(self)
         self.oid = 1
         self.registered = {}
@@ -38,7 +38,7 @@ class RememberingJar(object):
     """Testing stub for _p_jar attribute.
     """
     def __init__(self):
-        from persistent.cPickleCache import PickleCache # XXX stub it!
+        from persistent import PickleCache # XXX stub it!
         self.cache = PickleCache(self)
         self.oid = 1
         self.registered = {}
