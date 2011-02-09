@@ -47,8 +47,17 @@ class CompareTest(unittest.TestCase):
         self.assertRaises(UnicodeError, callable, *args)
 
     def testBucketGet(self):
-        self.bucket[self.s] = 1
-        self.assertUE(self.bucket.get, self.u)
+        import warnings
+        _warnlog = []
+        def _showwarning(*args, **kw):
+            _warnlog.append((args, kw))
+        warnings.showwarning, _before = _showwarning, warnings.showwarning
+        try:
+            self.bucket[self.s] = 1
+            self.assertUE(self.bucket.get, self.u)
+        finally:
+            warnings.showwarning = _before
+        self.assertEqual(len(_warnlog), 1)
 
     def testSetGet(self):
         self.set.insert(self.s)

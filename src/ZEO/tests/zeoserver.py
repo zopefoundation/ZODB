@@ -210,4 +210,6 @@ def main():
 
 
 if __name__ == '__main__':
+    import warnings
+    warnings.simplefilter('ignore')
     main()
