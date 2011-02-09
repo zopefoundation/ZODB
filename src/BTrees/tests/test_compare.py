@@ -47,6 +47,7 @@ class CompareTest(unittest.TestCase):
         self.assertRaises(UnicodeError, callable, *args)
 
     def testBucketGet(self):
+        import sys
         import warnings
         _warnlog = []
         def _showwarning(*args, **kw):
