@@ -57,7 +57,8 @@ class CompareTest(unittest.TestCase):
             self.assertUE(self.bucket.get, self.u)
         finally:
             warnings.showwarning = _before
-        self.assertEqual(len(_warnlog), 1)
+        if sys.version_info >= (2, 6):
+            self.assertEqual(len(_warnlog), 1)
 
     def testSetGet(self):
         self.set.insert(self.s)
