@@ -18,6 +18,10 @@ Bugs Fixed
 
   See (for example): https://bugs.launchpad.net/zodb/+bug/665452
 
+- ZEO server transaction timeouts weren't logged as critical.
+
+  https://bugs.launchpad.net/zodb/+bug/670986
+
 3.10.1 (2010-10-27)
 ===================
 
