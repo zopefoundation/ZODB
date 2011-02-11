@@ -17,7 +17,7 @@ import os
 import random
 import stat
 
-import ZODB, ZODB.FileStorage
+import ZODB.FileStorage
 from StorageTestBase import StorageTestBase
 
 class FileStorageCorruptTests(StorageTestBase):

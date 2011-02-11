@@ -26,7 +26,6 @@ from ZEO.Exceptions import AuthError
 from ZEO.monitor import StorageStats, StatsServer
 from ZEO.zrpc.connection import ManagedServerConnection, Delay, MTDelay, Result
 from ZEO.zrpc.server import Dispatcher
-from ZEO.zrpc.trigger import trigger
 from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.loglevels import BLATHER
 from ZODB.POSException import StorageError, StorageTransactionError

@@ -18,7 +18,6 @@ all these tests.
 """
 
 from ZODB.tests.MinPO import MinPO
-from transaction import Transaction
 
 class HistoryStorage:
     def checkSimpleHistory(self):
@@ -59,4 +58,4 @@ class HistoryStorage:
         eq(d['tid'], revid2)
         d = h[2]
         eq(d['tid'], revid1)
-        
+

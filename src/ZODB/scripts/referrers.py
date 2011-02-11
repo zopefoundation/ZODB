@@ -25,6 +25,3 @@ def referrers(storage):
             for oid in referencesf(record.data):
                 result.setdefault(oid, []).append((record.oid, record.tid))
     return result
-
-                
-            

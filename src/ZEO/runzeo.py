@@ -41,7 +41,7 @@ import signal
 import socket
 import logging
 
-import ZConfig, ZConfig.datatypes
+import ZConfig.datatypes
 import ZEO
 from zdaemon.zdoptions import ZDOptions
 

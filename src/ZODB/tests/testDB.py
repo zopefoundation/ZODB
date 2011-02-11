@@ -13,7 +13,6 @@
 ##############################################################################
 
 from ZODB.tests.MinPO import MinPO
-import datetime
 import doctest
 import os
 import sys
@@ -60,7 +59,7 @@ class DBTests(ZODB.tests.util.TestCase):
     def test_references(self):
 
         # TODO: For now test that we're using referencesf.  We really should
-        #       have tests of referencesf.  
+        #       have tests of referencesf.
 
         import ZODB.serialize
         self.assert_(self.db.references is ZODB.serialize.referencesf)

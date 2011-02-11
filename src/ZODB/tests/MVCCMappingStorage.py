@@ -17,14 +17,10 @@ Each Connection has its own view of the database.  Polling updates each
 connection's view.
 """
 
-import time
-
-import BTrees
 import ZODB.utils
 import ZODB.POSException
 from ZODB.interfaces import IMVCCStorage
 from ZODB.MappingStorage import MappingStorage
-from ZODB.TimeStamp import TimeStamp
 from zope.interface import implements
 
 

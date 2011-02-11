@@ -22,8 +22,6 @@ import time
 import types
 import logging
 
-import ZEO
-
 zeo_version = 'unknown'
 try:
     import pkg_resources

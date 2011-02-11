@@ -13,7 +13,6 @@
 ##############################################################################
 """RPC stubs for interface exported by StorageServer."""
 
-import os
 import time
 from ZODB.utils import z64
 

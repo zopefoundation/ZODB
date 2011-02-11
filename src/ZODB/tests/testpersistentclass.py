@@ -12,7 +12,6 @@
 #
 ##############################################################################
 import doctest
-import os
 import sys
 import transaction
 import unittest

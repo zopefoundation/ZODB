@@ -15,7 +15,6 @@ import manuel.doctest
 import manuel.footnote
 import manuel.capture
 import manuel.testing
-import unittest
 import ZODB.ConflictResolution
 import ZODB.tests.util
 import zope.testing.module

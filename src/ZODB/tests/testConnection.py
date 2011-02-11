@@ -17,13 +17,11 @@ from __future__ import with_statement
 
 import doctest
 import unittest
-import warnings
 
 from persistent import Persistent
 import transaction
 from ZODB.config import databaseFromString
-from ZODB.utils import p64, u64
-from ZODB.tests.warnhook import WarningsHook
+from ZODB.utils import p64
 from zope.interface.verify import verifyObject
 import ZODB.tests.util
 

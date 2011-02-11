@@ -32,11 +32,9 @@ Note:
 
 import bisect
 import getopt
-import math
 import struct
 import re
 import sys
-import time
 import ZEO.cache
 
 from ZODB.utils import z64, u64

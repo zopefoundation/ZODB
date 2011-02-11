@@ -20,16 +20,15 @@ from ZODB.MappingStorage import DB
 
 import atexit
 import os
-import tempfile
-import time
-import unittest
 import persistent
 import sys
+import tempfile
 import time
 import transaction
+import unittest
 import warnings
-import zope.testing.setupstack
 import ZODB.utils
+import zope.testing.setupstack
 
 def setUp(test, name='test'):
     transaction.abort()
