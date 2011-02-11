@@ -1238,8 +1238,6 @@ class StubDatabase:
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
 
-    save_oid = lambda self, oid: None
-
     large_record_size = 1<<30
 
 def test_suite():
