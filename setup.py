@@ -30,7 +30,7 @@ from setuptools.extension import Extension
 import os
 import sys
 
-if sys.version_info < (2, 4, 2):
+if sys.version_info < (2, 5):
     print "This version of ZODB requires Python 2.4.2 or higher"
     sys.exit(0)
 
