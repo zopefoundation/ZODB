@@ -12,17 +12,22 @@
 #
 ##############################################################################
 """Persistence Interfaces
-
-$Id$
 """
 
 from zope.interface import Interface
 from zope.interface import Attribute
 
 try:
-    from cPersistence import GHOST, UPTODATE, CHANGED, STICKY
+    from cPersistence import GHOST
+    from cPersistence import UPTODATE
+    from cPersistence import CHANGED
+    from cPersistence import STICKY
 except ImportError:
-    GHOST, UPTODATE, CHANGED, STICKY = range(4)
+    from pypersistence import GHOST
+    from pypersistence import UPTODATE
+    from pypersistence import CHANGED
+    from pypersistence import STICKY
+
 
 class IPersistent(Interface):
     """Python persistent interface
@@ -164,17 +169,24 @@ class IPersistent(Interface):
         """The data manager for the object.
 
         The data manager implements the IPersistentDataManager interface.
+
         If there is no data manager, then this is None.
+
+        Once assigned to a data manager, an object cannot be re-assigned
+        to another.
         """)
 
     _p_oid = Attribute(
         """The object id.
 
         It is up to the data manager to assign this.
+
         The special value None is reserved to indicate that an object
         id has not been assigned.  Non-None object ids must be non-empty
         strings.  The 8-byte string '\0'*8 (8 NUL bytes) is reserved to
         identify the database root object.
+
+        Once assigned an OID, an object cannot be re-assigned another.
         """)
 
     _p_changed = Attribute(
@@ -216,6 +228,25 @@ class IPersistent(Interface):
         This is an 8-byte string (not Unicode).
         """)
 
+    _p_mtime = Attribute(
+        """The object's modification time (read-only).
+
+        This is a float, representing seconds since the epoch (as returned
+        by time.time).
+        """)
+
+    _p_state = Attribute(
+        """The object's persistence state token.
+
+        Must be one of GHOST, UPTODATE, CHANGED, or STICKY.
+        """)
+
+    _p_estimated_size = Attribute(
+        """An estimate of the object's size in bytes.
+
+        May be set by the data manager.
+        """)
+
     def __getstate__():
         """Get the object data.
 
@@ -225,6 +256,10 @@ class IPersistent(Interface):
 
     def __setstate__(state):
         """Set the object data.
+        """
+
+    def __reduce__():
+        """Reduce an object to contituent parts for serialization.
         """
 
     def _p_activate():
@@ -249,6 +284,40 @@ class IPersistent(Interface):
         away, even if the object is in the changed state.  The object
         is moved to the ghost state; further accesses will cause
         object data to be reloaded.
+        """
+
+    def _p_getattr(name):
+        """Test whether the base class must handle the name
+   
+        The method unghostifies the object, if necessary.
+        The method records the object access, if necessary.
+ 
+        This method should be called by subclass __getattribute__
+        implementations before doing anything else. If the method
+        returns True, then __getattribute__ implementations must delegate
+        to the base class, Persistent.
+        """
+
+    def _p_setattr(name, value):
+        """Save persistent meta data
+
+        This method should be called by subclass __setattr__ implementations
+        before doing anything else.  If it returns true, then the attribute
+        was handled by the base class.
+
+        The method unghostifies the object, if necessary.
+        The method records the object access, if necessary.
+        """
+
+    def _p_delattr(name):
+        """Delete persistent meta data
+
+        This method should be called by subclass __delattr__ implementations
+        before doing anything else.  If it returns true, then the attribute
+        was handled by the base class.
+
+        The method unghostifies the object, if necessary.
+        The method records the object access, if necessary.
         """
 
 # TODO:  document conflict resolution.

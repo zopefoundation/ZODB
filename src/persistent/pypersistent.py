@@ -140,6 +140,41 @@ class Persistent(object):
 
     _p_changed = property(_get_changed, _set_changed, _del_changed)
 
+    # _p_mtime
+    def _get_mtime(self):
+        if self.__serial is not None:
+            when = datetime.datetime(*parseTimestamp(self.__serial))
+            return time.mktime(when.timetuple())
+
+    _p_mtime = property(_get_mtime)
+
+    # _p_state
+    def _get_state(self):
+        if self.__flags is None:
+            if self.__jar is None:
+                return UPTODATE
+            return GHOST
+        if self.__flags & _CHANGED:
+            if self.__jar is None:
+                return UPTODATE
+            result = CHANGED
+        else:
+            result = UPTODATE
+        if self.__flags & _STICKY:
+            return STICKY
+        return result
+
+    _p_state = property(_get_state)
+
+    # _p_estimated_size:  XXX don't want to reserve the space?
+    def _get_estimated_size(self):
+        return 0
+
+    def _set_estimated_size(self, value):
+        pass
+
+    _p_estimated_size = property(_get_estimated_size, _set_estimated_size)
+
     # The '_p_sticky' property is not (yet) part of the API:  for now,
     # it exists to simplify debugging and testing assertions.
     def _get_sticky(self):
@@ -174,40 +209,6 @@ class Persistent(object):
 
     _p_status = property(_get_status)
 
-    # These attributes are defined by the C type, but not IPersistent.
-    def _get_mtime(self):
-        if self.__serial is not None:
-            when = datetime.datetime(*parseTimestamp(self.__serial))
-            return time.mktime(when.timetuple())
-    _p_mtime = property(_get_mtime)
-
-    # _p_state
-    def _get_state(self):
-        if self.__flags is None:
-            if self.__jar is None:
-                return UPTODATE
-            return GHOST
-        if self.__flags & _CHANGED:
-            if self.__jar is None:
-                return UPTODATE
-            result = CHANGED
-        else:
-            result = UPTODATE
-        if self.__flags & _STICKY:
-            return STICKY
-        return result
-
-    _p_state = property(_get_state)
-
-    # _p_estimated_size:  XXX don't want to reserve the space?
-    def _get_estimated_size(self):
-        return 0
-
-    def _set_estimated_size(self, value):
-        pass
-
-    _p_estimated_size = property(_get_estimated_size, _set_estimated_size)
-
     # Methods from IPersistent.
     def __getstate__(self):
         """ See IPersistent.
@@ -219,6 +220,12 @@ class Persistent(object):
         """
         if state != ():
             raise ValueError('No state allowed on base Persistent class')
+
+    def __reduce__(self):
+        """ See IPersistent.
+        """
+        gna = getattr(self, '__getnewargs__', lambda: ())
+        return ((type(self),) + gna(), self.__getstate__())
 
     def _p_activate(self):
         """ See IPersistent.
@@ -241,18 +248,8 @@ class Persistent(object):
             raise ValueError('Sticky')
         self.__flags = None
 
-    # Methods defined in C, not part of IPersistent
     def _p_getattr(self, name):
-        """\
-        _p_getattr(name) -- Test whether the base class must handle the name
-   
-        The method unghostifies the object, if necessary.
-        The method records the object access, if necessary.
- 
-        This method should be called by subclass __getattribute__
-        implementations before doing anything else. If the method
-        returns True, then __getattribute__ implementations must delegate
-        to the base class, Persistent.
+        """ See IPersistent.
         """
         if name.startswith('_p_') or name in SPECIAL_NAMES:
             return True
@@ -261,14 +258,7 @@ class Persistent(object):
         return False
 
     def _p_setattr(self, name, value):
-        """_p_setattr(name, value) -- Save persistent meta data
-
-        This method should be called by subclass __setattr__ implementations
-        before doing anything else.  If it returns true, then the attribute
-        was handled by the base class.
-
-        The method unghostifies the object, if necessary.
-        The method records the object access, if necessary.
+        """ See IPersistent.
         """
         if name.startswith('_p_'):
             setattr(self, name, value)
@@ -278,14 +268,7 @@ class Persistent(object):
         return False
 
     def _p_delattr(self, name):
-        """_p_delattr(name) -- Delete persistent meta data
-
-        This method should be called by subclass __delattr__ implementations
-        before doing anything else.  If it returns true, then the attribute
-        was handled by the base class.
-
-        The method unghostifies the object, if necessary.
-        The method records the object access, if necessary.
+        """ See IPersistent.
         """
         if name.startswith('_p_'):
             delattr(self, name)
@@ -293,12 +276,6 @@ class Persistent(object):
         self._p_activate()
         # TODO set the object as acceessed with the jar's cache.
         return False
-
-    def __reduce__(self):
-        """Reduce an object to contituent parts for serialization.
-        """
-        gna = getattr(self, '__getnewargs__', lambda: ())
-        return ((type(self),) + gna(), self.__getstate__())
 
     # Helper methods:  not APIs
     def _register(self):
