@@ -36,6 +36,14 @@ UPTODATE = 0
 CHANGED = 1
 STICKY = 2
 
+# These names can be used from a ghost without causing it to be activated.
+SPECIAL_NAMES = ('__class__',
+                 '__del__',
+                 '__dict__',
+                 '__of__',
+                 '__setstate__'
+                )
+
 _SCONV = 60.0 / (1<<16) / (1<<16)
 
 def makeTimestamp(year, month, day, hour, minute, second):
@@ -54,7 +62,10 @@ def parseTimestamp(octets):
     second = b * _SCONV
     return (year, month, day, hour, minute, second)
 
+
 class Persistent(object):
+    """ Pure Python implmentation of Persistent base class
+    """
     __slots__ = ('__jar', '__oid', '__serial', '__flags')
     implements(IPersistent)
 
@@ -201,12 +212,12 @@ class Persistent(object):
     def __getstate__(self):
         """ See IPersistent.
         """
-        return {}
+        return ()
 
     def __setstate__(self, state):
         """ See IPersistent.
         """
-        if state != {}:
+        if state != ():
             raise ValueError('No state allowed on base Persistent class')
 
     def _p_activate(self):
@@ -229,6 +240,65 @@ class Persistent(object):
         if self.__flags is not None and self.__flags & _STICKY:
             raise ValueError('Sticky')
         self.__flags = None
+
+    # Methods defined in C, not part of IPersistent
+    def _p_getattr(self, name):
+        """\
+        _p_getattr(name) -- Test whether the base class must handle the name
+   
+        The method unghostifies the object, if necessary.
+        The method records the object access, if necessary.
+ 
+        This method should be called by subclass __getattribute__
+        implementations before doing anything else. If the method
+        returns True, then __getattribute__ implementations must delegate
+        to the base class, Persistent.
+        """
+        if name.startswith('_p_') or name in SPECIAL_NAMES:
+            return True
+        self._p_activate()
+        # TODO set the object as acceessed with the jar's cache.
+        return False
+
+    def _p_setattr(self, name, value):
+        """_p_setattr(name, value) -- Save persistent meta data
+
+        This method should be called by subclass __setattr__ implementations
+        before doing anything else.  If it returns true, then the attribute
+        was handled by the base class.
+
+        The method unghostifies the object, if necessary.
+        The method records the object access, if necessary.
+        """
+        if name.startswith('_p_'):
+            setattr(self, name, value)
+            return True
+        self._p_activate()
+        # TODO set the object as acceessed with the jar's cache.
+        return False
+
+    def _p_delattr(self, name):
+        """_p_delattr(name) -- Delete persistent meta data
+
+        This method should be called by subclass __delattr__ implementations
+        before doing anything else.  If it returns true, then the attribute
+        was handled by the base class.
+
+        The method unghostifies the object, if necessary.
+        The method records the object access, if necessary.
+        """
+        if name.startswith('_p_'):
+            delattr(self, name)
+            return True
+        self._p_activate()
+        # TODO set the object as acceessed with the jar's cache.
+        return False
+
+    def __reduce__(self):
+        """Reduce an object to contituent parts for serialization.
+        """
+        gna = getattr(self, '__getnewargs__', lambda: ())
+        return ((type(self),) + gna(), self.__getstate__())
 
     # Helper methods:  not APIs
     def _register(self):

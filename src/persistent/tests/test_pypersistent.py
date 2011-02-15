@@ -36,7 +36,7 @@ class PersistentTests(unittest.TestCase):
                 self._registered.append(obj._p_oid)
         return _Jar()
 
-    def _makeOneWithJar(self, *args, **kw):
+    def _makeOneWithJar(self):
         OID = '1' * 8
         inst = self._makeOne()
         jar = self._makeJar()
@@ -421,11 +421,11 @@ class PersistentTests(unittest.TestCase):
 
     def test___getstate__(self):
         inst = self._makeOne()
-        self.assertEqual(inst.__getstate__(), {})
+        self.assertEqual(inst.__getstate__(), ())
 
     def test___setstate___empty(self):
         inst = self._makeOne()
-        inst.__setstate__({}) # doesn't raise, but doesn't change anything
+        inst.__setstate__(()) # doesn't raise, but doesn't change anything
 
     def test___setstate___nonempty(self):
         inst = self._makeOne()
@@ -543,3 +543,77 @@ class PersistentTests(unittest.TestCase):
         inst._p_changed = False
         inst._p_sticky = True
         self.assertRaises(ValueError, inst._p_invalidate)
+
+    def test__p_getattr_w__p__name(self):
+        inst, jar, OID = self._makeOneWithJar()
+        self.failUnless(inst._p_getattr('_p_foo'))
+        self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+
+    def test__p_getattr_w_special_names(self):
+        from persistent.pypersistent import SPECIAL_NAMES
+        inst, jar, OID = self._makeOneWithJar()
+        for name in SPECIAL_NAMES:
+            self.failUnless(inst._p_getattr(name))
+            self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+
+    def test__p_getattr_w_normal_name(self):
+        inst, jar, OID = self._makeOneWithJar()
+        self.failIf(inst._p_getattr('normal'))
+        self.assertEqual(inst._p_status, 'saved')
+        self.assertEqual(list(jar._loaded), [OID])
+
+    def test__p_setattr_w__p__name(self):
+        inst, jar, OID = self._makeOneWithJar()
+        self.failUnless(inst._p_setattr('_p_serial', '1' * 8))
+        self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(inst._p_serial, '1' * 8)
+        self.assertEqual(list(jar._loaded), [])
+
+    def test__p_setattr_w_normal_name(self):
+        inst, jar, OID = self._makeOneWithJar()
+        self.failIf(inst._p_setattr('normal', 'value'))
+        self.assertEqual(inst._p_status, 'saved')
+        self.assertEqual(list(jar._loaded), [OID])
+
+    def test__p_delattr_w__p__name(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = True
+        jar._loaded = []
+        self.failUnless(inst._p_delattr('_p_changed'))
+        self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(inst._p_changed, None)
+        self.assertEqual(list(jar._loaded), [])
+
+    def test__p_delattr_w_normal_name(self):
+        inst, jar, OID = self._makeOneWithJar()
+        self.failIf(inst._p_delattr('normal'))
+        self.assertEqual(inst._p_status, 'saved')
+        self.assertEqual(list(jar._loaded), [OID])
+
+    def test___reduce__(self):
+        inst = self._makeOne()
+        first, second = inst.__reduce__()
+        self.assertEqual(first, (self._getTargetClass(),))
+        self.assertEqual(second, ())
+
+    def test___reduce__w_subclass_having_getstate(self):
+        class Derived(self._getTargetClass()):
+            def __getstate__(self):
+                return {}
+        inst = Derived()
+        first, second = inst.__reduce__()
+        self.assertEqual(first, (Derived,))
+        self.assertEqual(second, {})
+
+    def test___reduce__w_subclass_having_gna_and_getstate(self):
+        class Derived(self._getTargetClass()):
+            def __getnewargs__(self):
+                return ('a', 'b')
+            def __getstate__(self):
+                return {'foo': 'bar'}
+        inst = Derived()
+        first, second = inst.__reduce__()
+        self.assertEqual(first, (Derived, 'a', 'b'))
+        self.assertEqual(second, {'foo': 'bar'})
