@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2003 Zope Foundation and Contributors.
+# Copyright (c) 2011 Zope Foundation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -259,8 +259,7 @@ class PersistentTests(unittest.TestCase):
         inst = self._makeOne()
         inst._p_changed = True
         del inst._p_changed
-        # can't transition 'unsaved' -> 'new'
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_state, 'new')
 
     def test_delete_p_changed_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
@@ -286,8 +285,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         del inst._p_changed
-        # del is ignored when dirty
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_state, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 

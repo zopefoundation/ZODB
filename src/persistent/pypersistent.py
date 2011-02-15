@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2003 Zope Foundation and Contributors.
+# Copyright (c) 2011 Zope Foundation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -48,6 +48,7 @@ class Persistent(object):
         if not IPersistentDataManager.providedBy(value):
             raise ValueError('Not a data manager: %s' % value)
         self.__jar = value
+
     _p_jar = property(_get_jar, _set_jar)
 
     # _p_oid:  see IPersistent.
@@ -91,15 +92,13 @@ class Persistent(object):
                 self._set_changed_flag(value)
         else:
             if value is None: # -> ghost
-                if self.__flags & _STICKY:
-                    raise ValueError('Sticky')
                 if not self.__flags & _CHANGED:
                     self._p_invalidate()
             else:
                 self._set_changed_flag(value)
 
     def _del_changed(self):
-        self._set_changed(None)
+        self._p_invalidate()
 
     _p_changed = property(_get_changed, _set_changed, _del_changed)
 
@@ -163,7 +162,8 @@ class Persistent(object):
     def _p_invalidate(self):
         """ See IPersistent.
         """
-        # XXX check
+        if self.__flags is not None and self.__flags & _STICKY:
+            raise ValueError('Sticky')
         self.__flags = None
 
     # Helper methods:  not APIs
