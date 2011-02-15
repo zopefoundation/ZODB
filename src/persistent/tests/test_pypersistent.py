@@ -358,6 +358,67 @@ class PersistentTests(unittest.TestCase):
         inst._p_sticky = True
         self.assertEqual(inst._p_status, 'saved (sticky)')
 
+    def test__p_mtime_no_serial(self):
+        inst = self._makeOne()
+        self.assertEqual(inst._p_mtime, None)
+
+    def test__p_mtime_w_serial(self):
+        import datetime
+        import time
+        from persistent.pypersistent import makeTimestamp
+        WHEN_TUPLE = (2011, 2, 15, 13, 33, 27.5)
+        WHEN = datetime.datetime(*WHEN_TUPLE)
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_serial = makeTimestamp(*WHEN_TUPLE)
+        self.assertEqual(inst._p_mtime, time.mktime(WHEN.timetuple()))
+
+    def test__p_state_new(self):
+        inst = self._makeOne()
+        self.assertEqual(inst._p_state, 0)
+
+    def test__p_state_unsaved(self):
+        inst = self._makeOne()
+        inst._p_changed = True
+        self.assertEqual(inst._p_state, 0)
+
+    def test__p_state_ghost(self):
+        inst, jar, OID = self._makeOneWithJar()
+        self.assertEqual(inst._p_state, -1)
+
+    def test__p_state_changed(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = True
+        self.assertEqual(inst._p_state, 1)
+
+    def test__p_state_changed_sticky(self):
+        # 'sticky' is not a state, but a separate flag.
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = True
+        inst._p_sticky = True
+        self.assertEqual(inst._p_state, 2)
+
+    def test__p_state_saved(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = False
+        self.assertEqual(inst._p_state, 0)
+
+    def test__p_state_saved_sticky(self):
+        # 'sticky' is not a state, but a separate flag.
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = False
+        inst._p_sticky = True
+        self.assertEqual(inst._p_state, 2)
+
+    def test_query_p_estimated_size(self):
+        inst = self._makeOne()
+        self.assertEqual(inst._p_estimated_size, 0)
+
+    def test_assign_p_estimated_size(self):
+        # XXX at the moment, we don't store this value.
+        inst = self._makeOne()
+        inst._p_estimated_size = 123
+        self.assertEqual(inst._p_estimated_size, 0)
+
     def test___getstate__(self):
         inst = self._makeOne()
         self.assertEqual(inst.__getstate__(), {})

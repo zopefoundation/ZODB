@@ -11,7 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import datetime
+import struct
 import sys
+import time
 
 from zope.interface import implements
 
@@ -23,8 +26,33 @@ if sys.version_info < (2.6,):
 else:
     OID_TYPE = SERIAL_TYPE = bytes
 
+# Bitwise flags
 _CHANGED = 0x0001
 _STICKY = 0x0002
+
+# Allowed values for _p_state
+GHOST = -1
+UPTODATE = 0
+CHANGED = 1
+STICKY = 2
+
+_SCONV = 60.0 / (1<<16) / (1<<16)
+
+def makeTimestamp(year, month, day, hour, minute, second):
+    a = (((year - 1900) * 12 + month - 1) * 31 + day - 1)
+    a = (a * 24 + hour) * 60 + minute
+    b = int(second / _SCONV)
+    return struct.pack('>II', a, b)
+
+def parseTimestamp(octets):
+    a, b = struct.unpack('>II', octets)
+    minute = a % 60
+    hour = a // 60 % 24
+    day = a // (60 * 24) % 31 + 1
+    month = a // (60 * 24 * 31) % 12 + 1
+    year = a // (60 * 24 * 31 * 12) + 1900
+    second = b * _SCONV
+    return (year, month, day, hour, minute, second)
 
 class Persistent(object):
     __slots__ = ('__jar', '__oid', '__serial', '__flags')
@@ -135,6 +163,41 @@ class Persistent(object):
 
     _p_status = property(_get_status)
 
+    # These attributes are defined by the C type, but not IPersistent.
+    def _get_mtime(self):
+        if self.__serial is not None:
+            when = datetime.datetime(*parseTimestamp(self.__serial))
+            return time.mktime(when.timetuple())
+    _p_mtime = property(_get_mtime)
+
+    # _p_state
+    def _get_state(self):
+        if self.__flags is None:
+            if self.__jar is None:
+                return UPTODATE
+            return GHOST
+        if self.__flags & _CHANGED:
+            if self.__jar is None:
+                return UPTODATE
+            result = CHANGED
+        else:
+            result = UPTODATE
+        if self.__flags & _STICKY:
+            return STICKY
+        return result
+
+    _p_state = property(_get_state)
+
+    # _p_estimated_size:  XXX don't want to reserve the space?
+    def _get_estimated_size(self):
+        return 0
+
+    def _set_estimated_size(self, value):
+        pass
+
+    _p_estimated_size = property(_get_estimated_size, _set_estimated_size)
+
+    # Methods from IPersistent.
     def __getstate__(self):
         """ See IPersistent.
         """
