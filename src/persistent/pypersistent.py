@@ -92,8 +92,7 @@ class Persistent(object):
                 self._set_changed_flag(value)
         else:
             if value is None: # -> ghost
-                if not self.__flags & _CHANGED:
-                    self._p_invalidate()
+                self._p_deactivate()
             else:
                 self._set_changed_flag(value)
 
@@ -158,6 +157,8 @@ class Persistent(object):
     def _p_deactivate(self):
         """ See IPersistent.
         """
+        if self.__flags is not None and not self.__flags & _CHANGED:
+            self._p_invalidate()
 
     def _p_invalidate(self):
         """ See IPersistent.

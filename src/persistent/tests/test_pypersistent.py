@@ -391,3 +391,94 @@ class PersistentTests(unittest.TestCase):
         inst._p_changed = True
         inst._p_activate() # noop from 'saved' state
         self.assertEqual(inst._p_state, 'unsaved')
+
+    def test__p_deactivate_from_new(self):
+        inst = self._makeOne()
+        inst._p_deactivate()
+        self.assertEqual(inst._p_state, 'new')
+
+    def test__p_deactivate_from_unsaved(self):
+        inst = self._makeOne()
+        inst._p_changed = True
+        inst._p_deactivate()
+        # can't transition 'unsaved' -> 'new'
+        self.assertEqual(inst._p_state, 'unsaved')
+
+    def test__p_deactivate_from_ghost(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_deactivate()
+        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_deactivate_from_saved(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_activate()
+        jar._loaded = []
+        inst._p_deactivate()
+        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_deactivate_from_changed(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_activate()
+        inst._p_changed = True
+        jar._loaded = []
+        jar._registered = []
+        inst._p_deactivate()
+        # assigning None is ignored when dirty
+        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_deactivate_when_sticky(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = False
+        inst._p_sticky = True
+        self.assertRaises(ValueError, inst._p_deactivate)
+
+    def test__p_invalidate_from_new(self):
+        inst = self._makeOne()
+        inst._p_invalidate()
+        self.assertEqual(inst._p_state, 'new')
+
+    def test__p_invalidate_from_unsaved(self):
+        inst = self._makeOne()
+        inst._p_changed = True
+        inst._p_invalidate()
+        self.assertEqual(inst._p_state, 'new')
+
+    def test__p_invalidate_from_ghost(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_invalidate()
+        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_invalidate_from_saved(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_activate()
+        jar._loaded = []
+        jar._registered = []
+        inst._p_invalidate()
+        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_invalidate_from_changed(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_activate()
+        inst._p_changed = True
+        jar._loaded = []
+        jar._registered = []
+        inst._p_invalidate()
+        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_invalidate_when_sticky(self):
+        inst, jar, OID = self._makeOneWithJar()
+        inst._p_changed = False
+        inst._p_sticky = True
+        self.assertRaises(ValueError, inst._p_invalidate)
