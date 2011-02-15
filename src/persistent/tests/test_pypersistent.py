@@ -130,55 +130,55 @@ class PersistentTests(unittest.TestCase):
     def test_assign_p_changed_none_from_new(self):
         inst = self._makeOne()
         inst._p_changed = None
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
     def test_assign_p_changed_true_from_new(self):
         inst = self._makeOne()
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_status, 'unsaved')
 
     def test_assign_p_changed_false_from_new(self):
         inst = self._makeOne()
         inst._p_changed = False # activates
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
 
     def test_assign_p_changed_none_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_changed = None
         # can't transition 'unsaved' -> 'new'
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_status, 'unsaved')
 
     def test_assign_p_changed_true_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_status, 'unsaved')
 
     def test_assign_p_changed_false_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_changed = False
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
 
     def test_assign_p_changed_none_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = None
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
     def test_assign_p_changed_true_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_status, 'changed')
         self.assertEqual(list(jar._loaded), [OID])
         self.assertEqual(list(jar._registered), [OID])
 
     def test_assign_p_changed_false_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = False
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [OID])
         self.assertEqual(list(jar._registered), [])
 
@@ -187,7 +187,7 @@ class PersistentTests(unittest.TestCase):
         inst._p_activate()
         jar._loaded = []
         inst._p_changed = None
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -195,7 +195,7 @@ class PersistentTests(unittest.TestCase):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_activate()
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_status, 'changed')
         self.assertEqual(list(jar._loaded), [OID])
         self.assertEqual(list(jar._registered), [OID])
 
@@ -204,7 +204,7 @@ class PersistentTests(unittest.TestCase):
         inst._p_activate()
         jar._loaded = []
         inst._p_changed = False
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -216,7 +216,7 @@ class PersistentTests(unittest.TestCase):
         jar._registered = []
         inst._p_changed = None
         # assigning None is ignored when dirty
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_status, 'changed')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -227,7 +227,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_status, 'changed')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -238,7 +238,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         inst._p_changed = False
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -253,18 +253,18 @@ class PersistentTests(unittest.TestCase):
     def test_delete_p_changed_from_new(self):
         inst = self._makeOne()
         del inst._p_changed
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
     def test_delete_p_changed_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         del inst._p_changed
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
     def test_delete_p_changed_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
         del inst._p_changed
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -274,7 +274,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         del inst._p_changed
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -285,7 +285,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         del inst._p_changed
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -321,42 +321,42 @@ class PersistentTests(unittest.TestCase):
         inst._p_sticky = False
         self.failIf(inst._p_sticky)
 
-    def test__p_state_new(self):
+    def test__p_status_new(self):
         inst = self._makeOne()
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
-    def test__p_state_unsaved(self):
+    def test__p_status_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_status, 'unsaved')
 
-    def test__p_state_ghost(self):
+    def test__p_status_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
 
-    def test__p_state_changed(self):
+    def test__p_status_changed(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = True
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_status, 'changed')
 
-    def test__p_state_changed_sticky(self):
+    def test__p_status_changed_sticky(self):
         # 'sticky' is not a state, but a separate flag.
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = True
         inst._p_sticky = True
-        self.assertEqual(inst._p_state, 'changed (sticky)')
+        self.assertEqual(inst._p_status, 'changed (sticky)')
 
-    def test__p_state_saved(self):
+    def test__p_status_saved(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = False
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
 
-    def test__p_state_saved_sticky(self):
+    def test__p_status_saved_sticky(self):
         # 'sticky' is not a state, but a separate flag.
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = False
         inst._p_sticky = True
-        self.assertEqual(inst._p_state, 'saved (sticky)')
+        self.assertEqual(inst._p_status, 'saved (sticky)')
 
     def test___getstate__(self):
         inst = self._makeOne()
@@ -378,36 +378,36 @@ class PersistentTests(unittest.TestCase):
     def test__p_activate_from_new(self):
         inst = self._makeOne()
         inst._p_activate()
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
 
     def test__p_activate_from_saved(self):
         inst = self._makeOne()
         inst._p_changed = False
         inst._p_activate() # noop from 'unsaved' state
-        self.assertEqual(inst._p_state, 'saved')
+        self.assertEqual(inst._p_status, 'saved')
 
     def test__p_activate_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_activate() # noop from 'saved' state
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_status, 'unsaved')
 
     def test__p_deactivate_from_new(self):
         inst = self._makeOne()
         inst._p_deactivate()
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
     def test__p_deactivate_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_deactivate()
         # can't transition 'unsaved' -> 'new'
-        self.assertEqual(inst._p_state, 'unsaved')
+        self.assertEqual(inst._p_status, 'unsaved')
 
     def test__p_deactivate_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_deactivate()
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -416,7 +416,7 @@ class PersistentTests(unittest.TestCase):
         inst._p_activate()
         jar._loaded = []
         inst._p_deactivate()
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -428,7 +428,7 @@ class PersistentTests(unittest.TestCase):
         jar._registered = []
         inst._p_deactivate()
         # assigning None is ignored when dirty
-        self.assertEqual(inst._p_state, 'changed')
+        self.assertEqual(inst._p_status, 'changed')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -441,18 +441,18 @@ class PersistentTests(unittest.TestCase):
     def test__p_invalidate_from_new(self):
         inst = self._makeOne()
         inst._p_invalidate()
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
     def test__p_invalidate_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_invalidate()
-        self.assertEqual(inst._p_state, 'new')
+        self.assertEqual(inst._p_status, 'new')
 
     def test__p_invalidate_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_invalidate()
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -462,7 +462,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         inst._p_invalidate()
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -473,7 +473,7 @@ class PersistentTests(unittest.TestCase):
         jar._loaded = []
         jar._registered = []
         inst._p_invalidate()
-        self.assertEqual(inst._p_state, 'ghost')
+        self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 

@@ -116,9 +116,9 @@ class Persistent(object):
             self.__flags &= ~_STICKY
     _p_sticky = property(_get_sticky, _set_sticky)
 
-    # The '_p_state' property is not (yet) part of the API:  for now,
+    # The '_p_status' property is not (yet) part of the API:  for now,
     # it exists to simplify debugging and testing assertions.
-    def _get_state(self):
+    def _get_status(self):
         if self.__flags is None:
             if self.__jar is None:
                 return 'new'
@@ -133,7 +133,7 @@ class Persistent(object):
             return '%s (sticky)' % result
         return result
 
-    _p_state = property(_get_state)
+    _p_status = property(_get_status)
 
     def __getstate__(self):
         """ See IPersistent.
