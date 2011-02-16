@@ -205,6 +205,40 @@ class PickleCacheTests(unittest.TestCase):
         self.assertEqual(items[1][0], 'three')
         self.assertEqual(items[2][0], 'two')
 
+    def test_mru_ghost(self):
+        from persistent.interfaces import UPTODATE
+        from persistent.interfaces import GHOST
+        cache = self._makeOne()
+        cache['one'] = self._makePersist(oid='one', state=UPTODATE)
+        two = cache['two'] = self._makePersist(oid='two', state=GHOST)
+        cache['three'] = self._makePersist(oid='three', state=UPTODATE)
+
+        cache.mru('two')
+
+        self.assertEqual(cache.ringlen(), 2)
+        items = cache.lru_items()
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0][0], 'one')
+        self.assertEqual(items[1][0], 'three')
+
+    def test_mru_was_ghost_now_active(self):
+        from persistent.interfaces import UPTODATE
+        from persistent.interfaces import GHOST
+        cache = self._makeOne()
+        cache['one'] = self._makePersist(oid='one', state=UPTODATE)
+        two = cache['two'] = self._makePersist(oid='two', state=GHOST)
+        cache['three'] = self._makePersist(oid='three', state=UPTODATE)
+
+        two._p_state = UPTODATE
+        cache.mru('two')
+
+        self.assertEqual(cache.ringlen(), 3)
+        items = cache.lru_items()
+        self.assertEqual(len(items), 3)
+        self.assertEqual(items[0][0], 'one')
+        self.assertEqual(items[1][0], 'three')
+        self.assertEqual(items[2][0], 'two')
+
     def test_mru_first(self):
         from persistent.interfaces import UPTODATE
         cache = self._makeOne()

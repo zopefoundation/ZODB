@@ -109,12 +109,18 @@ class PickleCache(object):
         while node is not self.ring and node.object._p_oid != oid:
             node = node.next
         if node is self.ring:
-            raise KeyError('Unknown OID: %s' % oid)
-        # remove from old location
-        node.prev.next, node.next.prev = node.next, node.prev
-        # splice into new
-        self.ring.prev.next, node.prev = node, self.ring.prev
-        self.ring.prev, node.next = node, self.ring
+            value = self.data[oid]
+            if value._p_state != GHOST:
+                self.non_ghost_count += 1
+                mru = self.ring.prev
+                self.ring.prev = node = RingNode(value, self.ring, mru)
+                mru.next = node
+        else:
+            # remove from old location
+            node.prev.next, node.next.prev = node.next, node.prev
+            # splice into new
+            self.ring.prev.next, node.prev = node, self.ring.prev
+            self.ring.prev, node.next = node, self.ring
         
     def ringlen(self):
         """ See IPickleCache.
