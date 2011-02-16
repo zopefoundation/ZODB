@@ -679,30 +679,36 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_sticky, False)
 
     def test___reduce__(self):
+        from copy_reg import __newobj__
         inst = self._makeOne()
-        first, second = inst.__reduce__()
-        self.assertEqual(first, (self._getTargetClass(),))
-        self.assertEqual(second, ())
+        first, second, third = inst.__reduce__()
+        self.failUnless(first is __newobj__)
+        self.assertEqual(second, (self._getTargetClass(),))
+        self.assertEqual(third, ())
 
     def test___reduce__w_subclass_having_getstate(self):
+        from copy_reg import __newobj__
         class Derived(self._getTargetClass()):
             def __getstate__(self):
                 return {}
         inst = Derived()
-        first, second = inst.__reduce__()
-        self.assertEqual(first, (Derived,))
-        self.assertEqual(second, {})
+        first, second, third = inst.__reduce__()
+        self.failUnless(first is __newobj__)
+        self.assertEqual(second, (Derived,))
+        self.assertEqual(third, {})
 
     def test___reduce__w_subclass_having_gna_and_getstate(self):
+        from copy_reg import __newobj__
         class Derived(self._getTargetClass()):
             def __getnewargs__(self):
                 return ('a', 'b')
             def __getstate__(self):
                 return {'foo': 'bar'}
         inst = Derived()
-        first, second = inst.__reduce__()
-        self.assertEqual(first, (Derived, 'a', 'b'))
-        self.assertEqual(second, {'foo': 'bar'})
+        first, second, third = inst.__reduce__()
+        self.failUnless(first is __newobj__)
+        self.assertEqual(second, (Derived, 'a', 'b'))
+        self.assertEqual(third, {'foo': 'bar'})
 
     def test__p_activate_from_new(self):
         inst = self._makeOne()

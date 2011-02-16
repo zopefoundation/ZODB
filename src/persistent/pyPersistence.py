@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from copy_reg import __newobj__
 import datetime
 import struct
 import sys
@@ -271,19 +272,26 @@ class Persistent(object):
     def __getstate__(self):
         """ See IPersistent.
         """
+        idict = getattr(self, '__dict__', None)
+        if idict is not None:
+            return idict
         return ()
 
     def __setstate__(self, state):
         """ See IPersistent.
         """
-        if state != ():
-            raise ValueError('No state allowed on base Persistent class')
+        idict = getattr(self, '__dict__', None)
+        if idict is not None:
+            idict.update(state)
+        else:
+            if state != ():
+                raise ValueError('No state allowed on base Persistent class')
 
     def __reduce__(self):
         """ See IPersistent.
         """
         gna = getattr(self, '__getnewargs__', lambda: ())
-        return ((type(self),) + gna(), self.__getstate__())
+        return (__newobj__, (type(self),) + gna(), self.__getstate__())
 
     def _p_activate(self):
         """ See IPersistent.
