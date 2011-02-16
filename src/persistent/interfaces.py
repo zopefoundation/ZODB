@@ -17,16 +17,17 @@
 from zope.interface import Interface
 from zope.interface import Attribute
 
+# Allowed values for _p_state
 try:
-    from cPersistence import GHOST
-    from cPersistence import UPTODATE
-    from cPersistence import CHANGED
-    from cPersistence import STICKY
+    from .cPersistence import GHOST
+    from .cPersistence import UPTODATE
+    from .cPersistence import CHANGED
+    from .cPersistence import STICKY
 except ImportError:
-    from pypersistence import GHOST
-    from pypersistence import UPTODATE
-    from pypersistence import CHANGED
-    from pypersistence import STICKY
+    GHOST = -1
+    UPTODATE = 0
+    CHANGED = 1
+    STICKY = 2
 
 
 class IPersistent(Interface):

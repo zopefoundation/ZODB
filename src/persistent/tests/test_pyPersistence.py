@@ -16,7 +16,7 @@ import unittest
 class PersistentTests(unittest.TestCase):
 
     def _getTargetClass(self):
-        from persistent.pypersistent import Persistent
+        from persistent.pyPersistence import Persistent
         return Persistent
 
     def _makeOne(self, *args, **kw):
@@ -377,7 +377,7 @@ class PersistentTests(unittest.TestCase):
     def test__p_mtime_w_serial(self):
         import datetime
         import time
-        from persistent.pypersistent import makeTimestamp
+        from persistent.pyPersistence import makeTimestamp
         WHEN_TUPLE = (2011, 2, 15, 13, 33, 27.5)
         WHEN = datetime.datetime(*WHEN_TUPLE)
         inst, jar, OID = self._makeOneWithJar()
@@ -449,7 +449,7 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(jar._cache._mru, [])
 
     def test___getattribute__special_name(self):
-        from persistent.pypersistent import SPECIAL_NAMES
+        from persistent.pyPersistence import SPECIAL_NAMES
         inst, jar, OID = self._makeOneWithJar()
         jar._cache._mru = []
         for name in SPECIAL_NAMES:
@@ -554,7 +554,7 @@ class PersistentTests(unittest.TestCase):
         jar._registered = []
         setattr(inst, 'normal', 'after')
         self.assertEqual(jar._cache._mru, [OID])
-        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(jar._registered, [])
         self.assertEqual(getattr(inst, 'normal', None), 'after')
 
     def test___delattr___p__names(self):
@@ -568,25 +568,28 @@ class PersistentTests(unittest.TestCase):
     def test___delattr__normal_name_from_new(self):
         class Derived(self._getTargetClass()):
             normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
         inst = Derived()
-        setattr(inst, 'normal', 'after')
         delattr(inst, 'normal')
         self.assertEqual(getattr(inst, 'normal', None), 'before')
 
     def test___delattr__normal_name_from_unsaved(self):
         class Derived(self._getTargetClass()):
             normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
         inst = Derived()
         inst._p_changed = True
-        setattr(inst, 'normal', 'after')
         delattr(inst, 'normal')
         self.assertEqual(getattr(inst, 'normal', None), 'before')
 
     def test___delattr__normal_name_from_ghost(self):
         class Derived(self._getTargetClass()):
             normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
         inst, jar, OID = self._makeOneWithJar(Derived)
-        setattr(inst, 'normal', 'after')
         jar._cache._mru = []
         jar._registered = []
         delattr(inst, 'normal')
@@ -597,8 +600,9 @@ class PersistentTests(unittest.TestCase):
     def test___delattr__normal_name_from_saved(self):
         class Derived(self._getTargetClass()):
             normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
         inst, jar, OID = self._makeOneWithJar(Derived)
-        setattr(inst, 'normal', 'after')
         inst._p_changed = False
         jar._cache._mru = []
         jar._registered = []
@@ -610,14 +614,15 @@ class PersistentTests(unittest.TestCase):
     def test___delattr__normal_name_from_changed(self):
         class Derived(self._getTargetClass()):
             normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
         inst, jar, OID = self._makeOneWithJar(Derived)
-        setattr(inst, 'normal', 'after')
         inst._p_changed = True
         jar._cache._mru = []
         jar._registered = []
         delattr(inst, 'normal')
         self.assertEqual(jar._cache._mru, [OID])
-        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(jar._registered, [])
         self.assertEqual(getattr(inst, 'normal', None), 'before')
 
     def test___getstate__(self):
@@ -790,7 +795,7 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(list(jar._cache._mru), [])
 
     def test__p_getattr_w_special_names(self):
-        from persistent.pypersistent import SPECIAL_NAMES
+        from persistent.pyPersistence import SPECIAL_NAMES
         inst, jar, OID = self._makeOneWithJar()
         for name in SPECIAL_NAMES:
             self.failUnless(inst._p_getattr(name))
@@ -816,6 +821,7 @@ class PersistentTests(unittest.TestCase):
     def test__p_setattr_w_normal_name(self):
         inst, jar, OID = self._makeOneWithJar()
         self.failIf(inst._p_setattr('normal', 'value'))
+        # _p_setattr doesn't do the actual write for normal names
         self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [OID])
         self.assertEqual(list(jar._cache._mru), [OID])
@@ -831,8 +837,13 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(list(jar._cache._mru), [])
 
     def test__p_delattr_w_normal_name(self):
-        inst, jar, OID = self._makeOneWithJar()
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst, jar, OID = self._makeOneWithJar(Derived)
         self.failIf(inst._p_delattr('normal'))
+        # _p_delattr doesn't do the actual delete for normal names
         self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [OID])
         self.assertEqual(list(jar._cache._mru), [OID])

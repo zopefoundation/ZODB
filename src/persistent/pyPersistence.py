@@ -20,6 +20,10 @@ from zope.interface import implements
 
 from persistent.interfaces import IPersistent
 from persistent.interfaces import IPersistentDataManager
+from persistent.interfaces import GHOST
+from persistent.interfaces import UPTODATE
+from persistent.interfaces import CHANGED
+from persistent.interfaces import STICKY
 
 if sys.version_info < (2.6,):
     OID_TYPE = SERIAL_TYPE = str
@@ -31,12 +35,7 @@ _CHANGED = 0x0001
 _STICKY = 0x0002
 
 _OGA = object.__getattribute__
-
-# Allowed values for _p_state
-GHOST = -1
-UPTODATE = 0
-CHANGED = 1
-STICKY = 2
+_OSA = object.__setattr__
 
 # These names can be used from a ghost without causing it to be activated.
 SPECIAL_NAMES = ('__class__',
@@ -224,26 +223,38 @@ class Persistent(object):
         return _OGA(self, name)
 
     def __setattr__(self, name, value):
-        if (not name.startswith('_Persistent__') and
-            not name.startswith('_p_')):
+        special_name = (name.startswith('_Persistent__') or
+                        name.startswith('_p_'))
+        if not special_name:
             if _OGA(self, '_Persistent__flags') is None:
                 _OGA(self, '_p_activate')()
             _OGA(self, '_p_accessed')()
-            if (_OGA(self, '_Persistent__jar') is not None and
-                _OGA(self, '_Persistent__oid') is not None):
-                _OGA(self, '_p_register')()
-        object.__setattr__(self, name, value)
+        _OSA(self, name, value)
+        if not special_name:
+            before = _OGA(self, '_Persistent__flags')
+            after = before | _CHANGED
+            if before != after:
+                _OSA(self, '_Persistent__flags', after)
+                if (_OGA(self, '_Persistent__jar') is not None and
+                    _OGA(self, '_Persistent__oid') is not None):
+                    _OGA(self, '_p_register')()
 
     def __delattr__(self, name):
-        if (not name.startswith('_Persistent__') and
-            not name.startswith('_p_')):
+        special_name = (name.startswith('_Persistent__') or
+                        name.startswith('_p_'))
+        if not special_name:
             if _OGA(self, '_Persistent__flags') is None:
                 _OGA(self, '_p_activate')()
             _OGA(self, '_p_accessed')()
-            if (_OGA(self, '_Persistent__jar') is not None and
-                _OGA(self, '_Persistent__oid') is not None):
-                _OGA(self, '_p_register')()
         object.__delattr__(self, name)
+        if not special_name:
+            before = _OGA(self, '_Persistent__flags')
+            after = before | _CHANGED
+            if before != after:
+                _OSA(self, '_Persistent__flags', after)
+                if (_OGA(self, '_Persistent__jar') is not None and
+                    _OGA(self, '_Persistent__oid') is not None):
+                    _OGA(self, '_p_register')()
 
     def __getstate__(self):
         """ See IPersistent.
