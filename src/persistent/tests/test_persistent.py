@@ -11,7 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from persistent import Persistent, simple_new
+from persistent import Persistent
+
+try:
+    from persistent import simple_new
+except ImportError:
+    simple_new = None
+
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing import doctest
@@ -40,13 +46,14 @@ def cpersistent_setstate_pointer_sanity():
     TypeError: this object has no instance dictionary
     """
 
-def cpersistent_simple_new_invalid_argument():
-    """
-    >>> simple_new('')
-    Traceback (most recent call last):
-    ...
-    TypeError: simple_new argument must be a type object.
-    """
+if simple_new is not None:
+    def cpersistent_simple_new_invalid_argument():
+        """
+        >>> simple_new('')
+        Traceback (most recent call last):
+        ...
+        TypeError: simple_new argument must be a type object.
+        """
 
 def test_suite():
     return unittest.TestSuite((
