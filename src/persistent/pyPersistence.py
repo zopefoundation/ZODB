@@ -107,7 +107,11 @@ class Persistent(object):
             raise ValueError('Already assigned an OID')
         self.__oid = value
 
-    _p_oid = property(_get_oid, _set_oid)
+    def _del_oid(self):
+        if self.__oid is not None:
+            raise ValueError('Cannot delete OID once assigned')
+
+    _p_oid = property(_get_oid, _set_oid, _del_oid)
 
     # _p_serial:  see IPersistent.
     def _get_serial(self):

@@ -117,6 +117,19 @@ class PersistentTests(unittest.TestCase):
             inst._p_oid = OID2
         self.assertRaises(ValueError, _test)
 
+    def test_delete_p_oid_wo_real_oid(self):
+        inst = self._makeOne()
+        del inst._p_oid
+        self.assertEqual(inst._p_oid, None)
+
+    def test_delete_p_oid_w_real_oid(self):
+        OID = '1' * 8
+        inst = self._makeOne()
+        inst._p_oid = OID
+        def _test():
+            del inst._p_oid
+        self.assertRaises(ValueError, _test)
+
     def test_assign_p_serial_w_invalid_serial(self):
         inst = self._makeOne()
         def _test():
