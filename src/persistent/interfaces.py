@@ -247,6 +247,26 @@ class IPersistent(Interface):
         May be set by the data manager.
         """)
 
+    # Attribute access protocol
+    def __getattribute__(name):
+        """ Handle activating ghosts before returning an attribute value.
+
+        "Special" attributes and '_p_*' attributes don't require activation.
+        """
+
+    def __setattr__(name, value):
+        """ Handle activating ghosts before setting an attribute value.
+
+        "Special" attributes and '_p_*' attributes don't require activation.
+        """
+
+    def __delattr__(name):
+        """ Handle activating ghosts before deleting an attribute value.
+
+        "Special" attributes and '_p_*' attributes don't require activation.
+        """
+
+    # Pickling protocol.
     def __getstate__():
         """Get the object data.
 
@@ -262,6 +282,7 @@ class IPersistent(Interface):
         """Reduce an object to contituent parts for serialization.
         """
 
+    # Custom methods
     def _p_activate():
         """Activate the object.
 

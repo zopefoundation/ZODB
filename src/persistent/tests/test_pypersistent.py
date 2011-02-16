@@ -25,20 +25,32 @@ class PersistentTests(unittest.TestCase):
     def _makeJar(self):
         from zope.interface import implements
         from persistent.interfaces import IPersistentDataManager
+
+        class _Cache(object):
+            def __init__(self):
+                self._mru = []
+            def mru(self, oid):
+                self._mru.append(oid)
+
         class _Jar(object):
             implements(IPersistentDataManager)
             def __init__(self):
                 self._loaded = []
                 self._registered = []
+                self._cache = _Cache()
             def setstate(self, obj):
                 self._loaded.append(obj._p_oid)
             def register(self, obj):
                 self._registered.append(obj._p_oid)
+
         return _Jar()
 
-    def _makeOneWithJar(self):
-        OID = '1' * 8
-        inst = self._makeOne()
+    def _makeOneWithJar(self, klass=None):
+        OID = '\x01' * 8
+        if klass is not None:
+            inst = klass()
+        else:
+            inst = self._makeOne()
         jar = self._makeJar()
         inst._p_jar = jar
         inst._p_oid = OID
@@ -419,6 +431,195 @@ class PersistentTests(unittest.TestCase):
         inst._p_estimated_size = 123
         self.assertEqual(inst._p_estimated_size, 0)
 
+    def test___getattribute___p__names(self):
+        NAMES = ['_p_jar',
+                 '_p_oid',
+                 '_p_changed',
+                 '_p_serial',
+                 '_p_mtime',
+                 '_p_state',
+                 '_p_estimated_size',
+                 '_p_sticky',
+                 '_p_status',
+                ]
+        inst, jar, OID = self._makeOneWithJar()
+        jar._cache._mru = []
+        for name in NAMES:
+            getattr(inst, name)
+        self.assertEqual(jar._cache._mru, [])
+
+    def test___getattribute__special_name(self):
+        from persistent.pypersistent import SPECIAL_NAMES
+        inst, jar, OID = self._makeOneWithJar()
+        jar._cache._mru = []
+        for name in SPECIAL_NAMES:
+            getattr(inst, name, None)
+        self.assertEqual(jar._cache._mru, [])
+
+    def test___getattribute__normal_name_from_new(self):
+        class Derived(self._getTargetClass()):
+            normal = 'value'
+        inst = Derived()
+        self.assertEqual(getattr(inst, 'normal', None), 'value')
+
+    def test___getattribute__normal_name_from_unsaved(self):
+        class Derived(self._getTargetClass()):
+            normal = 'value'
+        inst = Derived()
+        inst._p_changed = True
+        self.assertEqual(getattr(inst, 'normal', None), 'value')
+
+    def test___getattribute__normal_name_from_ghost(self):
+        class Derived(self._getTargetClass()):
+            normal = 'value'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        jar._cache._mru = []
+        self.assertEqual(getattr(inst, 'normal', None), 'value')
+        self.assertEqual(jar._cache._mru, [OID])
+
+    def test___getattribute__normal_name_from_saved(self):
+        class Derived(self._getTargetClass()):
+            normal = 'value'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_changed = False
+        jar._cache._mru = []
+        self.assertEqual(getattr(inst, 'normal', None), 'value')
+        self.assertEqual(jar._cache._mru, [OID])
+
+    def test___getattribute__normal_name_from_changed(self):
+        class Derived(self._getTargetClass()):
+            normal = 'value'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_changed = True
+        jar._cache._mru = []
+        self.assertEqual(getattr(inst, 'normal', None), 'value')
+        self.assertEqual(jar._cache._mru, [OID])
+
+    def test___setattr___p__names(self):
+        inst, jar, OID = self._makeOneWithJar()
+        NAMES = [('_p_jar', jar),
+                 ('_p_oid', OID),
+                 ('_p_changed', False),
+                 ('_p_serial', '\x01' * 8),
+                 ('_p_estimated_size', 0),
+                 ('_p_sticky', False),
+                ]
+        jar._cache._mru = []
+        for name, value in NAMES:
+            setattr(inst, name, value)
+        self.assertEqual(jar._cache._mru, [])
+
+    def test___setattr__normal_name_from_new(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst = Derived()
+        setattr(inst, 'normal', 'after')
+        self.assertEqual(getattr(inst, 'normal', None), 'after')
+
+    def test___setattr__normal_name_from_unsaved(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst = Derived()
+        inst._p_changed = True
+        setattr(inst, 'normal', 'after')
+        self.assertEqual(getattr(inst, 'normal', None), 'after')
+
+    def test___setattr__normal_name_from_ghost(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        jar._cache._mru = []
+        setattr(inst, 'normal', 'after')
+        self.assertEqual(jar._cache._mru, [OID])
+        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(getattr(inst, 'normal', None), 'after')
+
+    def test___setattr__normal_name_from_saved(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_changed = False
+        jar._cache._mru = []
+        setattr(inst, 'normal', 'after')
+        self.assertEqual(jar._cache._mru, [OID])
+        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(getattr(inst, 'normal', None), 'after')
+
+    def test___setattr__normal_name_from_changed(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_changed = True
+        jar._cache._mru = []
+        jar._registered = []
+        setattr(inst, 'normal', 'after')
+        self.assertEqual(jar._cache._mru, [OID])
+        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(getattr(inst, 'normal', None), 'after')
+
+    def test___delattr___p__names(self):
+        inst, jar, OID = self._makeOneWithJar()
+        jar._cache._mru = []
+        jar._registered = []
+        delattr(inst, '_p_changed') #only del-able _p_ attribute.
+        self.assertEqual(jar._cache._mru, [])
+        self.assertEqual(jar._registered, [])
+
+    def test___delattr__normal_name_from_new(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst = Derived()
+        setattr(inst, 'normal', 'after')
+        delattr(inst, 'normal')
+        self.assertEqual(getattr(inst, 'normal', None), 'before')
+
+    def test___delattr__normal_name_from_unsaved(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst = Derived()
+        inst._p_changed = True
+        setattr(inst, 'normal', 'after')
+        delattr(inst, 'normal')
+        self.assertEqual(getattr(inst, 'normal', None), 'before')
+
+    def test___delattr__normal_name_from_ghost(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        setattr(inst, 'normal', 'after')
+        jar._cache._mru = []
+        jar._registered = []
+        delattr(inst, 'normal')
+        self.assertEqual(jar._cache._mru, [OID])
+        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(getattr(inst, 'normal', None), 'before')
+
+    def test___delattr__normal_name_from_saved(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        setattr(inst, 'normal', 'after')
+        inst._p_changed = False
+        jar._cache._mru = []
+        jar._registered = []
+        delattr(inst, 'normal')
+        self.assertEqual(jar._cache._mru, [OID])
+        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(getattr(inst, 'normal', None), 'before')
+
+    def test___delattr__normal_name_from_changed(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        setattr(inst, 'normal', 'after')
+        inst._p_changed = True
+        jar._cache._mru = []
+        jar._registered = []
+        delattr(inst, 'normal')
+        self.assertEqual(jar._cache._mru, [OID])
+        self.assertEqual(jar._registered, [OID])
+        self.assertEqual(getattr(inst, 'normal', None), 'before')
+
     def test___getstate__(self):
         inst = self._makeOne()
         self.assertEqual(inst.__getstate__(), ())
@@ -435,6 +636,32 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_serial, None)
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(inst._p_sticky, False)
+
+    def test___reduce__(self):
+        inst = self._makeOne()
+        first, second = inst.__reduce__()
+        self.assertEqual(first, (self._getTargetClass(),))
+        self.assertEqual(second, ())
+
+    def test___reduce__w_subclass_having_getstate(self):
+        class Derived(self._getTargetClass()):
+            def __getstate__(self):
+                return {}
+        inst = Derived()
+        first, second = inst.__reduce__()
+        self.assertEqual(first, (Derived,))
+        self.assertEqual(second, {})
+
+    def test___reduce__w_subclass_having_gna_and_getstate(self):
+        class Derived(self._getTargetClass()):
+            def __getnewargs__(self):
+                return ('a', 'b')
+            def __getstate__(self):
+                return {'foo': 'bar'}
+        inst = Derived()
+        first, second = inst.__reduce__()
+        self.assertEqual(first, (Derived, 'a', 'b'))
+        self.assertEqual(second, {'foo': 'bar'})
 
     def test__p_activate_from_new(self):
         inst = self._makeOne()
@@ -544,11 +771,23 @@ class PersistentTests(unittest.TestCase):
         inst._p_sticky = True
         self.assertRaises(ValueError, inst._p_invalidate)
 
-    def test__p_getattr_w__p__name(self):
+    def test__p_getattr_w__p__names(self):
+        NAMES = ['_p_jar',
+                 '_p_oid',
+                 '_p_changed',
+                 '_p_serial',
+                 '_p_mtime',
+                 '_p_state',
+                 '_p_estimated_size',
+                 '_p_sticky',
+                 '_p_status',
+                ]
         inst, jar, OID = self._makeOneWithJar()
-        self.failUnless(inst._p_getattr('_p_foo'))
+        for name in NAMES:
+            self.failUnless(inst._p_getattr(name))
         self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._cache._mru), [])
 
     def test__p_getattr_w_special_names(self):
         from persistent.pypersistent import SPECIAL_NAMES
@@ -557,12 +796,14 @@ class PersistentTests(unittest.TestCase):
             self.failUnless(inst._p_getattr(name))
             self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._cache._mru), [])
 
     def test__p_getattr_w_normal_name(self):
         inst, jar, OID = self._makeOneWithJar()
         self.failIf(inst._p_getattr('normal'))
         self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [OID])
+        self.assertEqual(list(jar._cache._mru), [OID])
 
     def test__p_setattr_w__p__name(self):
         inst, jar, OID = self._makeOneWithJar()
@@ -570,12 +811,14 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(inst._p_serial, '1' * 8)
         self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._cache._mru), [])
 
     def test__p_setattr_w_normal_name(self):
         inst, jar, OID = self._makeOneWithJar()
         self.failIf(inst._p_setattr('normal', 'value'))
         self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [OID])
+        self.assertEqual(list(jar._cache._mru), [OID])
 
     def test__p_delattr_w__p__name(self):
         inst, jar, OID = self._makeOneWithJar()
@@ -585,35 +828,11 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._cache._mru), [])
 
     def test__p_delattr_w_normal_name(self):
         inst, jar, OID = self._makeOneWithJar()
         self.failIf(inst._p_delattr('normal'))
         self.assertEqual(inst._p_status, 'saved')
         self.assertEqual(list(jar._loaded), [OID])
-
-    def test___reduce__(self):
-        inst = self._makeOne()
-        first, second = inst.__reduce__()
-        self.assertEqual(first, (self._getTargetClass(),))
-        self.assertEqual(second, ())
-
-    def test___reduce__w_subclass_having_getstate(self):
-        class Derived(self._getTargetClass()):
-            def __getstate__(self):
-                return {}
-        inst = Derived()
-        first, second = inst.__reduce__()
-        self.assertEqual(first, (Derived,))
-        self.assertEqual(second, {})
-
-    def test___reduce__w_subclass_having_gna_and_getstate(self):
-        class Derived(self._getTargetClass()):
-            def __getnewargs__(self):
-                return ('a', 'b')
-            def __getstate__(self):
-                return {'foo': 'bar'}
-        inst = Derived()
-        first, second = inst.__reduce__()
-        self.assertEqual(first, (Derived, 'a', 'b'))
-        self.assertEqual(second, {'foo': 'bar'})
+        self.assertEqual(list(jar._cache._mru), [OID])

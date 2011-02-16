@@ -30,6 +30,8 @@ else:
 _CHANGED = 0x0001
 _STICKY = 0x0002
 
+_OGA = object.__getattribute__
+
 # Allowed values for _p_state
 GHOST = -1
 UPTODATE = 0
@@ -128,12 +130,12 @@ class Persistent(object):
         if self.__flags is None:
             if value is not None:
                 self._p_activate()
-                self._set_changed_flag(value)
+                self._p_set_changed_flag(value)
         else:
             if value is None: # -> ghost
                 self._p_deactivate()
             else:
-                self._set_changed_flag(value)
+                self._p_set_changed_flag(value)
 
     def _del_changed(self):
         self._p_invalidate()
@@ -210,6 +212,39 @@ class Persistent(object):
     _p_status = property(_get_status)
 
     # Methods from IPersistent.
+    def __getattribute__(self, name):
+        """ See IPersistent.
+        """
+        if (not name.startswith('_Persistent__') and
+            not name.startswith('_p_') and
+            name not in SPECIAL_NAMES):
+            if _OGA(self, '_Persistent__flags') is None:
+                _OGA(self, '_p_activate')()
+            _OGA(self, '_p_accessed')()
+        return _OGA(self, name)
+
+    def __setattr__(self, name, value):
+        if (not name.startswith('_Persistent__') and
+            not name.startswith('_p_')):
+            if _OGA(self, '_Persistent__flags') is None:
+                _OGA(self, '_p_activate')()
+            _OGA(self, '_p_accessed')()
+            if (_OGA(self, '_Persistent__jar') is not None and
+                _OGA(self, '_Persistent__oid') is not None):
+                _OGA(self, '_p_register')()
+        object.__setattr__(self, name, value)
+
+    def __delattr__(self, name):
+        if (not name.startswith('_Persistent__') and
+            not name.startswith('_p_')):
+            if _OGA(self, '_Persistent__flags') is None:
+                _OGA(self, '_p_activate')()
+            _OGA(self, '_p_accessed')()
+            if (_OGA(self, '_Persistent__jar') is not None and
+                _OGA(self, '_Persistent__oid') is not None):
+                _OGA(self, '_p_register')()
+        object.__delattr__(self, name)
+
     def __getstate__(self):
         """ See IPersistent.
         """
@@ -254,7 +289,7 @@ class Persistent(object):
         if name.startswith('_p_') or name in SPECIAL_NAMES:
             return True
         self._p_activate()
-        # TODO set the object as acceessed with the jar's cache.
+        self._p_accessed()
         return False
 
     def _p_setattr(self, name, value):
@@ -264,7 +299,7 @@ class Persistent(object):
             setattr(self, name, value)
             return True
         self._p_activate()
-        # TODO set the object as acceessed with the jar's cache.
+        self._p_accessed()
         return False
 
     def _p_delattr(self, name):
@@ -274,19 +309,29 @@ class Persistent(object):
             delattr(self, name)
             return True
         self._p_activate()
-        # TODO set the object as acceessed with the jar's cache.
+        self._p_accessed()
         return False
 
-    # Helper methods:  not APIs
-    def _register(self):
+    # Helper methods:  not APIs:  we name them with '_p_' to bypass
+    # the __getattribute__ bit which bumps the cache.
+    def _p_register(self):
         if self.__jar is not None and self.__oid is not None:
             self.__jar.register(self)
 
-    def _set_changed_flag(self, value):
+    def _p_set_changed_flag(self, value):
         if value:
             before = self.__flags
             self.__flags |= _CHANGED
             if before != self.__flags:
-                self._register()
+                self._p_register()
         else:
             self.__flags &= ~_CHANGED
+
+    def _p_accessed(self):
+        # Notify the jar's pickle cache that we have been accessed.
+        # This relies on what has been (until now) an implementation
+        # detail, the '_cache' attribute of the jar.  We made it a
+        # private API to avoid the cycle of keeping a reference to
+        # the cache on the persistent object.
+        if self.__jar is not None and self.__oid is not None:
+            self.__jar._cache.mru(self.__oid)
