@@ -30,6 +30,8 @@ if sys.version_info < (2.6,):
 else:
     OID_TYPE = SERIAL_TYPE = bytes
 
+_INITIAL_SERIAL = '\x00' * 8
+
 # Bitwise flags
 _CHANGED = 0x0001
 _STICKY = 0x0002
@@ -109,7 +111,9 @@ class Persistent(object):
 
     # _p_serial:  see IPersistent.
     def _get_serial(self):
-        return self.__serial
+        if self.__serial is not None:
+            return self.__serial
+        return _INITIAL_SERIAL
 
     def _set_serial(self, value):
         if value is not None:

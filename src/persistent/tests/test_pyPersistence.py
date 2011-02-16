@@ -70,7 +70,7 @@ class PersistentTests(unittest.TestCase):
         inst = self._makeOne()
         self.assertEqual(inst._p_jar, None)
         self.assertEqual(inst._p_oid, None)
-        self.assertEqual(inst._p_serial, None)
+        self.assertEqual(inst._p_serial, '\x00' * 8)
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(inst._p_sticky, False)
 
@@ -129,7 +129,15 @@ class PersistentTests(unittest.TestCase):
         inst._p_serial = SERIAL 
         self.assertEqual(inst._p_serial, SERIAL)
         inst._p_serial = None
-        self.assertEqual(inst._p_serial, None)
+        self.assertEqual(inst._p_serial, '\x00' * 8)
+
+    def test_delete_p_serial(self):
+        SERIAL = '1' * 8
+        inst = self._makeOne()
+        inst._p_serial = SERIAL 
+        self.assertEqual(inst._p_serial, SERIAL)
+        del(inst._p_serial)
+        self.assertEqual(inst._p_serial, '\x00' * 8)
 
     def test_query_p_changed(self):
         inst = self._makeOne()
@@ -642,7 +650,7 @@ class PersistentTests(unittest.TestCase):
         self.assertRaises(ValueError, inst.__setstate__, {'bogus': 1})
         self.assertEqual(inst._p_jar, None)
         self.assertEqual(inst._p_oid, None)
-        self.assertEqual(inst._p_serial, None)
+        self.assertEqual(inst._p_serial, '\x00' * 8)
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(inst._p_sticky, False)
 
