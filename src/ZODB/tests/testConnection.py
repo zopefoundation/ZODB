@@ -24,7 +24,6 @@ import transaction
 from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64
 from ZODB.tests.warnhook import WarningsHook
-from zope.interface.verify import verifyObject
 import ZODB.tests.util
 
 class ConnectionDotAdd(ZODB.tests.util.TestCase):
@@ -1216,9 +1215,26 @@ class StubStorage:
         return None
 
 
-class TestConnectionInterface(unittest.TestCase):
+class TestConnectionInterfaces(unittest.TestCase):
 
-    def test_connection_interface(self):
+    def _getTargetClass(self):
+        from ZODB.Connection import Connection
+        return Connection
+
+    def test_class_conforms_to_IConnection(self):
+        from zope.interface.verify import verifyClass
+        from ZODB.interfaces import IConnection
+        verifyClass(IConnection, self._getTargetClass())
+
+    def test_class_conforms_to_IConnectionPrivate(self):
+        from zope.interface.verify import verifyClass
+        from ZODB.interfaces import IConnectionPrivate
+        verifyClass(IConnectionPrivate, self._getTargetClass())
+
+    def test_opened_connection_interface(self):
+        # XXX This is really an integration test, but the dance to get a
+        # connection created without it is pretty tedious.
+        from zope.interface.verify import verifyObject
         from ZODB.interfaces import IConnection
         db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         cn = db.open()
@@ -1245,6 +1261,6 @@ class StubDatabase:
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')
     s.addTest(doctest.DocTestSuite())
-    s.addTest(unittest.makeSuite(TestConnectionInterface))
+    s.addTest(unittest.makeSuite(TestConnectionInterfaces))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
     return s

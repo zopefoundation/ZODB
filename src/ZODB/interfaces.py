@@ -216,11 +216,11 @@ class IConnection(Interface):
         oids: oids is an iterable of oids.
         """
 
-    def root():
-        """Return the database root object.
+    root = Attribute(
+        """The database root object.
 
         The root is a persistent.mapping.PersistentMapping.
-        """
+        """)
 
     # Multi-database support.
 
@@ -294,6 +294,11 @@ class IConnection(Interface):
         an object is read and the information read is used to write a
         separate object.
         """
+
+class IConnectionPrivate(Interface):
+    """Private interface FBO persistent objects belonging to the connection.
+    """
+    _cache = Attribute("The pickle cache associated with this connection.")
 
 class IStorageWrapper(Interface):
     """Storage wrapper interface
