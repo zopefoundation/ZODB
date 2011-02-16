@@ -141,10 +141,22 @@ class PersistentTests(unittest.TestCase):
             del inst._p_oid
         self.assertRaises(ValueError, _test)
 
-    def test_assign_p_serial_w_invalid_serial(self):
+    def test_assign_p_serial_w_invalid_type(self):
         inst = self._makeOne()
         def _test():
             inst._p_serial = object()
+        self.assertRaises(ValueError, _test)
+
+    def test_assign_p_serial_too_short(self):
+        inst = self._makeOne()
+        def _test():
+            inst._p_serial = '\x01\x02\x03'
+        self.assertRaises(ValueError, _test)
+
+    def test_assign_p_serial_too_long(self):
+        inst = self._makeOne()
+        def _test():
+            inst._p_serial = '\x01\x02\x03' * 3
         self.assertRaises(ValueError, _test)
 
     def test_assign_p_serial_w_valid_serial(self):

@@ -125,6 +125,8 @@ class Persistent(object):
         if value is not None:
             if not isinstance(value, SERIAL_TYPE):
                 raise ValueError('Invalid SERIAL type: %s' % value)
+            if len(value) != 8:
+                raise ValueError('SERIAL must be 8 octets')
         self.__serial = value
 
     def _del_serial(self):
