@@ -282,6 +282,7 @@ class Persistent(object):
         """
         idict = getattr(self, '__dict__', None)
         if idict is not None:
+            idict.clear()
             idict.update(state)
         else:
             if state != ():

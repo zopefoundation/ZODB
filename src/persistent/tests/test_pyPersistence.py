@@ -665,6 +665,13 @@ class PersistentTests(unittest.TestCase):
         inst = self._makeOne()
         self.assertEqual(inst.__getstate__(), ())
 
+    def test___getstate___derived_w_dict(self):
+        class Derived(self._getTargetClass()):
+            pass
+        inst = Derived()
+        inst.foo = 'bar'
+        self.assertEqual(inst.__getstate__(), {'foo': 'bar'})
+
     def test___setstate___empty(self):
         inst = self._makeOne()
         inst.__setstate__(()) # doesn't raise, but doesn't change anything
@@ -677,6 +684,14 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_serial, '\x00' * 8)
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(inst._p_sticky, False)
+
+    def test___setstate___nonempty_derived_w_dict(self):
+        class Derived(self._getTargetClass()):
+            pass
+        inst = Derived()
+        inst.foo = 'bar'
+        inst.__setstate__({'baz': 'bam'})
+        self.assertEqual(inst.__dict__, {'baz': 'bam'})
 
     def test___reduce__(self):
         from copy_reg import __newobj__
