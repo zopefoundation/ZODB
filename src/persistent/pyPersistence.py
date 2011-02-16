@@ -117,7 +117,10 @@ class Persistent(object):
                 raise ValueError('Invalid SERIAL type: %s' % value)
         self.__serial = value
 
-    _p_serial = property(_get_serial, _set_serial)
+    def _del_serial(self):
+        self.__serial = None
+
+    _p_serial = property(_get_serial, _set_serial, _del_serial)
 
     # _p_changed:  see IPersistent.
     def _get_changed(self):
@@ -293,6 +296,9 @@ class Persistent(object):
         if self.__flags is not None and self.__flags & _STICKY:
             raise ValueError('Sticky')
         self.__flags = None
+        idict = getattr(self, '__dict__', None)
+        if idict is not None:
+            idict.clear()
 
     def _p_getattr(self, name):
         """ See IPersistent.

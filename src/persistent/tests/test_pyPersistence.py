@@ -558,10 +558,14 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(getattr(inst, 'normal', None), 'after')
 
     def test___delattr___p__names(self):
+        NAMES = ['_p_changed',
+                 '_p_serial',
+                ]
         inst, jar, OID = self._makeOneWithJar()
         jar._cache._mru = []
         jar._registered = []
-        delattr(inst, '_p_changed') #only del-able _p_ attribute.
+        for name in NAMES:
+            delattr(inst, name)
         self.assertEqual(jar._cache._mru, [])
         self.assertEqual(jar._registered, [])
 
@@ -690,12 +694,34 @@ class PersistentTests(unittest.TestCase):
         inst._p_deactivate()
         self.assertEqual(inst._p_status, 'new')
 
+    def test__p_deactivate_from_new_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst = Derived()
+        inst._p_deactivate()
+        self.assertEqual(inst._p_status, 'new')
+        self.assertEqual(inst.__dict__, {'normal': 'after'})
+
     def test__p_deactivate_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_deactivate()
         # can't transition 'unsaved' -> 'new'
         self.assertEqual(inst._p_status, 'unsaved')
+
+    def test__p_deactivate_from_unsaved_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst = Derived()
+        inst._p_changed = True
+        inst._p_deactivate()
+        # can't transition 'unsaved' -> 'new'
+        self.assertEqual(inst._p_status, 'unsaved')
+        self.assertEqual(inst.__dict__, {'normal': 'after'})
 
     def test__p_deactivate_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
@@ -713,7 +739,35 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
+    def test__p_deactivate_from_saved_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_activate()
+        jar._loaded = []
+        inst._p_deactivate()
+        self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(inst.__dict__, {})
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
     def test__p_deactivate_from_changed(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst.normal = 'after'
+        jar._loaded = []
+        jar._registered = []
+        inst._p_deactivate()
+        # assigning None is ignored when dirty
+        self.assertEqual(inst._p_status, 'changed')
+        self.assertEqual(inst.__dict__, {'normal': 'after'})
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_deactivate_from_changed_w_dict(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_activate()
         inst._p_changed = True
@@ -736,11 +790,32 @@ class PersistentTests(unittest.TestCase):
         inst._p_invalidate()
         self.assertEqual(inst._p_status, 'new')
 
+    def test__p_invalidate_from_new_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst = Derived()
+        inst._p_invalidate()
+        self.assertEqual(inst._p_status, 'new')
+        self.assertEqual(inst.__dict__, {})
+
     def test__p_invalidate_from_unsaved(self):
         inst = self._makeOne()
         inst._p_changed = True
         inst._p_invalidate()
         self.assertEqual(inst._p_status, 'new')
+
+    def test__p_invalidate_from_unsaved_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst = Derived()
+        inst._p_changed = True
+        inst._p_invalidate()
+        self.assertEqual(inst._p_status, 'new')
+        self.assertEqual(inst.__dict__, {})
 
     def test__p_invalidate_from_ghost(self):
         inst, jar, OID = self._makeOneWithJar()
@@ -759,6 +834,21 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
+    def test__p_invalidate_from_saved_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_activate()
+        jar._loaded = []
+        jar._registered = []
+        inst._p_invalidate()
+        self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(inst.__dict__, {})
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
     def test__p_invalidate_from_changed(self):
         inst, jar, OID = self._makeOneWithJar()
         inst._p_activate()
@@ -767,6 +857,22 @@ class PersistentTests(unittest.TestCase):
         jar._registered = []
         inst._p_invalidate()
         self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
+    def test__p_invalidate_from_changed_w_dict(self):
+        class Derived(self._getTargetClass()):
+            normal = 'before'
+            def __init__(self):
+                self.__dict__['normal'] = 'after'
+        inst, jar, OID = self._makeOneWithJar(Derived)
+        inst._p_activate()
+        inst._p_changed = True
+        jar._loaded = []
+        jar._registered = []
+        inst._p_invalidate()
+        self.assertEqual(inst._p_status, 'ghost')
+        self.assertEqual(inst.__dict__, {})
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._registered), [])
 
@@ -826,11 +932,15 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(list(jar._loaded), [OID])
         self.assertEqual(list(jar._cache._mru), [OID])
 
-    def test__p_delattr_w__p__name(self):
+    def test__p_delattr_w__p__names(self):
+        NAMES = ['_p_changed',
+                 '_p_serial',
+                ]
         inst, jar, OID = self._makeOneWithJar()
         inst._p_changed = True
         jar._loaded = []
-        self.failUnless(inst._p_delattr('_p_changed'))
+        for name in NAMES:
+            self.failUnless(inst._p_delattr(name))
         self.assertEqual(inst._p_status, 'ghost')
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(list(jar._loaded), [])
