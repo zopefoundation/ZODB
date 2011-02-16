@@ -46,7 +46,8 @@ class PersistentTests(unittest.TestCase):
         return _Jar()
 
     def _makeOneWithJar(self, klass=None):
-        OID = '\x01' * 8
+        from persistent.pyPersistence import _makeOctets
+        OID = _makeOctets('\x01' * 8)
         if klass is not None:
             inst = klass()
         else:
@@ -67,10 +68,11 @@ class PersistentTests(unittest.TestCase):
         verifyObject(IPersistent, self._makeOne())
 
     def test_ctor(self):
+        from persistent.pyPersistence import _INITIAL_SERIAL
         inst = self._makeOne()
         self.assertEqual(inst._p_jar, None)
         self.assertEqual(inst._p_oid, None)
-        self.assertEqual(inst._p_serial, '\x00' * 8)
+        self.assertEqual(inst._p_serial, _INITIAL_SERIAL)
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(inst._p_sticky, False)
 
@@ -102,23 +104,26 @@ class PersistentTests(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_assign_p_oid_w_valid_oid(self):
-        OID = '1' * 8
+        from persistent.pyPersistence import _makeOctets
+        OID = _makeOctets('\x01' * 8)
         inst = self._makeOne()
         inst._p_oid = OID 
         self.assertEqual(inst._p_oid, OID)
         inst._p_oid = OID  # reassign only same OID
 
     def test_assign_p_oid_w_new_oid_wo_jar(self):
-        OID1 = '1' * 8
-        OID2 = '2' * 8
+        from persistent.pyPersistence import _makeOctets
+        OID1 = _makeOctets('\x01' * 8)
+        OID2 = _makeOctets('\x02' * 8)
         inst = self._makeOne()
         inst._p_oid = OID1
         inst._p_oid = OID2
         self.assertEqual(inst._p_oid, OID2)
 
     def test_assign_p_oid_w_new_oid_w_jar(self):
-        OID1 = '1' * 8
-        OID2 = '2' * 8
+        from persistent.pyPersistence import _makeOctets
+        OID1 = _makeOctets('\x01' * 8)
+        OID2 = _makeOctets('\x02' * 8)
         inst = self._makeOne()
         inst._p_oid = OID1
         inst._p_jar = self._makeJar()
@@ -127,13 +132,16 @@ class PersistentTests(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_delete_p_oid_wo_jar(self):
+        from persistent.pyPersistence import _makeOctets
+        OID = _makeOctets('\x01' * 8)
         inst = self._makeOne()
-        inst._p_oid = '\x01' * 8
+        inst._p_oid = OID
         del inst._p_oid
         self.assertEqual(inst._p_oid, None)
 
     def test_delete_p_oid_w_jar(self):
-        OID = '1' * 8
+        from persistent.pyPersistence import _makeOctets
+        OID = _makeOctets('\x01' * 8)
         inst = self._makeOne()
         inst._p_oid = OID
         inst._p_jar = self._makeJar()
@@ -160,20 +168,24 @@ class PersistentTests(unittest.TestCase):
         self.assertRaises(ValueError, _test)
 
     def test_assign_p_serial_w_valid_serial(self):
-        SERIAL = '1' * 8
+        from persistent.pyPersistence import _makeOctets
+        from persistent.pyPersistence import _INITIAL_SERIAL
+        SERIAL = _makeOctets('\x01' * 8)
         inst = self._makeOne()
         inst._p_serial = SERIAL 
         self.assertEqual(inst._p_serial, SERIAL)
         inst._p_serial = None
-        self.assertEqual(inst._p_serial, '\x00' * 8)
+        self.assertEqual(inst._p_serial, _INITIAL_SERIAL)
 
     def test_delete_p_serial(self):
-        SERIAL = '1' * 8
+        from persistent.pyPersistence import _makeOctets
+        from persistent.pyPersistence import _INITIAL_SERIAL
+        SERIAL = _makeOctets('\x01' * 8)
         inst = self._makeOne()
         inst._p_serial = SERIAL 
         self.assertEqual(inst._p_serial, SERIAL)
         del(inst._p_serial)
-        self.assertEqual(inst._p_serial, '\x00' * 8)
+        self.assertEqual(inst._p_serial, _INITIAL_SERIAL)
 
     def test_query_p_changed(self):
         inst = self._makeOne()
@@ -540,11 +552,13 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(jar._cache._mru, [OID])
 
     def test___setattr___p__names(self):
+        from persistent.pyPersistence import _makeOctets
+        SERIAL = _makeOctets('\x01' * 8)
         inst, jar, OID = self._makeOneWithJar()
         NAMES = [('_p_jar', jar),
                  ('_p_oid', OID),
                  ('_p_changed', False),
-                 ('_p_serial', '\x01' * 8),
+                 ('_p_serial', SERIAL),
                  ('_p_estimated_size', 0),
                  ('_p_sticky', False),
                 ]
@@ -691,11 +705,12 @@ class PersistentTests(unittest.TestCase):
         inst.__setstate__(()) # doesn't raise, but doesn't change anything
 
     def test___setstate___nonempty(self):
+        from persistent.pyPersistence import _INITIAL_SERIAL
         inst = self._makeOne()
         self.assertRaises(ValueError, inst.__setstate__, {'bogus': 1})
         self.assertEqual(inst._p_jar, None)
         self.assertEqual(inst._p_oid, None)
-        self.assertEqual(inst._p_serial, '\x00' * 8)
+        self.assertEqual(inst._p_serial, _INITIAL_SERIAL)
         self.assertEqual(inst._p_changed, None)
         self.assertEqual(inst._p_sticky, False)
 
@@ -984,10 +999,12 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(list(jar._cache._mru), [OID])
 
     def test__p_setattr_w__p__name(self):
+        from persistent.pyPersistence import _makeOctets
+        SERIAL = _makeOctets('\x01' * 8)
         inst, jar, OID = self._makeOneWithJar()
-        self.failUnless(inst._p_setattr('_p_serial', '1' * 8))
+        self.failUnless(inst._p_setattr('_p_serial', SERIAL))
         self.assertEqual(inst._p_status, 'ghost')
-        self.assertEqual(inst._p_serial, '1' * 8)
+        self.assertEqual(inst._p_serial, SERIAL)
         self.assertEqual(list(jar._loaded), [])
         self.assertEqual(list(jar._cache._mru), [])
 

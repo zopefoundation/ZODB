@@ -26,12 +26,20 @@ from persistent.interfaces import UPTODATE
 from persistent.interfaces import CHANGED
 from persistent.interfaces import STICKY
 
-if sys.version_info < (2.6,):
+if sys.version_info < (2, 6,):
     OID_TYPE = SERIAL_TYPE = str
 else:
     OID_TYPE = SERIAL_TYPE = bytes
 
-_INITIAL_SERIAL = '\x00' * 8
+def _makeOctets(s):
+    if sys.version_info < (2, 6,):
+        return str(s)
+    if sys.version_info < (3,):
+        return bytes(s)
+    return bytes(s, 'ascii')
+
+_INITIAL_SERIAL = _makeOctets('\x00' * 8)
+
 
 # Bitwise flags
 _CHANGED = 0x0001
