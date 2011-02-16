@@ -103,13 +103,14 @@ class Persistent(object):
         if value is not None:
             if not isinstance(value, OID_TYPE):
                 raise ValueError('Invalid OID type: %s' % value)
-        if self.__oid is not None:
-            raise ValueError('Already assigned an OID')
+        if self.__jar is not None and self.__oid is not None:
+            raise ValueError('Already assigned an OID by our jar')
         self.__oid = value
 
     def _del_oid(self):
-        if self.__oid is not None:
-            raise ValueError('Cannot delete OID once assigned')
+        if self.__jar is not None:
+            raise ValueError('Cannot delete OID once assigned to a jar')
+        self.__oid = None
 
     _p_oid = property(_get_oid, _set_oid, _del_oid)
 

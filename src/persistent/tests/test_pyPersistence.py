@@ -108,24 +108,35 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_oid, OID)
         inst._p_oid = OID  # reassign only same OID
 
-    def test_assign_p_oid_w_new_oid(self):
+    def test_assign_p_oid_w_new_oid_wo_jar(self):
         OID1 = '1' * 8
         OID2 = '2' * 8
         inst = self._makeOne()
         inst._p_oid = OID1
+        inst._p_oid = OID2
+        self.assertEqual(inst._p_oid, OID2)
+
+    def test_assign_p_oid_w_new_oid_w_jar(self):
+        OID1 = '1' * 8
+        OID2 = '2' * 8
+        inst = self._makeOne()
+        inst._p_oid = OID1
+        inst._p_jar = self._makeJar()
         def _test():
             inst._p_oid = OID2
         self.assertRaises(ValueError, _test)
 
-    def test_delete_p_oid_wo_real_oid(self):
+    def test_delete_p_oid_wo_jar(self):
         inst = self._makeOne()
+        inst._p_oid = '\x01' * 8
         del inst._p_oid
         self.assertEqual(inst._p_oid, None)
 
-    def test_delete_p_oid_w_real_oid(self):
+    def test_delete_p_oid_w_jar(self):
         OID = '1' * 8
         inst = self._makeOne()
         inst._p_oid = OID
+        inst._p_jar = self._makeJar()
         def _test():
             del inst._p_oid
         self.assertRaises(ValueError, _test)
