@@ -1226,11 +1226,6 @@ class TestConnectionInterfaces(unittest.TestCase):
         from ZODB.interfaces import IConnection
         verifyClass(IConnection, self._getTargetClass())
 
-    def test_class_conforms_to_IConnectionPrivate(self):
-        from zope.interface.verify import verifyClass
-        from ZODB.interfaces import IConnectionPrivate
-        verifyClass(IConnectionPrivate, self._getTargetClass())
-
     def test_opened_connection_interface(self):
         # XXX This is really an integration test, but the dance to get a
         # connection created without it is pretty tedious.

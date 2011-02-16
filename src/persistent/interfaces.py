@@ -350,6 +350,7 @@ class IPersistentDataManager(Interface):
     This interface is used by a persistent object to interact with its
     data manager in the context of a transaction.
     """
+    _cache = Attribute("The pickle cache associated with this connection.")
 
     def setstate(object):
         """Load the state for the given object.

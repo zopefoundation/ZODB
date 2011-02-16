@@ -29,7 +29,6 @@ from persistent import PickleCache
 # interfaces
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
-from ZODB.interfaces import IConnectionPrivate
 from ZODB.interfaces import IBlobStorage
 from ZODB.interfaces import IMVCCStorage
 from ZODB.blob import Blob, rename_or_copy_blob, remove_committed_dir
@@ -72,7 +71,6 @@ class Connection(ExportImport, object):
     """Connection to ZODB for loading and storing objects."""
 
     implements(IConnection,
-               IConnectionPrivate,
                ISavepointDataManager,
                IPersistentDataManager,
                ISynchronizer)

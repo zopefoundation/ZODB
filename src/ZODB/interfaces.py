@@ -295,11 +295,6 @@ class IConnection(Interface):
         separate object.
         """
 
-class IConnectionPrivate(Interface):
-    """Private interface FBO persistent objects belonging to the connection.
-    """
-    _cache = Attribute("The pickle cache associated with this connection.")
-
 class IStorageWrapper(Interface):
     """Storage wrapper interface
 
