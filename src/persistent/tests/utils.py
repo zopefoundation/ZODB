@@ -4,9 +4,12 @@ class ResettingJar(object):
     """
     def __init__(self):
         from persistent import PickleCache # XXX stub it!
-        self.cache = PickleCache(self)
+        from persistent.interfaces import IPersistentDataManager
+        from zope.interface import directlyProvides
+        self.cache = self._cache = PickleCache(self)
         self.oid = 1
         self.registered = {}
+        directlyProvides(self, IPersistentDataManager)
 
     def add(self, obj):
         import struct
