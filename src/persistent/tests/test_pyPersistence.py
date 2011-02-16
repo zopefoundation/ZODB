@@ -670,6 +670,8 @@ class PersistentTests(unittest.TestCase):
             pass
         inst = Derived()
         inst.foo = 'bar'
+        inst._p_baz = 'bam'
+        inst._v_qux = 'spam'
         self.assertEqual(inst.__getstate__(), {'foo': 'bar'})
 
     def test___setstate___empty(self):

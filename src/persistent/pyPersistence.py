@@ -274,7 +274,9 @@ class Persistent(object):
         """
         idict = getattr(self, '__dict__', None)
         if idict is not None:
-            return idict
+            return dict([x for x in idict.items()
+                            if not x[0].startswith('_p_') and
+                               not x[0].startswith('_v_')])
         return ()
 
     def __setstate__(self, state):
