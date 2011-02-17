@@ -34,12 +34,15 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_oid, None)
 
     def test_oid_mutable_and_deletable_when_no_jar(self):
+        OID = '\x01' * 8
         obj = self._makeOne()
-        obj._p_oid = 12
-        self.assertEqual(obj._p_oid, 12)
+        obj._p_oid = OID
+        self.assertEqual(obj._p_oid, OID)
         del obj._p_oid
+        self.assertEqual(obj._p_oid, None)
 
     def test_oid_immutable_when_in_jar(self):
+        OID = '\x01' * 8
         obj = self._makeOne()
         jar = self._makeJar()
         jar.add(obj)
@@ -50,7 +53,7 @@ class PersistenceTest(unittest.TestCase):
         self.assertRaises(ValueError, deloid)
 
         def setoid():
-            obj._p_oid = 12
+            obj._p_oid = OID
         self.assertRaises(ValueError, setoid)
 
     # The value returned for _p_changed can be one of:
@@ -157,6 +160,7 @@ class PersistenceTest(unittest.TestCase):
         obj = self._makeOne()
         jar = self._makeJar()
         jar.add(obj)
+        obj._p_activate()
 
         self.assertEqual(obj._p_changed, 0)
         self.assertEqual(obj._p_state, UPTODATE)
@@ -209,16 +213,14 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_mtime, None)
 
     def test_setting_serial_sets_mtime_to_now(self):
-        import time
-        from persistent.TimeStamp import TimeStamp
+        from persistent.timestamp import TimeStamp
 
         obj = self._makeOne()
-        t = int(time.time())
-        ts = TimeStamp(*time.gmtime(t)[:6]) # XXX: race?
+        ts = TimeStamp(2011, 2, 16, 14, 37, 22.0)
 
-        obj._p_serial = repr(ts) # why repr it?
+        obj._p_serial = ts.raw()
 
-        self.assertEqual(obj._p_mtime, t)
+        self.assertEqual(obj._p_mtime, ts.timeTime())
         self.assert_(isinstance(obj._p_mtime, float))
 
     def test_pickle_unpickle(self):
@@ -258,7 +260,7 @@ class PersistenceTest(unittest.TestCase):
 
         jar = self._makeJar()
         jar.add(obj)
-        obj._p_deactivate()
+        obj._p_invalidate()
 
         # The simple Jar used for testing re-initializes the object.
         self.assertEqual(obj.larry, 1)
@@ -295,7 +297,7 @@ class PersistenceTest(unittest.TestCase):
 
         jar = self._makeJar()
         jar.add(obj)
-        obj._p_deactivate()
+        obj._p_invalidate()
 
         # The simple Jar used for testing re-initializes the object.
         self.assertEqual(obj.larry, 1)
