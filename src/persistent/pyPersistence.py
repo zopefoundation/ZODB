@@ -12,10 +12,8 @@
 #
 ##############################################################################
 from copy_reg import __newobj__
-import datetime
 import struct
 import sys
-import time
 
 from zope.interface import implements
 
@@ -25,6 +23,7 @@ from persistent.interfaces import GHOST
 from persistent.interfaces import UPTODATE
 from persistent.interfaces import CHANGED
 from persistent.interfaces import STICKY
+from persistent.timestamp import TimeStamp
 
 if sys.version_info < (2, 6,):
     OID_TYPE = SERIAL_TYPE = str
@@ -167,8 +166,8 @@ class Persistent(object):
     # _p_mtime
     def _get_mtime(self):
         if self.__serial is not None:
-            when = datetime.datetime(*parseTimestamp(self.__serial))
-            return time.mktime(when.timetuple())
+            ts = TimeStamp(self.__serial)
+            return ts.timeTime()
 
     _p_mtime = property(_get_mtime)
 

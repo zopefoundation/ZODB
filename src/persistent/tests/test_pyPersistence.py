@@ -431,14 +431,12 @@ class PersistentTests(unittest.TestCase):
         self.assertEqual(inst._p_mtime, None)
 
     def test__p_mtime_w_serial(self):
-        import datetime
-        import time
-        from persistent.pyPersistence import makeTimestamp
+        from persistent.timestamp import TimeStamp
         WHEN_TUPLE = (2011, 2, 15, 13, 33, 27.5)
-        WHEN = datetime.datetime(*WHEN_TUPLE)
+        ts = TimeStamp(*WHEN_TUPLE)
         inst, jar, OID = self._makeOneWithJar()
-        inst._p_serial = makeTimestamp(*WHEN_TUPLE)
-        self.assertEqual(inst._p_mtime, time.mktime(WHEN.timetuple()))
+        inst._p_serial = ts.raw()
+        self.assertEqual(inst._p_mtime, ts.timeTime())
 
     def test__p_state_new(self):
         inst = self._makeOne()
