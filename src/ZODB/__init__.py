@@ -14,12 +14,12 @@
 
 import sys
 
-from persistent import TimeStamp
+from persistent import timestamp as TimeStamp
 from persistent import list
 from persistent import mapping
 
 # Backward compat for old imports.
-sys.modules['ZODB.TimeStamp'] = sys.modules['persistent.TimeStamp']
+sys.modules['ZODB.TimeStamp'] = sys.modules['persistent.timestamp']
 sys.modules['ZODB.PersistentMapping'] = sys.modules['persistent.mapping']
 sys.modules['ZODB.PersistentList'] = sys.modules['persistent.list']
 

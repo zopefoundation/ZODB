@@ -12,19 +12,20 @@
 #
 ##############################################################################
 
+from binascii import hexlify
+from binascii import unhexlify
+from cStringIO import StringIO
+from struct import pack
+from struct import unpack
+from tempfile import mkstemp
+import cPickle as pickle
+import os
+import struct
 import sys
 import time
-import struct
-from struct import pack, unpack
-from binascii import hexlify, unhexlify
-import cPickle as pickle
-from cStringIO import StringIO
-import weakref
 import warnings
-from tempfile import mkstemp
-import os
 
-from persistent.TimeStamp import TimeStamp
+from persistent.timestamp import TimeStamp
 
 __all__ = ['z64',
            'p64',

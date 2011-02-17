@@ -16,29 +16,23 @@
 
 import cPickle
 import cStringIO
+import datetime
+import logging
 import sys
 import threading
-import logging
-import datetime
-import calendar
 import time
 import warnings
 
-from ZODB.broken import find_global
-from ZODB.utils import z64
-from ZODB.Connection import Connection
-import ZODB.serialize
-
-import transaction.weakset
-
+from persistent.timestamp import TimeStamp
+import transaction
 from zope.interface import implements
+
+from ZODB.Connection import Connection
+from ZODB.broken import find_global
 from ZODB.interfaces import IDatabase
 from ZODB.interfaces import IMVCCStorage
-
-import transaction
-
-from persistent.TimeStamp import TimeStamp
-
+from ZODB.serialize import referencesf
+from ZODB.utils import z64
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -423,7 +417,7 @@ class DB(object):
 
         # Setup storage
         self.storage = storage
-        self.references = ZODB.serialize.referencesf
+        self.references = referencesf
         try:
             storage.registerDB(self)
         except TypeError:
