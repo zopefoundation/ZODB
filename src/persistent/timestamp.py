@@ -14,6 +14,7 @@
 __all__ = ('TimeStamp',)
 
 import datetime
+import math
 import struct
 import sys
 
@@ -44,7 +45,10 @@ class _UTC(datetime.tzinfo):
         return dt
 
 def _makeUTC(y, mo, d, h, mi, s):
-    return datetime.datetime(y, mo, d, h, mi, s, tzinfo=_UTC())
+    usec, sec = math.modf(s)
+    sec = int(sec)
+    usec = int(usec * 1e6)
+    return datetime.datetime(y, mo, d, h, mi, sec, usec, tzinfo=_UTC())
 
 _EPOCH = _makeUTC(1970, 1, 1, 0, 0, 0)
 
@@ -111,7 +115,7 @@ class TimeStamp(object):
         """ -> seconds since epoch, as a float.
         """
         delta = _makeUTC(*self._elements) - _EPOCH
-        return delta.days * 86400 + delta.seconds
+        return delta.days * 86400.0 + delta.seconds
 
     def laterThan(self, other):
         """ Return a timestamp instance which is later than 'other'.
