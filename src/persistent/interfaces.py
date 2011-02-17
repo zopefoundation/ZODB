@@ -489,6 +489,21 @@ class IPickleCache(Interface):
         o XXX?
         """
 
+    def new_ghost(oid, obj):
+        """ Add the given (ghost) object to the cache.
+
+        Also, set its _p_jar and _p_oid, and ensure it is in the
+        GHOST state.
+
+        If the object doesn't define '_p_oid' / '_p_jar', raise.
+
+        If the object's '_p_oid' is not None, raise.
+
+        If the object's '_p_jar' is not None, raise.
+
+        If 'oid' is already in the cache, raise. 
+        """
+
     def reify(to_reify):
         """ Reify the indicated objects.
 
@@ -498,7 +513,7 @@ class IPickleCache(Interface):
 
         o For each OID, if present in 'data' and in GHOST state:
 
-            o Call '_p_unghostify' on the object.
+            o Call '_p_activate' on the object.
 
             o Add it to the ring.
 

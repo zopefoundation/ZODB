@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import gc
 import weakref
 
 from zope.interface import implements
@@ -60,7 +61,7 @@ class PickleCache(object):
     def __setitem__(self, oid, value):
         """ See IPickleCache.
         """
-        if not isinstance(oid, str):
+        if not isinstance(oid, str): # XXX bytes
             raise ValueError('OID must be string: %s' % oid)
         # XXX
         if oid in self.persistent_classes or oid in self.data:
@@ -170,10 +171,35 @@ class PickleCache(object):
 
     minimize = full_sweep
 
-    def reify(self, oid):
+    def new_ghost(self, oid, obj):
         """ See IPickleCache.
         """
-        pass
+        if obj._p_oid is not None:
+            raise ValueError('Object already has oid')
+        if obj._p_jar is not None:
+            raise ValueError('Object already has jar')
+        if oid in self.persistent_classes or oid in self.data:
+            raise KeyError('Duplicate OID: %s' % oid)
+        obj._p_oid = oid
+        obj._p_jar = self.jar
+        if type(obj) is not type:
+            if obj._p_state != GHOST:
+                obj._p_invalidate()
+        self[oid] = obj
+
+    def reify(self, to_reify):
+        """ See IPickleCache.
+        """
+        if isinstance(to_reify, str): #bytes
+            to_reify = [to_reify]
+        for oid in to_reify:
+            value = self[oid]
+            if value._p_state == GHOST:
+                value._p_activate()
+                self.non_ghost_count += 1
+                mru = self.ring.prev
+                self.ring.prev = node = RingNode(value, self.ring, mru)
+                mru.next = node
 
     def invalidate(self, to_invalidate):
         """ See IPickleCache.
@@ -185,20 +211,20 @@ class PickleCache(object):
                 self._invalidate(oid)
 
     def debug_info(self):
-        """ See IPickleCache.
-        """
         result = []
         for oid, klass in self.persistent_classes.items():
             result.append((oid,
-                            len(gc.getreferents(value)),
-                            type(value).__name__,
-                            value._p_state,
+                            len(gc.getreferents(klass)),
+                            type(klass).__name__,
+                            klass._p_state,
                             ))
         for oid, value in self.data.items():
             result.append((oid,
                             len(gc.getreferents(value)),
                             type(value).__name__,
+                            value._p_state,
                             ))
+        return result
 
     cache_size = property(lambda self: self.target_size)
     cache_drain_resistance = property(lambda self: self.drain_resistance)
@@ -220,8 +246,7 @@ class PickleCache(object):
     def _invalidate(self, oid):
         value = self.data.get(oid)
         if value is not None and value._p_state != GHOST:
-            # value._p_invalidate() # NOOOO, we'll do it ourselves.
-            value._p_ghostify() # TBD
+            value._p_invalidate()
             node = self.ring.next
             while node is not self.ring:
                 if node.object is value:
