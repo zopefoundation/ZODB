@@ -15,6 +15,7 @@
 
 $Id$"""
 
+import threading
 import time
 
 
@@ -24,14 +25,13 @@ class ActivityMonitor:
     This simple implementation just keeps a small log in memory
     and iterates over the log when getActivityAnalysis() is called.
 
-    It assumes that log entries are added in chronological sequence,
-    which is only guaranteed because DB.py holds a lock when calling
-    the closedConnection() method.
+    It assumes that log entries are added in chronological sequence.
     """
 
     def __init__(self, history_length=3600):
         self.history_length = history_length  # Number of seconds
         self.log = []                     # [(time, loads, stores)]
+        self.trim_lock = threading.Lock()
 
     def closedConnection(self, conn):
         log = self.log
@@ -41,6 +41,8 @@ class ActivityMonitor:
         self.trim(now)
 
     def trim(self, now):
+        self.trim_lock.acquire()
+        
         log = self.log
         cutoff = now - self.history_length
         n = 0
@@ -49,6 +51,8 @@ class ActivityMonitor:
             n = n + 1
         if n:
             del log[:n]
+        
+        self.trim_lock.release()
 
     def setHistoryLength(self, history_length):
         self.history_length = history_length

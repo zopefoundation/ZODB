@@ -495,10 +495,6 @@ class DB(object):
             assert connection._db is self
             connection.opened = None
 
-            am = self._activity_monitor
-            if am is not None:
-                am.closedConnection(connection)
-
             if connection.before:
                 self.historical_pool.repush(connection, connection.before)
             else:

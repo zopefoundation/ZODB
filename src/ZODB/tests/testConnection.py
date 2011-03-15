@@ -327,6 +327,39 @@ class UserMethodTests(unittest.TestCase):
         >>> cn._Connection__onCloseCallbacks
         """
 
+    def test_close_dispatches_to_activity_monitors(self):
+        r"""doctest that connection close updates activity monitors
+        
+        Set up a multi-database:
+        
+            >>> db1 = ZODB.DB(None)
+            >>> db2 = ZODB.DB(None, databases=db1.databases, database_name='2',
+            ...               cache_size=10)
+            >>> conn1 = db1.open()
+            >>> conn2 = conn1.get_connection('2')
+        
+        Add activity monitors to both dbs:
+        
+            >>> from ZODB.ActivityMonitor import ActivityMonitor
+            >>> db1.setActivityMonitor(ActivityMonitor())
+            >>> db2.setActivityMonitor(ActivityMonitor())
+        
+        Commit a transaction that affects both connections:
+        
+            >>> conn1.root()[0] = conn1.root().__class__()
+            >>> conn2.root()[0] = conn2.root().__class__()
+            >>> transaction.commit()
+
+        After closing the primary connection, both monitors should be up to
+        date:
+        
+            >>> conn1.close()
+            >>> len(db1.getActivityMonitor().log)
+            1
+            >>> len(db2.getActivityMonitor().log)
+            1
+        """
+
     def test_db(self):
         r"""doctest of db() method
 
