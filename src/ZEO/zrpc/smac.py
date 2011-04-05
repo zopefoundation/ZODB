@@ -279,26 +279,9 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     else:
                         size += self.__message_output(message, output)
 
-            # Accumulate output into a single string so that we avoid
-            # multiple send() calls, but avoid accumulating too much
-            # data.  If we send a very small string and have more data
-            # to send, we will likely incur delays caused by the
-            # unfortunate interaction between the Nagle algorithm and
-            # delayed acks.  If we send a very large string, only a
-            # portion of it will actually be delivered at a time.
-            l = 0
-            for i in range(len(output)):
-                l += len(output[i])
-                if l > SEND_SIZE:
-                    break
 
-            i += 1
-            # It is very unlikely that i will be 1.
-            v = "".join(output[:i])
-            # Note: "output" usually contains the output not yet sent
-            #  The "del" below breaks this invariant temporarily.
-            #  We must ensure its satisfaction again when we leave the loop
-            del output[:i]
+            v = "".join(output)
+            del output[:]
 
             try:
                 n = self.send(v)
@@ -310,8 +293,8 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                     break # we couldn't write anything
                 raise
 
-            if n < l:
-                output.insert(0, v[n:])
+            if n < len(v):
+                output.append(v[n:])
                 break # we can't write any more
 
     def handle_close(self):
