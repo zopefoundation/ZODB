@@ -24,7 +24,7 @@ import logging
 import ZEO.ServerStub
 from ZEO.ClientStorage import ClientStorage
 from ZEO.Exceptions import ClientDisconnected
-from ZEO.zrpc.marshal import Marshaller
+from ZEO.zrpc.marshal import encode
 from ZEO.tests import forker
 
 from ZODB.DB import DB
@@ -475,7 +475,7 @@ class ConnectionTests(CommonSetupTearDown):
         class Hack:
             pass
 
-        msg = Marshaller().encode(1, 0, "foo", (Hack(),))
+        msg = encode(1, 0, "foo", (Hack(),))
         self._bad_message(msg)
         del Hack
 
