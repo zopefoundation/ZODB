@@ -266,15 +266,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             while (size <= SEND_SIZE) and messages:
                 message = messages[0]
                 if message.__class__ is str:
-                    if self.__hmac_send:
-                        size += self.__message_output(messages.pop(0), output)
-                    else:
-                        # inline common case
-                        lmessage = len(message)
-                        output.append(struct.pack(">I", lmessage))
-                        output.append(messages.pop())
-                        size += 4 + lmessage
-
+                    size += self.__message_output(messages.pop(0), output)
                 elif message is _close_marker:
                     del messages[:]
                     del output[:]
