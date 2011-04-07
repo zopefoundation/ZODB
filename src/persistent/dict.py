@@ -12,5 +12,5 @@
 #
 ##############################################################################
 
-# persistent.dict is deprecated. User persistent.mapping
+# persistent.dict is deprecated. Use persistent.mapping
 from persistent.mapping import PersistentMapping as PersistentDict
