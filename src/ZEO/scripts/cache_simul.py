@@ -19,6 +19,7 @@ Usage: simul.py [-s size] tracefile
 Options:
 -s size: cache size in MB (default 20 MB)
 -i: summarizing interval in minutes (default 15; max 60)
+-r: rearrange factor
 
 Note:
 
@@ -52,18 +53,22 @@ def main(args=None):
     # Parse options.
     MB = 1<<20
     cachelimit = 20*MB
+    rearrange = 0.8
     simclass = CircularCacheSimulation
     interval_step = 15
     try:
-        opts, args = getopt.getopt(args, "s:i:")
+        opts, args = getopt.getopt(args, "s:i:r:")
     except getopt.error, msg:
         usage(msg)
         return 2
+
     for o, a in opts:
         if o == '-s':
             cachelimit = int(float(a)*MB)
         elif o == '-i':
             interval_step = int(a)
+        elif o == '-r':
+            rearrange = float(a)
         else:
             assert False, (o, a)
 
@@ -103,8 +108,8 @@ def main(args=None):
             return 1
 
     # Create simulation object.
-    sim = simclass(cachelimit)
-    interval_sim = simclass(cachelimit)
+    sim = simclass(cachelimit, rearrange)
+    interval_sim = simclass(cachelimit, rearrange)
 
     # Print output header.
     sim.printheader()
@@ -141,6 +146,8 @@ def main(args=None):
             if last_interval is not None:
                 interval_sim.report()
                 interval_sim.restart()
+                if not interval_sim.warm:
+                    sim.restart()
             last_interval = this_interval
         sim.event(ts, dlen, version, code, oid, start_tid, end_tid)
         interval_sim.event(ts, dlen, version, code, oid, start_tid, end_tid)
@@ -160,10 +167,12 @@ class Simulation(object):
     finish() method also calls report().
     """
 
-    def __init__(self, cachelimit):
+    def __init__(self, cachelimit, rearrange):
         self.cachelimit = cachelimit
+        self.rearrange = rearrange
         # Initialize global statistics.
         self.epoch = None
+        self.warm = False
         self.total_loads = 0
         self.total_hits = 0       # subclass must increment
         self.total_invals = 0     # subclass must increment
@@ -284,20 +293,19 @@ class Simulation(object):
 
 # For use in CircularCacheSimulation.
 class CircularCacheEntry(object):
-    __slots__ = (# object key:  an (oid, start_tid) pair, where
-                 # start_tid is the tid of the transaction that created
-                 # this revision of oid
-                 'key',
+    __slots__ = (
+        # object key: an (oid, start_tid) pair, where start_tid is the
+        # tid of the transaction that created this revision of oid
+        'key',
 
-                 # tid of transaction that created the next revision;
-                 # z64 iff this is the current revision
-                 'end_tid',
+        # tid of transaction that created the next revision; z64 iff
+        # this is the current revision
+        'end_tid',
 
-                 # Offset from start of file to the object's data
-                 # record; this includes all overhead bytes (status
-                 # byte, size bytes, etc).
-                 'offset',
-                )
+        # Offset from start of file to the object's data record; this
+        # includes all overhead bytes (status byte, size bytes, etc).
+        'offset',
+        )
 
     def __init__(self, key, end_tid, offset):
         self.key = key
@@ -316,10 +324,12 @@ class CircularCacheSimulation(Simulation):
 
     extras = "evicts", "inuse"
 
-    def __init__(self, cachelimit):
+    evicts = 0
+
+    def __init__(self, cachelimit, rearrange):
         from ZEO import cache
 
-        Simulation.__init__(self, cachelimit)
+        Simulation.__init__(self, cachelimit, rearrange)
         self.total_evicts = 0  # number of cache evictions
 
         # Current offset in file.
@@ -348,6 +358,8 @@ class CircularCacheSimulation(Simulation):
 
     def restart(self):
         Simulation.restart(self)
+        if self.evicts:
+            self.warm = True
         self.evicts = 0
         self.evicted_hit = self.evicted_miss = 0
 
@@ -358,6 +370,20 @@ class CircularCacheSimulation(Simulation):
             if oid in self.current: # else it's a cache miss
                 self.hits += 1
                 self.total_hits += 1
+
+                tid = self.current[oid]
+                entry = self.key2entry[(oid, tid)]
+                offset_offset = self.offset - entry.offset
+                if offset_offset < 0:
+                    offset_offset += self.cachelimit
+                    assert offset_offset >= 0
+
+                if offset_offset > self.rearrange * self.cachelimit:
+                    # we haven't accessed it in a while.  Move it forward
+                    size = self.filemap[entry.offset][0]
+                    self._remove(*entry.key)
+                    self.add(oid, size, tid)
+
             elif oid in self.evicted:
                 size, e = self.evicted[oid]
                 self.write(oid, size, e.key[1], z64, 1)

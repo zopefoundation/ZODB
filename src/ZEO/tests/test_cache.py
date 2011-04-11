@@ -553,52 +553,52 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:11-14     180       1       2     197    0.6%
     Jul 11 12:15-29     818     107       9     793   13.1%
     Jul 11 12:30-44     818     213      22     687   26.0%
-    Jul 11 12:45-59     818     297      20     603   36.3%
-    Jul 11 13:00-14     818     297      35     603   36.3%
-    Jul 11 13:15-29     818     280      29     620   34.2%
-    Jul 11 13:30-44     819     275      26     625   33.6%
-    Jul 11 13:45-59     818     254      24     646   31.1%
-    Jul 11 14:00-14     818     300      32     600   36.7%
-    Jul 11 14:15-29     818     267      35     633   32.6%
-    Jul 11 14:30-44     818     309      37     591   37.8%
-    Jul 11 14:45-59     819     271      26     629   33.1%
-    Jul 11 15:00-14     818     292      30     608   35.7%
+    Jul 11 12:45-59     818     291      19     609   35.6%
+    Jul 11 13:00-14     818     295      36     605   36.1%
+    Jul 11 13:15-29     818     277      31     623   33.9%
+    Jul 11 13:30-44     819     276      29     624   33.7%
+    Jul 11 13:45-59     818     251      25     649   30.7%
+    Jul 11 14:00-14     818     295      27     605   36.1%
+    Jul 11 14:15-29     818     262      33     638   32.0%
+    Jul 11 14:30-44     818     297      32     603   36.3%
+    Jul 11 14:45-59     819     268      23     632   32.7%
+    Jul 11 15:00-14     818     291      30     609   35.6%
     Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_stats.main('-q cache.trace'.split())
                        loads    hits  inv(h)  writes hitrate
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_stats.main('-v cache.trace'.split())
     ... # doctest: +ELLIPSIS
@@ -620,27 +620,27 @@ Check to make sure the cache analysis scripts work.
     Jul 11 15:14:58 20              b8a 0000000000000000 0000000000000000 -
     Jul 11 15:14:58 52              b8a 00000000000003e9 0000000000000000 - 838
     Jul 11 15:14:59 22             1085 0000000000000357 0000000000000000 - 217
-    Jul 11 15:00-14     818     292      30     608   35.7%
+    Jul 11 15:00-14     818     291      30     609   35.6%
     Jul 11 15:15:00 22             1072 000000000000037e 0000000000000000 - 204
     Jul 11 15:15:01 20             16c5 0000000000000000 0000000000000000 -
     Jul 11 15:15:01 52             16c5 00000000000003e9 0000000000000000 - 1712
     Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_stats.main('-h cache.trace'.split())
                        loads    hits  inv(h)  writes hitrate
@@ -649,33 +649,33 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:11-14     180       1       2     197    0.6%
     Jul 11 12:15-29     818     107       9     793   13.1%
     Jul 11 12:30-44     818     213      22     687   26.0%
-    Jul 11 12:45-59     818     297      20     603   36.3%
-    Jul 11 13:00-14     818     297      35     603   36.3%
-    Jul 11 13:15-29     818     280      29     620   34.2%
-    Jul 11 13:30-44     819     275      26     625   33.6%
-    Jul 11 13:45-59     818     254      24     646   31.1%
-    Jul 11 14:00-14     818     300      32     600   36.7%
-    Jul 11 14:15-29     818     267      35     633   32.6%
-    Jul 11 14:30-44     818     309      37     591   37.8%
-    Jul 11 14:45-59     819     271      26     629   33.1%
-    Jul 11 15:00-14     818     292      30     608   35.7%
+    Jul 11 12:45-59     818     291      19     609   35.6%
+    Jul 11 13:00-14     818     295      36     605   36.1%
+    Jul 11 13:15-29     818     277      31     623   33.9%
+    Jul 11 13:30-44     819     276      29     624   33.7%
+    Jul 11 13:45-59     818     251      25     649   30.7%
+    Jul 11 14:00-14     818     295      27     605   36.1%
+    Jul 11 14:15-29     818     262      33     638   32.0%
+    Jul 11 14:30-44     818     297      32     603   36.3%
+    Jul 11 14:45-59     819     268      23     632   32.7%
+    Jul 11 15:00-14     818     291      30     609   35.6%
     Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
     <BLANKLINE>
     Histogram of object load frequency
     Unique oids: 4,585
@@ -699,42 +699,42 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:11-14     180       1       2     197    0.6%
     Jul 11 12:15-29     818     107       9     793   13.1%
     Jul 11 12:30-44     818     213      22     687   26.0%
-    Jul 11 12:45-59     818     297      20     603   36.3%
-    Jul 11 13:00-14     818     297      35     603   36.3%
-    Jul 11 13:15-29     818     280      29     620   34.2%
-    Jul 11 13:30-44     819     275      26     625   33.6%
-    Jul 11 13:45-59     818     254      24     646   31.1%
-    Jul 11 14:00-14     818     300      32     600   36.7%
-    Jul 11 14:15-29     818     267      35     633   32.6%
-    Jul 11 14:30-44     818     309      37     591   37.8%
-    Jul 11 14:45-59     819     271      26     629   33.1%
-    Jul 11 15:00-14     818     292      30     608   35.7%
+    Jul 11 12:45-59     818     291      19     609   35.6%
+    Jul 11 13:00-14     818     295      36     605   36.1%
+    Jul 11 13:15-29     818     277      31     623   33.9%
+    Jul 11 13:30-44     819     276      29     624   33.7%
+    Jul 11 13:45-59     818     251      25     649   30.7%
+    Jul 11 14:00-14     818     295      27     605   36.1%
+    Jul 11 14:15-29     818     262      33     638   32.0%
+    Jul 11 14:30-44     818     297      32     603   36.3%
+    Jul 11 14:45-59     819     268      23     632   32.7%
+    Jul 11 15:00-14     818     291      30     609   35.6%
     Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
     <BLANKLINE>
     Histograms of object sizes
     <BLANKLINE>
     <BLANKLINE>
-    Unique sizes written: 1,781
+    Unique sizes written: 1,782
           size   objs writes
-           200      6      6
+           200      5      5
            201      4      4
-           202      5      5
+           202      4      4
            203      1      1
            204      1      1
            205      6      6
@@ -742,9 +742,9 @@ Check to make sure the cache analysis scripts work.
     ...
          1,995      1      2
          1,996      2      2
-         1,997      2      3
+         1,997      1      1
          1,998      2      2
-         1,999      2      2
+         1,999      2      4
          2,000      1      1
 
     >>> ZEO.scripts.cache_stats.main('-S cache.trace'.split())
@@ -754,16 +754,16 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:11-14     180       1       2     197    0.6%
     Jul 11 12:15-29     818     107       9     793   13.1%
     Jul 11 12:30-44     818     213      22     687   26.0%
-    Jul 11 12:45-59     818     297      20     603   36.3%
-    Jul 11 13:00-14     818     297      35     603   36.3%
-    Jul 11 13:15-29     818     280      29     620   34.2%
-    Jul 11 13:30-44     819     275      26     625   33.6%
-    Jul 11 13:45-59     818     254      24     646   31.1%
-    Jul 11 14:00-14     818     300      32     600   36.7%
-    Jul 11 14:15-29     818     267      35     633   32.6%
-    Jul 11 14:30-44     818     309      37     591   37.8%
-    Jul 11 14:45-59     819     271      26     629   33.1%
-    Jul 11 15:00-14     818     292      30     608   35.7%
+    Jul 11 12:45-59     818     291      19     609   35.6%
+    Jul 11 13:00-14     818     295      36     605   36.1%
+    Jul 11 13:15-29     818     277      31     623   33.9%
+    Jul 11 13:30-44     819     276      29     624   33.7%
+    Jul 11 13:45-59     818     251      25     649   30.7%
+    Jul 11 14:00-14     818     295      27     605   36.1%
+    Jul 11 14:15-29     818     262      33     638   32.0%
+    Jul 11 14:30-44     818     297      32     603   36.3%
+    Jul 11 14:45-59     819     268      23     632   32.7%
+    Jul 11 15:00-14     818     291      30     609   35.6%
     Jul 11 15:15-15       2       1       0       1   50.0%
 
     >>> ZEO.scripts.cache_stats.main('-X cache.trace'.split())
@@ -773,33 +773,33 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:11-14     180       1       2     197    0.6%
     Jul 11 12:15-29     818     107       9     793   13.1%
     Jul 11 12:30-44     818     213      22     687   26.0%
-    Jul 11 12:45-59     818     297      20     603   36.3%
-    Jul 11 13:00-14     818     297      35     603   36.3%
-    Jul 11 13:15-29     818     280      29     620   34.2%
-    Jul 11 13:30-44     819     275      26     625   33.6%
-    Jul 11 13:45-59     818     254      24     646   31.1%
-    Jul 11 14:00-14     818     300      32     600   36.7%
-    Jul 11 14:15-29     818     267      35     633   32.6%
-    Jul 11 14:30-44     818     309      37     591   37.8%
-    Jul 11 14:45-59     819     271      26     629   33.1%
-    Jul 11 15:00-14     818     292      30     608   35.7%
+    Jul 11 12:45-59     818     291      19     609   35.6%
+    Jul 11 13:00-14     818     295      36     605   36.1%
+    Jul 11 13:15-29     818     277      31     623   33.9%
+    Jul 11 13:30-44     819     276      29     624   33.7%
+    Jul 11 13:45-59     818     251      25     649   30.7%
+    Jul 11 14:00-14     818     295      27     605   36.1%
+    Jul 11 14:15-29     818     262      33     638   32.0%
+    Jul 11 14:30-44     818     297      32     603   36.3%
+    Jul 11 14:45-59     819     268      23     632   32.7%
+    Jul 11 15:00-14     818     291      30     609   35.6%
     Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_stats.main('-i 5 cache.trace'.split())
                        loads    hits  inv(h)  writes hitrate
@@ -812,53 +812,53 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:30-34     272      60       8     240   22.1%
     Jul 11 12:35-39     273      68       6     232   24.9%
     Jul 11 12:40-44     273      85       8     215   31.1%
-    Jul 11 12:45-49     273      85       7     215   31.1%
-    Jul 11 12:50-54     272     105       9     195   38.6%
-    Jul 11 12:55-59     273     107       4     193   39.2%
-    Jul 11 13:00-04     273      93      12     207   34.1%
-    Jul 11 13:05-09     273     103       7     197   37.7%
-    Jul 11 13:10-14     272     101      16     199   37.1%
-    Jul 11 13:15-19     273      93       9     207   34.1%
-    Jul 11 13:20-24     273      94       9     206   34.4%
-    Jul 11 13:25-29     272      93      11     207   34.2%
-    Jul 11 13:30-34     273      84      14     216   30.8%
-    Jul 11 13:35-39     273     102       6     198   37.4%
-    Jul 11 13:40-44     273      89       6     211   32.6%
-    Jul 11 13:45-49     272      81       6     219   29.8%
-    Jul 11 13:50-54     273      87       8     213   31.9%
-    Jul 11 13:55-59     273      86      10     214   31.5%
-    Jul 11 14:00-04     273      96      12     204   35.2%
-    Jul 11 14:05-09     272      95      11     205   34.9%
-    Jul 11 14:10-14     273     109       9     191   39.9%
-    Jul 11 14:15-19     273      92       9     208   33.7%
-    Jul 11 14:20-24     272      84      17     216   30.9%
-    Jul 11 14:25-29     273      91       9     209   33.3%
-    Jul 11 14:30-34     273     106      13     194   38.8%
-    Jul 11 14:35-39     273      90      13     210   33.0%
-    Jul 11 14:40-44     272     113      11     187   41.5%
-    Jul 11 14:45-49     273      83      10     217   30.4%
-    Jul 11 14:50-54     273     101       9     199   37.0%
-    Jul 11 14:55-59     273      87       7     213   31.9%
-    Jul 11 15:00-04     272      99       6     201   36.4%
-    Jul 11 15:05-09     273      95      12     205   34.8%
-    Jul 11 15:10-14     273      98      12     202   35.9%
+    Jul 11 12:45-49     273      84       6     216   30.8%
+    Jul 11 12:50-54     272     104       9     196   38.2%
+    Jul 11 12:55-59     273     103       4     197   37.7%
+    Jul 11 13:00-04     273      92      12     208   33.7%
+    Jul 11 13:05-09     273     103       8     197   37.7%
+    Jul 11 13:10-14     272     100      16     200   36.8%
+    Jul 11 13:15-19     273      91      11     209   33.3%
+    Jul 11 13:20-24     273      96       9     204   35.2%
+    Jul 11 13:25-29     272      90      11     210   33.1%
+    Jul 11 13:30-34     273      82      14     218   30.0%
+    Jul 11 13:35-39     273     102       9     198   37.4%
+    Jul 11 13:40-44     273      92       6     208   33.7%
+    Jul 11 13:45-49     272      82       6     218   30.1%
+    Jul 11 13:50-54     273      83       8     217   30.4%
+    Jul 11 13:55-59     273      86      11     214   31.5%
+    Jul 11 14:00-04     273      95      11     205   34.8%
+    Jul 11 14:05-09     272      91      10     209   33.5%
+    Jul 11 14:10-14     273     109       6     191   39.9%
+    Jul 11 14:15-19     273      89       9     211   32.6%
+    Jul 11 14:20-24     272      84      16     216   30.9%
+    Jul 11 14:25-29     273      89       8     211   32.6%
+    Jul 11 14:30-34     273      97      12     203   35.5%
+    Jul 11 14:35-39     273      93      10     207   34.1%
+    Jul 11 14:40-44     272     107      10     193   39.3%
+    Jul 11 14:45-49     273      80       8     220   29.3%
+    Jul 11 14:50-54     273     100       8     200   36.6%
+    Jul 11 14:55-59     273      88       7     212   32.2%
+    Jul 11 15:00-04     272      99       8     201   36.4%
+    Jul 11 15:05-09     273      95      11     205   34.8%
+    Jul 11 15:10-14     273      97      11     203   35.5%
     Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 18,837 trace records (640,450 bytes) in 0.0 seconds
+    Read 18,876 trace records (641,776 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (58.4%), average size 1106 bytes
-    Hit rate:   31.6% (load hits / loads)
+    Data recs:  11,000 (58.3%), average size 1108 bytes
+    Hit rate:   31.2% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              673  10  invalidate (miss)
-              327  1c  invalidate (hit, saving non-current)
-            6,836  20  load (miss)
-            3,164  22  load (hit)
-            7,836  52  store (current, non-version)
+              682  10  invalidate (miss)
+              318  1c  invalidate (hit, saving non-current)
+            6,875  20  load (miss)
+            3,125  22  load (hit)
+            7,875  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_simul.main('-s 2 -i 5 cache.trace'.split())
     CircularCacheSimulation, cache size 2,097,152 bytes
@@ -870,39 +870,39 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:30   4:59     272      60      8    240   22.1%       0    67.1
     Jul 11 12:35   4:59     273      68      6    232   24.9%       0    79.8
     Jul 11 12:40   4:59     273      85      8    215   31.1%       0    91.4
-    Jul 11 12:45   4:59     273      85      7    215   31.1%      61   100.0
-    Jul 11 12:50   4:59     272     105      9    195   38.6%     193   100.0
-    Jul 11 12:55   4:59     273     107      4    193   39.2%     184   100.0
-    Jul 11 13:00   4:59     273      93     12    207   34.1%     215    99.9
-    Jul 11 13:05   4:59     273     103      7    197   37.7%     191    99.9
-    Jul 11 13:10   4:59     272     101     16    199   37.1%     191    99.9
-    Jul 11 13:15   4:59     273      93      9    207   34.1%     227    99.9
-    Jul 11 13:20   4:59     273      94      9    206   34.4%     211    99.9
-    Jul 11 13:25   4:59     272      93     11    207   34.2%     208    99.9
-    Jul 11 13:30   4:59     273      84     14    216   30.8%     221    99.9
-    Jul 11 13:35   4:59     273     102      6    198   37.4%     201    99.9
-    Jul 11 13:40   4:59     273      88      6    212   32.2%     215   100.0
-    Jul 11 13:45   4:59     272      81      5    219   29.8%     209   100.0
-    Jul 11 13:50   4:59     273      87      8    213   31.9%     223   100.0
-    Jul 11 13:55   4:59     273      86     10    214   31.5%     196    99.9
-    Jul 11 14:00   4:59     273      96     12    204   35.2%     195   100.0
-    Jul 11 14:05   4:59     272      95     11    205   34.9%     201    99.9
-    Jul 11 14:10   4:59     273     110      9    190   40.3%     189    99.9
-    Jul 11 14:15   4:59     273      94      9    206   34.4%     210    99.9
-    Jul 11 14:20   4:59     272      87     17    213   32.0%     207   100.0
-    Jul 11 14:25   4:59     273      91     10    209   33.3%     214    99.9
-    Jul 11 14:30   4:59     273     106     13    194   38.8%     210   100.0
-    Jul 11 14:35   4:59     273      90     13    210   33.0%     206   100.0
-    Jul 11 14:40   4:59     272     113     11    187   41.5%     180   100.0
-    Jul 11 14:45   4:59     273      83     10    217   30.4%     230    99.9
-    Jul 11 14:50   4:59     273     101      9    199   37.0%     204   100.0
-    Jul 11 14:55   4:59     273      87      7    213   31.9%     223   100.0
-    Jul 11 15:00   4:59     272      99      6    201   36.4%     192    99.9
-    Jul 11 15:05   4:59     273      96     12    204   35.2%     203    99.9
-    Jul 11 15:10   4:59     273      98     12    202   35.9%     182    99.9
-    Jul 11 15:15      1       2       1      0      1   50.0%       1    99.9
+    Jul 11 12:45   4:59     273      84      6    216   30.8%      77    99.1
+    Jul 11 12:50   4:59     272     104      9    196   38.2%     196    98.9
+    Jul 11 12:55   4:59     273     104      4    196   38.1%     188    99.1
+    Jul 11 13:00   4:59     273      92     12    208   33.7%     213    99.3
+    Jul 11 13:05   4:59     273     103      8    197   37.7%     190    99.0
+    Jul 11 13:10   4:59     272     100     16    200   36.8%     203    99.2
+    Jul 11 13:15   4:59     273      91     11    209   33.3%     222    98.7
+    Jul 11 13:20   4:59     273      96      9    204   35.2%     210    99.2
+    Jul 11 13:25   4:59     272      89     11    211   32.7%     212    99.1
+    Jul 11 13:30   4:59     273      82     14    218   30.0%     220    99.1
+    Jul 11 13:35   4:59     273     101      9    199   37.0%     191    99.5
+    Jul 11 13:40   4:59     273      92      6    208   33.7%     214    99.4
+    Jul 11 13:45   4:59     272      80      6    220   29.4%     217    99.3
+    Jul 11 13:50   4:59     273      81      8    219   29.7%     214    99.2
+    Jul 11 13:55   4:59     273      86     11    214   31.5%     208    98.8
+    Jul 11 14:00   4:59     273      95     11    205   34.8%     188    99.3
+    Jul 11 14:05   4:59     272      93     10    207   34.2%     207    99.3
+    Jul 11 14:10   4:59     273     110      6    190   40.3%     198    98.8
+    Jul 11 14:15   4:59     273      91      9    209   33.3%     209    99.1
+    Jul 11 14:20   4:59     272      85     16    215   31.2%     210    99.3
+    Jul 11 14:25   4:59     273      89      8    211   32.6%     226    99.3
+    Jul 11 14:30   4:59     273      96     12    204   35.2%     214    99.3
+    Jul 11 14:35   4:59     273      90     10    210   33.0%     213    99.3
+    Jul 11 14:40   4:59     272     106     10    194   39.0%     196    98.8
+    Jul 11 14:45   4:59     273      80      8    220   29.3%     230    99.0
+    Jul 11 14:50   4:59     273      99      8    201   36.3%     202    99.0
+    Jul 11 14:55   4:59     273      87      8    213   31.9%     205    99.4
+    Jul 11 15:00   4:59     272      98      8    202   36.0%     211    99.3
+    Jul 11 15:05   4:59     273      93     11    207   34.1%     198    99.2
+    Jul 11 15:10   4:59     273      96     11    204   35.2%     184    99.2
+    Jul 11 15:15      1       2       1      0      1   50.0%       1    99.2
     --------------------------------------------------------------------------
-    Jul 11 12:11 3:03:19   10000    3170    327   7830   31.7%    5993    99.9
+    Jul 11 12:45 2:30:01    8184    2794    286   6208   34.1%    6067    99.2
 
     >>> cache_run('cache4', 4)
 
@@ -917,29 +917,29 @@ Check to make sure the cache analysis scripts work.
     Jul 11 13:00-14     818     381      43     519   46.6%
     Jul 11 13:15-29     818     450      44     450   55.0%
     Jul 11 13:30-44     819     503      47     397   61.4%
-    Jul 11 13:45-59     818     501      51     399   61.2%
-    Jul 11 14:00-14     818     523      50     377   63.9%
-    Jul 11 14:15-29     818     528      61     372   64.5%
-    Jul 11 14:30-44     818     509      49     391   62.2%
-    Jul 11 14:45-59     819     522      51     378   63.7%
-    Jul 11 15:00-14     818     504      52     396   61.6%
+    Jul 11 13:45-59     818     496      49     404   60.6%
+    Jul 11 14:00-14     818     516      48     384   63.1%
+    Jul 11 14:15-29     818     532      59     368   65.0%
+    Jul 11 14:30-44     818     516      51     384   63.1%
+    Jul 11 14:45-59     819     529      53     371   64.6%
+    Jul 11 15:00-14     818     515      49     385   63.0%
     Jul 11 15:15-15       2       2       0       0  100.0%
     <BLANKLINE>
-    Read 16,935 trace records (575,782 bytes) in 0.0 seconds
+    Read 16,918 trace records (575,204 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
-    Data recs:  11,000 (65.0%), average size 1105 bytes
-    Hit rate:   50.7% (load hits / loads)
+    Data recs:  11,000 (65.0%), average size 1104 bytes
+    Hit rate:   50.8% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
-              496  10  invalidate (miss)
-              504  1c  invalidate (hit, saving non-current)
-            4,934  20  load (miss)
-            5,066  22  load (hit)
-            5,934  52  store (current, non-version)
+              501  10  invalidate (miss)
+              499  1c  invalidate (hit, saving non-current)
+            4,917  20  load (miss)
+            5,083  22  load (hit)
+            5,917  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_simul.main('-s 4 cache.trace'.split())
     CircularCacheSimulation, cache size 4,194,304 bytes
@@ -950,16 +950,16 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:45  14:59     818     322     23    578   39.4%       0    61.4
     Jul 11 13:00  14:59     818     381     43    519   46.6%       0    75.8
     Jul 11 13:15  14:59     818     450     44    450   55.0%       0    88.2
-    Jul 11 13:30  14:59     819     503     47    397   61.4%       0    98.9
-    Jul 11 13:45  14:59     818     501     51    399   61.2%     368   100.0
-    Jul 11 14:00  14:59     818     523     50    377   63.9%     372   100.0
-    Jul 11 14:15  14:59     818     528     61    372   64.5%     361   100.0
-    Jul 11 14:30  14:59     818     507     49    393   62.0%     404   100.0
-    Jul 11 14:45  14:59     819     523     51    377   63.9%     387   100.0
-    Jul 11 15:00  14:59     818     503     52    397   61.5%     384   100.0
-    Jul 11 15:15      1       2       2      0      0  100.0%       0   100.0
+    Jul 11 13:30  14:59     819     503     47    397   61.4%      36    98.2
+    Jul 11 13:45  14:59     818     496     49    404   60.6%     388    98.5
+    Jul 11 14:00  14:59     818     515     48    385   63.0%     376    98.3
+    Jul 11 14:15  14:59     818     529     58    371   64.7%     391    98.1
+    Jul 11 14:30  14:59     818     511     51    389   62.5%     376    98.5
+    Jul 11 14:45  14:59     819     529     53    371   64.6%     410    97.9
+    Jul 11 15:00  14:59     818     512     49    388   62.6%     379    97.7
+    Jul 11 15:15      1       2       2      0      0  100.0%       0    97.7
     --------------------------------------------------------------------------
-    Jul 11 12:11 3:03:19   10000    5064    504   5936   50.6%    2276   100.0
+    Jul 11 13:30 1:45:01    5730    3597    355   2705   62.8%    2356    97.7
 
     >>> cache_run('cache1', 1)
 
@@ -969,54 +969,54 @@ Check to make sure the cache analysis scripts work.
     Jul 11 12:11:41 ==================== Restart ====================
     Jul 11 12:11-14     180       1       2     197    0.6%
     Jul 11 12:15-29     818     107       9     793   13.1%
-    Jul 11 12:30-44     818     159      16     741   19.4%
-    Jul 11 12:45-59     818     155       7     745   18.9%
+    Jul 11 12:30-44     818     160      16     740   19.6%
+    Jul 11 12:45-59     818     158       8     742   19.3%
     Jul 11 13:00-14     818     141      21     759   17.2%
     Jul 11 13:15-29     818     128      17     772   15.6%
-    Jul 11 13:30-44     819     152      12     748   18.6%
-    Jul 11 13:45-59     818     121      17     779   14.8%
-    Jul 11 14:00-14     818     157      17     743   19.2%
-    Jul 11 14:15-29     818     149      14     751   18.2%
-    Jul 11 14:30-44     818     159      16     741   19.4%
-    Jul 11 14:45-59     819     140      14     760   17.1%
-    Jul 11 15:00-14     818     155      10     745   18.9%
-    Jul 11 15:15-15       2       0       0       2    0.0%
+    Jul 11 13:30-44     819     151      13     749   18.4%
+    Jul 11 13:45-59     818     120      17     780   14.7%
+    Jul 11 14:00-14     818     159      17     741   19.4%
+    Jul 11 14:15-29     818     141      13     759   17.2%
+    Jul 11 14:30-44     818     157      16     743   19.2%
+    Jul 11 14:45-59     819     133      13     767   16.2%
+    Jul 11 15:00-14     818     158      10     742   19.3%
+    Jul 11 15:15-15       2       1       0       1   50.0%
     <BLANKLINE>
-    Read 20,277 trace records (689,410 bytes) in 0.0 seconds
+    Read 20,286 trace records (689,716 bytes) in 0.0 seconds
     Versions:   0 records used a version
     First time: Sun Jul 11 12:11:41 2010
     Last time:  Sun Jul 11 15:15:01 2010
     Duration:   11,000 seconds
     Data recs:  11,000 (54.2%), average size 1105 bytes
-    Hit rate:   17.2% (load hits / loads)
+    Hit rate:   17.1% (load hits / loads)
     <BLANKLINE>
             Count Code Function (action)
                 1  00  _setup_trace (initialization)
               828  10  invalidate (miss)
               172  1c  invalidate (hit, saving non-current)
-            8,276  20  load (miss)
-            1,724  22  load (hit)
-            9,276  52  store (current, non-version)
+            8,285  20  load (miss)
+            1,715  22  load (hit)
+            9,285  52  store (current, non-version)
 
     >>> ZEO.scripts.cache_simul.main('-s 1 cache.trace'.split())
     CircularCacheSimulation, cache size 1,048,576 bytes
       START TIME   DUR.   LOADS    HITS INVALS WRITES HITRATE  EVICTS   INUSE
     Jul 11 12:11   3:17     180       1      2    197    0.6%       0    21.5
-    Jul 11 12:15  14:59     818     107      9    793   13.1%      94    99.9
-    Jul 11 12:30  14:59     818     159     16    741   19.4%     722    99.9
-    Jul 11 12:45  14:59     818     156      8    744   19.1%     743    99.9
-    Jul 11 13:00  14:59     818     141     21    759   17.2%     767    99.9
-    Jul 11 13:15  14:59     818     126     16    774   15.4%     786    99.9
-    Jul 11 13:30  14:59     819     148     12    752   18.1%     736   100.0
-    Jul 11 13:45  14:59     818     123     17    777   15.0%     764    99.9
-    Jul 11 14:00  14:59     818     158     18    742   19.3%     739   100.0
-    Jul 11 14:15  14:59     818     148     14    752   18.1%     776    99.9
-    Jul 11 14:30  14:59     818     156     15    744   19.1%     745    99.9
-    Jul 11 14:45  14:59     819     142     15    758   17.3%     749    99.9
-    Jul 11 15:00  14:59     818     150     10    750   18.3%     740    99.8
-    Jul 11 15:15      1       2       1      0      1   50.0%       0    99.9
+    Jul 11 12:15  14:59     818     107      9    793   13.1%      96    99.6
+    Jul 11 12:30  14:59     818     160     16    740   19.6%     724    99.6
+    Jul 11 12:45  14:59     818     158      8    742   19.3%     741    99.2
+    Jul 11 13:00  14:59     818     140     21    760   17.1%     771    99.5
+    Jul 11 13:15  14:59     818     125     17    775   15.3%     781    99.6
+    Jul 11 13:30  14:59     819     147     13    753   17.9%     748    99.5
+    Jul 11 13:45  14:59     818     120     17    780   14.7%     763    99.5
+    Jul 11 14:00  14:59     818     159     17    741   19.4%     728    99.4
+    Jul 11 14:15  14:59     818     141     13    759   17.2%     787    99.6
+    Jul 11 14:30  14:59     818     150     15    750   18.3%     755    99.2
+    Jul 11 14:45  14:59     819     132     13    768   16.1%     771    99.5
+    Jul 11 15:00  14:59     818     154     10    746   18.8%     723    99.2
+    Jul 11 15:15      1       2       1      0      1   50.0%       0    99.3
     --------------------------------------------------------------------------
-    Jul 11 12:11 3:03:19   10000    1716    173   9284   17.2%    8361    99.9
+    Jul 11 12:15 3:00:01    9820    1694    169   9108   17.3%    8388    99.3
 
 Cleanup:
 
