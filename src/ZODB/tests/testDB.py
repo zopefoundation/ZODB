@@ -345,30 +345,6 @@ def minimally_test_connection_timeout():
 
     """
 
-def saving_oid_multiple_times_doesnt_cause_dups():
-    r"""Duplicate saves of an oid shouldn't happen unless there's a bug elsewhere
-
-    But saving dups makes matters worse, because it dooms the process,
-    not just the transaction.
-
-    >>> db = ZODB.DB(None)
-    >>> oid = db.new_oid()
-    >>> db.save_oid(oid)
-    >>> db.new_oid() is oid
-    True
-    >>> db.save_oid(oid)
-    >>> db.save_oid(oid)
-    Traceback (most recent call last):
-    ...
-    ValueError: Duplicate saved object ids.
-
-    >>> db.new_oid() is oid
-    True
-    >>> db.new_oid()
-    '\x00\x00\x00\x00\x00\x00\x00\x02'
-
-    """
-
 def test_suite():
     s = unittest.makeSuite(DBTests)
     s.addTest(doctest.DocTestSuite(

@@ -14,6 +14,21 @@ Bugs Fixed
   comparison inherited from object. (This doesn't apply to old-style
   class instances.)
 
+3.10.2 (2011-02-12)
+===================
+
+Bugs Fixed
+----------
+
+- 3.10 introduced an optimization to try to address BTree conflict
+  errors arrising for basing BTree keys on object ids. The
+  optimization caused object ids allocated in aborted transactions to
+  be reused. Unfortunately, this optimzation led to some rather
+  severe failures in some applications.  The symptom is a conflict
+  error in which one of the serials mentioned is zero.  This
+  optimization has been removed.
+
+
 3.10.1 (2010-10-27)
 ===================
 

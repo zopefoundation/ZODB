@@ -377,7 +377,6 @@ class DB(object):
                  database_name='unnamed',
                  databases=None,
                  xrefs=True,
-                 max_saved_oids=999,
                  large_record_size=1<<24,
                  **storage_args):
         """Create an object database.
@@ -475,8 +474,6 @@ class DB(object):
         databases[database_name] = self
         self.xrefs = xrefs
 
-        self._saved_oids = set()
-        self._max_saved_oids = max_saved_oids
         self.large_record_size = large_record_size
 
     @property
@@ -957,19 +954,7 @@ class DB(object):
     def transaction(self):
         return ContextManager(self)
 
-
-    def save_oid(self, oid):
-        if oid in self._saved_oids:
-            raise ValueError("Duplicate saved object ids.")
-        if len(self._saved_oids) < self._max_saved_oids:
-            self._saved_oids.add(oid)
-
     def new_oid(self):
-        if self._saved_oids:
-            try:
-                return self._saved_oids.pop()
-            except IndexError:
-                pass # Hm, threads
         return self.storage.new_oid()
 
 

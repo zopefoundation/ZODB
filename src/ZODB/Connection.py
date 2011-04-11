@@ -452,7 +452,6 @@ class Connection(ExportImport, object):
                 del obj._p_oid
                 if obj._p_changed:
                     obj._p_changed = False
-                self._db.save_oid(oid)
             else:
 
                 # Note: If we invalidate a non-ghostifiable object
@@ -760,7 +759,6 @@ class Connection(ExportImport, object):
             self._creating = {}
 
         for oid in creating:
-            self._db.save_oid(oid)
             o = self._cache.get(oid)
             if o is not None:
                 del self._cache[oid]
