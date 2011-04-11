@@ -28,6 +28,7 @@ Bugs Fixed
   error in which one of the serials mentioned is zero.  This
   optimization has been removed.
 
+  See (for example): https://bugs.launchpad.net/zodb/+bug/665452
 
 3.10.1 (2010-10-27)
 ===================
