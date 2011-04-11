@@ -18,7 +18,6 @@ storage without distracting storage details.
 """
 
 import BTrees
-import cPickle
 import time
 import threading
 import ZODB.BaseStorage

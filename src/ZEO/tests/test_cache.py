@@ -16,7 +16,6 @@
 from ZODB.utils import p64, repr_to_oid
 import doctest
 import os
-import random
 import string
 import struct
 import sys

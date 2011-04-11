@@ -31,7 +31,6 @@ from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.utils import p64, u64, z64
 
 import base64
-import BTrees.OOBTree
 import contextlib
 import errno
 import logging

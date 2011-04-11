@@ -16,7 +16,7 @@
 import transaction
 from transaction import Transaction
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
-from ZODB.tests.StorageTestBase import MinPO, zodb_unpickle, snooze
+from ZODB.tests.StorageTestBase import MinPO, snooze
 from ZODB import DB
 from ZODB.serialize import referencesf
 

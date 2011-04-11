@@ -15,7 +15,6 @@
 """Test suite for ZEO.runzeo.ZEOOptions."""
 
 import os
-import sys
 import tempfile
 import unittest
 

@@ -19,7 +19,6 @@ from struct import pack, unpack
 from binascii import hexlify, unhexlify
 import cPickle as pickle
 from cStringIO import StringIO
-import weakref
 import warnings
 from tempfile import mkstemp
 import os

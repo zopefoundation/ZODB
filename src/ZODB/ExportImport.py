@@ -22,7 +22,7 @@ import logging
 
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
-from ZODB.POSException import ExportError, POSKeyError
+from ZODB.POSException import ExportError
 from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, cp, mktemp
 
@@ -58,14 +58,14 @@ class ExportImport:
                 if supports_blobs:
                     if not isinstance(self._reader.getGhost(p), Blob):
                         continue # not a blob
-                    
+
                     blobfilename = self._storage.loadBlob(oid, serial)
                     f.write(blob_begin_marker)
                     f.write(p64(os.stat(blobfilename).st_size))
                     blobdata = open(blobfilename, "rb")
                     cp(blobdata, f)
                     blobdata.close()
-            
+
         f.write(export_end_marker)
         return f
 
@@ -177,7 +177,7 @@ class ExportImport:
             data = newp.getvalue()
 
             if blob_filename is not None:
-                self._storage.storeBlob(oid, None, data, blob_filename, 
+                self._storage.storeBlob(oid, None, data, blob_filename,
                                         '', transaction)
             else:
                 self._storage.store(oid, None, data, '', transaction)

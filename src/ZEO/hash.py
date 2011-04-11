@@ -16,8 +16,6 @@
 in favor of using hashlib for both. This class allows for compatibility
 between versions."""
 
-import sys
-
 try:
     import hashlib
     sha1 = hashlib.sha1

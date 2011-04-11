@@ -21,7 +21,6 @@ storage tests against the test storage.
 from __future__ import with_statement
 
 import bisect
-import threading
 import unittest
 
 from ZODB.BaseStorage import BaseStorage
@@ -30,7 +29,7 @@ from ZODB.utils import z64
 
 from ZODB.tests import StorageTestBase
 from ZODB.tests import BasicStorage, MTStorage, Synchronization
-from ZODB.tests import PackableStorage, RevisionStorage
+from ZODB.tests import RevisionStorage
 
 class Transaction(object):
     """Hold data for current transaction for MinimalMemoryStorage."""

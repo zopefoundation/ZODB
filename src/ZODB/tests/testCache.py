@@ -27,7 +27,6 @@ import doctest
 import gc
 import sys
 import threading
-import time
 import transaction
 import unittest
 import ZODB

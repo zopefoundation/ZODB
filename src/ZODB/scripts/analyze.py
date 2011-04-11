@@ -3,7 +3,6 @@
 # Based on a transaction analyzer by Matt Kromer.
 
 import pickle
-import re
 import sys
 import types
 from ZODB.FileStorage import FileStorage

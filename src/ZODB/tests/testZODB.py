@@ -14,13 +14,11 @@
 
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-from ZODB.POSException import ReadConflictError, ConflictError
+from ZODB.POSException import ReadConflictError
 from ZODB.POSException import TransactionFailedError
-from ZODB.tests.warnhook import WarningsHook
 
 import transaction
 import unittest
-import warnings
 import ZODB
 import ZODB.FileStorage
 import ZODB.MappingStorage

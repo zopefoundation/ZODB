@@ -20,7 +20,6 @@ import sys
 import threading
 import logging
 import datetime
-import calendar
 import time
 import warnings
 

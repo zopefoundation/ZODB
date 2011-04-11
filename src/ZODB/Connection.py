@@ -21,7 +21,6 @@ import tempfile
 import threading
 import warnings
 import os
-import shutil
 import time
 
 from persistent import PickleCache
@@ -48,7 +47,7 @@ from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.POSException import Unsupported, ReadOnlyHistoryError
 from ZODB.POSException import POSKeyError
-from ZODB.serialize import ObjectWriter, ObjectReader, myhasattr
+from ZODB.serialize import ObjectWriter, ObjectReader
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 

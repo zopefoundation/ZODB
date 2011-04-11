@@ -12,16 +12,10 @@
 #
 ##############################################################################
 import asyncore
-import atexit
-import cPickle
-import errno
-import select
 import sys
 import threading
 import logging
 import ZEO.zrpc.marshal
-
-import traceback, time
 
 import ZEO.zrpc.trigger
 

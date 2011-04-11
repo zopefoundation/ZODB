@@ -4,10 +4,8 @@ Note:  To run this test script fstest.py must be on your PYTHONPATH.
 """
 
 from cStringIO import StringIO
-import os
 import re
 import struct
-import tempfile
 import unittest
 import ZODB.tests.util
 
