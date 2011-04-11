@@ -11,60 +11,65 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-import cPickle
+from cPickle import Unpickler, Pickler
 from cStringIO import StringIO
 import logging
 
 from ZEO.zrpc.error import ZRPCError
 from ZEO.zrpc.log import log, short_repr
 
-class Marshaller:
-    """Marshal requests and replies to second across network"""
+def encode(*args): # args: (msgid, flags, name, args)
+    # (We used to have a global pickler, but that's not thread-safe. :-( )
 
-    def encode(self, msgid, flags, name, args):
-        """Returns an encoded message"""
-        # (We used to have a global pickler, but that's not thread-safe. :-( )
-        # Note that args may contain very large binary pickles already; for
-        # this reason, it's important to use proto 1 (or higher) pickles here
-        # too.  For a long time, this used proto 0 pickles, and that can
-        # bloat our pickle to 4x the size (due to high-bit and control bytes
-        # being represented by \xij escapes in proto 0).
-        # Undocumented:  cPickle.Pickler accepts a lone protocol argument;
-        # pickle.py does not.
-        pickler = cPickle.Pickler(1)
-        pickler.fast = 1
+    # It's not thread safe if, in the couse of pickling, we call the
+    # Python interpeter, which releases the GIL.
 
-        # Undocumented:  pickler.dump(), for a cPickle.Pickler, takes
-        # an optional boolean argument.  When true, it returns the pickle;
-        # when false or unspecified, it returns the pickler object itself.
-        # pickle.py does none of this.
-        return pickler.dump((msgid, flags, name, args), 1)
+    # Note that args may contain very large binary pickles already; for
+    # this reason, it's important to use proto 1 (or higher) pickles here
+    # too.  For a long time, this used proto 0 pickles, and that can
+    # bloat our pickle to 4x the size (due to high-bit and control bytes
+    # being represented by \xij escapes in proto 0).
+    # Undocumented:  cPickle.Pickler accepts a lone protocol argument;
+    # pickle.py does not.
+    pickler = Pickler(1)
+    pickler.fast = 1
+    return pickler.dump(args, 1)
 
-    def decode(self, msg):
-        """Decodes msg and returns its parts"""
-        unpickler = cPickle.Unpickler(StringIO(msg))
-        unpickler.find_global = find_global
 
-        try:
-            return unpickler.load() # msgid, flags, name, args
-        except:
-            log("can't decode message: %s" % short_repr(msg),
-                level=logging.ERROR)
-            raise
+@apply
+def fast_encode():
+    # Only use in cases where you *know* the data contains only basic
+    # Python objects
+    pickler = Pickler(1)
+    pickler.fast = 1
+    dump = pickler.dump
+    def fast_encode(*args):
+        return dump(args, 1)
+    return fast_encode
 
-class ServerMarshaller(Marshaller):
+def decode(msg):
+    """Decodes msg and returns its parts"""
+    unpickler = Unpickler(StringIO(msg))
+    unpickler.find_global = find_global
 
-    def decode(self, msg):
-        """Decodes msg and returns its parts"""
-        unpickler = cPickle.Unpickler(StringIO(msg))
-        unpickler.find_global = server_find_global
+    try:
+        return unpickler.load() # msgid, flags, name, args
+    except:
+        log("can't decode message: %s" % short_repr(msg),
+            level=logging.ERROR)
+        raise
 
-        try:
-            return unpickler.load() # msgid, flags, name, args
-        except:
-            log("can't decode message: %s" % short_repr(msg),
-                level=logging.ERROR)
-            raise
+def server_decode(msg):
+    """Decodes msg and returns its parts"""
+    unpickler = Unpickler(StringIO(msg))
+    unpickler.find_global = server_find_global
+
+    try:
+        return unpickler.load() # msgid, flags, name, args
+    except:
+        log("can't decode message: %s" % short_repr(msg),
+            level=logging.ERROR)
+        raise
 
 _globals = globals()
 _silly = ('__doc__',)
