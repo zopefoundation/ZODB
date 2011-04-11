@@ -1337,7 +1337,7 @@ class TimeoutThread(threading.Thread):
 
             if howlong <= 0:
                 client.log("Transaction timeout after %s seconds" %
-                           self._timeout, logging.ERROR)
+                           self._timeout, logging.CRITICAL)
                 try:
                     client.connection.call_from_thread(client.connection.close)
                 except:

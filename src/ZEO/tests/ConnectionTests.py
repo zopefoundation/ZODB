@@ -994,6 +994,16 @@ class TimeoutTests(CommonSetupTearDown):
         storage.tpc_vote(txn)
         time.sleep(2)
         self.assertRaises(ClientDisconnected, storage.tpc_finish, txn)
+
+        # Make sure it's logged as CRITICAL
+        for line in open("server-%s.log" % self.addr[0][1]):
+            if (('Transaction timeout after' in line) and
+                ('CRITICAL ZEO.StorageServer' in line)
+                ):
+                break
+        else:
+            self.assert_(False, 'bad logging')
+
         storage.close()
 
     def checkTimeoutOnAbort(self):
