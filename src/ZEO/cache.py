@@ -152,7 +152,7 @@ class ClientCache(object):
     # default of 20MB.  The default here is misleading, though, since
     # ClientStorage is the only user of ClientCache, and it always passes an
     # explicit size of its own choosing.
-    def __init__(self, path=None, size=200*1024**2):
+    def __init__(self, path=None, size=200*1024**2, rearrange=.8):
 
         # - `path`:  filepath for the cache file, or None (in which case
         #   a temp file will be created)
@@ -162,6 +162,11 @@ class ClientCache(object):
         #               We set to the minimum size of less than the minimum.
         size = max(size, ZEC_HEADER_SIZE)
         self.maxsize = size
+
+        # rearrange: if we read a current record and it's more than
+        # rearrange*size from the end, then copy it forward to keep it
+        # from being evicted.
+        self.rearrange = rearrange * size
 
         # The number of records in the cache.
         self._len = 0
@@ -497,6 +502,7 @@ class ClientCache(object):
         size, saved_oid, tid, end_tid, lver, ldata = unpack(
             ">I8s8s8sHI", read(34))
         assert saved_oid == oid, (ofs, self.f.tell(), oid, saved_oid)
+        assert end_tid == z64, (ofs, self.f.tell(), oid, tid, end_tid)
         assert lver == 0, "Versions aren't supported"
 
         data = read(ldata)
@@ -508,6 +514,25 @@ class ClientCache(object):
 
         self._n_accesses += 1
         self._trace(0x22, oid, tid, end_tid, ldata)
+
+        ofsofs = self.currentofs - ofs
+        if ofsofs < 0:
+            ofsofs += self.maxsize
+
+        if (ofsofs > self.rearrange and
+            self.maxsize > 10*len(data) and
+            size > 4):
+            # The record is far back and might get evicted, but it's
+            # valuable, so move it forward.
+
+            # Remove fromn old loc:
+            del self.current[oid]
+            self.f.seek(ofs)
+            self.f.write('f'+pack(">I", size))
+
+            # Write to new location:
+            self._store(oid, tid, None, data, size)
+
         return data, tid
 
     ##
@@ -599,6 +624,16 @@ class ClientCache(object):
         self._n_added_bytes += size
         self._len += 1
 
+        self._store(oid, start_tid, end_tid, data, size)
+
+        if end_tid:
+            self._trace(0x54, oid, start_tid, end_tid, dlen=len(data))
+        else:
+            self._trace(0x52, oid, start_tid, dlen=len(data))
+
+    def _store(self, oid, start_tid, end_tid, data, size):
+        # Low-level store used by store and load
+
         # In the next line, we ask for an extra to make sure we always
         # have a free block after the new alocated block.  This free
         # block acts as a ring pointer, so that on restart, we start
@@ -618,6 +653,7 @@ class ClientCache(object):
             extra = 'f' + pack(">I", excess)
 
         ofs = self.currentofs
+        seek = self.f.seek
         seek(ofs)
         write = self.f.write
 
@@ -639,12 +675,11 @@ class ClientCache(object):
 
         if end_tid:
             self._set_noncurrent(oid, start_tid, ofs)
-            self._trace(0x54, oid, start_tid, end_tid, dlen=len(data))
         else:
             self.current[oid] = ofs
-            self._trace(0x52, oid, start_tid, dlen=len(data))
 
         self.currentofs += size
+
 
     ##
     # If `tid` is None,
@@ -660,7 +695,6 @@ class ClientCache(object):
     # - oid object id
     # - tid the id of the transaction that wrote a new revision of oid,
     #        or None to forget all cached info about oid.
-
     @locked
     def invalidate(self, oid, tid):
         ofs = self.current.get(oid)
