@@ -1509,7 +1509,7 @@ def gracefully_handle_abort_while_storing_many_blobs():
     >>> handler = logging.StreamHandler(sys.stdout)
     >>> logging.getLogger().addHandler(handler)
 
-    >>> addr, _ = start_server(port='./sock', blob_dir='blobs')
+    >>> addr, _ = start_server(blob_dir='blobs')
     >>> c = ZEO.connection(addr, blob_dir='cblobs')
     >>> c.root.x = ZODB.blob.Blob('z'*(1<<20))
     >>> c.root.y = ZODB.blob.Blob('z'*(1<<2))
