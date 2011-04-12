@@ -1500,6 +1500,44 @@ def unix_domain_sockets():
     >>> c.close()
     """
 
+def gracefully_handle_abort_while_storing_many_blobs():
+    r"""
+
+    >>> import logging, sys
+    >>> old_level = logging.getLogger().getEffectiveLevel()
+    >>> logging.getLogger().setLevel(logging.ERROR)
+    >>> handler = logging.StreamHandler(sys.stdout)
+    >>> logging.getLogger().addHandler(handler)
+
+    >>> addr, _ = start_server(port='./sock', blob_dir='blobs')
+    >>> c = ZEO.connection(addr, blob_dir='cblobs')
+    >>> c.root.x = ZODB.blob.Blob('z'*(1<<20))
+    >>> c.root.y = ZODB.blob.Blob('z'*(1<<2))
+    >>> t = c.transaction_manager.get()
+    >>> c.tpc_begin(t)
+    >>> c.commit(t)
+
+We've called commit, but the blob sends are queued.  We'll call abort
+right away, which will delete the temporary blob files.  The queued
+iterators will try to open these files.
+
+    >>> c.tpc_abort(t)
+
+Now we'll try to use the connection, mainly to wait for everything to
+get processed. Before we fixed this by making tpc_finish a synchronous
+call to the server. we'd get some sort of error here.
+
+    >>> _ = c._storage._server.loadEx('\0'*8)
+
+    >>> c.close()
+
+    >>> logging.getLogger().removeHandler(handler)
+    >>> logging.getLogger().setLevel(old_level)
+
+
+
+    """
+
 if sys.platform.startswith('win'):
     del runzeo_logrotate_on_sigusr2
     del unix_domain_sockets
