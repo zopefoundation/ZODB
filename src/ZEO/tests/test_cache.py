@@ -16,6 +16,7 @@
 from ZODB.utils import p64, repr_to_oid
 import doctest
 import os
+import re
 import string
 import struct
 import sys
@@ -24,6 +25,7 @@ import unittest
 import ZEO.cache
 import ZODB.tests.util
 import zope.testing.setupstack
+import zope.testing.renormalizing
 
 import ZEO.cache
 from ZODB.utils import p64, u64, z64
@@ -1132,6 +1134,9 @@ def test_suite():
         doctest.DocTestSuite(
             setUp=zope.testing.setupstack.setUpDirectory,
             tearDown=zope.testing.setupstack.tearDown,
+            checker=zope.testing.renormalizing.RENormalizing([
+                (re.compile(r'31\.3%'), '31.2%'),
+                ]),
             )
         )
     return suite
