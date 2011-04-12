@@ -2,6 +2,26 @@
  Change History
 ================
 
+3.10.3 (2011-04-12)
+===================
+
+Bugs Fixed
+----------
+
+- "activity monitor not updated for subconnections when connection
+  returned to pool"
+
+  https://bugs.launchpad.net/zodb/+bug/737198
+
+Performance enhancements
+------------------------
+
+- Improved ZEO client cache implementation to make it less likely to
+  evict objects that are being used.
+
+- Small (possibly negligable) reduction in CPU in ZEO storage servers
+  to service object loads and in networking code.
+
 3.10.2 (2011-02-12)
 ===================
 
