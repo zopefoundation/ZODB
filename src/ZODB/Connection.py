@@ -321,6 +321,10 @@ class Connection(ExportImport, object):
                 # get back here.
         else:
             self.opened = None
+            
+        am = self._db._activity_monitor
+        if am is not None:
+            am.closedConnection(self)        
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
