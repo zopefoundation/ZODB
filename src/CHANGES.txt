@@ -2,6 +2,18 @@
  Change History
 ================
 
+3.9.8 (2011-04-18)
+==================
+
+Bugs Fixed
+----------
+
+- "activity monitor not updated for subconnections when connection
+  returned to pool"
+
+  https://bugs.launchpad.net/zodb/+bug/737198
+
+
 3.9.7 (2010-09-28)
 ==================
 
