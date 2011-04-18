@@ -13,6 +13,16 @@ Bugs Fixed
 
   https://bugs.launchpad.net/zodb/+bug/737198
 
+- "Blob temp file get's removed before it should",
+  https://bugs.launchpad.net/zodb/+bug/595378
+
+  A way this to happen is that a transaction is aborted after the
+  commit process has started. I don't know how this would happen in
+  the wild.
+
+  In 3.10.3, the ZEO tpc_abort call to the server is changed to be
+  synchronous, which should address this case. Maybe there's another
+  case.
 
 3.9.7 (2010-09-28)
 ==================
