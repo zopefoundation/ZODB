@@ -10,27 +10,27 @@
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
 
- ****************************************************************************/
+****************************************************************************/
 
 #define MERGETEMPLATE_C "$Id$\n"
 
 /****************************************************************************
  Set operations
- ****************************************************************************/
+****************************************************************************/
 
 static int
 merge_output(Bucket *r, SetIteration *i, int mapping)
 {
-    if (r->len >= r->size && Bucket_grow(r, -1, !mapping) < 0)
-	return -1;
-    COPY_KEY(r->keys[r->len], i->key);
-    INCREF_KEY(r->keys[r->len]);
-    if (mapping) {
-	COPY_VALUE(r->values[r->len], i->value);
-	INCREF_VALUE(r->values[r->len]);
-    }
-    r->len++;
-    return 0;
+  if (r->len >= r->size && Bucket_grow(r, -1, !mapping) < 0)
+    return -1;
+  COPY_KEY(r->keys[r->len], i->key);
+  INCREF_KEY(r->keys[r->len]);
+  if (mapping) {
+    COPY_VALUE(r->values[r->len], i->value);
+    INCREF_VALUE(r->values[r->len]);
+  }
+  r->len++;
+  return 0;
 }
 
 /* The "reason" argument is a little integer giving "a reason" for the
@@ -45,7 +45,7 @@ merge_error(int p1, int p2, int p3, int reason)
   UNLESS (r=Py_BuildValue("iiii", p1, p2, p3, reason)) r=Py_None;
   if (ConflictError == NULL) {
   	ConflictError = PyExc_ValueError;
-	Py_INCREF(ConflictError);
+    Py_INCREF(ConflictError);
   }
   PyErr_SetObject(ConflictError, r);
   if (r != Py_None)
@@ -101,28 +101,28 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
     }
 
   if (initSetIteration(&i1, OBJECT(s1), 1) < 0)
-      goto err;
+    goto err;
   if (initSetIteration(&i2, OBJECT(s2), 1) < 0)
-      goto err;
+    goto err;
   if (initSetIteration(&i3, OBJECT(s3), 1) < 0)
-      goto err;
+    goto err;
 
   mapping = i1.usesValue | i2.usesValue | i3.usesValue;
   set = !mapping;
 
   if (mapping)
-      r = (Bucket *)PyObject_CallObject((PyObject *)&BucketType, NULL);
+    r = (Bucket *)PyObject_CallObject((PyObject *)&BucketType, NULL);
   else
-      r = (Bucket *)PyObject_CallObject((PyObject *)&SetType, NULL);
+    r = (Bucket *)PyObject_CallObject((PyObject *)&SetType, NULL);
   if (r == NULL)
-      goto err;
+    goto err;
 
   if (i1.next(&i1) < 0)
-      goto err;
+    goto err;
   if (i2.next(&i2) < 0)
-      goto err;
+    goto err;
   if (i3.next(&i3) < 0)
-      goto err;
+    goto err;
 
   /* Consult zodb/btrees/interfaces.py for the meaning of the last
    * argument passed to merge_error().
@@ -233,7 +233,7 @@ bucket_merge(Bucket *s1, Bucket *s2, Bucket *s3)
             }
           else
             {                   /* 1<2 and 1<3:  both deleted 1.key */
-	      merge_error(i1.position, i2.position, i3.position, 5);
+              merge_error(i1.position, i2.position, i3.position, 5);
               goto err;
             }
         }

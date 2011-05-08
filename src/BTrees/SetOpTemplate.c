@@ -10,11 +10,11 @@
   WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
   FOR A PARTICULAR PURPOSE
 
- ****************************************************************************/
+****************************************************************************/
 
 /****************************************************************************
  Set operations
- ****************************************************************************/
+****************************************************************************/
 
 #define SETOPTEMPLATE_C "$Id$\n"
 
@@ -22,15 +22,15 @@
 static int
 nextKeyAsSet(SetIteration *i)
 {
-    if (i->position >= 0) {
-        if (i->position) {
-            DECREF_KEY(i->key);
-            i->position = -1;
-        }
-        else
-            i->position = 1;
+  if (i->position >= 0) {
+    if (i->position) {
+      DECREF_KEY(i->key);
+      i->position = -1;
     }
-    return 0;
+    else
+      i->position = 1;
+  }
+  return 0;
 }
 #endif
 
@@ -145,11 +145,11 @@ initSetIteration(SetIteration *i, PyObject *s, int useValues)
 static int
 copyRemaining(Bucket *r, SetIteration *i, int merge, 
 
-/* See comment # 42 */
+              /* See comment # 42 */
 #ifdef MERGE
               VALUE_TYPE w)
 #else
-              int w)
+  int w)
 #endif
 {
   while (i->position >= 0)
@@ -201,16 +201,16 @@ static PyObject *
 set_operation(PyObject *s1, PyObject *s2,
               int usevalues1, int usevalues2,
 
-/* Comment # 42
+              /* Comment # 42
 
-The following ifdef works around a template/type problem
+                 The following ifdef works around a template/type problem
 
-Weights are passed as integers. In particular, the weight passed by
-difference is one.  This works fine in the int value and float value
-cases but makes no sense in the object value case.  In the object
-value case, we don't do merging, so we don't use the weights, so it
-doesn't matter what they are. 
-*/
+                 Weights are passed as integers. In particular, the weight passed by
+                 difference is one.  This works fine in the int value and float value
+                 cases but makes no sense in the object value case.  In the object
+                 value case, we don't do merging, so we don't use the weights, so it
+                 doesn't matter what they are. 
+              */
 #ifdef MERGE
               VALUE_TYPE w1, VALUE_TYPE w2,
 #else
@@ -238,7 +238,7 @@ doesn't matter what they are.
           SetIteration t;
           int i;
 
-/* See comment # 42 above */
+          /* See comment # 42 above */
 #ifdef MERGE
           VALUE_TYPE v;
 #else
@@ -279,10 +279,10 @@ doesn't matter what they are.
     {
       TEST_KEY_SET_OR(cmp, i1.key, i2.key) goto err;
       if(cmp < 0)
-	{
-	  if(c1)
-	    {
-	      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
+        {
+          if(c1)
+            {
+              if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i1.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
@@ -290,15 +290,15 @@ doesn't matter what they are.
                   COPY_VALUE(r->values[r->len], MERGE_WEIGHT(i1.value, w1));
                   INCREF_VALUE(r->values[r->len]);
                 }
-	      r->len++;
-	    }
+              r->len++;
+            }
           if (i1.next(&i1) < 0) goto err;
-	}
+        }
       else if(cmp==0)
-	{
-	  if(c12)
-	    {
-	      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
+        {
+          if(c12)
+            {
+              if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i1.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
@@ -310,16 +310,16 @@ doesn't matter what they are.
                   INCREF_VALUE(r->values[r->len]);
 #endif
                 }
-	      r->len++;
-	    }
+              r->len++;
+            }
           if (i1.next(&i1) < 0) goto err;
           if (i2.next(&i2) < 0) goto err;
-	}
+        }
       else
-	{
-	  if(c2)
-	    {
-	      if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
+        {
+          if(c2)
+            {
+              if(r->len >= r->size && Bucket_grow(r, -1, ! merge) < 0) goto err;
               COPY_KEY(r->keys[r->len], i2.key);
               INCREF_KEY(r->keys[r->len]);
               if (merge)
@@ -327,10 +327,10 @@ doesn't matter what they are.
                   COPY_VALUE(r->values[r->len], MERGE_WEIGHT(i2.value, w2));
                   INCREF_VALUE(r->values[r->len]);
                 }
-	      r->len++;
-	    }
+              r->len++;
+            }
           if (i2.next(&i2) < 0) goto err;
-	}
+        }
     }
   if(c1 && copyRemaining(r, &i1, merge, w1) < 0) goto err;
   if(c2 && copyRemaining(r, &i2, merge, w2) < 0) goto err;
@@ -342,11 +342,11 @@ doesn't matter what they are.
   return OBJECT(r);
 
 #ifndef MERGE_DEFAULT
-invalid_set_operation:
+ invalid_set_operation:
   PyErr_SetString(PyExc_TypeError, "invalid set operation");
 #endif
 
-err:
+ err:
   finiSetIteration(&i1);
   finiSetIteration(&i2);
   Py_XDECREF(r);
@@ -461,7 +461,7 @@ wintersection_m(PyObject *ignored, PyObject *args)
   o1 = set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0);
   if (o1)
     ASSIGN(o1, Py_BuildValue(VALUE_PARSE "O",
-            ((o1->ob_type == (PyTypeObject*)(&SetType)) ? w2+w1 : 1),
+                             ((o1->ob_type == (PyTypeObject*)(&SetType)) ? w2+w1 : 1),
                              o1));
 
   return o1;
@@ -479,79 +479,79 @@ wintersection_m(PyObject *ignored, PyObject *args)
 static PyObject *
 multiunion_m(PyObject *ignored, PyObject *args)
 {
-    PyObject *seq;          /* input sequence */
-    int n;                  /* length of input sequence */
-    PyObject *set = NULL;   /* an element of the input sequence */
-    Bucket *result;         /* result set */
-    SetIteration setiter = {0};
-    int i;
+  PyObject *seq;          /* input sequence */
+  int n;                  /* length of input sequence */
+  PyObject *set = NULL;   /* an element of the input sequence */
+  Bucket *result;         /* result set */
+  SetIteration setiter = {0};
+  int i;
 
-    UNLESS(PyArg_ParseTuple(args, "O", &seq))
-        return NULL;
-
-    n = PyObject_Length(seq);
-    if (n < 0)
-        return NULL;
-
-    /* Construct an empty result set. */
-    result = BUCKET(PyObject_CallObject(OBJECT(&SetType), NULL));
-    if (result == NULL)
-        return NULL;
-
-    /* For each set in the input sequence, append its elements to the result
-       set.  At this point, we ignore the possibility of duplicates. */
-    for (i = 0; i < n; ++i) {
-        set = PySequence_GetItem(seq, i);
-        if (set == NULL)
-            goto Error;
-
-        /* If set is a bucket, do a straight resize + memcpy. */
-        if (set->ob_type == (PyTypeObject*)&SetType ||
-            set->ob_type == (PyTypeObject*)&BucketType)
-        {
-            Bucket *b = BUCKET(set);
-            int status = 0;
-
-            UNLESS (PER_USE(b)) goto Error;
-            if (b->len)
-                status = bucket_append(result, b, 0, b->len, 0, i < n-1);
-            PER_UNUSE(b);
-            if (status < 0) goto Error;
-        }
-        else {
-            /* No cheap way:  iterate over set's elements one at a time. */
-            if (initSetIteration(&setiter, set, 0) < 0) goto Error;
-            if (setiter.next(&setiter) < 0) goto Error;
-            while (setiter.position >= 0) {
-                if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
-                    goto Error;
-                COPY_KEY(result->keys[result->len], setiter.key);
-                ++result->len;
-                /* We know the key is an int, so no need to incref it. */
-                if (setiter.next(&setiter) < 0) goto Error;
-            }
-            finiSetIteration(&setiter);
-        }
-        Py_DECREF(set);
-        set = NULL;
-    }
-
-    /* Combine, sort, remove duplicates, and reset the result's len.
-       If the set shrinks (which happens if and only if there are
-       duplicates), no point to realloc'ing the set smaller, as we
-       expect the result set to be short-lived.
-    */
-    if (result->len > 0) {
-        size_t newlen;          /* number of elements in final result set */
-        newlen = sort_int_nodups(result->keys, (size_t)result->len);
-        result->len = (int)newlen;
-    }
-    return (PyObject *)result;
-
-Error:
-    Py_DECREF(result);
-    Py_XDECREF(set);
-    finiSetIteration(&setiter);
+  UNLESS(PyArg_ParseTuple(args, "O", &seq))
     return NULL;
+
+  n = PyObject_Length(seq);
+  if (n < 0)
+    return NULL;
+
+  /* Construct an empty result set. */
+  result = BUCKET(PyObject_CallObject(OBJECT(&SetType), NULL));
+  if (result == NULL)
+    return NULL;
+
+  /* For each set in the input sequence, append its elements to the result
+     set.  At this point, we ignore the possibility of duplicates. */
+  for (i = 0; i < n; ++i) {
+    set = PySequence_GetItem(seq, i);
+    if (set == NULL)
+      goto Error;
+
+    /* If set is a bucket, do a straight resize + memcpy. */
+    if (set->ob_type == (PyTypeObject*)&SetType ||
+        set->ob_type == (PyTypeObject*)&BucketType)
+      {
+        Bucket *b = BUCKET(set);
+        int status = 0;
+
+        UNLESS (PER_USE(b)) goto Error;
+        if (b->len)
+          status = bucket_append(result, b, 0, b->len, 0, i < n-1);
+        PER_UNUSE(b);
+        if (status < 0) goto Error;
+      }
+    else {
+      /* No cheap way:  iterate over set's elements one at a time. */
+      if (initSetIteration(&setiter, set, 0) < 0) goto Error;
+      if (setiter.next(&setiter) < 0) goto Error;
+      while (setiter.position >= 0) {
+        if (result->len >= result->size && Bucket_grow(result, -1, 1) < 0)
+          goto Error;
+        COPY_KEY(result->keys[result->len], setiter.key);
+        ++result->len;
+        /* We know the key is an int, so no need to incref it. */
+        if (setiter.next(&setiter) < 0) goto Error;
+      }
+      finiSetIteration(&setiter);
+    }
+    Py_DECREF(set);
+    set = NULL;
+  }
+
+  /* Combine, sort, remove duplicates, and reset the result's len.
+     If the set shrinks (which happens if and only if there are
+     duplicates), no point to realloc'ing the set smaller, as we
+     expect the result set to be short-lived.
+  */
+  if (result->len > 0) {
+    size_t newlen;          /* number of elements in final result set */
+    newlen = sort_int_nodups(result->keys, (size_t)result->len);
+    result->len = (int)newlen;
+  }
+  return (PyObject *)result;
+
+ Error:
+  Py_DECREF(result);
+  Py_XDECREF(set);
+  finiSetIteration(&setiter);
+  return NULL;
 }
 #endif
