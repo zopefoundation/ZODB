@@ -16,4 +16,11 @@
 # expected to be "public" excpect to FileStorage.
 
 # hack to overcome dynamic-linking headache.
-from _fsBTree import *
+try:
+    from _fsBTree import *
+except ImportError:
+    import ___BTree
+    ___BTree._import(globals(), 'fs', 500, 500,
+                     to_key=___BTree.to_str(2),
+                     to_value=___BTree.to_str(6),
+                     )

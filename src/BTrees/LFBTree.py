@@ -15,7 +15,10 @@
 import zope.interface
 import BTrees.Interfaces
 
-# hack to overcome dynamic-linking headache.
-from _LFBTree import *
+try:
+    from _LFBTree import *
+except ImportError:
+    import ___BTree
+    ___BTree._import(globals(), 'LF', 120, 500)
 
 zope.interface.moduleProvides(BTrees.Interfaces.IIntegerFloatBTreeModule)

@@ -14,7 +14,9 @@
 """Python BTree implementation
 """
 
+from struct import pack
 from ZODB.POSException import ConflictError
+
 import persistent
 
 _marker = object()
@@ -93,7 +95,8 @@ class _Base(persistent.Persistent):
                 else:
                     raise ValueError("no key satisfies the conditions")
 
-    def _range(min=_marker, max=_marker, excludemin=False, excludemax=False):
+    def _range(self, min=_marker, max=_marker,
+               excludemin=False, excludemax=False):
         if min is _marker:
             start = 0
             if excludemin:
@@ -114,12 +117,10 @@ class _Base(persistent.Persistent):
             max = self._to_key(max)
             end = self._search(max)
             if end >= 0:
-                if excludemax:
-                    end -= 1
+                if not excludemax:
+                    end += 1
             else:
                 end = -end - 1
-                if excludemax:
-                    end -= 1
 
         return start, end
 
@@ -204,7 +205,7 @@ class _Base(persistent.Persistent):
                 if cmp12 > 0: # insert committed
                     merge_output(i2)
                 elif set or i1.value == i3.value: # delete committed
-                    if i2.position == 1
+                    if i2.position == 1:
                         # Deleted the first item.  This will modify the
                         # parent node, so we don't know if merging will be
                         # safe
@@ -308,13 +309,18 @@ class _SetIteration:
 
         return self
 
-class _MappingBase:
+class _MappingBase(_Base):
 
     def setdefault(self, key, value):
         return self._set(self._to_key(key), self._to_value(value), True)[1]
 
-    def pop(self, key):
-        return self._del(self._to_key(key))[1]
+    def pop(self, key, default=_marker):
+        try:
+            return self._del(self._to_key(key))[1]
+        except KeyError:
+            if default is _marker:
+                raise
+            return default
 
     def update(self, items):
         if hasattr(items, 'iteritems'):
@@ -332,10 +338,10 @@ class _MappingBase:
     def __delitem__(self, key):
         self._del(self._to_key(key))
 
-class _SetBase:
+class _SetBase(_Base):
 
     def add(self, key):
-        self._set(self._to_key(key))
+        return self._set(self._to_key(key))[0]
 
     insert = add
 
@@ -347,7 +353,7 @@ class _SetBase:
         for i in items:
             add(i)
 
-class Bucket(_Base, _MappingBase):
+class Bucket(_MappingBase):
 
     _value_type = list
     _to_value = lambda x: x
@@ -395,8 +401,6 @@ class Bucket(_Base, _MappingBase):
             self._values.insert(index, value)
             return 1, value
 
-    __setitem__ = _set
-
     def _del(self, key):
         index = self._search(key)
         if index >= 0:
@@ -410,10 +414,10 @@ class Bucket(_Base, _MappingBase):
         if index < 0 or index >= len(self._keys):
             index = len(self._keys) / 2
         new_instance = self.__class__()
-        new_instance._keys = self._keys[i:]
-        new_instance._values = self._values[i:]
-        del self._keys[i:]
-        del self._values[i:]
+        new_instance._keys = self._keys[index:]
+        new_instance._values = self._values[index:]
+        del self._keys[index:]
+        del self._values[index:]
         new_instance._next = self._next
         self._next = new_instance
         return new_instance
@@ -439,7 +443,12 @@ class Bucket(_Base, _MappingBase):
     def __getstate__(self):
         keys = self._keys
         values = self._values
-        data = tuple((keys[i], values[i]) for i in range(len(self._keys)))
+        data = []
+        for i in range(len(keys)):
+            data.append(keys[i])
+            data.append(values[i])
+        data = tuple(data)
+
         if self._next:
             return data, self._next
         else:
@@ -451,14 +460,18 @@ class Bucket(_Base, _MappingBase):
             state, self._next = state
         else:
             self._next = None
+            state = state[0]
+
+        if not isinstance(state, tuple):
+            raise TypeError("tuple required for first state element")
 
         keys = self._keys
         values = self._values
-        for k, v in state:
-            self._keys.append(k)
-            self._values.append(v)
+        for i in range(0, len(state), 2):
+            keys.append(state[i])
+            values.append(state[i+1])
 
-class Set(_Base, _SetBase):
+class Set(_SetBase):
 
     def __getstate__(self):
         data = tuple(self._keys)
@@ -473,6 +486,7 @@ class Set(_Base, _SetBase):
             state, self._next = state
         else:
             self._next = None
+            state = state[0]
 
         self.keys.extend(data)
 
@@ -503,10 +517,7 @@ class _TreeItem(object):
         self.key = key
         self.child = child
 
-class _Tree(persistent.Persistent):
-
-    def __init__(self, items):
-        self.clear()
+class _Tree(_MappingBase):
 
     def clear(self):
         self._data = []
@@ -524,7 +535,7 @@ class _Tree(persistent.Persistent):
 
     @property
     def size(self):
-        return len(self._keys)
+        return len(self._data)
 
     def _search(self, key):
         data = self._data
@@ -553,7 +564,8 @@ class _Tree(persistent.Persistent):
         return key in (self._findbucket(self._to_key(key)) or ())
     has_key = __contains__
 
-    def iterkeys(min=_marker, max=_marker, excludemin=False, excludemax=False,
+    def iterkeys(self, min=_marker, max=_marker,
+                 excludemin=False, excludemax=False,
                  iter_type='iterkeys'):
         if not self._data:
             return
@@ -631,7 +643,7 @@ class _Tree(persistent.Persistent):
 
     def _grow(self, child, index):
         self._p_changed = True
-        new_child = child.split()
+        new_child = child._split()
         self._data.insert(index+1, _TreeItem(new_child.minKey(), new_child))
         if len(self._data) > self.MAX_SIZE * 2:
             self._split_root()
@@ -642,6 +654,21 @@ class _Tree(persistent.Persistent):
         child._firstbucket = self._firstbucket
         self._data = [_TreeItem(None, child)]
         self._grow(child, 0)
+
+    def _split(self, index=None):
+        data = self._data
+        if index is None:
+            index = len(data)//2
+
+        next = self.__class__()
+        next._data = data[index:]
+        first = data[index]
+        del data[index:]
+        if isinstance(first.child, self.__class__):
+            next._firstbucket = first.child._firstbucket
+        else:
+            next._firstbucket = first.child;
+        return next
 
     def _del(self, key):
         data = self._data
@@ -694,9 +721,9 @@ class _Tree(persistent.Persistent):
         for item in data:
             if sdata:
                 sdata.append(item.key)
-                sdata.append(item.value)
+                sdata.append(item.child)
             else:
-                sdata.append(item.value)
+                sdata.append(item.child)
 
         return sdata, self._firstbucket
 
@@ -781,7 +808,7 @@ class Tree(_Tree, _MappingBase):
 
     def iteritems(self, min=_marker, max=_marker,
                    excludemin=False, excludemax=False):
-        return self.iterkeys(min, max, excludemin, excludemax, 'itervalues')
+        return self.iterkeys(min, max, excludemin, excludemax, 'iteritems')
 
     items = iteritems
 
@@ -878,13 +905,91 @@ def intersection(o1, o2):
     return _set_operation(o1, o2, 0, 0, 1, 1, 0, 1, 0)
 
 def weightedUnion(o1, o2, w1=1, w2=1):
-    wtf?
+    if o1 is None:
+        if o2 is None:
+            return 0, o2
+        else:
+            return w2, o2
+    elif o2 is None:
+        return w1, o1
+    else:
+        return 1, _set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0)
 
 def weightedIntersection(o1, o2):
-    pass
+    if o1 is None:
+        if o2 is None:
+            return 0, o2
+        else:
+            return w2, o2
+    elif o2 is None:
+        return w1, o1
+    else:
+        return (
+            w1+w2 if isinstance(o1, Set) else 1,
+            _set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0),
+            )
 
-def multiunion(o1, o2):
-    pass
+def multiunion(seqs):
+    # XXX simple/slow implementation. Goal is just to get tests to pass.
+    if not seqs:
+        return None
+    result = seqs[0]._set_type()
+    for s in seqs:
+        result.update(s)
 
+def to_ob(self, v):
+    return v
 
+def to_int(self, v):
+    pack("i", v)
+    return int(v)
 
+def to_float(self, v):
+    pack("f", v)
+    return float(v)
+
+def to_long(self, v):
+    pack("q", v)
+    return int(v)
+
+def to_str(l):
+    def to(self, v):
+        assert isinstance(v, str) and len(v) == l
+        return v
+    return to
+
+tos = dict(I=to_int, L=to_long, F=to_float, O=to_ob)
+
+def _import(globals, prefix, bucket_size, tree_size,
+            to_key=None, to_value=None):
+    if to_key is None:
+        to_key = tos[prefix[0]]
+    if to_value is None:
+        to_value = tos[prefix[1]]
+    mc = Bucket.__class__
+    bucket = mc(prefix+'Bucket', (Bucket, ), dict(MAX_SIZE=bucket_size,
+                                                  _to_value=to_value))
+    set = mc(prefix+'Set', (Set, ), dict(MAX_SIZE=bucket_size))
+    tree = mc(prefix+'BTree', (Tree, ), dict(MAX_SIZE=tree_size,
+                                            _to_value=to_value))
+    treeset = mc(prefix+'TreeSet', (TreeSet, ), dict(MAX_SIZE=tree_size))
+    for c in bucket, set, tree, treeset:
+        c._bucket_type = bucket
+        c._set_type = set
+        c._to_key = to_key
+        c.__module__ = 'BTrees.%sBTree' % prefix
+        globals[c.__name__] = c
+    globals.update(
+        Bucket = bucket,
+        Set = set,
+        BTree = tree,
+        TreeSet = treeset,
+        difference = difference,
+        union = union,
+        intersection = intersection,
+        weightedUnion = weightedUnion,
+        weightedIntersection = weightedIntersection,
+        multiunion = multiunion,
+        using64bits='L' in prefix,
+        )
+    del globals['___BTree']

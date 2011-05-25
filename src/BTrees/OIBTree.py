@@ -16,6 +16,10 @@ import zope.interface
 import BTrees.Interfaces
 
 # hack to overcome dynamic-linking headache.
-from _OIBTree import *
+try:
+    from _OIBTree import *
+except ImportError:
+    import ___BTree
+    ___BTree._import(globals(), 'OI', 60, 250)
 
 zope.interface.moduleProvides(BTrees.Interfaces.IObjectIntegerBTreeModule)

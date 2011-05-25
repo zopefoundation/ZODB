@@ -91,6 +91,7 @@ exts = [BTreeExtension(flavor)
         for flavor in ("OO", "IO", "OI", "II", "IF",
                        "fs", "LO", "OL", "LL", "LF",
                        )]
+exts = []
 
 cPersistence = Extension(name = 'persistent.cPersistence',
                          include_dirs = include,
