@@ -18,6 +18,7 @@ from struct import pack
 from ZODB.POSException import ConflictError
 
 import persistent
+import struct
 
 _marker = object()
 
@@ -138,7 +139,7 @@ class _Base(persistent.Persistent):
         return iter(self._keys)
 
     def has_key(self, key):
-        return self._search(self._to_key(key)) >= 0
+        return (self._search(self._to_key(key)) >= 0) and 1
 
     __contains__ = has_key
 
@@ -455,15 +456,15 @@ class Bucket(_MappingBase):
             return (data, )
 
     def __setstate__(self, state):
+        if not isinstance(state[0], tuple):
+            raise TypeError("tuple required for first state element")
+
         self.clear()
         if len(state) == 2:
             state, self._next = state
         else:
             self._next = None
             state = state[0]
-
-        if not isinstance(state, tuple):
-            raise TypeError("tuple required for first state element")
 
         keys = self._keys
         values = self._values
@@ -481,6 +482,9 @@ class Set(_SetBase):
             return (data, )
 
     def __setstate__(self, state):
+        if not isinstance(state[0], tuple):
+            raise TypeError('tuple required for first state element')
+
         self.clear()
         if len(state) == 2:
             state, self._next = state
@@ -488,7 +492,7 @@ class Set(_SetBase):
             self._next = None
             state = state[0]
 
-        self.keys.extend(data)
+        self._keys.extend(state)
 
 
     def _set(self, key, value=None, ifunset=False):
@@ -504,10 +508,23 @@ class Set(_SetBase):
         index = self._search(key)
         if index >= 0:
             self._p_changed = True
-            del self._values[index]
+            del self._keys[index]
             return 0, 0
         else:
             raise KeyError(key)
+
+    def __getitem__(self, i):
+        return self._keys[i]
+
+    def _split(self, index=-1):
+        if index < 0 or index >= len(self._keys):
+            index = len(self._keys) / 2
+        new_instance = self.__class__()
+        new_instance._keys = self._keys[index:]
+        del self._keys[index:]
+        new_instance._next = self._next
+        self._next = new_instance
+        return new_instance
 
 class _TreeItem(object):
 
@@ -531,6 +548,7 @@ class _Tree(_MappingBase):
         bucket = self._firstbucket
         while bucket is not None:
             l += len(bucket._keys)
+            bucket = bucket._next
         return l
 
     @property
@@ -539,59 +557,62 @@ class _Tree(_MappingBase):
 
     def _search(self, key):
         data = self._data
-        lo = 0
-        hi = len(data)
-        i = hi//2
-        while i > lo:
-            cmp_ = cmp(data[i].key, key)
-            if cmp_ < 0:
-                lo = i
-            elif cmp_ > 0:
-                hi = i
-            else:
-                break
-            i = (lo+hi)//2
-        return i
+        if data:
+            lo = 0
+            hi = len(data)
+            i = hi//2
+            while i > lo:
+                cmp_ = cmp(data[i].key, key)
+                if cmp_ < 0:
+                    lo = i
+                elif cmp_ > 0:
+                    hi = i
+                else:
+                    break
+                i = (lo+hi)//2
+            return i
+        return -1
 
     def _findbucket(self, key):
-        if self._data:
-            child = self._data[self._search(key)].child
+        index = self._search(key)
+        if index >= 0:
+            child = self._data[index].child
             if isinstance(child, self._bucket_type):
                 return child
             return child._findbucket(key)
 
     def __contains__(self, key):
         return key in (self._findbucket(self._to_key(key)) or ())
-    has_key = __contains__
 
-    def iterkeys(self, min=_marker, max=_marker,
-                 excludemin=False, excludemax=False,
-                 iter_type='iterkeys'):
+    def has_key(self, key):
+        index = self._search(key)
+        if index < 0:
+            return False
+        r = self._data[index].child.has_key(key)
+        return r and r + 1
+
+    def keys(self, min=_marker, max=_marker,
+             excludemin=False, excludemax=False,
+             itertype='iterkeys'):
         if not self._data:
-            return
+            return ()
 
-        any = 0
-        if min != marker:
+        if min != _marker:
             min = self._to_key(min)
             bucket = self._findbucket(min)
-            for k in getattr(bucket, iter_type)(min, max,
-                                                excludemin, excludemax):
-                yield k
-                any = 1
-            bucket = bucket._next
         else:
             bucket = self._firstbucket
 
-        while bucket is not None:
-            for k in getattr(bucket, iter_type)():
-                yield k
-                any = 1
-            if not any:
-                break
-            any = 0
-            bucket = bucket._next
+        iterargs = min, max, excludemin, excludemax
 
-    keys = __iter__ = iterkeys
+        return _TreeItems(bucket, itertype, iterargs)
+
+    def iterkeys(self, min=_marker, max=_marker,
+                 excludemin=False, excludemax=False):
+        return iter(self.keys(min, max, excludemin, excludemax))
+
+    def __iter__(self):
+        return iter(self.keys())
 
     def minKey(self, min=_marker):
         if min is _marker:
@@ -619,6 +640,10 @@ class _Tree(_MappingBase):
 
 
     def _set(self, key, value=None, ifunset=False):
+        if (self._p_jar is not None and
+            self._p_oid is not None and
+            self._p_serial is not None):
+            self._p_jar.readCurrent(self)
         data = self._data
         if data:
             index = self._search(key)
@@ -671,6 +696,10 @@ class _Tree(_MappingBase):
         return next
 
     def _del(self, key):
+        if (self._p_jar is not None and
+            self._p_oid is not None and
+            self._p_serial is not None):
+            self._p_jar.readCurrent(self)
         data = self._data
         if data:
             index = self._search(key)
@@ -725,9 +754,12 @@ class _Tree(_MappingBase):
             else:
                 sdata.append(item.child)
 
-        return sdata, self._firstbucket
+        return tuple(sdata), self._firstbucket
 
     def __setstate__(self, state):
+        if state and not isinstance(state[0], tuple):
+            raise TypeError('tuple required for first state element')
+
         self.clear()
         if state is None:
             return
@@ -738,13 +770,13 @@ class _Tree(_MappingBase):
             state = [bucket], bucket
 
         data, self._firstbucket = state
-        data = reversed(data)
+        data = list(reversed(data))
 
-        self.data.append(_TreeItem(None, data.pop()))
+        self._data.append(_TreeItem(None, data.pop()))
         while data:
             key = data.pop()
             child = data.pop()
-            self.data.append(_TreeItem(key, child))
+            self._data.append(_TreeItem(key, child))
 
     def _assert(self, condition, message):
         if not condition:
@@ -772,7 +804,7 @@ class _Tree(_MappingBase):
                     "BTree has firstbucket different than "
                     "its first child's firstbucket")
             for i in range(len(data)-1):
-                data[i].child._check(data[i+1].child._firstbucket)
+               data[i].child._check(data[i+1].child._firstbucket)
             data[-1].child._check(nextbucket)
         elif child_class is self._bucket_type:
             assert_(self._firstbucket is data[0].child,
@@ -781,11 +813,105 @@ class _Tree(_MappingBase):
             for i in range(len(data)-1):
                 assert_(data[i].child._next is data[i+1].child,
                        "Bucket next pointer is damaged")
-            assert_(data[i].child._next is nextbucket,
+            assert_(data[-1].child._next is nextbucket,
                     "Bucket next pointer is damaged")
         else:
             assert_(False, "Incorrect child type")
 
+class _TreeItems(object):
+
+    def __init__(self, firstbucket, itertype, iterargs):
+        self.firstbucket = firstbucket
+        self.itertype = itertype
+        self.iterargs = iterargs
+        self.index = -1
+        self.it = iter(self)
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            return list(self)[i]
+        if i < 0:
+            i = len(self) + i
+            if i < 0:
+                raise IndexError(i)
+
+        if i < self.index:
+            self.index = -1
+            self.it = iter(self)
+
+        while i > self.index:
+            try:
+                self.v = self.it.next()
+            except StopIteration:
+                raise IndexError(i)
+            else:
+                self.index += 1
+        return self.v
+
+    def __len__(self):
+        try:
+            return self._len
+        except AttributeError:
+            i = 0
+            for _ in self:
+                i += 1
+            self._len = i
+            return self._len
+
+    def __iter__(self):
+        bucket = self.firstbucket
+        itertype = self.itertype
+        iterargs = self.iterargs
+        while bucket is not None:
+            done = 1
+            for k in getattr(bucket, itertype)(*iterargs):
+                yield k
+                done = 0
+            if done:
+                return
+            bucket = bucket._next
+
+# class _Slice:
+
+#     def __init__(self, base, slice_):
+#         self.base = base
+#         start = slice_.start
+#         end = slice_.end
+#         if start < 0 or end < 0:
+#             start, end, self.step, self._len = self._get_len(base, slice_)
+#         else:
+#             self.slice_ = slice_
+#             self.step = slice_.step or 1
+
+#         self.start = start
+#         self.end = end
+
+#     def _get_len(self, base, slice_):
+#         start, end, step = slice_.indices(len(base))
+#         l = (end - start - 1)//step + 1
+#         if l < 0:
+#             l = 0
+#         return start, end, step, l
+
+#     def __getitem__(self, i):
+#         if isinstance(i, slice):
+#             return _slice(self, i)
+#         if i < 0:
+#             i += len(self)
+#             if i < 0:
+#                 raise IndexError(i)
+
+#         j = i*self.step+self.start
+#         if i > self.end:
+#             raise IndexError(i)
+#         return self.base[j]
+
+#     def __len__(self):
+#         try:
+#             return self._len
+#         except AttributeError:
+#             _, _, _, self._len = self._get_len(self.base, self.slice_)
+#             return self._len
 
 class Tree(_Tree, _MappingBase):
 
@@ -793,6 +919,7 @@ class Tree(_Tree, _MappingBase):
         bucket = self._findbucket(key)
         if bucket:
             return bucket.get(key, default)
+        return default
 
     def __getitem__(self, key):
         bucket = self._findbucket(key)
@@ -800,17 +927,21 @@ class Tree(_Tree, _MappingBase):
             return bucket[key]
         raise KeyError(key)
 
+    def values(self, min=_marker, max=_marker,
+               excludemin=False, excludemax=False):
+        return self.keys(min, max, excludemin, excludemax, 'itervalues')
+
     def itervalues(self, min=_marker, max=_marker,
                    excludemin=False, excludemax=False):
-        return self.iterkeys(min, max, excludemin, excludemax, 'itervalues')
+        return iter(self.values(min, max, excludemin, excludemax))
 
-    values = itervalues
+    def items(self, min=_marker, max=_marker,
+              excludemin=False, excludemax=False):
+        return self.keys(min, max, excludemin, excludemax, 'iteritems')
 
     def iteritems(self, min=_marker, max=_marker,
-                   excludemin=False, excludemax=False):
-        return self.iterkeys(min, max, excludemin, excludemax, 'iteritems')
-
-    items = iteritems
+                  excludemin=False, excludemax=False):
+        return iter(self.items(min, max, excludemin, excludemax))
 
     def byValue(self, min):
         return sorted((v, k) for (k, v) in self.iteritems() if v >= min)
@@ -818,7 +949,7 @@ class Tree(_Tree, _MappingBase):
     def insert(self, key, value):
         return bool(self._set(key, value, True)[0])
 
-class TreeSet(_Tree, _SetBase):
+class TreeSet(_SetBase, _Tree):
     pass
 
 
@@ -915,7 +1046,7 @@ def weightedUnion(o1, o2, w1=1, w2=1):
     else:
         return 1, _set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0)
 
-def weightedIntersection(o1, o2):
+def weightedIntersection(o1, o2, w1=1, w2=1):
     if o1 is None:
         if o2 is None:
             return 0, o2
@@ -941,20 +1072,38 @@ def to_ob(self, v):
     return v
 
 def to_int(self, v):
-    pack("i", v)
+    try:
+        pack("i", v)
+    except struct.error:
+        raise TypeError('32-bit integer expected')
+
+    if isinstance(v, float):
+        raise TypeError('32-bit integer expected')
+
     return int(v)
 
 def to_float(self, v):
-    pack("f", v)
+    try:
+        pack("f", v)
+    except struct.error:
+        raise TypeError('float expected')
     return float(v)
 
 def to_long(self, v):
-    pack("q", v)
+    try:
+        pack("q", v)
+    except struct.error:
+        raise TypeError('64-bit integer expected')
+
+    if isinstance(v, float):
+        raise TypeError('32-bit integer expected')
+
     return int(v)
 
 def to_str(l):
     def to(self, v):
-        assert isinstance(v, str) and len(v) == l
+        if not (isinstance(v, str) and len(v) == l):
+            raise TypeError("%s-character string expected" % l)
         return v
     return to
 
@@ -974,8 +1123,9 @@ def _import(globals, prefix, bucket_size, tree_size,
                                             _to_value=to_value))
     treeset = mc(prefix+'TreeSet', (TreeSet, ), dict(MAX_SIZE=tree_size))
     for c in bucket, set, tree, treeset:
-        c._bucket_type = bucket
+        c._mapping_type = bucket
         c._set_type = set
+        c._bucket_type = set if 'Set' in c.__name__ else bucket
         c._to_key = to_key
         c.__module__ = 'BTrees.%sBTree' % prefix
         globals[c.__name__] = c

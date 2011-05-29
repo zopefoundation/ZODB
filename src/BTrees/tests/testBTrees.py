@@ -1212,6 +1212,12 @@ class BTreeTests(MappingBase):
                 self.assertEqual(str(detail), "the bucket being iterated "
                                               "changed size")
                 break
+            except KeyError, v:
+                # The Python implementation behaves very differently and
+                # gives a key error in this situation. It can't mess up
+                # memory and can't readily detect changes to underlying buckets
+                # in any sane way.
+                self.assertEqual(str(v), str(k[0]))
 
 
 LARGEST_32_BITS = 2147483647
