@@ -14,8 +14,8 @@
 """Python BTree implementation
 """
 
-from struct import pack
-from ZODB.POSException import ConflictError
+from struct import pack, unpack
+from ZODB.POSException import BTreesConflictError
 
 import persistent
 import struct
@@ -25,12 +25,13 @@ _marker = object()
 class _Base(persistent.Persistent):
 
     _key_type = list
-    _to_key = lambda x: x
 
     def __init__(self, items=None):
         self.clear()
         if items:
             self.update(items)
+
+class _BucketBase(_Base):
 
     def clear(self):
         self._keys = self._key_type()
@@ -149,18 +150,23 @@ class _Base(persistent.Persistent):
         buckets = []
         for state in states:
             bucket = self.__class__()
-            bucket.__setstate__(state)
+            if state:
+                bucket.__setstate__(state)
             buckets.append(bucket)
         if (buckets[1]._next != buckets[0]._next or
             buckets[2]._next != buckets[0]._next):
-            raise ConflictError(-1, -1, -1, 0)
+            raise BTreesConflictError(-1, -1, -1, 0)
 
-        i1 = _SetIteration(buckets[0])
-        i2 = _SetIteration(buckets[1])
-        i3 = _SetIteration(buckets[2])
+        if not (buckets[1] and buckets[2]):
+            raise BTreesConflictError(-1, -1, -1, 12)
+
+        i1 = _SetIteration(buckets[0], True)
+        i2 = _SetIteration(buckets[1], True)
+        i3 = _SetIteration(buckets[2], True)
 
         def merge_error(reason):
-            return ConflictError(i1.position, i2.position, i3.position, reason)
+            return BTreesConflictError(
+                i1.position, i2.position, i3.position, reason)
 
         result = self.__class__()
 
@@ -227,7 +233,7 @@ class _Base(persistent.Persistent):
                 elif cmp13 > 0: # insert i3
                     merge_output(i3)
                 else:
-                    merge_error(5) # both deleted same key
+                    raise merge_error(5) # both deleted same key
 
         while i2.active and i3.active: # new inserts
             cmp23 = cmp(i2.key, i3.key)
@@ -246,7 +252,7 @@ class _Base(persistent.Persistent):
                 i1.advance()
                 i2.advance()
             else: # dueling deletes or delete and change
-                merge_error(7)
+                raise merge_error(7)
 
         while i1.active and i3.active: # committed deletes rest of original
             cmp13 = cmp(i1.key, i3.key)
@@ -257,16 +263,16 @@ class _Base(persistent.Persistent):
                 i1.advance()
                 i3.advance()
             else: # dueling deletes or delete and change
-                merge_error(8)
+                raise merge_error(8)
 
         if i1.active: # dueling deletes
-            merge_error(9)
+            raise merge_error(9)
 
         while i2.active:
             merge_output(i2)
 
         while i3.active:
-            merge_output(i2)
+            merge_output(i3)
 
         if len(result._keys) == 0:
             # If the output bucket is empty, conflict resolution doesn't have
@@ -293,7 +299,7 @@ class _SetIteration:
 
         self.useValues = useValues
         self._next = itmeth().next
-        self.active
+        self.active = True
         self.position = 0
         self.advance()
 
@@ -354,14 +360,14 @@ class _SetBase(_Base):
         for i in items:
             add(i)
 
-class Bucket(_MappingBase):
+class Bucket(_MappingBase, _BucketBase):
 
     _value_type = list
     _to_value = lambda x: x
     VALUE_SAME_CHECK = False
 
     def clear(self):
-        _Base.clear(self)
+        _BucketBase.clear(self)
         self._values = self._value_type()
 
     def get(self, key, default=None):
@@ -472,7 +478,7 @@ class Bucket(_MappingBase):
             keys.append(state[i])
             values.append(state[i+1])
 
-class Set(_SetBase):
+class Set(_SetBase, _BucketBase):
 
     def __getstate__(self):
         data = tuple(self._keys)
@@ -818,6 +824,32 @@ class _Tree(_MappingBase):
         else:
             assert_(False, "Incorrect child type")
 
+    def _p_resolveConflict(self, *states):
+        states = map(_get_simple_btree_bucket_state, states)
+        return ((self._bucket_type()._p_resolveConflict(*states), ), )
+
+def _get_simple_btree_bucket_state(state):
+    if state is None:
+        return state
+
+    if not isinstance(state, tuple):
+        raise TypeError("_p_resolveConflict: expected tuple or None for state")
+    if len(state) == 2:
+        raise BTreesConflictError(-1, -1, -1, 11)
+
+    if len(state) != 1:
+        raise TypeError("_p_resolveConflict: expected 1- or 2-tuple for state")
+
+    state = state[0]
+    if not isinstance(state, tuple) or len(state) != 1:
+        raise TypeError("_p_resolveConflict: expected 1-tuple containing "
+                        "bucket state");
+    state = state[0]
+    if not isinstance(state, tuple):
+        raise TypeError("_p_resolveConflict: expected tuple for bucket state")
+
+    return state
+
 class _TreeItems(object):
 
     def __init__(self, firstbucket, itertype, iterargs):
@@ -862,14 +894,17 @@ class _TreeItems(object):
         bucket = self.firstbucket
         itertype = self.itertype
         iterargs = self.iterargs
+        done = 0
+        # Note that we don't mind if the first bucket yields no
+        # results due to an idiosyncrasy in how range searches are done.
         while bucket is not None:
-            done = 1
             for k in getattr(bucket, itertype)(*iterargs):
                 yield k
                 done = 0
             if done:
                 return
             bucket = bucket._next
+            done = 1
 
 # class _Slice:
 
@@ -913,7 +948,7 @@ class _TreeItems(object):
 #             _, _, _, self._len = self._get_len(self.base, self.slice_)
 #             return self._len
 
-class Tree(_Tree, _MappingBase):
+class Tree(_Tree):
 
     def get(self, key, default=None):
         bucket = self._findbucket(key)
@@ -990,6 +1025,9 @@ def _set_operation(s1, s2,
             i.advance()
     else:
         r = s1._set_type()
+        def copy(i, w):
+            r._keys.append(i.key)
+            i.advance()
 
     while i1.active and i2.active:
         cmp_ = cmp(i1.key, i2.key)
@@ -1016,26 +1054,35 @@ def _set_operation(s1, s2,
 
     return r
 
-def difference(o1, o2):
+class setop(object):
+
+    def __init__(self, func, set_type):
+        self.func = func
+        self.set_type = set_type
+
+    def __call__(self, *a, **k):
+        return self.func(self.set_type, *a, **k)
+
+def difference(set_type, o1, o2):
     if o1 is None or o2 is None:
         return o1
     return _set_operation(o1, o2, 1, 0, 1, 0, 1, 0, 0)
 
-def union(o1, o2):
+def union(set_type, o1, o2):
     if o1 is None:
         return o2
     if o2 is None:
         return o1
     return _set_operation(o1, o2, 0, 0, 1, 1, 1, 1, 1)
 
-def intersection(o1, o2):
+def intersection(set_type, o1, o2):
     if o1 is None:
         return o2
     if o2 is None:
         return o1
     return _set_operation(o1, o2, 0, 0, 1, 1, 0, 1, 0)
 
-def weightedUnion(o1, o2, w1=1, w2=1):
+def weightedUnion(set_type, o1, o2, w1=1, w2=1):
     if o1 is None:
         if o2 is None:
             return 0, o2
@@ -1046,7 +1093,7 @@ def weightedUnion(o1, o2, w1=1, w2=1):
     else:
         return 1, _set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0)
 
-def weightedIntersection(o1, o2, w1=1, w2=1):
+def weightedIntersection(set_type, o1, o2, w1=1, w2=1):
     if o1 is None:
         if o2 is None:
             return 0, o2
@@ -1060,24 +1107,28 @@ def weightedIntersection(o1, o2, w1=1, w2=1):
             _set_operation(o1, o2, 1, 1, w1, w2, 0, 1, 0),
             )
 
-def multiunion(seqs):
+def multiunion(set_type, seqs):
     # XXX simple/slow implementation. Goal is just to get tests to pass.
     if not seqs:
-        return None
-    result = seqs[0]._set_type()
+        return set_type()
+    result = set_type()
     for s in seqs:
+        try:
+            iter(s)
+        except TypeError:
+            s = set_type((s, ))
         result.update(s)
+    return result
 
 def to_ob(self, v):
     return v
 
+int_types = int, long
 def to_int(self, v):
     try:
-        pack("i", v)
+        if not unpack("i", pack("i", v))[0] == v:
+            raise TypeError('32-bit integer expected')
     except struct.error:
-        raise TypeError('32-bit integer expected')
-
-    if isinstance(v, float):
         raise TypeError('32-bit integer expected')
 
     return int(v)
@@ -1091,12 +1142,14 @@ def to_float(self, v):
 
 def to_long(self, v):
     try:
-        pack("q", v)
+        if not unpack("q", pack("q", v))[0] == v:
+            if isinstance(v, int_types):
+                raise ValueError("Value out of range", v)
+            raise TypeError('64-bit integer expected')
     except struct.error:
+        if isinstance(v, int_types):
+            raise ValueError("Value out of range", v)
         raise TypeError('64-bit integer expected')
-
-    if isinstance(v, float):
-        raise TypeError('32-bit integer expected')
 
     return int(v)
 
@@ -1134,12 +1187,19 @@ def _import(globals, prefix, bucket_size, tree_size,
         Set = set,
         BTree = tree,
         TreeSet = treeset,
-        difference = difference,
-        union = union,
-        intersection = intersection,
-        weightedUnion = weightedUnion,
-        weightedIntersection = weightedIntersection,
-        multiunion = multiunion,
+        difference = setop(difference, set),
+        union = setop(union, set),
+        intersection = setop(intersection, set),
         using64bits='L' in prefix,
         )
+    if prefix[0] in 'IL':
+        globals.update(
+            multiunion = setop(multiunion, set),
+        )
+    if prefix[1] != 'O':
+        globals.update(
+            weightedUnion = setop(weightedUnion, set),
+            weightedIntersection = setop(weightedIntersection, set),
+        )
+
     del globals['___BTree']
