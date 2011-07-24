@@ -8,7 +8,7 @@ GNU Free Documentation License
 
 Version 1.1, March 2000 ---
 
-Copyright :math:`\copyright` 2000  Free Software Foundation, Inc. ---  59 Temple
+Copyright 2000  Free Software Foundation, Inc. ---  59 Temple
 Place, Suite 330, Boston, MA  02111-1307  USA ---  Everyone is permitted to copy
 and distribute verbatim copies of this license document, but changing it is not
 allowed.
@@ -337,7 +337,7 @@ To use this License in a document you have written, include a copy of the
 License in the document and put the following copyright and license notices just
 after the title page:
 
-   Copyright :math:`\copyright`  YEAR  YOUR NAME. Permission is granted to copy,
+   Copyright YEAR  YOUR NAME. Permission is granted to copy,
    distribute and/or modify this document under the terms of the GNU Free
    Documentation License, Version 1.1 or any later version published by the Free
    Software Foundation; with the Invariant Sections being LIST THEIR TITLES, with

@@ -91,6 +91,7 @@ Now, you have changed the persistent database by adding a new
 object, but this change is so far only temporary.  In order to
 make the change permanent, you must commit the current
 transaction::
+
       >>> import transaction
       >>> transaction.commit()
 
