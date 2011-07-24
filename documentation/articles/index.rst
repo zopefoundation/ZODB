@@ -8,9 +8,9 @@ Contents
    :maxdepth: 2
 
    ZODB-overview.rst
-
    ZODB1.rst
    ZODB2.rst
+   multi-zodb-gc.rst
 
 
 Other ZODB Resources
