@@ -1,12 +1,12 @@
 Using zc.zodbdgc (fix PosKeyError's)
 ====================================
 
-The `zc.zodbdgc <http://pypi.python.org/pypi/zc.zodbdgc>`_ library contains two
-useful features.
+*This article was written by Hanno Schlichting*
 
-On the one hand it supports advanced ZODB packing and garbage collection
-approaches and on the other hand it includes the ability to create a database
-of all persistent references.
+The `zc.zodbdgc <http://pypi.python.org/pypi/zc.zodbdgc>`_ library contains two
+useful features. On the one hand it supports advanced ZODB packing and garbage
+collection approaches and on the other hand it includes the ability to create a
+database of all persistent references.
 
 The second feature allows us to debug and repair PosKeyErrors by finding the
 persistent object(s) that point to the lost object.
@@ -24,8 +24,8 @@ same information as we are creating in the reference database.
 Setup
 -----
 
-We'll assume you are familiar with a buildout setup. A simple example config
-might look like this::
+We'll assume you are familiar with a buildout setup. A typical config might
+look like this::
 
   [buildout]
   parts =
@@ -84,7 +84,7 @@ Garbage collection
 ------------------
 
 We configured the ZEO server to skip garbage collection as part of the normal
-pack in the example config (`pack-gc = false`). Instead we use explicit garbage
+pack in the aboce config (`pack-gc = false`). Instead we use explicit garbage
 collection via a different job::
 
   bin/multi-zodb-gc etc/zeo.conf
@@ -112,8 +112,8 @@ Reference analysis and POSKeyErrors
 
 If our database has any POSKeyErrors, we can find and repair those.
 
-If we haven't gotten the oid's of lost objects already, we can check our
-database for any errors, by running the following script::
+Either we already have the oid's of lost objects or we can check the entire
+database for any errors. To check everything we run the following command::
 
   $ bin/multi-zodb-check-refs etc/zeo.conf
 
@@ -121,8 +121,8 @@ This can take about 15 to 30 minutes on moderately sized databases of up to
 10gb but depends on disk speed. We'll write down the reported errors, as we'll
 need them later on to analyze them.
 
-If there are some errors, we can create a reference database to make it easier
-to debug and find those errors::
+If there are any lost objects, we can create a reference database to make it
+easier to debug and find those lost objects::
 
   $ bin/multi-zodb-check-refs -r var/refdb.fs etc/zeo.conf
 
@@ -141,22 +141,17 @@ If we've gotten this error report::
   !!! main 13184375 ?
   POSKeyError: 0xc92d77
 
-We can look up the poid it was referenced from via::
+We can look up the persistent oid it was referenced from via::
 
   >>> parent = list(refs['main'][13184375])
   >>> parent
   [13178389]
 
-If you prefer the hex representation, that's easy as well::
+We can also get the hex representation::
 
   >>> from ZODB.utils import p64
   >>> p64(parent[0])
   '\x00\x00\x00\x00\x00\xc9\x16\x15'
-
-Once we are finished we should be nice and close the database::
-
-  >>> conn.close()
-  >>> db.close()
 
 With this information, we should get back to our actual database and look
 up this object. We'll leave the ref db open, as we might need to recursively
@@ -188,7 +183,7 @@ one::
   >>> import transaction
   >>> transaction.begin()
 
-The poid that was reported missing was ``13184375``::
+The persistent oid that was reported missing was ``13184375``::
 
   >>> from ZODB.utils import p64
   >>> p64(13184375)
@@ -199,7 +194,7 @@ The poid that was reported missing was ``13184375``::
   >>> a._p_oid = '\x00\x00\x00\x00\x00\xc9-w'
 
 We cannot use the ``add`` method of the connection, as this would assign the
-object a new poid. So we replicate its internals here::
+object a new persistent oid. So we replicate its internals here::
 
   >>> a._p_jar = app._p_jar
   >>> app._p_jar._register(a)
@@ -215,6 +210,10 @@ Both getting the object as well as its parent will work now::
   >>> app._p_jar.get('\x00\x00\x00\x00\x00\xc9\x16\x15')
   BTrees.IOBTree.IOBucket([(39078692, <five.intid.keyreference...
 
+Once we are finished we should be nice and close all databases::
+
+  >>> conn.close()
+  >>> db.close()
 
 Depending on the class of object that went missing, we might need to use a
 different persistent class, like a persistent mapping or a BTree bucket.
