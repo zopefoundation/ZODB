@@ -39,10 +39,11 @@ Documentation
 .. toctree::
    :maxdepth: 1
 
-   overview
    documentation/tutorial
    documentation/guide/index
    documentation/articles/index
+   bugs
+   features
 
 * `The ZODB Book (in progress) <http://www.zodb.org/zodbbook>`_
 
