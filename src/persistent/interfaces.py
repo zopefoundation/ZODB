@@ -536,6 +536,16 @@ class IPickleCache(Interface):
             remove it from the ring.
         """
 
+    def debug_info():
+        """Return debugging data about objects in the cache.
+
+        o Return a sequence of tuples, (oid, refcount, typename, state).
+        """
+
+    def update_object_size_estimation(oid, new_size):
+        """Update the cache's size estimation for 'oid', if known to the cache.
+        """
+
     cache_size = Attribute(u'Target size of the cache')
     cache_drain_resistance = Attribute(u'Factor for draining cache below '
                                         u'target size')
