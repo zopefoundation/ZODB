@@ -39,6 +39,13 @@ try:
 except ImportError:
     from picklecache import PickleCache
 
+try:
+    import TimeStamp
+except ImportError:
+    import timestamp as TimeStamp
+    import sys
+    sys.modules['persistent.TimeStamp'] = sys.modules['persistent.timestamp']
+
 if _HAVE_CPERSISTECE:
     # Make an interface declaration for Persistent, if zope.interface
     # is available.  XXX that the pyPersistent version already does this?
