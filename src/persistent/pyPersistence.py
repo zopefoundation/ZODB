@@ -80,7 +80,7 @@ class Persistent(object):
     __slots__ = ('__jar', '__oid', '__serial', '__flags')
     implements(IPersistent)
 
-    def __new__(cls):
+    def __new__(cls, *args, **kw):
         inst = super(Persistent, cls).__new__(cls)
         inst.__jar = inst.__oid =  inst.__serial = None
         inst.__flags = None
