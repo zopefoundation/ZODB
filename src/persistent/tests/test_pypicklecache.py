@@ -92,6 +92,7 @@ class PickleCacheTests(unittest.TestCase):
         cache = self._makeOne()
         original = self._makePersist()
         cache['original'] = original
+        cache['original'] = original # doesn't raise
         duplicate = self._makePersist()
 
         try:
