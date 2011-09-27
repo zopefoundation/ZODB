@@ -227,6 +227,11 @@ class PickleCache(object):
                             ))
         return result
 
+    def update_object_size_estimation(self, oid, new_size):
+        """ See IPickleCache.
+        """
+        pass
+
     cache_size = property(lambda self: self.target_size)
     cache_drain_resistance = property(lambda self: self.drain_resistance)
     cache_non_ghost_count = property(lambda self: self.non_ghost_count)
@@ -255,6 +260,3 @@ class PickleCache(object):
                     break
         elif oid in self.persistent_classes:
             del self.persistent_classes[oid]
-
-    def update_object_size_estimation(self, oid, new_size):
-        pass
