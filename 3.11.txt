@@ -1,0 +1,13 @@
+Wish list for 3.11.
+
+These aren't promises, but things I'd like to do:
+
+- ZEO support for loading blobs via HTTP.
+
+- Persistent sets.
+
+- PxBTrees, persistent objects as keys in BTrees.
+
+  - Compare on persistent references.
+
+- Python BTrees and persistence.
