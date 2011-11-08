@@ -10,6 +10,11 @@ These aren't promises, but things I'd like to do:
 
 - invalidation events.
 
+- Make DBs context manager, so in a simple script, one could do:
+
+  with ZEO.DB(someaddr):
+      do some things in a transaction. Commot and close at the end.
+
 - Persistent sets.
 
 - PxBTrees, persistent objects as keys in BTrees.
