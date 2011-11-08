@@ -4,6 +4,12 @@ These aren't promises, but things I'd like to do:
 
 - ZEO support for loading blobs via HTTP.
 
+- Allow ZEO ports to be given as strings
+
+- ZEO cache fix for loadBefore.
+
+- invalidation events.
+
 - Persistent sets.
 
 - PxBTrees, persistent objects as keys in BTrees.
