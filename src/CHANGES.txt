@@ -2,6 +2,15 @@
  Change History
 ================
 
+3.10.4 (2011-11-16)
+===================
+
+Bugs Fixed
+----------
+
+- Conflict resolution failed when state included persistent references
+  with classes that couldn't be imported.
+
 3.10.3 (2011-04-12)
 ===================
 
