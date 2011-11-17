@@ -29,7 +29,7 @@ ResolvedSerial = 'rs'
 class BadClassName(Exception):
     pass
 
-class BadClass:
+class BadClass(object):
 
     def __init__(self, *args):
         self.args = args
@@ -123,13 +123,13 @@ class PersistentReference(object):
         self.data = data
         # see serialize.py, ObjectReader._persistent_load
         if isinstance(data, tuple):
-            self.oid, self.klass = data
-            if isinstance(self.klass, BadClass):
+            self.oid, klass = data
+            if isinstance(klass, BadClass):
                 # We can't use the BadClass directly because, if
                 # resolution succeeds, there's no good way to pickle
                 # it.  Fortunately, a class reference in a persistent
                 # reference is allowed to be a module+name tuple.
-                self.klass = self.klass.args
+                self.data = self.oid, klass.args
         elif isinstance(data, str):
             self.oid = data
         else: # a list
@@ -140,7 +140,7 @@ class PersistentReference(object):
             #    or persistent weakref: (oid, database_name)
             # else it is a weakref: reference_type
             if reference_type == 'm':
-                self.database_name, self.oid, self.klass = data[1]
+                self.database_name, self.oid, _ = data[1]
             elif reference_type == 'n':
                 self.database_name, self.oid = data[1]
             elif reference_type == 'w':
@@ -172,6 +172,16 @@ class PersistentReference(object):
 
     def __getstate__(self):
         raise PicklingError("Can't pickle PersistentReference")
+
+
+    @property
+    def klass(self):
+        # for tests
+        data = self.data
+        if isinstance(data, tuple):
+            return data[1]
+        elif isinstance(data, list) and data[0] == 'm':
+            return data[1][2]
 
 class PersistentReferenceFactory:
 

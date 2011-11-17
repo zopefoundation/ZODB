@@ -158,6 +158,9 @@ def resolve_even_when_referenced_classes_are_absent():
 We often want to be able to resolve even when there are pesistent
 references to classes that can't be imported.
 
+    >>> class P(persistent.Persistent):
+    ...     pass
+
     >>> db = ZODB.DB('t.fs') # FileStorage!
     >>> storage = db.storage
     >>> conn = db.open()
@@ -166,20 +169,19 @@ references to classes that can't be imported.
     >>> oid = conn.root.x._p_oid
     >>> serial = conn.root.x._p_serial
 
-    >>> class P(persistent.Persistent):
-    ...     pass
-
-    >>> conn.root.x.a = a = P()
+    >>> conn.root.x.a = P()
     >>> transaction.commit()
+    >>> aid = conn.root.x.a._p_oid
     >>> serial1 = conn.root.x._p_serial
 
     >>> del conn.root.x.a
-    >>> conn.root.x.b = b = P()
+    >>> conn.root.x.b = P()
     >>> transaction.commit()
     >>> serial2 = conn.root.x._p_serial
 
 Bwahaha:
 
+    >>> P_aside = P
     >>> del P
 
 Now, even though we can't import P, we can still resolve the conflict:
@@ -187,9 +189,17 @@ Now, even though we can't import P, we can still resolve the conflict:
     >>> p = storage.tryToResolveConflict(
     ...         oid, serial1, serial, storage.loadSerial(oid, serial2))
 
-    >>> p = conn._reader.getState(p)
-    >>> sorted(p), p['a'] is a, p['b'] is b
+And load the pickle:
+
+    >>> conn2 = db.open()
+    >>> P = P_aside
+    >>> p = conn2._reader.getState(p)
+    >>> sorted(p), p['a'] is conn2.get(aid), p['b'] is conn2.root.x.b
     (['a', 'b'], True, True)
+
+    >>> isinstance(p['a'], P) and isinstance(p['b'], P)
+    True
+
 
 Oooooof course, this won't work if the subobjects aren't persistent:
 
