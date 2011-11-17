@@ -27,7 +27,6 @@ from ZEO.tests import forker
 
 import os
 import random
-import types
 
 NUM_TRANSACTIONS_PER_CONN = 10
 NUM_CONNECTIONS = 10
@@ -69,7 +68,7 @@ def work(cn):
     root = cn.root()
     obj = random.choice(root.values())
     # walk down to the bottom
-    while not isinstance(obj.value, types.StringType):
+    while not isinstance(obj.value, str):
         obj = obj.value
     obj.value = an_object()
     transaction.commit()

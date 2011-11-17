@@ -17,7 +17,6 @@ Any storage that supports undo() must pass these tests.
 """
 
 import time
-import types
 
 from persistent import Persistent
 import transaction
@@ -61,7 +60,7 @@ class TransactionalUndoStorage:
     def _transaction_store(self, oid, rev, data, vers, trans):
         r = self._storage.store(oid, rev, data, vers, trans)
         if r:
-            if type(r) == types.StringType:
+            if type(r) == str:
                 self.__serials[oid] = r
             else:
                 for oid, serial in r:

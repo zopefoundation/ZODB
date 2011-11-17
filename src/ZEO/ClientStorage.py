@@ -40,7 +40,6 @@ import tempfile
 import thread
 import threading
 import time
-import types
 import weakref
 import zc.lockfile
 import ZEO.interfaces
@@ -671,10 +670,10 @@ class ClientStorage(object):
 
     def set_server_addr(self, addr):
         # Normalize server address and convert to string
-        if isinstance(addr, types.StringType):
+        if isinstance(addr, str):
             self._server_addr = addr
         else:
-            assert isinstance(addr, types.TupleType)
+            assert isinstance(addr, tuple)
             # If the server is on a remote host, we need to guarantee
             # that all clients used the same name for the server.  If
             # they don't, the sortKey() may be different for each client.

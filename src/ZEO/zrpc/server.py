@@ -13,7 +13,6 @@
 ##############################################################################
 import asyncore
 import socket
-import types
 
 # _has_dualstack: True if the dual-stack sockets are supported
 try:
@@ -51,7 +50,7 @@ class Dispatcher(asyncore.dispatcher):
         self._open_socket()
 
     def _open_socket(self):
-        if type(self.addr) == types.TupleType:
+        if type(self.addr) == tuple:
             if self.addr[0] == '' and _has_dualstack:
                 # Wildcard listen on all interfaces, both IPv4 and
                 # IPv6 if possible

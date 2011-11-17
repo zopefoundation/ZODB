@@ -19,7 +19,6 @@ import socket
 import sys
 import threading
 import time
-import types
 import ZEO.zrpc.trigger
 
 
@@ -180,12 +179,12 @@ class ConnectionManager(object):
             return addrlist
 
     def _guess_type(self, addr):
-        if isinstance(addr, types.StringType):
+        if isinstance(addr, str):
             return socket.AF_UNIX
 
         if (len(addr) == 2
-            and isinstance(addr[0], types.StringType)
-            and isinstance(addr[1], types.IntType)):
+            and isinstance(addr[0], str)
+            and isinstance(addr[1], int)):
             return socket.AF_INET # also denotes IPv6
 
         # not anything I know about

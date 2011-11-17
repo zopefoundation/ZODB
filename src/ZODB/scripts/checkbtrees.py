@@ -8,8 +8,6 @@ Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
 
-from types import IntType
-
 import ZODB
 from ZODB.FileStorage import FileStorage
 from BTrees.check import check
@@ -48,9 +46,9 @@ def get_subobjects(obj):
     except AttributeError:
         items = ()
     for k, v in items:
-        if not isinstance(k, IntType):
+        if not isinstance(k, int):
             sub.append(("<key>", k))
-        if not isinstance(v, IntType):
+        if not isinstance(v, int):
             sub.append(("[%s]" % repr(k), v))
 
     # what if it is a sequence?

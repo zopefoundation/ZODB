@@ -340,7 +340,6 @@ def doit(srcdb, dstdb, options):
 
 # helper to deal with differences between old-style store() return and
 # new-style store() return that supports ZEO
-import types
 
 class RevidAccumulator:
 
@@ -349,12 +348,12 @@ class RevidAccumulator:
 
     def _update_from_list(self, list):
         for oid, serial in list:
-            if not isinstance(serial, types.StringType):
+            if not isinstance(serial, str):
                 raise serial
             self.data[oid] = serial
 
     def store(self, oid, result):
-        if isinstance(result, types.StringType):
+        if isinstance(result, str):
             self.data[oid] = result
         elif result is not None:
             self._update_from_list(result)

@@ -34,7 +34,6 @@ except ImportError:
 import socket
 import struct
 import threading
-from types import StringType
 
 from ZEO.zrpc.log import log
 from ZEO.zrpc.error import DisconnectedError
@@ -182,7 +181,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
             if msg_size > input_len:
                 if inp is None:
                     self.__inp = d
-                elif type(self.__inp) is StringType:
+                elif type(self.__inp) is str:
                     self.__inp = [self.__inp, d]
                 else:
                     self.__inp.append(d)
@@ -190,7 +189,7 @@ class SizedMessageAsyncConnection(asyncore.dispatcher):
                 return # keep waiting for more input
 
             # load all previous input and d into single string inp
-            if isinstance(inp, StringType):
+            if isinstance(inp, str):
                 inp = inp + d
             elif inp is None:
                 inp = d

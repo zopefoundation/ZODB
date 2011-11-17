@@ -32,8 +32,6 @@ addresses and/or object identity (the synthesized bucket has an address
 that doesn't exist in the actual BTree).
 """
 
-from types import TupleType
-
 from BTrees.OOBTree import OOBTree, OOBucket, OOSet, OOTreeSet
 from BTrees.OIBTree import OIBTree, OIBucket, OISet, OITreeSet
 from BTrees.IOBTree import IOBTree, IOBucket, IOSet, IOTreeSet
@@ -122,10 +120,10 @@ def crack_btree(t, is_mapping):
     if state is None:
         return BTREE_EMPTY, [], []
 
-    assert isinstance(state, TupleType)
+    assert isinstance(state, tuple)
     if len(state) == 1:
         state = state[0]
-        assert isinstance(state, TupleType) and len(state) == 1
+        assert isinstance(state, tuple) and len(state) == 1
         state = state[0]
         return BTREE_ONE, state, None
 
@@ -174,7 +172,7 @@ def crack_btree(t, is_mapping):
 
 def crack_bucket(b, is_mapping):
     state = b.__getstate__()
-    assert isinstance(state, TupleType)
+    assert isinstance(state, tuple)
     assert 1 <= len(state) <= 2
     data = state[0]
     if not is_mapping:

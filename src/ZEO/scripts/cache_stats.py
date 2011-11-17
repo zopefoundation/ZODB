@@ -60,7 +60,6 @@ import sys
 import time
 import getopt
 import struct
-from types import StringType
 
 # we assign ctime locally to facilitate test replacement!
 from time import ctime
@@ -357,7 +356,7 @@ def U64(s):
     return struct.unpack(">Q", s)[0]
 
 def oid_repr(oid):
-    if isinstance(oid, StringType) and len(oid) == 8:
+    if isinstance(oid, str) and len(oid) == 8:
         return '%16x' % U64(oid)
     else:
         return repr(oid)

@@ -19,7 +19,6 @@ $Id$
 import asyncore
 import socket
 import time
-import types
 import logging
 
 zeo_version = 'unknown'
@@ -139,7 +138,7 @@ class StatsServer(asyncore.dispatcher):
         asyncore.dispatcher.__init__(self)
         self.addr = addr
         self.stats = stats
-        if type(self.addr) == types.TupleType:
+        if type(self.addr) == tuple:
             self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         else:
             self.create_socket(socket.AF_UNIX, socket.SOCK_STREAM)

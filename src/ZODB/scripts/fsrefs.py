@@ -64,7 +64,6 @@ in non-current revisions.
 """
 
 import traceback
-import types
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
@@ -88,7 +87,7 @@ def report(oid, data, serial, missing):
     print "last updated: %s, tid=%s" % (ts, hex(u64(serial)))
     print "refers to invalid object%s:" % plural
     for oid, info, reason in missing:
-        if isinstance(info, types.TupleType):
+        if isinstance(info, tuple):
             description = "%s.%s" % info
         else:
             description = str(info)

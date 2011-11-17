@@ -4,7 +4,6 @@
 
 import pickle
 import sys
-import types
 from ZODB.FileStorage import FileStorage
 from cStringIO import StringIO
 
@@ -103,7 +102,7 @@ def get_type(record):
     except:
         raise
     classinfo = unpickled[0]
-    if isinstance(classinfo, types.TupleType):
+    if isinstance(classinfo, tuple):
         mod, klass = classinfo
         return "%s.%s" % (mod, klass)
     else:
