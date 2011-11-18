@@ -2,6 +2,15 @@
  Change History
 ================
 
+3.10.5 (2011-11-19)
+===================
+
+Bugs Fixed
+----------
+
+- Conflict resolution failed when state included cross-database
+  persistent references with classes that couldn't be imported.
+
 3.10.4 (2011-11-17)
 ===================
 

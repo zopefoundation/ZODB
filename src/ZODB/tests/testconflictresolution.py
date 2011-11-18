@@ -237,8 +237,60 @@ Bwahaha:
     """
 
 
+def resolve_even_when_xdb_referenced_classes_are_absent():
+    """Cross-database persistent refs!
 
+    >>> class P(persistent.Persistent):
+    ...     pass
 
+    >>> databases = {}
+    >>> db = ZODB.DB('t.fs', databases=databases, database_name='')
+    >>> _ = ZODB.DB('o.fs', databases=databases, database_name='o')
+    >>> storage = db.storage
+    >>> conn = db.open()
+    >>> conn.root.x = Resolveable()
+    >>> transaction.commit()
+    >>> oid = conn.root.x._p_oid
+    >>> serial = conn.root.x._p_serial
+
+    >>> p = P(); conn.get_connection('o').add(p)
+    >>> conn.root.x.a = p
+    >>> transaction.commit()
+    >>> aid = conn.root.x.a._p_oid
+    >>> serial1 = conn.root.x._p_serial
+
+    >>> del conn.root.x.a
+    >>> p = P(); conn.get_connection('o').add(p)
+    >>> conn.root.x.b = p
+    >>> transaction.commit()
+    >>> serial2 = conn.root.x._p_serial
+
+    >>> del p
+
+Bwahaha:
+
+    >>> P_aside = P
+    >>> del P
+
+Now, even though we can't import P, we can still resolve the conflict:
+
+    >>> p = storage.tryToResolveConflict(
+    ...         oid, serial1, serial, storage.loadSerial(oid, serial2))
+
+And load the pickle:
+
+    >>> conn2 = db.open()
+    >>> conn2o = conn2.get_connection('o')
+    >>> P = P_aside
+    >>> p = conn2._reader.getState(p)
+    >>> sorted(p), p['a'] is conn2o.get(aid), p['b'] is conn2.root.x.b
+    (['a', 'b'], True, True)
+
+    >>> isinstance(p['a'], P) and isinstance(p['b'], P)
+    True
+
+    >>> db.close()
+    """
 
 def test_suite():
     return unittest.TestSuite([

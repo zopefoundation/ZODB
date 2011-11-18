@@ -140,7 +140,10 @@ class PersistentReference(object):
             #    or persistent weakref: (oid, database_name)
             # else it is a weakref: reference_type
             if reference_type == 'm':
-                self.database_name, self.oid, _ = data[1]
+                self.database_name, self.oid, klass = data[1]
+                if isinstance(klass, BadClass):
+                    # see above wrt BadClass
+                    data[1] = self.database_name, self.oid, klass.args
             elif reference_type == 'n':
                 self.database_name, self.oid = data[1]
             elif reference_type == 'w':
