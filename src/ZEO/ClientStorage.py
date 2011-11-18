@@ -46,7 +46,7 @@ import ZEO.interfaces
 import ZODB
 import ZODB.BaseStorage
 import ZODB.interfaces
-import zope.event
+import ZODB.event
 import zope.interface
 
 logger = logging.getLogger(__name__)
@@ -1384,7 +1384,7 @@ class ClientStorage(object):
             self._cache.setLastTid(server_tid)
 
 
-        zope.event.notify(ZEO.interfaces.StaleCache(self))
+        ZODB.event.notify(ZEO.interfaces.StaleCache(self))
 
         # From this point on, we do not have complete information about
         # the missed transactions.  The reason is that cache

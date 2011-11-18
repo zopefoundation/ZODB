@@ -5,6 +5,14 @@
 3.11.0 (2010-??-??)
 ===================
 
+New Features
+------------
+
+- ZODB no-longer depends on zope.event.  It now uses ZODB.event, which
+  uses zope.event if it is installed. You can override
+  ZODB.event.notify to provide your own event handling, although
+  zope.event is recommended.
+
 Bugs Fixed
 ----------
 

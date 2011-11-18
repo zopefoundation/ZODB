@@ -17,6 +17,7 @@ from persistent.mapping import PersistentMapping
 from ZODB.POSException import ReadConflictError
 from ZODB.POSException import TransactionFailedError
 
+import doctest
 import transaction
 import unittest
 import ZODB
@@ -611,8 +612,10 @@ class PoisonedObject:
         self._p_jar = poisonedjar
 
 def test_suite():
-    suite = unittest.makeSuite(ZODBTests, 'check')
-    return suite
+    return unittest.TestSuite((
+        unittest.makeSuite(ZODBTests, 'check'),
+        doctest.DocTestSuite('ZODB.event'),
+        ))
 
 if __name__ == "__main__":
     unittest.main(defaultTest="test_suite")

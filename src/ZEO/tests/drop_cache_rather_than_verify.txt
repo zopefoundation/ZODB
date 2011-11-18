@@ -56,14 +56,16 @@ And create another client and write some data to it:
 Now, we'll restart the server.  Before we do that, we'll capture
 logging and event data:
 
-    >>> import logging, zope.testing.loggingsupport, zope.event
+    >>> import logging, zope.testing.loggingsupport, ZODB.event
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...     'ZEO.ClientStorage', level=logging.ERROR)
     >>> events = []
     >>> def event_handler(e):
     ...     events.append((
     ...       len(e.storage._cache), str(handler), e.__class__.__name__))
-    >>> zope.event.subscribers.append(event_handler)
+
+    >>> old_notify = ZODB.event.notify
+    >>> ZODB.event.notify = event_handler
 
 Note that the event handler is saving away the length of the cache and
 the state of the log handler.  We'll use this to show that the event
@@ -213,4 +215,4 @@ invalidated during verification.
 
     >>> db.close()
     >>> handler.uninstall()
-    >>> zope.event.subscribers.remove(event_handler)
+    >>> ZODB.event.notify = old_notify
