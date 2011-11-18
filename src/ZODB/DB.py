@@ -956,6 +956,15 @@ class DB(object):
     def new_oid(self):
         return self.storage.new_oid()
 
+    def open_then_close_db_when_connection_closes(self):
+        """Create and return a connection.
+
+        When the connection closes, the database will close too.
+        """
+        conn = self.open()
+        conn.onCloseCallback(self.close)
+        return conn
+
 
 class ContextManager:
     """PEP 343 context manager
@@ -1016,7 +1025,4 @@ class TransactionalUndo(object):
         return "%s:%s" % (self._storage.sortKey(), id(self))
 
 def connection(*args, **kw):
-    db = DB(*args, **kw)
-    conn = db.open()
-    conn.onCloseCallback(db.close)
-    return conn
+    return DB(*args, **kw).open_then_close_db_when_connection_closes()

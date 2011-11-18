@@ -21,19 +21,16 @@ ZEO is now part of ZODB; ZODB's home on the web is
 
 """
 
-def DB(*args, **kw):
-    import ZEO.ClientStorage, ZODB
-    return ZODB.DB(ZEO.ClientStorage.ClientStorage(*args, **kw))
-
-def connection(*args, **kw):
-    db = DB(*args, **kw)
-    conn = db.open()
-    conn.onCloseCallback(db.close)
-    return conn
-
 def client(*args, **kw):
     import ZEO.ClientStorage
     return ZEO.ClientStorage.ClientStorage(*args, **kw)
+
+def DB(*args, **kw):
+    import ZODB
+    return ZODB.DB(client(*args, **kw))
+
+def connection(*args, **kw):
+    return DB(*args, **kw).open_then_close_db_when_connection_closes()
 
 def server(path=None, blob_dir=None, storage_conf=None, zeo_conf=None,
            port=None):
