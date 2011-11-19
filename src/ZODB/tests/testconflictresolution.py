@@ -245,7 +245,7 @@ def resolve_even_when_xdb_referenced_classes_are_absent():
 
     >>> databases = {}
     >>> db = ZODB.DB('t.fs', databases=databases, database_name='')
-    >>> _ = ZODB.DB('o.fs', databases=databases, database_name='o')
+    >>> db2 = ZODB.DB('o.fs', databases=databases, database_name='o')
     >>> storage = db.storage
     >>> conn = db.open()
     >>> conn.root.x = Resolveable()
@@ -290,6 +290,7 @@ And load the pickle:
     True
 
     >>> db.close()
+    >>> db2.close()
     """
 
 def test_suite():
