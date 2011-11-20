@@ -600,31 +600,23 @@ class NastyConfict(Base, TestCase):
     # to decref a NULL pointer if conflict resolution was fed 3 empty
     # buckets.  http://collector.zope.org/Zope/553
     def testThreeEmptyBucketsNoSegfault(self):
-        self.openDB()
-
-        tm1 = transaction.TransactionManager()
-        r1 = self.db.open(transaction_manager=tm1).root()
-        self.assertEqual(len(self.t), 0)
-        r1["t"] = b = self.t  # an empty tree
-        tm1.commit()
-
-        tm2 = transaction.TransactionManager()
-        r2 = self.db.open(transaction_manager=tm2).root()
-        copy = r2["t"]
-        # Make sure all of copy is loaded.
-        list(copy.values())
-
-        # In one transaction, add and delete a key.
-        b[2] = 2
-        del b[2]
-        tm1.commit()
-
-        # In the other transaction, also add and delete a key.
-        b = copy
-        b[1] = 1
-        del b[1]
-        # If the commit() segfaults, the C code is still wrong for this case.
-        self.assertRaises(ConflictError, tm2.commit)
+        self.t[1] = 1
+        bucket = self.t._firstbucket
+        del self.t[1]
+        state1 = bucket.__getstate__()
+        state2 = bucket.__getstate__()
+        state3 = bucket.__getstate__()
+        self.assert_(state2 is not state1 and
+                     state2 is not state3 and
+                     state3 is not state1)
+        self.assert_(state2 == state1 and
+                     state3 == state1)
+        self.assertRaises(ConflictError, bucket._p_resolveConflict,
+                          state1, state2, state3)
+        # When an empty BTree resolves conflicts, it computes the
+        # bucket state as None, so...
+        self.assertRaises(ConflictError, bucket._p_resolveConflict,
+                          None, None, None)
 
     def testCantResolveBTreeConflict(self):
         # Test that a conflict involving two different changes to
