@@ -252,7 +252,7 @@ class StorageServer:
         return self.rpc.call('tpc_finish', id)
 
     def tpc_abort(self, id):
-        self.rpc.callAsync('tpc_abort', id)
+        self.rpc.call('tpc_abort', id)
 
     def history(self, oid, length=None):
         if length is None:
