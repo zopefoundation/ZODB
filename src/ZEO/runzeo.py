@@ -160,7 +160,7 @@ class ZEOServer:
             self.create_server()
             self.loop_forever()
         finally:
-            self.server.close_server()
+            self.server.close()
             self.clear_socket()
             self.remove_pidfile()
 

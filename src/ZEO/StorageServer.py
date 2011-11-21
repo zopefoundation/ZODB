@@ -1190,8 +1190,6 @@ class StorageServer:
         if self.__thread is not None:
             self.__thread.join(join_timeout)
 
-    close_server = close
-
     def close_conn(self, conn):
         """Internal: remove the given connection from self.connections.
 
