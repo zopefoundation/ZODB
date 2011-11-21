@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import asyncore
+import errno
 import sys
 import threading
 import logging
@@ -658,7 +659,11 @@ class ManagedServerConnection(Connection):
 
 def server_loop(map):
     while len(map) > 1:
-        asyncore.poll(30.0, map)
+        try:
+            asyncore.poll(30.0, map)
+        except Exception, v:
+            if v.args[0] != errno.EBADF:
+                raise
 
     for o in map.values():
         o.close()

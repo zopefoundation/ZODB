@@ -424,7 +424,9 @@ class ClientStorage(object):
             if not self._rpc_mgr.attempt_connect():
                 self._rpc_mgr.connect()
 
-
+    def new_addr(self, addr):
+        self._addr = addr
+        self._rpc_mgr.new_addrs(addr)
 
     def _wait(self, timeout=None):
         if timeout is not None:
@@ -503,10 +505,15 @@ class ClientStorage(object):
         """
         self._db = db
 
-    def is_connected(self):
+    def is_connected(self, test=False):
         """Return whether the storage is currently connected to a server."""
         # This function is used by clients, so we only report that a
         # connection exists when the connection is ready to use.
+        if test:
+            try:
+                self._server.lastTransaction()
+            except Exception:
+                pass
         return self._ready.isSet()
 
     def sync(self):

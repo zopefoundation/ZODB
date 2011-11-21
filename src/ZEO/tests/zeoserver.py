@@ -94,7 +94,7 @@ class ZEOTestServer(asyncore.dispatcher):
         # the ack character until the storage is finished closing.
         if self._count <= 0:
             self.log('closing the storage')
-            self._server.close_server()
+            self._server.close()
             if not self._keep:
                 for storage in self._server.storages.values():
                     cleanup(storage)
@@ -206,6 +206,7 @@ def main():
         d.start()
     # Loop for socket events
     log(label, 'entering asyncore loop')
+    server.start_thread()
     asyncore.loop()
 
 

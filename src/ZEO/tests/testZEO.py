@@ -898,7 +898,7 @@ def multiple_storages_invalidation_queue_is_not_insane():
     >>> sorted([int(u64(oid)) for oid in oids])
     [10, 11, 12, 13, 14]
 
-    >>> server.close_server()
+    >>> server.close()
     """
 
 def getInvalidationsAfterServerRestart():
@@ -962,7 +962,7 @@ need to be invalidated.  This means we'll invalidate objects that
 dont' need to be invalidated, however, that's better than verifying
 caches.)
 
-    >>> sv.close_server()
+    >>> sv.close()
     >>> fs.close()
 
 If a storage doesn't implement lastInvalidations, a client can still
@@ -1249,7 +1249,7 @@ def runzeo_without_configfile():
     ------
     --T INFO ZEO.zrpc () listening on ...
     ------
-    --T INFO ZEO.runzeo () closing storage '1'
+    --T INFO ZEO.StorageServer closing storage '1'
     testing exit immediately
     """
 
@@ -1761,6 +1761,7 @@ def test_suite():
             'zeo-fan-out.test', 'zdoptions.test',
             'drop_cache_rather_than_verify.txt', 'client-config.test',
             'protocols.test', 'zeo_blob_cache.test', 'invalidation-age.txt',
+            'dynamic_server_ports.test', 'new_addr.test',
             setUp=forker.setUp, tearDown=zope.testing.setupstack.tearDown,
             ),
         )

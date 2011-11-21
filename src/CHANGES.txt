@@ -2,8 +2,8 @@
  Change History
 ================
 
-3.11.0 (2010-??-??)
-===================
+3.11.0a1 (2011-??-??)
+=====================
 
 New Features
 ------------
@@ -18,6 +18,16 @@ New Features
   Now BTrees raise TypeError if an attempt is made to save a key with
   comparison inherited from object. (This doesn't apply to old-style
   class instances.)
+
+- Storage servers now emit Serving and Closed events so subscribers
+  can discover addresses when dynamic port assignment (bind to port 0)
+  is used. This could, for example, be used to update address
+  information in a ZooKeeper database.
+
+- Client storagers have a method, new_addr, that can be used to change
+  the server address(es). This can be used, for example, to update a
+  dynamically determined server address from information in a
+  ZooKeeper database.
 
 3.10.5 (2011-11-19)
 ===================

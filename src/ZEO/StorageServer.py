@@ -46,6 +46,7 @@ import transaction
 import warnings
 import ZEO.zrpc.error
 import ZODB.blob
+import ZODB.event
 import ZODB.serialize
 import ZODB.TimeStamp
 import zope.interface
@@ -782,18 +783,20 @@ class StorageServer:
 
     # Classes we instantiate.  A subclass might override.
 
-    DispatcherClass = Dispatcher
+    DispatcherClass = ZEO.zrpc.server.Dispatcher
     ZEOStorageClass = ZEOStorage
     ManagedServerConnectionClass = ManagedServerConnection
 
-    def __init__(self, addr, storages, read_only=0,
+    def __init__(self, addr, storages,
+                 read_only=0,
                  invalidation_queue_size=100,
                  invalidation_age=None,
                  transaction_timeout=None,
                  monitor_address=None,
                  auth_protocol=None,
                  auth_database=None,
-                 auth_realm=None):
+                 auth_realm=None,
+                 ):
         """StorageServer constructor.
 
         This is typically invoked from the start.py script.
@@ -891,8 +894,13 @@ class StorageServer:
             storage.registerDB(StorageServerDB(self, name))
         self.invalidation_age = invalidation_age
         self.connections = {}
-        self.dispatcher = self.DispatcherClass(addr,
-                                               factory=self.new_connection)
+        self.socket_map = {}
+        self.dispatcher = self.DispatcherClass(
+            addr, factory=self.new_connection, map=self.socket_map)
+        if len(self.addr) == 2 and self.addr[1] == 0 and self.addr[0]:
+            self.addr = self.dispatcher.socket.getsockname()
+        ZODB.event.notify(
+            Serving(self, address=self.dispatcher.socket.getsockname()))
         self.stats = {}
         self.timeouts = {}
         for name in self.storages.keys():
@@ -1137,25 +1145,52 @@ class StorageServer:
 
         return latest_tid, list(oids)
 
-    def close_server(self):
+    def loop(self):
+        try:
+            asyncore.loop(map=self.socket_map)
+        except Exception:
+            if not self.__closed:
+                raise # Unexpected exc
+
+    __thread = None
+    def start_thread(self, daemon=True):
+        self.__thread = thread = threading.Thread(target=self.loop)
+        thread.setDaemon(daemon)
+        thread.start()
+
+    __closed = False
+    def close(self, join_timeout=1):
         """Close the dispatcher so that there are no new connections.
 
         This is only called from the test suite, AFAICT.
         """
+        if self.__closed:
+            return
+        self.__closed = True
+
+        # Stop accepting connections
         self.dispatcher.close()
         if self.monitor is not None:
             self.monitor.close()
-        # Force the asyncore mainloop to exit by hackery, i.e. close
-        # every socket in the map.  loop() will return when the map is
-        # empty.
-        for s in asyncore.socket_map.values():
-            try:
-                s.close()
-            except:
-                pass
-        asyncore.socket_map.clear()
-        for storage in self.storages.values():
+
+        ZODB.event.notify(Closed(self))
+
+        # Close open client connections
+        for sid, connections in self.connections.items():
+            for conn in connections[:]:
+                try:
+                    conn.connection.close()
+                except:
+                    pass
+
+        for name, storage in self.storages.iteritems():
+            logger.info("closing storage %r", name)
             storage.close()
+
+        if self.__thread is not None:
+            self.__thread.join(join_timeout)
+
+    close_server = close
 
     def close_conn(self, conn):
         """Internal: remove the given connection from self.connections.
@@ -1570,3 +1605,16 @@ class CommitLog:
         if self.file:
             self.file.close()
             self.file = None
+
+class ServerEvent:
+
+    def __init__(self, server, **kw):
+        self.__dict__.update(kw)
+        self.server = server
+
+class Serving(ServerEvent):
+    pass
+
+class Closed(ServerEvent):
+    pass
+

@@ -43,8 +43,8 @@ class Dispatcher(asyncore.dispatcher):
     """A server that accepts incoming RPC connections"""
     __super_init = asyncore.dispatcher.__init__
 
-    def __init__(self, addr, factory=Connection):
-        self.__super_init()
+    def __init__(self, addr, factory=Connection, map=None):
+        self.__super_init(map=map)
         self.addr = addr
         self.factory = factory
         self._open_socket()

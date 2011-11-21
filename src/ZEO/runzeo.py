@@ -160,7 +160,7 @@ class ZEOServer:
             self.create_server()
             self.loop_forever()
         finally:
-            self.close_storages()
+            self.server.close_server()
             self.clear_socket()
             self.remove_pidfile()
 
@@ -178,6 +178,10 @@ class ZEOServer:
         root.addHandler(handler)
 
     def check_socket(self):
+        if (isinstance(self.options.address, tuple) and
+            self.options.address[1] is None):
+            self.options.address = self.options.address[0], 0
+            return
         if self.can_connect(self.options.family, self.options.address):
             self.options.usage("address %s already in use" %
                                repr(self.options.address))
@@ -254,7 +258,7 @@ class ZEOServer:
         if self.options.testing_exit_immediately:
             print "testing exit immediately"
         else:
-            asyncore.loop()
+            self.server.loop()
 
     def handle_sigterm(self):
         log("terminated by SIGTERM")
@@ -288,20 +292,6 @@ class ZEOServer:
                     if hasattr(handler, 'rotate') and callable(handler.rotate):
                         handler.rotate()
             log("Log files rotation complete", level=logging.INFO)
-
-
-
-
-
-
-    def close_storages(self):
-        for name, storage in self.storages.items():
-            log("closing storage %r" % name)
-            try:
-                storage.close()
-            except: # Keep going
-                log("failed to close storage %r" % name,
-                    level=logging.ERROR, exc_info=True)
 
     def _get_pidfile(self):
         pidfile = self.options.pid_file

@@ -40,8 +40,11 @@ class StorageServer(ZEO.StorageServer.StorageServer):
             storages = {'1': ZODB.MappingStorage.MappingStorage()}
         ZEO.StorageServer.StorageServer.__init__(self, addr, storages, **kw)
 
-    def DispatcherClass(*args, **kw):
-        pass
+
+    class DispatcherClass:
+        __init__ = lambda *a, **kw: None
+        class socket:
+            getsockname = staticmethod(lambda : 'socket')
 
 class Connection:
 

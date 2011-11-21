@@ -146,6 +146,9 @@ class ConnectionManager(object):
         # attempting to connect.
         self.thread = None # Protected by self.cond
 
+    def new_addrs(self, addrs):
+        self.addrlist = self._parse_addrs(addrs)
+
     def _start_asyncore_loop(self):
         self.map = {}
         self.trigger = ZEO.zrpc.trigger.trigger(self.map)
@@ -269,9 +272,7 @@ class ConnectionManager(object):
             t = self.thread
             if t is None:
                 log("CM.connect(): starting ConnectThread")
-                self.thread = t = ConnectThread(self, self.client,
-                                                self.addrlist,
-                                                self.tmin, self.tmax)
+                self.thread = t = ConnectThread(self, self.client)
                 t.setDaemon(1)
                 t.start()
             if sync:
@@ -362,13 +363,10 @@ class ConnectThread(threading.Thread):
     # We don't expect clients to call any methods of this Thread other
     # than close() and those defined by the Thread API.
 
-    def __init__(self, mgr, client, addrlist, tmin, tmax):
-        self.__super_init(name="Connect(%s)" % addrlist)
+    def __init__(self, mgr, client):
+        self.__super_init(name="Connect(%s)" % mgr.addrlist)
         self.mgr = mgr
         self.client = client
-        self.addrlist = addrlist
-        self.tmin = tmin
-        self.tmax = tmax
         self.stopped = 0
         self.one_attempt = threading.Event()
         # A ConnectThread keeps track of whether it has finished a
@@ -380,7 +378,7 @@ class ConnectThread(threading.Thread):
         self.stopped = 1
 
     def run(self):
-        delay = self.tmin
+        delay = self.mgr.tmin
         success = 0
         # Don't wait too long the first time.
         # TODO: make timeout configurable?
@@ -396,11 +394,11 @@ class ConnectThread(threading.Thread):
             if self.mgr.is_connected():
                 log("CT: still trying to replace fallback connection",
                     level=logging.INFO)
-            delay = min(delay*2, self.tmax)
+            delay = min(delay*2, self.mgr.tmax)
         log("CT: exiting thread: %s" % self.getName())
 
     def try_connecting(self, timeout):
-        """Try connecting to all self.addrlist addresses.
+        """Try connecting to all self.mgr.addrlist addresses.
 
         Return 1 if a preferred connection was found; 0 if no
         connection was found; and -1 if a fallback connection was
@@ -408,7 +406,7 @@ class ConnectThread(threading.Thread):
 
         If no connection is found within timeout seconds, return 0.
         """
-        log("CT: attempting to connect on %d sockets" % len(self.addrlist))
+        log("CT: attempting to connect on %d sockets" % len(self.mgr.addrlist))
         deadline = time.time() + timeout
         wrappers = self._create_wrappers()
         for wrap in wrappers.keys():
@@ -434,7 +432,7 @@ class ConnectThread(threading.Thread):
         return 0
 
     def _expand_addrlist(self):
-        for domain, addr in self.addrlist:
+        for domain, addr in self.mgr.addrlist:
             # AF_INET really means either IPv4 or IPv6, possibly
             # indirected by DNS. By design, DNS lookup is deferred
             # until connections get established, so that DNS

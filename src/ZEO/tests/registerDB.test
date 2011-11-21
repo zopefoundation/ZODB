@@ -9,7 +9,7 @@ multiple storage servers.
 We'll create a Faux storage that has a registerDB method.
 
     >>> class FauxStorage:
-    ...     invalidations = [('trans0', ['ob0']), 
+    ...     invalidations = [('trans0', ['ob0']),
     ...                      ('trans1', ['ob0', 'ob1']),
     ...                      ]
     ...     def registerDB(self, db):
@@ -28,7 +28,10 @@ subclass it and give it a do-nothing dispatcher "class":
 
     >>> import ZEO.StorageServer
     >>> class StorageServer(ZEO.StorageServer.StorageServer):
-    ...     DispatcherClass = lambda *a, **k: None
+    ...     class DispatcherClass:
+    ...         __init__ = lambda *a, **kw: None
+    ...         class socket:
+    ...             getsockname = staticmethod(lambda : 'socket')
 
 We'll create a storage instance and a storage server using it:
 
@@ -80,7 +83,7 @@ Now, we'll register the client with the storage server:
 
     >>> _ = server.register_connection('t', ZEOStorage(server, 1))
     >>> _ = server.register_connection('t', ZEOStorage(server, 2))
-    
+
 Now, if we call invalidate, we'll see it propigate to the client:
 
     >>> storage.db.invalidate('trans2', ['ob1', 'ob2'])
@@ -112,7 +115,7 @@ connections:
     closed 2
 
 The connections will then reopen and revalidate their caches.
-    
+
 The servers's invalidation queue will get reset
 
     >>> for tid, invalidated in server.invq['t']:
