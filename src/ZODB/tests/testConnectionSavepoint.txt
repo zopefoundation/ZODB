@@ -182,15 +182,15 @@ However, using a savepoint invalidates any savepoints that come after it:
     >>> root['bob-balance']
     100.0
 
-    >>> savepoint2.rollback()
+    >>> savepoint2.rollback() # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     ...
-    InvalidSavepointRollbackError
+    InvalidSavepointRollbackError: invalidated by a later savepoint
 
-    >>> savepoint1.rollback()
+    >>> savepoint1.rollback() # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     ...
-    InvalidSavepointRollbackError
+    InvalidSavepointRollbackError: invalidated by a later savepoint
 
     >>> transaction.abort()
 
