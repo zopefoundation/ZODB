@@ -4,8 +4,6 @@ These aren't promises, but things I'd like to do:
 
 - ZEO support for loading blobs via HTTP.
 
-- Allow ZEO ports to be given as strings
-
 - ZEO cache fix for loadBefore.
 
 - invalidation events.
@@ -22,3 +20,7 @@ These aren't promises, but things I'd like to do:
   - Compare on persistent references.
 
 - Python BTrees and persistence.
+
+- JSONic read-only mode where you can read most objects for which you
+  don't have classes as long at they have the default getstate.
+  This might be as simple as using a variation of broken objects.
