@@ -27,3 +27,18 @@ These aren't promises, but things I'd like to do:
 
 - persistent.Object, which handles the common case of a simple object
   that just has some data. (The moral equivalent of a JS object. :)
+
+- API to preload objects.
+
+  Say you know you're going to oterate over an array of objects, you
+  might signal that intend to use the object with something like::
+
+    for oject in objects:
+        object._p_will_use()
+
+  (I think there's an RFC for something like this.)
+
+  For most storages, _p_will_use won't have any effect, but for ZEO,
+  it could cause a load request to be sent to the server if the object
+  isn't already loaded or in the zeo cache. This way, you could have
+  lots of loads in flight at once, mitigating round-trip costs.
