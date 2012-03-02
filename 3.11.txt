@@ -42,3 +42,18 @@ These aren't promises, but things I'd like to do:
   it could cause a load request to be sent to the server if the object
   isn't already loaded or in the zeo cache. This way, you could have
   lots of loads in flight at once, mitigating round-trip costs.
+
+- ZEO cache iterator, to facilitate analysis of cache contents.
+
+- Update file-storage iterator to expose file position as non-private
+  var for transactions and database records.
+
+  Expose trans size.
+
+- Update ZEO ClientStorage to block for soem short time rather than
+  error on short disconnection.
+
+- Remove silly ZEO connection backooff by default.
+
+- Rewrite ZEO connection logic using async IO rather than threads.
+
