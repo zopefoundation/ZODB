@@ -305,7 +305,10 @@ def concat(files, ofp=None):
     return bytesread, sum.hexdigest()
 
 
-def gen_filename(options, ext=None):
+def gen_filedate(options):
+    return getattr(options, 'test_now', time.gmtime()[:6])
+
+def gen_filename(options, ext=None, now=None):
     if ext is None:
         if options.full:
             ext = '.fs'
@@ -314,7 +317,8 @@ def gen_filename(options, ext=None):
         if options.gzip:
             ext += 'z'
     # Hook for testing
-    now = getattr(options, 'test_now', time.gmtime()[:6])
+    if now is None:
+        now = gen_filedate(options)
     t = now + (ext,)
     return '%04d-%02d-%02d-%02d-%02d-%02d%s' % t
 
@@ -330,7 +334,7 @@ del re
 def find_files(options):
     when = options.date
     if not when:
-        when = gen_filename(options, '')
+        when = gen_filename(options, ext='')
     log('looking for files between last full backup and %s...', when)
     all = filter(is_data_file, os.listdir(options.repository))
     all.sort()
@@ -429,7 +433,8 @@ def delete_old_backups(options):
 
 def do_full_backup(options):
     options.full = True
-    dest = os.path.join(options.repository, gen_filename(options))
+    tnow = gen_filedate(options)
+    dest = os.path.join(options.repository, gen_filename(options, now=tnow))
     if os.path.exists(dest):
         raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     # Find the file position of the last completed transaction.
@@ -442,7 +447,7 @@ def do_full_backup(options):
     pos = fs.getSize()
     # Save the storage index into the repository
     index_file = os.path.join(options.repository,
-                              gen_filename(options, '.index'))
+                              gen_filename(options, '.index', tnow))
     log('writing index')
     fs._index.save(pos, index_file)
     fs.close()
@@ -461,7 +466,8 @@ def do_full_backup(options):
 
 def do_incremental_backup(options, reposz, repofiles):
     options.full = False
-    dest = os.path.join(options.repository, gen_filename(options))
+    tnow = gen_filedate(options)
+    dest = os.path.join(options.repository, gen_filename(options, now=tnow))
     if os.path.exists(dest):
         raise WouldOverwriteFiles('Cannot overwrite existing file: %s' % dest)
     # Find the file position of the last completed transaction.
@@ -474,7 +480,7 @@ def do_incremental_backup(options, reposz, repofiles):
     pos = fs.getSize()
     log('writing index')
     index_file = os.path.join(options.repository,
-                              gen_filename(options, '.index'))
+                              gen_filename(options, '.index', tnow))
     fs._index.save(pos, index_file)
     fs.close()
     log('writing incremental: %s bytes to %s',  pos-reposz, dest)

@@ -8,6 +8,11 @@
 Bugs Fixed
 ----------
 
+- Ensured that the export file and index file created by ``repozo`` share
+  the same timestamp.
+
+  https://bugs.launchpad.net/zodb/+bug/993350
+
 - Pinned the ``transaction`` and ``manuel`` dependencies to Python 2.5-
   compatible versions when installing under Python 2.5.
 
