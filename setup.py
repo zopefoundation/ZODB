@@ -36,8 +36,10 @@ if sys.version_info < (2, 5):
 
 if sys.version_info < (2, 6):
     transaction_version = 'transaction == 1.1.1'
+    manuel_version = 'manuel < 1.6dev'
 else:
     transaction_version = 'transaction >= 1.1.0'
+    manuel_version = 'manuel'
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -195,8 +197,8 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
-      tests_require = ['zope.testing', 'manuel'],
-      extras_require = dict(test=['zope.testing', 'manuel']),
+      tests_require = ['zope.testing', manuel_version],
+      extras_require = dict(test=['zope.testing', manuel_version]),
       install_requires = [
         transaction_version,
         'zc.lockfile',
