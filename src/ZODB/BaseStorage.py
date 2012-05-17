@@ -420,10 +420,10 @@ def checkCurrentSerialInTransaction(self, oid, serial, transaction):
 
 BaseStorage.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
 
+@zope.interface.implementer(ZODB.interfaces.IStorageTransactionInformation)
 class TransactionRecord(object):
     """Abstract base class for iterator protocol"""
 
-    zope.interface.implements(ZODB.interfaces.IStorageTransactionInformation)
 
     def __init__(self, tid, status, user, description, extension):
         self.tid = tid
@@ -441,10 +441,10 @@ class TransactionRecord(object):
     _extension = property(fset=_ext_set, fget=_ext_get)
 
 
+@zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
 class DataRecord(object):
     """Abstract base class for iterator protocol"""
 
-    zope.interface.implements(ZODB.interfaces.IStorageRecordInformation)
 
     version = ''
 

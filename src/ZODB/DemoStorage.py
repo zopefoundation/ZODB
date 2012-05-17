@@ -32,12 +32,12 @@ import ZODB.POSException
 import ZODB.utils
 import zope.interface
 
-class DemoStorage(object):
-
-    zope.interface.implements(
+@zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
         )
+class DemoStorage(object):
+
 
     def __init__(self, name=None, base=None, changes=None,
                  close_base_on_close=None, close_changes_on_close=None):

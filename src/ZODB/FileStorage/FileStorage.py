@@ -86,14 +86,7 @@ class TempFormatter(FileStorageFormatter):
     def __init__(self, afile):
         self._file = afile
 
-class FileStorage(
-    FileStorageFormatter,
-    ZODB.blob.BlobStorageMixin,
-    ConflictResolution.ConflictResolvingStorage,
-    BaseStorage.BaseStorage,
-    ):
-
-    zope.interface.implements(
+@zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageRestoreable,
         ZODB.interfaces.IStorageIteration,
@@ -101,6 +94,13 @@ class FileStorage(
         ZODB.interfaces.IStorageCurrentRecordIteration,
         ZODB.interfaces.IExternalGC,
         )
+class FileStorage(
+    FileStorageFormatter,
+    ZODB.blob.BlobStorageMixin,
+    ConflictResolution.ConflictResolvingStorage,
+    BaseStorage.BaseStorage,
+    ):
+
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False

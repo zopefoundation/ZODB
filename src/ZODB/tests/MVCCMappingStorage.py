@@ -21,11 +21,11 @@ import ZODB.utils
 import ZODB.POSException
 from ZODB.interfaces import IMVCCStorage
 from ZODB.MappingStorage import MappingStorage
-from zope.interface import implements
+from zope.interface import implementer
 
 
+@implementer(IMVCCStorage)
 class MVCCMappingStorage(MappingStorage):
-    implements(IMVCCStorage)
 
     def __init__(self, name="MVCC Mapping Storage"):
         MappingStorage.__init__(self, name=name)

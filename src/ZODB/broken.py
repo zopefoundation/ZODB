@@ -25,6 +25,7 @@ import ZODB.interfaces
 
 broken_cache = {}
 
+@zope.interface.implementer(ZODB.interfaces.IBroken)
 class Broken(object):
     """Broken object base class
 
@@ -96,7 +97,6 @@ class Broken(object):
          >>> broken_cache.clear()
        """
 
-    zope.interface.implements(ZODB.interfaces.IBroken)
 
     __Broken_state__ = __Broken_initargs__ = None
 

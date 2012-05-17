@@ -15,9 +15,9 @@ import ZODB.blob
 import ZODB.interfaces
 import zope.interface
 
+@zope.interface.implementer(ZODB.interfaces.IStorageWrapper)
 class HexStorage(object):
 
-    zope.interface.implements(ZODB.interfaces.IStorageWrapper)
 
     copied_methods = (
             'close', 'getName', 'getSize', 'history', 'isReadOnly',

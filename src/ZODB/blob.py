@@ -51,10 +51,10 @@ valid_modes = 'r', 'w', 'r+', 'a', 'c'
 # via GC in any thread.
 
 
+@zope.interface.implementer(ZODB.interfaces.IBlob)
 class Blob(persistent.Persistent):
     """A BLOB supports efficient handling of large data within ZODB."""
 
-    zope.interface.implements(ZODB.interfaces.IBlob)
 
     _p_blob_uncommitted = None  # Filename of the uncommitted (dirty) data
     _p_blob_committed = None    # Filename of the committed data
@@ -686,11 +686,11 @@ class BlobStorageMixin(object):
         return self.fshelper.temp_dir
 
 
+@zope.interface.implementer(ZODB.interfaces.IBlobStorage)
 class BlobStorage(BlobStorageMixin):
     """A wrapper/proxy storage to support blobs.
     """
 
-    zope.interface.implements(ZODB.interfaces.IBlobStorage)
 
     def __init__(self, base_directory, storage, layout='automatic'):
         assert not ZODB.interfaces.IBlobStorage.providedBy(storage)

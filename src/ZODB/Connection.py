@@ -34,7 +34,7 @@ from ZODB.blob import Blob, rename_or_copy_blob, remove_committed_dir
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
-from zope.interface import implements
+from zope.interface import implementer
 
 import transaction
 
@@ -66,13 +66,13 @@ def resetCaches():
     global global_reset_counter
     global_reset_counter += 1
 
+@implementer(IConnection,
+             ISavepointDataManager,
+             IPersistentDataManager,
+             ISynchronizer)
 class Connection(ExportImport, object):
     """Connection to ZODB for loading and storing objects."""
 
-    implements(IConnection,
-               ISavepointDataManager,
-               IPersistentDataManager,
-               ISynchronizer)
 
 
     _code_timestamp = 0
@@ -1221,9 +1221,9 @@ class Connection(ExportImport, object):
     # Savepoint support
     #####################################################################
 
+@implementer(IDataManagerSavepoint)
 class Savepoint:
 
-    implements(IDataManagerSavepoint)
 
     def __init__(self, datamanager, state):
         self.datamanager = datamanager
@@ -1232,10 +1232,10 @@ class Savepoint:
     def rollback(self):
         self.datamanager._rollback(self.state)
 
+@implementer(IBlobStorage)
 class TmpStore:
     """A storage-like thing to support savepoints."""
 
-    implements(IBlobStorage)
 
     def __init__(self, storage):
         self._storage = storage

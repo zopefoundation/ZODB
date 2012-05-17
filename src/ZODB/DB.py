@@ -30,7 +30,7 @@ import ZODB.serialize
 
 import transaction.weakset
 
-from zope.interface import implements
+from zope.interface import implementer
 from ZODB.interfaces import IDatabase
 from ZODB.interfaces import IMVCCStorage
 
@@ -319,6 +319,7 @@ def getTID(at, before):
     return before
 
 
+@implementer(IDatabase)
 class DB(object):
     """The Object Database
     -------------------
@@ -359,7 +360,6 @@ class DB(object):
         cacheDetailSize, getCacheSize, getHistoricalCacheSize, setCacheSize,
         setHistoricalCacheSize
     """
-    implements(IDatabase)
 
     klass = Connection  # Class to use for connections
     _activity_monitor = next = previous = None

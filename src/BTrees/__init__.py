@@ -16,8 +16,8 @@ import zope.interface
 import BTrees.Interfaces
 
 
+@zope.interface.implementer(BTrees.Interfaces.IBTreeFamily)
 class _Family(object):
-    zope.interface.implements(BTrees.Interfaces.IBTreeFamily)
 
     from BTrees import OOBTree as OO
 

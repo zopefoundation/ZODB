@@ -27,12 +27,12 @@ import ZODB.TimeStamp
 import ZODB.utils
 import zope.interface
 
-class MappingStorage(object):
 
-    zope.interface.implements(
+@zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
         )
+class MappingStorage(object):
 
     def __init__(self, name='MappingStorage'):
         self.__name__ = name
@@ -351,10 +351,10 @@ class TransactionRecord:
         del self.data[oid]
         return not self.data
 
+@zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
 class DataRecord(object):
     """Abstract base class for iterator protocol"""
 
-    zope.interface.implements(ZODB.interfaces.IStorageRecordInformation)
 
     version = ''
     data_txn = None

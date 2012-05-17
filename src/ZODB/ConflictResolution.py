@@ -112,9 +112,9 @@ class IPersistentReference(zope.interface.Interface):
         have two references to the same object that are spelled with different
         data (for instance, one with a class and one without).'''
 
+@zope.interface.implementer(IPersistentReference)
 class PersistentReference(object):
 
-    zope.interface.implements(IPersistentReference)
 
     weak = False
     oid = database_name = klass = None
