@@ -27,6 +27,7 @@ def test_weakrefs_functional():
     Here's an example. We'll start by creating a persistent object and
     a reference to it:
 
+    >>> import transaction
     >>> from persistent.wref import WeakRef
     >>> import persistent, ZODB.tests.MinPO
     >>> import ZODB.tests.util
@@ -162,6 +163,7 @@ def test_PersistentWeakKeyDictionary():
     We'll start by creating a PersistentWeakKeyDictionary and adding
     some persistent objects to it.
 
+    >>> import transaction
     >>> from persistent.wref import PersistentWeakKeyDictionary
     >>> d = PersistentWeakKeyDictionary()
     >>> import ZODB.tests.util
@@ -252,6 +254,20 @@ def test_PersistentWeakKeyDictionary():
 
     >>> db.close()
 
+    """
+
+def test_PersistentWeakKeyDictionary_get():
+    """
+    >>> import ZODB.tests.util
+    >>> from persistent.wref import PersistentWeakKeyDictionary
+    >>> key = ZODB.tests.util.P("key")
+    >>> missing = ZODB.tests.util.P("missing")
+    >>> d = PersistentWeakKeyDictionary([(key, 1)])
+    >>> d.get(key)
+    1
+    >>> d.get(missing)
+    >>> d.get(missing, 12)
+    12
     """
 
 def test_suite():
