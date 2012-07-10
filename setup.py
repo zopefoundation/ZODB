@@ -35,6 +35,7 @@ if sys.version_info < (2, 5):
     sys.exit(0)
 
 
+
 if sys.version_info < (2, 6):
     transaction_version = 'transaction == 1.1.1'
     manuel_version = 'manuel < 1.6dev'
@@ -59,7 +60,26 @@ Framework :: ZODB
 """
 
 # Include directories for C extensions
-include = ['include', 'src']
+# Sniff the location of the headers in 'persistent'.
+
+class ModuleHeaderDir(object):
+
+    def __init__(self, require_spec, where='..'):
+        # By default, assume top-level pkg has the same name as the dist.
+        # Also assume that headers are located in the package dir, and
+        # are meant to be included as follows:
+        #    #include "module/header_name.h"
+        self._require_spec = require_spec
+        self._where = where
+
+    def __str__(self):
+        from pkg_resources import require
+        from pkg_resources import resource_filename
+        require(self._require_spec)
+        return os.path.abspath(
+                    resource_filename(self._require_spec, self._where))
+
+include = [ModuleHeaderDir('persistent'), 'src']
 
 # Set up dependencies for the BTrees package
 base_btrees_depends = [
@@ -72,13 +92,13 @@ base_btrees_depends = [
     "src/BTrees/SetTemplate.c",
     "src/BTrees/TreeSetTemplate.c",
     "src/BTrees/sorters.c",
-    "include/persistent/cPersistence.h",
     ]
 
 _flavors = {"O": "object", "I": "int", "F": "float", 'L': 'int'}
 
 KEY_H = "src/BTrees/%skeymacros.h"
 VALUE_H = "src/BTrees/%svaluemacros.h"
+
 
 def BTreeExtension(flavor):
     key = flavor[0]
@@ -155,6 +175,7 @@ long_description = str(
 
 setup(name="ZODB3",
       version=VERSION,
+      setup_requires=['persistent'],
       maintainer="Zope Foundation and Contributors",
       maintainer_email="zodb-dev@zope.org",
       packages = find_packages('src'),
