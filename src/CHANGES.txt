@@ -8,6 +8,9 @@
 New Features
 ------------
 
+- The ``persistent`` package is now released as a separate distribution,
+  on which ZODB now depends.
+
 - ZODB no longer depends on zope.event.  It now uses ZODB.event, which
   uses zope.event if it is installed.  You can override
   ZODB.event.notify to provide your own event handling, although
