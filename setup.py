@@ -35,6 +35,7 @@ if sys.version_info < (2, 5):
     sys.exit(0)
 
 
+
 if sys.version_info < (2, 6):
     transaction_version = 'transaction == 1.1.1'
     manuel_version = 'manuel < 1.6dev'
@@ -59,7 +60,26 @@ Framework :: ZODB
 """
 
 # Include directories for C extensions
-include = ['src']
+# Sniff the location of the headers in 'persistent'.
+
+class ModuleHeaderDir(object):
+
+    def __init__(self, require_spec, where='..'):
+        # By default, assume top-level pkg has the same name as the dist.
+        # Also assume that headers are located in the package dir, and
+        # are meant to be included as follows:
+        #    #include "module/header_name.h"
+        self._require_spec = require_spec
+        self._where = where
+
+    def __str__(self):
+        from pkg_resources import require
+        from pkg_resources import resource_filename
+        require(self._require_spec)
+        return os.path.abspath(
+                    resource_filename(self._require_spec, self._where))
+
+include = [ModuleHeaderDir('persistent'), 'src']
 
 # Set up dependencies for the BTrees package
 base_btrees_depends = [
@@ -72,13 +92,13 @@ base_btrees_depends = [
     "src/BTrees/SetTemplate.c",
     "src/BTrees/TreeSetTemplate.c",
     "src/BTrees/sorters.c",
-    "src/persistent/cPersistence.h",
     ]
 
 _flavors = {"O": "object", "I": "int", "F": "float", 'L': 'int'}
 
 KEY_H = "src/BTrees/%skeymacros.h"
 VALUE_H = "src/BTrees/%svaluemacros.h"
+
 
 def BTreeExtension(flavor):
     key = flavor[0]
@@ -99,35 +119,6 @@ exts = [BTreeExtension(flavor)
         for flavor in ("OO", "IO", "OI", "II", "IF",
                        "fs", "LO", "OL", "LL", "LF",
                        )]
-
-cPersistence = Extension(name = 'persistent.cPersistence',
-                         include_dirs = include,
-                         sources= ['src/persistent/cPersistence.c',
-                                   'src/persistent/ring.c'],
-                         depends = ['src/persistent/cPersistence.h',
-                                    'src/persistent/ring.h',
-                                    'src/persistent/ring.c']
-                         )
-
-cPickleCache = Extension(name = 'persistent.cPickleCache',
-                         include_dirs = include,
-                         sources= ['src/persistent/cPickleCache.c',
-                                   'src/persistent/ring.c'],
-                         depends = ['src/persistent/cPersistence.h',
-                                    'src/persistent/ring.h',
-                                    'src/persistent/ring.c']
-                         )
-
-TimeStamp = Extension(name = 'persistent.TimeStamp',
-                      include_dirs = include,
-                      sources= ['src/persistent/TimeStamp.c']
-                      )
-
-
-exts += [cPersistence,
-         cPickleCache,
-         TimeStamp,
-        ]
 
 def _modname(path, base, name=''):
     if path == base:
@@ -184,14 +175,12 @@ long_description = str(
 
 setup(name="ZODB3",
       version=VERSION,
+      setup_requires=['persistent'],
       maintainer="Zope Foundation and Contributors",
       maintainer_email="zodb-dev@zope.org",
       packages = find_packages('src'),
       package_dir = {'': 'src'},
       ext_modules = exts,
-      headers = ['src/persistent/cPersistence.h',
-                 'src/persistent/py24compat.h',
-                 'src/persistent/ring.h'],
       license = "ZPL 2.1",
       platforms = ["any"],
       description = doclines[0],
@@ -200,8 +189,13 @@ setup(name="ZODB3",
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = ['zope.testing', manuel_version],
       extras_require = dict(test=['zope.testing', manuel_version]),
+      # XXX: We don't really want to install these headers;  we would
+      #      prefer just including them so that folks can build from an sdist.
+      headers = ['include/persistent/cPersistence.h',
+                 'include/persistent/ring.h'],
       install_requires = [
         transaction_version,
+        'persistent',
         'zc.lockfile',
         'ZConfig',
         'zdaemon',
