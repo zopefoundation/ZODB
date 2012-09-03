@@ -64,6 +64,63 @@ class DBTests(ZODB.tests.util.TestCase):
         import ZODB.serialize
         self.assert_(self.db.references is ZODB.serialize.referencesf)
 
+    def test_open_and_close_with_statsd_client(self):
+        from perfmetrics import statsd_client_stack
+        sent = []
+
+        class DummyStatsdClient:
+            def gauge(self, name, value, buf):
+                buf.append('%s:%s|g' % (name, value))
+
+            def incr(self, name, value, buf):
+                buf.append('%s:%s|c' % (name, value))
+
+            def timing(self, name, value):
+                sent.append('%s:%s|ms' % (name, value))
+
+            def sendbuf(self, buf):
+                sent.append(buf)
+
+        client = DummyStatsdClient()
+        statsd_client_stack.push(client)
+        try:
+            c = self.db.open()
+            c.root().get('x')
+            time.sleep(0.1)
+            c.close()
+        finally:
+            statsd_client_stack.pop()
+
+        self.maxDiff = 10000
+        self.assertEqual(len(sent), 4)
+        self.assertEqual(sent[0],
+                         ['zodb.unnamed.pool:1|g',
+                          'zodb.unnamed.opened:1|g',
+                          'zodb.unnamed.estsize:0|g',
+                          'zodb.unnamed.nonghosts:0|g',
+                          'zodb.unnamed.hist_pool:0|g',
+                          'zodb.unnamed.hist_opened:0|g',
+                          'zodb.unnamed.hist_estsize:0|g',
+                          'zodb.unnamed.hist_nonghosts:0|g'])
+
+        import re
+        mo = re.match(r'zodb.unnamed.duration:([0-9\.]+)|ms', sent[1])
+        self.assertTrue(mo is not None, 'Regex failed to match %r' % sent[1])
+        self.assertTrue(int(mo.group(1)) > 0)
+
+        self.assertEqual(sent[2],
+                         ['zodb.unnamed.pool:1|g',
+                          'zodb.unnamed.opened:0|g',
+                          'zodb.unnamed.estsize:64|g',
+                          'zodb.unnamed.nonghosts:1|g',
+                          'zodb.unnamed.hist_pool:0|g',
+                          'zodb.unnamed.hist_opened:0|g',
+                          'zodb.unnamed.hist_estsize:0|g',
+                          'zodb.unnamed.hist_nonghosts:0|g'])
+        self.assertEqual(sent[3],
+                         ['zodb.unnamed.loads:1|c',
+                          'zodb.unnamed.stores:0|c'])
+
 
 def test_invalidateCache():
     """The invalidateCache method invalidates a connection caches for all of

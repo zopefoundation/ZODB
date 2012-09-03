@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.10dev"
+VERSION = "3.10.5-perfmetrics"
 
 from ez_setup import use_setuptools
 use_setuptools()
@@ -200,6 +200,7 @@ setup(name="ZODB3",
       tests_require = ['zope.testing', manuel_version],
       extras_require = dict(test=['zope.testing', manuel_version]),
       install_requires = [
+        'perfmetrics',
         transaction_version,
         'zc.lockfile',
         'ZConfig',

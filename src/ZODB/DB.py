@@ -35,6 +35,7 @@ from ZODB.interfaces import IDatabase
 from ZODB.interfaces import IMVCCStorage
 
 import transaction
+from perfmetrics import statsd_client
 
 from persistent.TimeStamp import TimeStamp
 
@@ -319,6 +320,20 @@ def getTID(at, before):
     return before
 
 
+class StatsdActivityMonitor(object):
+    # Implements the ActivityMonitor interface.
+
+    def closedConnection(self, connection):
+        client = statsd_client()
+        if client is not None:
+            database_name = connection.db().database_name or '_'
+            loads, stores = connection.getTransferCounts(True)
+            buf = []
+            client.incr('zodb.%s.loads' % database_name, loads, buf=buf)
+            client.incr('zodb.%s.stores' % database_name, stores, buf=buf)
+            client.sendbuf(buf)
+
+
 class DB(object):
     """The Object Database
     -------------------
@@ -362,7 +377,8 @@ class DB(object):
     implements(IDatabase)
 
     klass = Connection  # Class to use for connections
-    _activity_monitor = next = previous = None
+    _activity_monitor = StatsdActivityMonitor()
+    next = previous = None
 
     def __init__(self, storage,
                  pool_size=7,
@@ -489,12 +505,23 @@ class DB(object):
         self._a()
         try:
             assert connection._db is self
+
+            client = statsd_client()
+            if client is not None:
+                if connection.opened:
+                    elapsed = int((time.time() - connection.opened) * 1000.0)
+                    dbname = self.database_name or '_'
+                    client.timing('zodb.%s.duration' % dbname, elapsed)
+
             connection.opened = None
 
             if connection.before:
                 self.historical_pool.repush(connection, connection.before)
             else:
                 self.pool.repush(connection)
+
+            if client is not None:
+                self._reportPoolInfo()
         finally:
             self._r()
 
@@ -755,6 +782,9 @@ class DB(object):
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
+            if statsd_client() is not None:
+                self._reportPoolInfo()
+
             return result
 
         finally:
@@ -789,6 +819,38 @@ class DB(object):
 
     def getActivityMonitor(self):
         return self._activity_monitor
+
+    def _reportPoolInfo(self):
+        """Report pool stats to statsd.
+
+        The lock must be acquired when this is called.
+        """
+        client = statsd_client()
+        if client is None:
+            return
+
+        buf = []
+        dbname = self.database_name or '_'
+
+        for pool, prefix in [(self.pool, ''),
+                             (self.historical_pool, 'hist_')]:
+            name = 'zodb.%s.%s' % (dbname, prefix)
+            conns = []
+            pool.all.map(conns.append)
+            opened = 0
+            estsize = 0
+            nonghosts = 0
+            for c in conns:
+                if c.opened:
+                    opened += 1
+                estsize += c._cache.total_estimated_size
+                nonghosts += c._cache.cache_non_ghost_count
+            client.gauge(name + 'pool', len(conns), buf=buf)
+            client.gauge(name + 'opened', opened, buf=buf)
+            client.gauge(name + 'estsize', estsize, buf=buf)
+            client.gauge(name + 'nonghosts', nonghosts, buf=buf)
+
+        client.sendbuf(buf)
 
     def pack(self, t=None, days=0):
         """Pack the storage, deleting unused object revisions.
