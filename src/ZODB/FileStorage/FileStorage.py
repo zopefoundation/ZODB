@@ -1167,7 +1167,7 @@ class FileStorage(
                 newpath = old+path[lblob_dir:]
                 dest = os.path.dirname(newpath)
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0700)
+                    self.fshelper.makedirs(dest)
                 os.rename(path, newpath)
             handle_dir = handle_file
         else:
@@ -1214,7 +1214,7 @@ class FileStorage(
                 file_path = os.path.join(path, file_name)
                 dest = os.path.dirname(old+file_path[lblob_dir:])
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0700)
+                    self.fshelper.makedirs(dest)
                 link_or_copy(file_path, old+file_path[lblob_dir:])
 
     def iterator(self, start=None, stop=None):

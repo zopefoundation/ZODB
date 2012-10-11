@@ -322,7 +322,9 @@ class FilesystemHelper:
     # with blobs and storages needn't indirect through this if they
     # want to perform blob storage differently.
 
-    def __init__(self, base_dir, layout_name='automatic'):
+    blob_dir_permissions = 0700
+
+    def __init__(self, base_dir, layout_name='automatic', permissions=None):
         self.base_dir = os.path.abspath(base_dir) + os.path.sep
         self.temp_dir = os.path.join(base_dir, 'tmp')
 
@@ -334,14 +336,23 @@ class FilesystemHelper:
                 'migrating to the `bushy` layout.', level=logging.WARN)
         self.layout_name = layout_name
         self.layout = LAYOUTS[layout_name]
+        if permissions is not None:
+            self.blob_dir_permissions = permissions
+
+    def makedirs(self, path):
+        umask = os.umask(0)
+        try:
+            os.makedirs(path, self.blob_dir_permissions)
+        finally:
+            os.umask(umask)
 
     def create(self):
         if not os.path.exists(self.base_dir):
-            os.makedirs(self.base_dir, 0700)
+            self.makedirs(self.base_dir)
             log("Blob directory '%s' does not exist. "
                 "Created new directory." % self.base_dir)
         if not os.path.exists(self.temp_dir):
-            os.makedirs(self.temp_dir, 0700)
+            self.makedirs(self.temp_dir)
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
@@ -359,8 +370,9 @@ class FilesystemHelper:
                     (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
-        """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 077) == 0
+        """Ensure that (POSIX) path mode bits for others is 0."""
+        # XXX
+        return (os.stat(path).st_mode & stat.S_IRWXO) == 0
 
     def checkSecure(self):
         if not self.isSecure(self.base_dir):
@@ -385,7 +397,7 @@ class FilesystemHelper:
 
         if create and not os.path.exists(path):
             try:
-                os.makedirs(path, 0700)
+                self.makedirs(path)
             except OSError:
                 # We might have lost a race.  If so, the directory
                 # must exist now
@@ -592,9 +604,10 @@ LAYOUTS['lawn'] = LawnLayout()
 class BlobStorageMixin(object):
     """A mix-in to help storages support blobs."""
 
-    def _blob_init(self, blob_dir, layout='automatic'):
+    def _blob_init(self, blob_dir, layout='automatic',
+        permissions=None):
         # XXX Log warning if storage is ClientStorage
-        self.fshelper = FilesystemHelper(blob_dir, layout)
+        self.fshelper = FilesystemHelper(blob_dir, layout, permissions)
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
