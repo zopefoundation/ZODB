@@ -209,10 +209,6 @@ setup(name="ZODB",
       fsrefs = ZODB.scripts.fsrefs:main
       fstail = ZODB.scripts.fstail:Main
       repozo = ZODB.scripts.repozo:main
-      zeopack = ZEO.scripts.zeopack:main
-      runzeo = ZEO.runzeo:main
-      zeopasswd = ZEO.zeopasswd:main
-      zeoctl = ZEO.zeoctl:main
       """,
       include_package_data = True,
       )
