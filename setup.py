@@ -130,7 +130,6 @@ def alltests():
     import logging
     import pkg_resources
     import unittest
-    import ZEO.ClientStorage
 
     class NullHandler(logging.Handler):
         level = 50
@@ -146,7 +145,6 @@ def alltests():
     for dirpath, dirnames, filenames in os.walk(base):
         if os.path.basename(dirpath) == 'tests':
             for filename in filenames:
-                if filename != 'testZEO.py': continue
                 if filename.endswith('.py') and filename.startswith('test'):
                     mod = __import__(
                         _modname(dirpath, base, os.path.splitext(filename)[0]),
