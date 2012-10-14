@@ -169,7 +169,7 @@ long_description = str(
     ("\n".join(doclines[2:]) + "\n\n" +
      ".. contents::\n\n" +
      read_file("README.txt")  + "\n\n" +
-     read_file("src", "CHANGES.txt")
+     read_file("CHANGES.txt")
     ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
     )+ '''\n\n.. |Lowis| unicode:: L \\xf6 wis\n'''
 
