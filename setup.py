@@ -142,7 +142,7 @@ def alltests():
 
     suite = unittest.TestSuite()
     base = pkg_resources.working_set.find(
-        pkg_resources.Requirement.parse('ZODB3')).location
+        pkg_resources.Requirement.parse('ZODB')).location
     for dirpath, dirnames, filenames in os.walk(base):
         if os.path.basename(dirpath) == 'tests':
             for filename in filenames:
@@ -173,7 +173,7 @@ long_description = str(
     ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
     )+ '''\n\n.. |Lowis| unicode:: L \\xf6 wis\n'''
 
-setup(name="ZODB3",
+setup(name="ZODB",
       version=VERSION,
       setup_requires=['persistent'],
       maintainer="Zope Foundation and Contributors",
