@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "3.11dev"
+VERSION = "4.0.0dev"
 
 from ez_setup import use_setuptools
 use_setuptools()
@@ -130,7 +130,6 @@ def alltests():
     import logging
     import pkg_resources
     import unittest
-    import ZEO.ClientStorage
 
     class NullHandler(logging.Handler):
         level = 50
@@ -142,11 +141,10 @@ def alltests():
 
     suite = unittest.TestSuite()
     base = pkg_resources.working_set.find(
-        pkg_resources.Requirement.parse('ZODB3')).location
+        pkg_resources.Requirement.parse('ZODB')).location
     for dirpath, dirnames, filenames in os.walk(base):
         if os.path.basename(dirpath) == 'tests':
             for filename in filenames:
-                if filename != 'testZEO.py': continue
                 if filename.endswith('.py') and filename.startswith('test'):
                     mod = __import__(
                         _modname(dirpath, base, os.path.splitext(filename)[0]),
@@ -169,11 +167,11 @@ long_description = str(
     ("\n".join(doclines[2:]) + "\n\n" +
      ".. contents::\n\n" +
      read_file("README.txt")  + "\n\n" +
-     read_file("src", "CHANGES.txt")
+     read_file("CHANGES.txt")
     ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
     )+ '''\n\n.. |Lowis| unicode:: L \\xf6 wis\n'''
 
-setup(name="ZODB3",
+setup(name="ZODB",
       version=VERSION,
       setup_requires=['persistent'],
       maintainer="Zope Foundation and Contributors",
@@ -189,6 +187,10 @@ setup(name="ZODB3",
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = ['zope.testing', manuel_version],
       extras_require = dict(test=['zope.testing', manuel_version]),
+      # XXX: We don't really want to install these headers;  we would
+      #      prefer just including them so that folks can build from an sdist.
+      headers = ['include/persistent/cPersistence.h',
+                 'include/persistent/ring.h'],
       install_requires = [
         transaction_version,
         'persistent',
@@ -205,10 +207,6 @@ setup(name="ZODB3",
       fsrefs = ZODB.scripts.fsrefs:main
       fstail = ZODB.scripts.fstail:Main
       repozo = ZODB.scripts.repozo:main
-      zeopack = ZEO.scripts.zeopack:main
-      runzeo = ZEO.runzeo:main
-      zeopasswd = ZEO.zeopasswd:main
-      zeoctl = ZEO.zeoctl:main
       """,
       include_package_data = True,
       )

@@ -96,45 +96,6 @@ class ZODBConfigTest(ConfigTestBase):
         self._test(cfg)
 
 
-class ZEOConfigTest(ConfigTestBase):
-    def test_zeo_config(self):
-        # We're looking for a port that doesn't exist so a
-        # connection attempt will fail.  Instead of elaborate
-        # logic to loop over a port calculation, we'll just pick a
-        # simple "random", likely to not-exist port number and add
-        # an elaborate comment explaining this instead.  Go ahead,
-        # grep for 9.
-        from ZEO.ClientStorage import ClientDisconnected
-        import ZConfig
-        from ZODB.config import getDbSchema
-        from StringIO import StringIO
-        cfg = """
-        <zodb>
-          <zeoclient>
-            server localhost:56897
-            wait false
-          </zeoclient>
-        </zodb>
-        """
-        config, handle = ZConfig.loadConfigFile(getDbSchema(), StringIO(cfg))
-        self.assertEqual(config.database[0].config.storage.config.blob_dir,
-                         None)
-        self.assertRaises(ClientDisconnected, self._test, cfg)
-
-        cfg = """
-        <zodb>
-          <zeoclient>
-            blob-dir blobs
-            server localhost:56897
-            wait false
-          </zeoclient>
-        </zodb>
-        """
-        config, handle = ZConfig.loadConfigFile(getDbSchema(), StringIO(cfg))
-        self.assertEqual(config.database[0].config.storage.config.blob_dir,
-                         'blobs')
-        self.assertRaises(ClientDisconnected, self._test, cfg)
-
 def database_xrefs_config():
     r"""
     >>> db = ZODB.config.databaseFromString(
@@ -227,7 +188,6 @@ def test_suite():
     suite.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown))
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
-    suite.addTest(unittest.makeSuite(ZEOConfigTest))
     return suite
 
 

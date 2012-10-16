@@ -72,15 +72,6 @@ Traverses objects from the database root and attempts to calculate
 size of object, including all reachable subobjects.
 
 
-parsezeolog.py -- parse BLATHER logs from ZEO server
-
-This script may be obsolete.  It has not been tested against the
-current log output of the ZEO server.
-
-Reports on the time and size of transactions committed by a ZEO
-server, by inspecting log messages at BLATHER level.
-
-
 repozo.py -- incremental backup utility for FileStorage
 
 Run the script with the -h option to see usage details.
