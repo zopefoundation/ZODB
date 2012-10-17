@@ -114,7 +114,7 @@ def database_xrefs_config():
     False
     """
 
-def multi_atabases():
+def multi_databases():
     r"""If there are multiple codb sections -> multidatabase
 
     >>> db = ZODB.config.databaseFromString('''
@@ -180,6 +180,58 @@ def multi_atabases():
     Traceback (most recent call last):
     ...
     ValueError: database_name '' already in databases
+
+    """
+
+def test_blob_dir_permissions():
+    """
+
+    Blob directory permissions can be specified with the
+    `blob-dir-permissions` option.
+
+    >>> import os, tempfile
+    >>> fd, path = tempfile.mkstemp()
+    >>> os.close(fd)
+    >>> blob_dir = tempfile.mkdtemp()
+    >>> db = ZODB.config.databaseFromString('''
+    ... <zodb>
+    ...     <filestorage>
+    ...        path %s
+    ...        blob-dir %s
+    ...        blob-dir-permissions 0770
+    ...        create true
+    ...     </filestorage>
+    ... </zodb>
+    ... ''' % (path, blob_dir))
+
+    >>> oct(os.stat(db.storage.blob_dir).st_mode)
+    '040770'
+
+    The `blob-dir-permissions` option expects an octal.
+
+    >>> ZODB.config.databaseFromString('''
+    ... <zodb>
+    ...     <filestorage>
+    ...         path %s
+    ...         blob-dir %s
+    ...         blob-dir-permissions 888
+    ...     </filestorage>
+    ... </zodb>''' % (path, blob_dir,))
+    Traceback (most recent call last):
+    ...
+    ValueError: Expected an octal for blob_dir_permissions option, got: '888'
+
+    >>> ZODB.config.databaseFromString('''
+    ... <zodb>
+    ...     <filestorage>
+    ...         path %s
+    ...         blob-dir %s
+    ...         blob-dir-permissions xxxx
+    ...     </filestorage>
+    ... </zodb>''' % (path, blob_dir,))
+    Traceback (most recent call last):
+    ...
+    ValueError: Expected an octal for blob_dir_permissions option, got: 'xxxx'
 
     """
 

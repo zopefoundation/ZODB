@@ -169,11 +169,20 @@ class FileStorage(BaseConfig):
                 options['packer'] = getattr(m, name)
 
         for name in ('blob_dir', 'create', 'read_only', 'quota', 'pack_gc',
-                     'pack_keep_old', 'blob_dir_permissions'):
+                     'pack_keep_old',):
             v = getattr(config, name, self)
             if v is not self:
                 options[name] = v
-
+        # We perform the conversion of the blob dir permissions here,
+        # as ZConfig currently does not provide a sufficient data type
+        permissions = getattr(config, "blob_dir_permissions", None)
+        if permissions is not None:
+            try:
+               options["blob_dir_permissions"] = int(permissions, 8)
+            except ValueError:
+                raise ValueError(
+                    "Expected an octal for blob_dir_permissions option, "
+                    "got: %r" % (permissions,))
         return FileStorage(config.path, **options)
 
 class BlobStorage(BaseConfig):
