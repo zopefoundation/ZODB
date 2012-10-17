@@ -450,7 +450,8 @@ def secure_blob_directory():
 
     Blob dir permissions can also be specified explicitly.
 
-    >>> blob_storage = create_storage(blob_dir="blahbs", permissions=0770)
+    >>> blob_storage = create_storage(blob_dir="blahbs",
+    ...     blob_dir_permissions=0770)
     >>> os.path.isdir("blahbs")
     True
     >>> oct(os.stat("blahbs").st_mode)
@@ -683,11 +684,11 @@ def setUp(test):
 def setUpBlobAdaptedFileStorage(test):
     setUp(test)
 
-    def create_storage(name='data', blob_dir=None, permissions=None):
+    def create_storage(name='data', blob_dir=None, blob_dir_permissions=None):
         if blob_dir is None:
             blob_dir = '%s.bobs' % name
         return ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name),
-            permissions=permissions)
+            blob_dir_permissions=blob_dir_permissions)
 
     test.globs['create_storage'] = create_storage
 
@@ -702,10 +703,12 @@ def storage_reusable_suite(prefix, factory,
     """
     def setup(test):
         setUp(test)
-        def create_storage(name='data', blob_dir=None, permissions=None):
+        def create_storage(name='data', blob_dir=None,
+            blob_dir_permissions=None):
             if blob_dir is None:
                 blob_dir = '%s.bobs' % name
-            return factory(name, blob_dir, permissions=permissions)
+            return factory(name, blob_dir,
+                blob_dir_permissions=blob_dir_permissions)
 
         test.globs['create_storage'] = create_storage
 
@@ -729,10 +732,12 @@ def storage_reusable_suite(prefix, factory,
             ]),
         ))
 
-    def create_storage(self, name='data', blob_dir=None, permissions=None):
+    def create_storage(self, name='data', blob_dir=None,
+        blob_dir_permissions=None):
         if blob_dir is None:
             blob_dir = '%s.bobs' % name
-        return factory(name, blob_dir, permissions=permissions)
+        return factory(name, blob_dir,
+            blob_dir_permissions=blob_dir_permissions)
 
     def add_test_based_on_test_class(class_):
         new_class = class_.__class__(
@@ -774,9 +779,9 @@ def test_suite():
         ))
     suite.addTest(storage_reusable_suite(
         'BlobAdaptedFileStorage',
-        lambda name, blob_dir, permissions=None:
+        lambda name, blob_dir, blob_dir_permissions=None:
         ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name),
-            permissions=permissions),
+            permissions=blob_dir_permissions),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
