@@ -212,6 +212,10 @@ class ZEOClient(BaseConfig):
         if self.config.client_label is not None:
             options['client_label'] = self.config.client_label
 
+        if self.config.blob_dir_permissions is not None:
+            options["blob_dir_permissions"] = convert_permissions(self)
+
+
         return ClientStorage(
             L,
             blob_dir=self.config.blob_dir,
