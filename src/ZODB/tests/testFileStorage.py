@@ -676,16 +676,18 @@ def test_suite():
         tearDown=zope.testing.setupstack.tearDown))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'BlobFileStorage',
-        lambda name, blob_dir:
-        ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir),
+        lambda name, blob_dir, permissions=None:
+        ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir,
+            blob_dir_permissions=permissions),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'BlobFileHexStorage',
-        lambda name, blob_dir:
+        lambda name, blob_dir, permissions=None:
         ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
+            ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir,
+                blob_dir_permissions=permissions)),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))

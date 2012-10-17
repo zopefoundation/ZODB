@@ -446,9 +446,41 @@ def secure_blob_directory():
     >>> blob_storage.fshelper.isSecure(tmp_dir)
     False
 
+    >>> blob_storage.close()
+
+    Blob dir permissions can also be specified explicitly.
+
+    >>> blob_storage = create_storage(blob_dir="blahbs", permissions=0770)
+    >>> os.path.isdir("blahbs")
+    True
+    >>> oct(os.stat("blahbs").st_mode)
+    '040770'
+
+    >>> path = blob_storage.fshelper.getPathForOID(0x0, create=True)
+    >>> oct(os.stat(path).st_mode)
+    '040770'
+
+    When explicit blob dir permissions are specified, the `checkSecure`
+    method doesn't not log a warning.
+
+    >>> import zope.testing.loggingsupport
+    >>> handler = zope.testing.loggingsupport.InstalledHandler("ZODB.blob")
+    >>> blob_storage.fshelper.blob_dir_permissions = None
+    >>> blob_storage.fshelper.checkSecure()
+    >>> print handler # doctest: +ELLIPSIS
+    ZODB.blob WARNING
+      (...) Blob dir ...blahbs... has insecure mode setting
+
+    >>> handler.clear()
+    >>> blob_storage.fshelper.blob_dir_permissions = 0770
+    >>> blob_storage.fshelper.checkSecure()
+    >>> print handler
+    <BLANKLINE>
+
     Clean up:
 
     >>> blob_storage.close()
+    >>> handler.uninstall()
 
     """
 
@@ -591,7 +623,7 @@ def savepoint_commits_without_invalidations_out_of_order():
     >>> conn2.root.b.open().read()
     '2'
     >>> tm2.commit()
-    >>> tm1.commit()  # doctest: +IGNORE_EXCEPTION_DETAIL
+    >>> tm1.commit()  #doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
         ...
     ConflictError: database conflict error...
@@ -651,10 +683,11 @@ def setUp(test):
 def setUpBlobAdaptedFileStorage(test):
     setUp(test)
 
-    def create_storage(name='data', blob_dir=None):
+    def create_storage(name='data', blob_dir=None, permissions=None):
         if blob_dir is None:
             blob_dir = '%s.bobs' % name
-        return ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name))
+        return ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name),
+            permissions=permissions)
 
     test.globs['create_storage'] = create_storage
 
@@ -667,13 +700,12 @@ def storage_reusable_suite(prefix, factory,
 
     Pass a factory taking a name and a blob directory name.
     """
-
     def setup(test):
         setUp(test)
-        def create_storage(name='data', blob_dir=None):
+        def create_storage(name='data', blob_dir=None, permissions=None):
             if blob_dir is None:
                 blob_dir = '%s.bobs' % name
-            return factory(name, blob_dir)
+            return factory(name, blob_dir, permissions=permissions)
 
         test.globs['create_storage'] = create_storage
 
@@ -697,10 +729,10 @@ def storage_reusable_suite(prefix, factory,
             ]),
         ))
 
-    def create_storage(self, name='data', blob_dir=None):
+    def create_storage(self, name='data', blob_dir=None, permissions=None):
         if blob_dir is None:
             blob_dir = '%s.bobs' % name
-        return factory(name, blob_dir)
+        return factory(name, blob_dir, permissions=permissions)
 
     def add_test_based_on_test_class(class_):
         new_class = class_.__class__(
@@ -742,8 +774,9 @@ def test_suite():
         ))
     suite.addTest(storage_reusable_suite(
         'BlobAdaptedFileStorage',
-        lambda name, blob_dir:
-        ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name)),
+        lambda name, blob_dir, permissions=None:
+        ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name),
+            permissions=permissions),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))

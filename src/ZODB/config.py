@@ -169,7 +169,7 @@ class FileStorage(BaseConfig):
                 options['packer'] = getattr(m, name)
 
         for name in ('blob_dir', 'create', 'read_only', 'quota', 'pack_gc',
-                     'pack_keep_old'):
+                     'pack_keep_old', 'blob_dir_permissions'):
             v = getattr(config, name, self)
             if v is not self:
                 options[name] = v

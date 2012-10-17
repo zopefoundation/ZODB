@@ -23,6 +23,13 @@
         use a BlobStorage to provide blob support.)
       </description>
     </key>
+    <key name="blob-dir-permissions" required="no" datatype="string">
+      <description>
+        The octal representation of the permissions that should be
+        applied to any sub-directories created in the blob dir,
+        and the blob dir itself on initial creation.
+      </description>
+    </key>
     <key name="create" datatype="boolean">
       <description>
         Flag that indicates whether the storage should be truncated if

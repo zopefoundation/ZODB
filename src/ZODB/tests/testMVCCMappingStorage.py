@@ -122,7 +122,7 @@ class MVCCTests:
             self.assert_(r2['gamma']['delta'] == 'yes')
         finally:
             db.close()
-    
+
 
 class MVCCMappingStorageTests(
     StorageTestBase.StorageTestBase,
@@ -168,9 +168,9 @@ class MVCCMappingStorageTests(
         self._storage.tpc_begin(t)
         self.assertEqual(self._storage._tid, 'zzzzzzzz')
 
-def create_blob_storage(name, blob_dir):
+def create_blob_storage(name, blob_dir, permissions=None):
     s = MVCCMappingStorage(name)
-    return ZODB.blob.BlobStorage(blob_dir, s)
+    return ZODB.blob.BlobStorage(blob_dir, s, permissions=permissions)
 
 def test_suite():
     suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')

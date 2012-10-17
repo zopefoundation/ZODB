@@ -20,6 +20,7 @@ import base64
 import binascii
 import logging
 import os
+import os.path
 import re
 import shutil
 import stat
@@ -322,7 +323,8 @@ class FilesystemHelper:
     # with blobs and storages needn't indirect through this if they
     # want to perform blob storage differently.
 
-    blob_dir_permissions = 0700
+    default_blob_dir_permissions = 0700
+    blob_dir_permissions = None
 
     def __init__(self, base_dir, layout_name='automatic', permissions=None):
         self.base_dir = os.path.abspath(base_dir) + os.path.sep
@@ -340,11 +342,21 @@ class FilesystemHelper:
             self.blob_dir_permissions = permissions
 
     def makedirs(self, path):
-        umask = os.umask(0)
-        try:
-            os.makedirs(path, self.blob_dir_permissions)
-        finally:
-            os.umask(umask)
+        if self.blob_dir_permissions:
+            dirs = [path]
+            head, tail = os.path.split(path)
+            if not tail:
+                head, tail = os.path.split(head)
+            while head and tail and not os.path.exists(head):
+                dirs.append(head)
+                head, tail = os.path.split(head)
+            os.makedirs(path)
+            for path in dirs:
+                os.chmod(path, self.blob_dir_permissions)
+        else:
+            # we preserve legacy behavior here when explicit blob
+            # dir permissions are not specified.
+            os.makedirs(path, self.default_blob_dir_permissions)
 
     def create(self):
         if not os.path.exists(self.base_dir):
@@ -370,12 +382,11 @@ class FilesystemHelper:
                     (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
-        """Ensure that (POSIX) path mode bits for others is 0."""
-        # XXX
-        return (os.stat(path).st_mode & stat.S_IRWXO) == 0
+        """Ensure that (POSIX) path mode bits are 0700."""
+        return (os.stat(path).st_mode & 077) == 0
 
     def checkSecure(self):
-        if not self.isSecure(self.base_dir):
+        if not (self.blob_dir_permissions or self.isSecure(self.base_dir)):
             log('Blob dir %s has insecure mode setting' % self.base_dir,
                 level=logging.WARNING)
 
@@ -705,11 +716,12 @@ class BlobStorage(BlobStorageMixin):
     """
 
 
-    def __init__(self, base_directory, storage, layout='automatic'):
+    def __init__(self, base_directory, storage, layout='automatic',
+        permissions=None):
         assert not ZODB.interfaces.IBlobStorage.providedBy(storage)
         self.__storage = storage
 
-        self._blob_init(base_directory, layout)
+        self._blob_init(base_directory, layout, permissions=permissions)
         try:
             supportsUndo = storage.supportsUndo
         except AttributeError:

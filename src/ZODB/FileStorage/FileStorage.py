@@ -107,7 +107,7 @@ class FileStorage(
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
-                 blob_dir=None):
+                 blob_dir=None, blob_dir_permissions=None):
 
         if read_only:
             self._is_read_only = True
@@ -210,7 +210,7 @@ class FileStorage(
             if create and os.path.exists(self.blob_dir):
                 ZODB.blob.remove_committed_dir(self.blob_dir)
 
-            self._blob_init(blob_dir)
+            self._blob_init(blob_dir, permissions=blob_dir_permissions)
             zope.interface.alsoProvides(self,
                                         ZODB.interfaces.IBlobStorageRestoreable)
         else:
