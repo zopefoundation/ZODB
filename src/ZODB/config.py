@@ -151,6 +151,18 @@ class DemoStorage(BaseConfig):
         from ZODB.DemoStorage import DemoStorage
         return DemoStorage(self.config.name, base=base, changes=changes)
 
+def convert_permissions(config):
+    # We perform the conversion of the blob dir permissions here,
+    # as ZConfig currently does not provide a sufficient data type
+    permissions = getattr(config, "blob_dir_permissions", None)
+    if permissions is not None:
+        try:
+           return int(permissions, 8)
+        except ValueError:
+            raise ValueError(
+                "Expected an octal for blob_dir_permissions option, "
+                "got: %r" % (permissions,))
+
 class FileStorage(BaseConfig):
 
     def open(self):
@@ -173,16 +185,7 @@ class FileStorage(BaseConfig):
             v = getattr(config, name, self)
             if v is not self:
                 options[name] = v
-        # We perform the conversion of the blob dir permissions here,
-        # as ZConfig currently does not provide a sufficient data type
-        permissions = getattr(config, "blob_dir_permissions", None)
-        if permissions is not None:
-            try:
-               options["blob_dir_permissions"] = int(permissions, 8)
-            except ValueError:
-                raise ValueError(
-                    "Expected an octal for blob_dir_permissions option, "
-                    "got: %r" % (permissions,))
+        options["blob_dir_permissions"] = convert_permissions(config)
         return FileStorage(config.path, **options)
 
 class BlobStorage(BaseConfig):
@@ -190,7 +193,8 @@ class BlobStorage(BaseConfig):
     def open(self):
         from ZODB.blob import BlobStorage
         base = self.config.base.open()
-        return BlobStorage(self.config.blob_dir, base)
+        return BlobStorage(self.config.blob_dir, base,
+                permissions=convert_permissions(self.config))
 
 
 class ZEOClient(BaseConfig):
