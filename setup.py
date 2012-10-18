@@ -31,7 +31,7 @@ import os
 import sys
 
 if sys.version_info < (2, 6):
-    print "This version of ZODB requires Python 2.5 or higher"
+    print "This version of ZODB requires Python 2.6 or higher"
     sys.exit(0)
 
 # The (non-obvious!) choices for the Trove Development Status line:
