@@ -50,67 +50,6 @@ Operating System :: Unix
 Framework :: ZODB
 """
 
-# Include directories for C extensions
-# Sniff the location of the headers in 'persistent'.
-
-class ModuleHeaderDir(object):
-
-    def __init__(self, require_spec, where='..'):
-        # By default, assume top-level pkg has the same name as the dist.
-        # Also assume that headers are located in the package dir, and
-        # are meant to be included as follows:
-        #    #include "module/header_name.h"
-        self._require_spec = require_spec
-        self._where = where
-
-    def __str__(self):
-        from pkg_resources import require
-        from pkg_resources import resource_filename
-        require(self._require_spec)
-        return os.path.abspath(
-                    resource_filename(self._require_spec, self._where))
-
-include = [ModuleHeaderDir('persistent'), 'src']
-
-# Set up dependencies for the BTrees package
-base_btrees_depends = [
-    "src/BTrees/BTreeItemsTemplate.c",
-    "src/BTrees/BTreeModuleTemplate.c",
-    "src/BTrees/BTreeTemplate.c",
-    "src/BTrees/BucketTemplate.c",
-    "src/BTrees/MergeTemplate.c",
-    "src/BTrees/SetOpTemplate.c",
-    "src/BTrees/SetTemplate.c",
-    "src/BTrees/TreeSetTemplate.c",
-    "src/BTrees/sorters.c",
-    ]
-
-_flavors = {"O": "object", "I": "int", "F": "float", 'L': 'int'}
-
-KEY_H = "src/BTrees/%skeymacros.h"
-VALUE_H = "src/BTrees/%svaluemacros.h"
-
-
-def BTreeExtension(flavor):
-    key = flavor[0]
-    value = flavor[1]
-    name = "BTrees._%sBTree" % flavor
-    sources = ["src/BTrees/_%sBTree.c" % flavor]
-    kwargs = {"include_dirs": include}
-    if flavor != "fs":
-        kwargs["depends"] = (base_btrees_depends + [KEY_H % _flavors[key],
-                                                    VALUE_H % _flavors[value]])
-    else:
-        kwargs["depends"] = base_btrees_depends
-    if key != "O":
-        kwargs["define_macros"] = [('EXCLUDE_INTSET_SUPPORT', None)]
-    return Extension(name, sources, **kwargs)
-
-exts = [BTreeExtension(flavor)
-        for flavor in ("OO", "IO", "OI", "II", "IF",
-                       "fs", "LO", "OL", "LL", "LF",
-                       )]
-
 def _modname(path, base, name=''):
     if path == base:
         return name
@@ -170,7 +109,6 @@ setup(name="ZODB",
       maintainer_email="zodb-dev@zope.org",
       packages = find_packages('src'),
       package_dir = {'': 'src'},
-      ext_modules = exts,
       license = "ZPL 2.1",
       platforms = ["any"],
       description = doclines[0],
@@ -186,6 +124,7 @@ setup(name="ZODB",
       install_requires = [
         'transaction',
         'persistent',
+        'BTrees',
         'zc.lockfile',
         'ZConfig',
         'zdaemon',
