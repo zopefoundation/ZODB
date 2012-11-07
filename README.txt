@@ -6,39 +6,17 @@ Introduction
 ============
 
 The ZODB  package provides a  set of tools  for using the  Zope Object
-Database (ZODB).  The components you  get with the ZODB release are as
-follows:
+Database (ZODB).
 
-- Core ZODB, including the persistence machinery
-- Standard storages such as FileStorage
-- The persistent BTrees modules
-- ZEO, for scalability needs
-- documentation (needs a lot more work)
-
-Our primary development platforms are Linux, Mac OS X, and Windows
-XP.  The test suite should pass without error on all of these
-platforms, although it can take a long time on Windows -- longer if
-you use ZoneAlarm.  Many particularly slow tests are skipped unless
-you pass --all as an argument to test.py.
+Our primary development platforms are Linux and Mac OS X.  The test
+suite should pass without error on these platforms and, hopefully,
+Windows, although it can take a long time on Windows -- longer if you
+use ZoneAlarm.
 
 Compatibility
 =============
 
-ZODB 3.10 requires Python 2.5 or later.
-
-Note --
-   When using ZEO and upgrading from Python 2.4, you need to upgrade
-   clients and servers at the same time, or upgrade clients first and
-   then servers.  Clients running Python 2.5 or 2.6 will work with
-   servers running Python 2.4.  Clients running Python 2.4 won't work
-   properly with servers running Python 2.5 or later due to changes in
-   the way Python implements exceptions.
-
-ZODB ZEO clients from ZODB 3.2 on can talk to ZODB 3.10 servers.  ZODB
-ZEO 3.10 Clients can talk to ZODB 3.8, 3.9, and 3.10 ZEO servers.
-
-Note --
-   ZEO 3.10 servers don't support undo for older clients.
+ZODB 4.0 requires Python 2.6 or later.
 
 Prerequisites
 =============
@@ -46,10 +24,11 @@ Prerequisites
 You must have Python installed. If you're using a system Python
 install, make sure development support is installed too.
 
-You also need the transaction, zc.lockfile, ZConfig, zdaemon,
-zope.event, zope.interface, zope.proxy and zope.testing packages.  If
-you don't have them and you can connect to the Python Package Index,
-then these will be installed for you if you don't have them.
+You also need the transaction, BTrees, persistent, zc.lockfile,
+ZConfig, zdaemon, zope.event, zope.interface, zope.proxy and
+zope.testing packages.  If you don't have them and you can connect to
+the Python Package Index, then these will be installed for you if you
+don't have them.
 
 Installation
 ============
@@ -126,45 +105,6 @@ debugging, checking for consistency, summarizing content, reporting space used
 by objects, doing backups, artificial load testing, etc.
 Look at the ZODB/script directory for more informations.
 
-
-History
-=======
-
-The historical version numbering schemes for ZODB and ZEO are complicated.
-Starting with ZODB 3.4, the ZODB and ZEO version numbers are the same.
-
-In the ZODB 3.1 through 3.3 lines, the ZEO version number was "one smaller"
-than the ZODB version number; e.g., ZODB 3.2.7 included ZEO 2.2.7.  ZODB and
-ZEO were distinct releases prior to ZODB 3.1, and had independent version
-numbers.
-
-Historically, ZODB was distributed as a part of the Zope application
-server.  Jim Fulton's paper at the Python conference in 2000 described
-a version of ZODB he called ZODB 3, based on an earlier persistent
-object system called BoboPOS.  The earliest versions of ZODB 3 were
-released with Zope 2.0.
-
-Andrew Kuchling extracted ZODB from Zope 2.4.1 and packaged it for
-use by standalone Python programs.  He called this version
-"StandaloneZODB".  Andrew's guide to using ZODB is included in the Doc
-directory.  This version of ZODB was hosted at
-http://sf.net/projects/zodb.  It supported Python 1.5.2, and might
-still be of interest to users of this very old Python version.
-
-Zope Corporation released a version of ZODB called "StandaloneZODB
-1.0" in Feb. 2002.  This release was based on Andrew's packaging, but
-built from the same CVS repository as Zope.  It is roughly equivalent
-to the ZODB in Zope 2.5.
-
-Why not call the current release StandaloneZODB?  The name
-StandaloneZODB is a bit of a mouthful.  The standalone part of the
-name suggests that the Zope version is the real version and that this
-is an afterthought, which isn't the case.  So we're calling this
-release "ZODB". We also worked on a ZODB4 package for a while and
-made a couple of alpha releases.  We've now abandoned that effort,
-because we didn't have the resources to pursue ot while also maintaining
-ZODB(3).
-
 License
 =======
 
@@ -172,22 +112,13 @@ ZODB is distributed under the Zope Public License, an OSI-approved
 open source license.  Please see the LICENSE.txt file for terms and
 conditions.
 
-The ZODB/ZEO Programming Guide included in the documentation is a
-modified version of Andrew Kuchling's original guide, provided under
-the terms of the GNU Free Documentation License.
-
-
 More information
 ================
 
-We maintain a Wiki page about all things ZODB, including status on
-future directions for ZODB.  Please see
+See http://zodb.org/
 
-    http://wiki.zope.org/ZODB/FrontPage
-
-and feel free to contribute your comments.  There is a Mailman mailing
-list in place to discuss all issues related to ZODB.  You can send
-questions to
+There is a Mailman mailing list in place to discuss all issues related
+to ZODB.  You can send questions to
 
     zodb-dev@zope.org
 
@@ -201,23 +132,9 @@ and view its archives at
 
 Note that Zope Corp mailing lists have a subscriber-only posting policy.
 
-Andrew's ZODB Programmers Guide is made available in several
-forms, including DVI and HTML.  To view it online, point your
-browser at the file Doc/guide/zodb/index.html
-
-
 Bugs and Patches
 ================
 
 Bug reports and patches should be added to the Launchpad:
 
     https://launchpad.net/zodb
-
-
-..
-   Local Variables:
-   mode: indented-text
-   indent-tabs-mode: nil
-   sentence-end-double-space: t
-   fill-column: 70
-   End:
