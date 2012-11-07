@@ -16,7 +16,7 @@ use ZoneAlarm.
 Compatibility
 =============
 
-ZODB 4.0 requires Python 2.6 or later.
+ZODB 4.0 requires Python 2.6 or 2.7.
 
 Prerequisites
 =============
