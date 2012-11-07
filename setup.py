@@ -61,6 +61,10 @@ def alltests():
     import pkg_resources
     import unittest
 
+    # Something wacked in setting recursion limit when running setup test
+    import ZODB.FileStorage.tests
+    del ZODB.FileStorage.tests._save_index
+
     class NullHandler(logging.Handler):
         level = 50
 
