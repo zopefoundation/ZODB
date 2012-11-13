@@ -121,10 +121,6 @@ setup(name="ZODB",
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = tests_require,
       extras_require = dict(test=tests_require),
-      # XXX: We don't really want to install these headers;  we would
-      #      prefer just including them so that folks can build from an sdist.
-      headers = ['include/persistent/cPersistence.h',
-                 'include/persistent/ring.h'],
       install_requires = [
         'transaction',
         'persistent',
