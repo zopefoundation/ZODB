@@ -614,7 +614,6 @@ class PoisonedObject:
 def test_suite():
     return unittest.TestSuite((
         unittest.makeSuite(ZODBTests, 'check'),
-        doctest.DocTestSuite('ZODB.event'),
         ))
 
 if __name__ == "__main__":
