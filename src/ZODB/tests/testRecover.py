@@ -147,11 +147,11 @@ class RecoverTest(ZODB.tests.util.TestCase):
 
         L = self.storage.undoLog()
         r = L[3]
-        tid = base64.decodestring(r["id"] + "\n")
+        tid = base64.decodestring(r["id"] + b"\n")
         pos1 = self.storage._txn_find(tid, 0)
 
         r = L[8]
-        tid = base64.decodestring(r["id"] + "\n")
+        tid = base64.decodestring(r["id"] + b"\n")
         pos2 = self.storage._txn_find(tid, 0)
 
         self.storage.close()
@@ -185,7 +185,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
         # Find a transaction near the end.
         L = self.storage.undoLog()
         r = L[1]
-        tid = base64.decodestring(r["id"] + "\n")
+        tid = base64.decodestring(r["id"] + b"\n")
         pos = self.storage._txn_find(tid, 0)
 
         # Overwrite its status with 'c'.

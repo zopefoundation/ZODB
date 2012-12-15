@@ -32,11 +32,11 @@ import transaction
 import zope.interface
 import zope.interface.verify
 
-ZERO = '\0'*8
+ZERO = b'\0'*8
 
 class BasicStorage:
     def checkBasics(self):
-        self.assertEqual(self._storage.lastTransaction(), '\0'*8)
+        self.assertEqual(self._storage.lastTransaction(), ZERO)
 
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
@@ -220,7 +220,7 @@ class BasicStorage:
         return thread
 
     def check_checkCurrentSerialInTransaction(self):
-        oid = '\0\0\0\0\0\0\0\xf0'
+        oid = b'\0\0\0\0\0\0\0\xf0'
         tid = self._dostore(oid)
         tid2 = self._dostore(oid, revid=tid)
         data = 'cpersistent\nPersistent\nq\x01.N.' # a simple persistent obj
@@ -231,8 +231,8 @@ class BasicStorage:
         t = transaction.get()
         self._storage.tpc_begin(t)
         try:
-            self._storage.store('\0\0\0\0\0\0\0\xf1',
-                                '\0\0\0\0\0\0\0\0', data, '', t)
+            self._storage.store(b'\0\0\0\0\0\0\0\xf1',
+                                b'\0\0\0\0\0\0\0\0', data, '', t)
             self._storage.checkCurrentSerialInTransaction(oid, tid, t)
             self._storage.tpc_vote(t)
         except POSException.ReadConflictError, v:
@@ -249,8 +249,8 @@ class BasicStorage:
         transaction.begin()
         t = transaction.get()
         self._storage.tpc_begin(t)
-        self._storage.store('\0\0\0\0\0\0\0\xf2',
-                            '\0\0\0\0\0\0\0\0', data, '', t)
+        self._storage.store(b'\0\0\0\0\0\0\0\xf2',
+                            b'\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid2, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -261,8 +261,8 @@ class BasicStorage:
         transaction.begin()
         t = transaction.get()
         self._storage.tpc_begin(t)
-        self._storage.store('\0\0\0\0\0\0\0\xf3',
-                            '\0\0\0\0\0\0\0\0', data, '', t)
+        self._storage.store(b'\0\0\0\0\0\0\0\xf3',
+                            b'\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid2, t)
         self._storage.tpc_vote(t)
 
@@ -272,15 +272,15 @@ class BasicStorage:
         thread.join(33)
 
         tid3 = self._storage.load(oid)[1]
-        self.assert_(tid3 > self._storage.load('\0\0\0\0\0\0\0\xf3')[1])
+        self.assert_(tid3 > self._storage.load(b'\0\0\0\0\0\0\0\xf3')[1])
 
         #----------------------------------------------------------------------
         # non-stale competing trans after checkCurrentSerialInTransaction
         transaction.begin()
         t = transaction.get()
         self._storage.tpc_begin(t)
-        self._storage.store('\0\0\0\0\0\0\0\xf4',
-                            '\0\0\0\0\0\0\0\0', data, '', t)
+        self._storage.store(b'\0\0\0\0\0\0\0\xf4',
+                            b'\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid3, t)
 
         thread = self._do_store_in_separate_thread(oid, tid3, False)
@@ -298,7 +298,7 @@ class BasicStorage:
             self._storage.tpc_finish(t)
             thread.join()
             tid4 = self._storage.load(oid)[1]
-            self.assert_(tid4 > self._storage.load('\0\0\0\0\0\0\0\xf4')[1])
+            self.assert_(tid4 > self._storage.load(b'\0\0\0\0\0\0\0\xf4')[1])
 
 
     def check_tid_ordering_w_commit(self):

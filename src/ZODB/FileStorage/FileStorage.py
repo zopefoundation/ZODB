@@ -894,7 +894,7 @@ class FileStorage(
 
         with self._lock:
           # Find the right transaction to undo and call _txn_undo_write().
-          tid = base64.decodestring(transaction_id + '\n')
+          tid = base64.decodestring(transaction_id + b'\n')
           assert len(tid) == 8
           tpos = self._txn_find(tid, 1)
           tindex = self._txn_undo_write(tpos)
@@ -1048,8 +1048,9 @@ class FileStorage(
         if self._is_read_only:
             raise POSException.ReadOnlyError()
 
-        stop=`TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
-        if stop==z64: raise FileStorageError('Invalid pack time')
+        stop = TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
+        if stop==z64:
+            raise FileStorageError('Invalid pack time')
 
         # If the storage is empty, there's nothing to do.
         if not self._index:
@@ -1176,7 +1177,7 @@ class FileStorage(
             handle_dir = ZODB.blob.remove_committed_dir
 
         # Fist step: move or remove oids or revisions
-        for line in open(os.path.join(self.blob_dir, '.removed')):
+        for line in open(os.path.join(self.blob_dir, '.removed')): #XXX bytes
             line = line.strip().decode('hex')
 
             if len(line) == 8:
@@ -1471,7 +1472,7 @@ def read_index(file, name, index, tindex, stop='\377'*8,
 
     pos = start
     seek(start)
-    tid = '\0' * 7 + '\1'
+    tid = b'\0' * 7 + b'\1'
 
     while 1:
         # Read the transaction record
@@ -1664,7 +1665,7 @@ class FileIterator(FileStorageFormatter):
         # implementation.  So just return 0.
         return 0
 
-    # This allows us to pass an iterator as the `other' argument to
+    # This allows us to pass an iterator as the `other` argument to
     # copyTransactionsFrom() in BaseStorage.  The advantage here is that we
     # can create the iterator manually, e.g. setting start and stop, and then
     # just let copyTransactionsFrom() do its thing.
@@ -1681,7 +1682,7 @@ class FileIterator(FileStorageFormatter):
         file = self._file
         pos1 = self._pos
         file.seek(pos1)
-        tid1 = file.read(8)
+        tid1 = file.read(8) # XXX bytes
         if len(tid1) < 8:
             raise CorruptedError("Couldn't read tid.")
         if start < tid1:

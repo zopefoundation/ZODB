@@ -319,7 +319,7 @@ def run1(tid, db, factory, job, args):
         start, tid, wcomp, ccomp, rconflicts, wconflicts, wcommit, ccommit,
         factory.__name__, r)
 
-def run(jobs, tid=''):
+def run(jobs, tid=b''):
     import Zope2
     while 1:
         factory, job, args, repeatp = jobs.next()

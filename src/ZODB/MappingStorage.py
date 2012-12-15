@@ -189,7 +189,7 @@ class MappingStorage(object):
         if not self._data:
             return
 
-        stop = `ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
+        stop = ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
         if self._last_pack is not None and self._last_pack >= stop:
             if self._last_pack == stop:
                 return

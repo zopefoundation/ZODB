@@ -272,9 +272,9 @@ class FileStorageTests(
         self.open()
 
         key = None
-        for x in ('\000', '\001', '\002'):
+        for x in (b'\000', b'\001', b'\002'):
             oid, tid, data, next_oid = self._storage.record_iternext(key)
-            self.assertEqual(oid, ('\000' * 7) + x)
+            self.assertEqual(oid, (b'\000' * 7) + x)
             key = next_oid
             expected_data, expected_tid = self._storage.load(oid, '')
             self.assertEqual(expected_data, data)
@@ -432,7 +432,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
 def checkIncreasingTids(fs):
-    lasttid = '\0' * 8
+    lasttid = b'\0' * 8
     for txn in fs.iterator():
         if lasttid >= txn.tid:
             raise ValueError("tids out of order %r >= %r" % (lasttid, txn.tid))

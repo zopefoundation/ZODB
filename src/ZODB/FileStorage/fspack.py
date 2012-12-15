@@ -53,7 +53,7 @@ class PackCopier(FileStorageFormatter):
             self._file.seek(pos - 8)
             pos = pos - u64(self._file.read(8)) - 8
             self._file.seek(pos)
-            h = self._file.read(TRANS_HDR_LEN)
+            h = self._file.read(TRANS_HDR_LEN) # XXX bytes
             _tid = h[:8]
             if _tid == tid:
                 return pos

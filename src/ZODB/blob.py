@@ -435,7 +435,8 @@ class FilesystemHelper:
 
         """
         oidpath = self.getPathForOID(oid)
-        fd, name = tempfile.mkstemp(suffix='.tmp', prefix=utils.tid_repr(tid),
+        fd, name = tempfile.mkstemp(suffix='.tmp',
+                                    prefix=utils.tid_repr(tid),
                                     dir=oidpath)
         return fd, name
 
@@ -816,7 +817,7 @@ class BlobStorage(BlobStorageMixin):
 
         # The serial_id is assumed to be given to us base-64 encoded
         # (belying the web UI legacy of the ZODB code :-()
-        serial_id = base64.decodestring(serial_id+'\n')
+        serial_id = base64.decodestring(serial_id + b'\n')
 
         self._lock_acquire()
 

@@ -314,7 +314,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
                     print ("Time stamps out of order %s, %s" % (_ts, t))
                 ok = 0
                 _ts = t.laterThan(_ts)
-                tid = `_ts`
+                tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:

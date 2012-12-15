@@ -91,7 +91,7 @@ def check(path):
         raise FormatError("invalid file header")
 
     pos = 4L
-    tid = '\000' * 8 # lowest possible tid to start
+    tid = b'\000' * 8 # lowest possible tid to start
     i = 0
     while pos:
         _pos = pos
@@ -110,7 +110,7 @@ def check_trec(path, file, pos, ltid, file_size):
     used for generating error messages.
     """
 
-    h = file.read(TREC_HDR_LEN)
+    h = file.read(TREC_HDR_LEN) #XXX must be bytes under Py3k
     if not h:
         return None, None
     if len(h) != TREC_HDR_LEN:

@@ -380,7 +380,7 @@ def copy(source, dest, verbose=0):
                 if ok: print ('Time stamps out of order %s, %s' % (_ts, t))
                 ok = 0
                 _ts = t.laterThan(_ts)
-                tid = `_ts`
+                tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:

@@ -283,7 +283,7 @@ def copyfile(options, dst, start, n):
 
 
 def concat(files, ofp=None):
-    # Concatenate a bunch of files from the repository, output to `outfile' if
+    # Concatenate a bunch of files from the repository, output to 'ofp' if
     # given.  Return the number of bytes written and the md5 checksum of the
     # bytes.
     sum = md5()

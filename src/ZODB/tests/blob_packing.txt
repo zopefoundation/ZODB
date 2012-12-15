@@ -65,7 +65,7 @@ Put some revisions of a blob object in our database and on the filesystem:
 
     >>> oid = root['blob']._p_oid
     >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
-    >>> [ os.path.exists(x) for x in fns ]
+    >>> [ os.path.exists(x) for x in fns ] # no pack
     [True, True, True, True, True]
 
 Do a pack to the slightly before the first revision was written:

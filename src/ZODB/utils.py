@@ -66,7 +66,7 @@ def deprecated38(msg):
     warnings.warn("This will be removed in ZODB 3.8:\n%s" % msg,
                   DeprecationWarning, stacklevel=3)
 
-z64 = '\0'*8
+z64 = b'\0' * 8
 
 assert sys.hexversion >= 0x02030000
 
@@ -145,7 +145,7 @@ tid_repr = serial_repr
 
 # For example, produce
 #     '0x03441422948b4399 2002-04-14 20:50:34.815000'
-# for 8-byte string tid '\x03D\x14"\x94\x8bC\x99'.
+# for 8-byte string tid b'\x03D\x14"\x94\x8bC\x99'.
 def readable_tid_repr(tid):
     result = tid_repr(tid)
     if isinstance(tid, str) and len(tid) == 8:

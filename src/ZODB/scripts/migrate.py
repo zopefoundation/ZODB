@@ -262,7 +262,7 @@ def doit(srcdb, dstdb, options):
                         'Time stamps are out of order %s, %s' % (ts, t))
                     ok = False
                     ts = t.laterThan(ts)
-                    tid = `ts`
+                    tid = ts.raw()
                 else:
                     ts = t
                     if not ok:

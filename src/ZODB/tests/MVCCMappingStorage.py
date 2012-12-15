@@ -30,7 +30,7 @@ class MVCCMappingStorage(MappingStorage):
     def __init__(self, name="MVCC Mapping Storage"):
         MappingStorage.__init__(self, name=name)
         # _polled_tid contains the transaction ID at the last poll.
-        self._polled_tid = ''
+        self._polled_tid = b''
         self._data_snapshot = None  # {oid->(state, tid)}
         self._main_lock_acquire = self._lock_acquire
         self._main_lock_release = self._lock_release
@@ -77,7 +77,7 @@ class MVCCMappingStorage(MappingStorage):
             if self._transactions:
                 new_tid = self._transactions.maxKey()
             else:
-                new_tid = ''
+                new_tid = b''
 
             # Copy the current data into a snapshot. This is obviously
             # very inefficient for large storages, but it's good for
