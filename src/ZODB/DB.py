@@ -310,12 +310,12 @@ def getTID(at, before):
             at = toTimeStamp(at)
         else:
             at = TimeStamp(at)
-        before = repr(at.laterThan(at))
+        before = at.laterThan(at).raw()
     elif before is not None:
         if isinstance(before, datetime.datetime):
-            before = repr(toTimeStamp(before))
+            before = toTimeStamp(before).raw()
         else:
-            before = repr(TimeStamp(before))
+            before = TimeStamp(before).raw()
     return before
 
 
