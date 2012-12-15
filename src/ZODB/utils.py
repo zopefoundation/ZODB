@@ -117,7 +117,7 @@ def newTid(old):
     ts = TimeStamp(*time.gmtime(t)[:5]+(t%60,))
     if old is not None:
         ts = ts.laterThan(TimeStamp(old))
-    return `ts`
+    return ts.raw()
 
 
 def oid_repr(oid):

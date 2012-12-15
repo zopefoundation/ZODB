@@ -98,7 +98,7 @@ class BaseStorage(UndoLogCompatible):
 
         t = time.time()
         t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t%60,)))
-        self._tid = repr(t)
+        self._tid = t.raw()
 
         # ._oid is the highest oid in use (0 is always in use -- it's
         # a reserved oid for the root object).  Our new_oid() method
@@ -247,7 +247,7 @@ class BaseStorage(UndoLogCompatible):
                 now = time.time()
                 t = TimeStamp(*(time.gmtime(now)[:5] + (now % 60,)))
                 self._ts = t = t.laterThan(self._ts)
-                self._tid = repr(t)
+                self._tid = t.raw()
             else:
                 self._ts = TimeStamp(tid)
                 self._tid = tid
