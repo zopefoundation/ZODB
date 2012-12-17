@@ -2,8 +2,8 @@
  Change History
 ================
 
-Unreleased
-==========
+4.0.0a4 (2012-12-17)
+=====================
 
 - Enforced usage of bytes for '_p_serial' of persistent objects (fixes
   compatibility with recent persistent releases).
