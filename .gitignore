@@ -1,0 +1,16 @@
+bin
+eggs
+develop-eggs
+parts
+.installed.cfg
+build
+docs/_build
+__pycache__
+*.pyc
+*.so
+.tox
+.coverage
+nosetests.xml
+coverage.xml
+*.egg-info
+*.egg

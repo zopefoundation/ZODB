@@ -101,8 +101,8 @@ def read_file(*path):
 long_description = str(
     ("\n".join(doclines[2:]) + "\n\n" +
      ".. contents::\n\n" +
-     read_file("README.txt")  + "\n\n" +
-     read_file("CHANGES.txt")
+     read_file("README.rst")  + "\n\n" +
+     read_file("CHANGES.rst")
     ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
     )+ '''\n\n.. |Lowis| unicode:: L \\xf6 wis\n'''
 
