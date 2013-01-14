@@ -8,8 +8,8 @@ Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
 
-import ZODB
-from ZODB.FileStorage import FileStorage
+from ZODB.DB import DB
+from ZODB.FileStorag.FileStoragee import FileStorage
 from BTrees.check import check
 
 # Set of oids we've already visited.  Since the object structure is
@@ -73,7 +73,7 @@ def main(fname=None):
             sys.exit(2)
         
     fs = FileStorage(fname, read_only=1)
-    cn = ZODB.DB(fs).open()
+    cn = DB(fs).open()
     rt = cn.root()
     todo = []
     add_if_new_persistent(todo, rt, '')

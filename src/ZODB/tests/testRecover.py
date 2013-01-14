@@ -22,7 +22,7 @@ import StringIO
 
 import ZODB
 import ZODB.tests.util
-from ZODB.FileStorage import FileStorage
+from ZODB.FileStorage.FileStorage import FileStorage
 import ZODB.fsrecover
 
 from persistent.mapping import PersistentMapping
@@ -49,7 +49,8 @@ class RecoverTest(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.tearDown(self)
 
     def populate(self):
-        db = ZODB.DB(self.storage)
+        from ZODB.DB import DB
+        db = DB(self.storage)
         cn = db.open()
         rt = cn.root()
 

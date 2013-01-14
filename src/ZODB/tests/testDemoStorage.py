@@ -202,14 +202,15 @@ def load_before_base_storage_current():
     >>> import ZODB.MappingStorage
     >>> import ZODB.utils
 
+    >>> from ZODB.DB import DB
     >>> base = ZODB.MappingStorage.MappingStorage()
-    >>> basedb = ZODB.DB(base)
+    >>> basedb = DB(base)
     >>> conn = basedb.open()
     >>> conn.root()['foo'] = 'bar'
     >>> transaction.commit()
     >>> conn.close()
     >>> storage = ZODB.DemoStorage.DemoStorage(base=base)
-    >>> db = ZODB.DB(storage)
+    >>> db = DB(storage)
     >>> conn = db.open()
     >>> conn.root()['foo'] = 'baz'
     >>> time.sleep(.1) # Windows has a low-resolution clock

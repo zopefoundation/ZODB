@@ -83,6 +83,7 @@ except ImportError:
 import ZODB.FileStorage
 from ZODB.utils import u64
 from ZODB.FileStorage import TransactionRecord
+from ZODB.FileStorage.FileStorage import FileStorage
 
 from persistent.TimeStamp import TimeStamp
 
@@ -271,7 +272,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
     f.seek(0,2)
     file_size = f.tell()
 
-    ofs = ZODB.FileStorage.FileStorage(outp, create=1)
+    ofs = FileStorage(outp, create=1)
     _ts = None
     ok = 1
     prog1 = 0

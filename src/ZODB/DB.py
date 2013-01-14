@@ -399,11 +399,11 @@ class DB(object):
             references are allowed
         """
         if isinstance(storage, basestring):
-            from ZODB import FileStorage
-            storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
+            from ZODB.FileStorage.FileStorage import FileStorage
+            storage = FileStorage(storage, **storage_args)
         elif storage is None:
-            from ZODB import MappingStorage
-            storage = ZODB.MappingStorage.MappingStorage(**storage_args)
+            from ZODB.MappingStorage import MappingStorage
+            storage = MappingStorage(**storage_args)
 
         # Allocate lock.
         x = threading.RLock()

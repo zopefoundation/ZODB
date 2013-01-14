@@ -11,18 +11,18 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import unittest
 
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-from ZODB.POSException import ReadConflictError
-from ZODB.POSException import TransactionFailedError
-
-import doctest
 import transaction
-import unittest
-import ZODB
+
+import ZODB.Connection
+import ZODB.DB
 import ZODB.FileStorage
 import ZODB.MappingStorage
+from ZODB.POSException import ReadConflictError
+from ZODB.POSException import TransactionFailedError
 import ZODB.tests.util
 
 class P(Persistent):
@@ -34,7 +34,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.setUp(self)
         self._storage = ZODB.FileStorage.FileStorage(
             'ZODBTests.fs', create=1)
-        self._db = ZODB.DB(self._storage)
+        self._db = ZODB.DB.DB(self._storage)
 
     def tearDown(self):
         self._db.close()

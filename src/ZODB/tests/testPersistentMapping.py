@@ -24,7 +24,7 @@ import unittest
 
 import transaction
 from transaction import Transaction
-import ZODB
+import ZODB.DB
 from ZODB.MappingStorage import MappingStorage
 import cPickle
 import cStringIO
@@ -53,7 +53,7 @@ class PMTests(unittest.TestCase):
         s.tpc_vote(t)
         s.tpc_finish(t)
 
-        db = ZODB.DB(s)
+        db = ZODB.DB.DB(s)
         # If the root can be loaded successfully, we should be okay.
         r = db.open().root()
         # But make sure it looks like a new mapping
@@ -68,7 +68,7 @@ class PMTests(unittest.TestCase):
     # getting run.
     def TODO_checkNewPicklesAreSafe(self):
         s = MappingStorage()
-        db = ZODB.DB(s)
+        db = ZODB.DB.DB(s)
         r = db.open().root()
         r[1] = 1
         r[2] = 2

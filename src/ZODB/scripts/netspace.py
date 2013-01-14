@@ -8,7 +8,7 @@ usage: netspace.py [-P | -v] data.fs
 -v: print info for all objects, even if a traversal path isn't found
 """
 
-import ZODB
+from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
 from ZODB.serialize import referencesf
@@ -48,12 +48,12 @@ def find_paths(root, maxdist):
 
     return paths
 
-def main(path):
+def main(path, pack=0, verbose=0):
     fs = FileStorage(path, read_only=1)
-    if PACK:
+    if pack:
         fs.pack()
 
-    db = ZODB.DB(fs)
+    db = DB(fs)
     rt = db.open().root()
     paths = find_paths(rt, 3)
 
@@ -81,7 +81,7 @@ def main(path):
     keys.sort()
     keys.reverse()
 
-    if not VERBOSE:
+    if not verbose:
         # If not running verbosely, don't print an entry for an object
         # unless it has an entry in paths.
         keys = filter(paths.has_key, keys)
@@ -99,11 +99,8 @@ def Main():
     import sys
     import getopt
 
-    global PACK
-    global VERBOSE
-
-    PACK = 0
-    VERBOSE = 0
+    pack = 0
+    verbose = 0
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'Pv')
         path, = args
@@ -117,10 +114,10 @@ def Main():
         sys.exit(2)
     for o, v in opts:
         if o == '-P':
-            PACK = 1
+            pack = 1
         if o == '-v':
-            VERBOSE += 1
-    main(path)
+            verbose += 1
+    main(path, path, verbose)
 
 if __name__ == "__main__":
     Main()

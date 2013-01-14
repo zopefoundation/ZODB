@@ -97,6 +97,7 @@ class BaseConfig:
 class ZODBDatabase(BaseConfig):
 
     def open(self, databases=None):
+        from ZODB.DB import DB
         section = self.config
         storage = section.storage.open()
         options = {}
@@ -113,7 +114,7 @@ class ZODBDatabase(BaseConfig):
         _option('large_record_size')
 
         try:
-            return ZODB.DB(
+            return DB(
                 storage,
                 pool_size=section.pool_size,
                 cache_size=section.cache_size,
@@ -154,7 +155,7 @@ class DemoStorage(BaseConfig):
 class FileStorage(BaseConfig):
 
     def open(self):
-        from ZODB.FileStorage import FileStorage
+        from ZODB.FileStorage.FileStorage import FileStorage
         config = self.config
         options = {}
         if getattr(config, 'packer', None):

@@ -330,8 +330,9 @@ class UserMethodTests(unittest.TestCase):
         
         Set up a multi-database:
         
-            >>> db1 = ZODB.DB(None)
-            >>> db2 = ZODB.DB(None, databases=db1.databases, database_name='2',
+            >>> from ZODB.DB import DB
+            >>> db1 = DB(None)
+            >>> db2 = DB(None, databases=db1.databases, database_name='2',
             ...               cache_size=10)
             >>> conn1 = db1.open()
             >>> conn2 = conn1.get_connection('2')
@@ -669,7 +670,8 @@ implementation of checkCurrentSerialInTransaction.
 Now, we'll use the storage as usual.  checkCurrentSerialInTransaction
 won't normally be called:
 
-    >>> db = ZODB.DB(store)
+    >>> from ZODB.DB import DB
+    >>> db = DB(store)
     >>> conn = db.open()
     >>> conn.root.a = ZODB.tests.util.P('a')
     >>> conn.root.b = ZODB.tests.util.P('b')
@@ -799,8 +801,9 @@ thatcache management is applied to all of the connections.
 
 Set up a multi-database:
 
-    >>> db1 = ZODB.DB(None)
-    >>> db2 = ZODB.DB(None, databases=db1.databases, database_name='2',
+    >>> from ZODB.DB import DB
+    >>> db1 = DB(None)
+    >>> db2 = DB(None, databases=db1.databases, database_name='2',
     ...               cache_size=10)
     >>> conn1 = db1.open()
     >>> conn2 = conn1.get_connection('2')

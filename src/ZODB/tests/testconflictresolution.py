@@ -50,7 +50,8 @@ def succeed_with_resolution_when_state_is_unchanged():
     If a conflicting change doesn't change the state, then don't even
     bother calling _p_resolveConflict
 
-    >>> db = ZODB.DB('t.fs') # FileStorage!
+    >>> from ZODB.DB import DB
+    >>> db = DB('t.fs') # FileStorage!
     >>> storage = db.storage
     >>> conn = db.open()
     >>> conn.root.x = ResolveableWhenStateDoesNotChange()
@@ -161,7 +162,8 @@ references to classes that can't be imported.
     >>> class P(persistent.Persistent):
     ...     pass
 
-    >>> db = ZODB.DB('t.fs') # FileStorage!
+    >>> from ZODB.DB import DB
+    >>> db = DB('t.fs') # FileStorage!
     >>> storage = db.storage
     >>> conn = db.open()
     >>> conn.root.x = Resolveable()
@@ -243,9 +245,10 @@ def resolve_even_when_xdb_referenced_classes_are_absent():
     >>> class P(persistent.Persistent):
     ...     pass
 
+    >>> from ZODB.DB import DB
     >>> databases = {}
-    >>> db = ZODB.DB('t.fs', databases=databases, database_name='')
-    >>> db2 = ZODB.DB('o.fs', databases=databases, database_name='o')
+    >>> db = DB('t.fs', databases=databases, database_name='')
+    >>> db2 = DB('o.fs', databases=databases, database_name='o')
     >>> storage = db.storage
     >>> conn = db.open()
     >>> conn.root.x = Resolveable()

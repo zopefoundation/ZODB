@@ -25,13 +25,15 @@ def pack_keep_old():
 
 The pack_keep_old constructor argument controls whether a .old file (and .old directory for blobs is kept.)
 
-    >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')
-    >>> db = ZODB.DB(fs)
+    >>> from ZODB.DB import DB
+    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.blob import Blob
+    >>> fs = FileStorage('data.fs', blob_dir='blobs')
+    >>> db = DB(fs)
     >>> conn = db.open()
-    >>> import ZODB.blob
-    >>> conn.root()[1] = ZODB.blob.Blob()
+    >>> conn.root()[1] = Blob()
     >>> conn.root()[1].open('w').write('some data')
-    >>> conn.root()[2] = ZODB.blob.Blob()
+    >>> conn.root()[2] = Blob()
     >>> conn.root()[2].open('w').write('some data')
     >>> transaction.commit()
     >>> conn.root()[1].open('w').write('some other data')
@@ -61,13 +63,13 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     >>> db.close()
 
 
-    >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs',
-    ...                                   create=True, pack_keep_old=False)
-    >>> db = ZODB.DB(fs)
+    >>> fs = FileStorage('data.fs', blob_dir='blobs',
+    ...                  create=True, pack_keep_old=False)
+    >>> db = DB(fs)
     >>> conn = db.open()
-    >>> conn.root()[1] = ZODB.blob.Blob()
+    >>> conn.root()[1] = Blob()
     >>> conn.root()[1].open('w').write('some data')
-    >>> conn.root()[2] = ZODB.blob.Blob()
+    >>> conn.root()[2] = Blob()
     >>> conn.root()[2].open('w').write('some data')
     >>> transaction.commit()
     >>> conn.root()[1].open('w').write('some other data')
@@ -93,10 +95,13 @@ def pack_with_repeated_blob_records():
     fixed by the time you read this, but there might still be
     transactions in the wild that have duplicate records.
 
-    >>> fs = ZODB.FileStorage.FileStorage('t', blob_dir='bobs')
-    >>> db = ZODB.DB(fs)
+    >>> from ZODB.DB import DB
+    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.blob import Blob
+    >>> fs = FileStorage('t', blob_dir='bobs')
+    >>> db = DB(fs)
     >>> conn = db.open()
-    >>> conn.root()[1] = ZODB.blob.Blob()
+    >>> conn.root()[1] = Blob()
     >>> transaction.commit()
     >>> tm = transaction.TransactionManager()
     >>> oid = conn.root()[1]._p_oid

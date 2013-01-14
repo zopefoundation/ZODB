@@ -894,7 +894,7 @@ class MonteCarloTests(unittest.TestCase):
 
 
 def test_suite():
-    return unittest.TestSuite([
+    suite = unittest.TestSuite([
         unittest.makeSuite(Test_dofile),
         unittest.makeSuite(Test_checksum),
         unittest.makeSuite(Test_copyfile),

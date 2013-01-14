@@ -17,29 +17,30 @@ Each DB Connection has a separate PickleCache.  The Cache serves two
 purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
-
-from persistent.cPickleCache import PickleCache
-from persistent import Persistent
-from persistent.mapping import PersistentMapping
-from ZODB.tests.MinPO import MinPO
-from ZODB.utils import p64
+import unittest
 import doctest
 import gc
 import sys
 import threading
+
+from persistent.cPickleCache import PickleCache
+from persistent import Persistent
+from persistent.mapping import PersistentMapping
 import transaction
-import unittest
-import ZODB
+
+import ZODB.DB
 import ZODB.MappingStorage
+from ZODB.tests.MinPO import MinPO
 import ZODB.tests.util
+from ZODB.utils import p64
 
 class CacheTestBase(ZODB.tests.util.TestCase):
 
     def setUp(self):
         ZODB.tests.util.TestCase.setUp(self)
         store = ZODB.MappingStorage.MappingStorage()
-        self.db = ZODB.DB(store,
-                          cache_size = self.CACHE_SIZE)
+        self.db = ZODB.DB.DB(store,
+                             cache_size = self.CACHE_SIZE)
         self.conns = []
 
     def tearDown(self):

@@ -51,7 +51,8 @@ into increasing order.
 
 Create a root object and try again:
 
->>> db = ZODB.DB(st) # yes, that creates a root object!
+>>> from ZODB.DB import DB
+>>> db = DB(st) # yes, that creates a root object!
 >>> t = Tracer(path)
 >>> t.register_oids(0, 1)
 >>> t.run(); t.report() #doctest: +ELLIPSIS

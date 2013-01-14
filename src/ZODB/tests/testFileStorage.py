@@ -53,7 +53,8 @@ class FileStorageTests(
     ):
 
     def open(self, **kwargs):
-        self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
+        from ZODB.FileStorage.FileStorage import FileStorage
+        self._storage = FileStorage('FileStorageTests.fs',
                                                      **kwargs)
 
     def setUp(self):
@@ -287,8 +288,9 @@ class FileStorageTests(
 class FileStorageHexTests(FileStorageTests):
 
     def open(self, **kwargs):
+        from ZODB.FileStorage.FileStorage import FileStorage
         self._storage = ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage('FileStorageTests.fs',**kwargs))
+            FileStorage('FileStorageTests.fs',**kwargs))
 
 
 class FileStorageTestsWithBlobsEnabled(FileStorageTests):
@@ -314,46 +316,54 @@ class FileStorageRecoveryTest(
     ):
 
     def setUp(self):
+        from ZODB.FileStorage.FileStorage import FileStorage
         StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
-        self._dst = ZODB.FileStorage.FileStorage("Dest.fs", create=True)
+        self._storage = FileStorage("Source.fs", create=True)
+        self._dst = FileStorage("Dest.fs", create=True)
 
     def tearDown(self):
         self._dst.close()
         StorageTestBase.StorageTestBase.tearDown(self)
 
     def new_dest(self):
-        return ZODB.FileStorage.FileStorage('Dest.fs')
+        from ZODB.FileStorage.FileStorage import FileStorage
+        return FileStorage('Dest.fs')
 
 class FileStorageHexRecoveryTest(FileStorageRecoveryTest):
 
     def setUp(self):
+        from ZODB.FileStorage.FileStorage import FileStorage
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage("Source.fs", create=True))
+            FileStorage("Source.fs", create=True))
         self._dst = ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage("Dest.fs", create=True))
-
-
-class FileStorageNoRestore(ZODB.FileStorage.FileStorage):
-
-    @property
-    def restore(self):
-        raise Exception
+            FileStorage("Dest.fs", create=True))
 
 
 class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
     # This test actually verifies a code path of
     # BaseStorage.copyTransactionsFrom. For simplicity of implementation, we
     # use a FileStorage deprived of its restore method.
+    _wo_restore = None
+    @property
+    def wo_restore(self):
+        if self._wo_restore is None:
+            from ZODB.FileStorage.FileStorage import FileStorage
+            class FileStorageNoRestore(FileStorage):
+
+                @property
+                def restore(self):
+                    raise Exception
+            self._wo_restore = FileStorageNoRestore
+        return self._wo_restore
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = FileStorageNoRestore("Source.fs", create=True)
-        self._dst = FileStorageNoRestore("Dest.fs", create=True)
+        self._storage = self.wo_restore("Source.fs", create=True)
+        self._dst = self.wo_restore("Dest.fs", create=True)
 
     def new_dest(self):
-        return FileStorageNoRestore('Dest.fs')
+        return self.wo_restore('Dest.fs')
 
     def checkRestoreAcrossPack(self):
         # Skip this check as it calls restore directly.
@@ -630,8 +640,10 @@ def pack_with_open_blob_files():
     """
     Make sure packing works while there are open blob files.
 
-    >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')
-    >>> db = ZODB.DB(fs)
+    >>> from ZODB.DB import DB
+    >>> from ZODB.FileStorage import FileStorage
+    >>> fs = FileStorage('data.fs', blob_dir='blobs')
+    >>> db = DB(fs)
     >>> tm1 = transaction.TransactionManager()
     >>> conn1 = db.open(tm1)
     >>> import ZODB.blob

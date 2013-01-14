@@ -6,7 +6,7 @@ import time
 from persistent.mapping import PersistentMapping
 import transaction
 
-import ZODB
+import ZODB.DB
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.tests.MinPO import MinPO
@@ -226,12 +226,12 @@ class MTStorage:
             self.failIf(t.isAlive(), "thread failed to finish in 60 seconds")
 
     def check2ZODBThreads(self):
-        db = ZODB.DB(self._storage)
+        db = ZODB.DB.DB(self._storage)
         self._checkNThreads(2, ZODBClientThread, db, self)
         db.close()
 
     def check7ZODBThreads(self):
-        db = ZODB.DB(self._storage)
+        db = ZODB.DB.DB(self._storage)
         self._checkNThreads(7, ZODBClientThread, db, self)
         db.close()
 

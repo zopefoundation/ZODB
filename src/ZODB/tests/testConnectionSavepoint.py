@@ -96,7 +96,8 @@ to trigger cache gc, and this test verifies that it now does.
     >>> CACHESIZE = 5  # something tiny
     >>> LOOPCOUNT = CACHESIZE * 10
     >>> st = MappingStorage("Test")
-    >>> db = ZODB.DB(st, cache_size=CACHESIZE)
+    >>> from ZODB.DB import DB
+    >>> db = DB(st, cache_size=CACHESIZE)
     >>> cn = db.open()
     >>> rt = cn.root()
 

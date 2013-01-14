@@ -11,25 +11,23 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from zope.testing import setupstack
-import doctest
-import ZODB
 
 def test_fstest_verbose():
     r"""
-    >>> db = ZODB.DB('data.fs')
+    >>> from ZODB.DB import DB
+    >>> db = DB('data.fs')
     >>> db.close()
-    >>> import ZODB.scripts.fstest
-    >>> ZODB.scripts.fstest.main(['data.fs'])
+    >>> from ZODB.scripts.fstest import main
+    >>> main(['data.fs'])
 
-    >>> ZODB.scripts.fstest.main(['data.fs'])
+    >>> main(['data.fs'])
 
-    >>> ZODB.scripts.fstest.main(['-v', 'data.fs'])
+    >>> main(['-v', 'data.fs'])
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
              4: transaction tid ... #0
     no errors detected
 
-    >>> ZODB.scripts.fstest.main(['-vvv', 'data.fs'])
+    >>> main(['-vvv', 'data.fs'])
     ... # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
             52: object oid 0x0000000000000000 #0
              4: transaction tid ... #0
@@ -39,6 +37,8 @@ def test_fstest_verbose():
 
 
 def test_suite():
+    import doctest
+    from zope.testing import setupstack
     return doctest.DocTestSuite(
         setUp=setupstack.setUpDirectory, tearDown=setupstack.tearDown)
 

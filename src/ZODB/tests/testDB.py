@@ -11,15 +11,17 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import unittest
 
-from ZODB.tests.MinPO import MinPO
 import doctest
 import os
 import sys
 import time
+
 import transaction
-import unittest
 import ZODB
+import ZODB.DB
+from ZODB.tests.MinPO import MinPO
 import ZODB.tests.util
 
 # Return total number of connections across all pools in a db._pools.
@@ -30,7 +32,7 @@ class DBTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
         ZODB.tests.util.TestCase.setUp(self)
-        self.db = ZODB.DB('test.fs')
+        self.db = ZODB.DB.DB('test.fs')
 
     def tearDown(self):
         self.db.close()
@@ -151,7 +153,8 @@ def passing_a_file_name_to_DB():
 
     (Also note that we can access DB in ZODB.)
 
-    >>> db = ZODB.DB('data.fs')
+    >>> from ZODB.DB import DB
+    >>> db = DB('data.fs')
     >>> db.storage # doctest: +ELLIPSIS
     <ZODB.FileStorage.FileStorage.FileStorage object at ...
     >>> os.path.exists('data.fs')
@@ -165,7 +168,8 @@ def passing_None_to_DB():
 
     (Also note that we can access DB in ZODB.)
 
-    >>> db = ZODB.DB(None)
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> db.storage # doctest: +ELLIPSIS
     <ZODB.MappingStorage.MappingStorage object at ...
     >>> db.close()
@@ -185,7 +189,8 @@ def open_convenience():
     Let's make sure the database was cloased when we closed the
     connection, and that the data is there.
 
-    >>> db = ZODB.DB('data.fs')
+    >>> from ZODB.DB import DB
+    >>> db = DB('data.fs')
     >>> conn = db.open()
     >>> conn.root()
     {'x': 1}
@@ -200,7 +205,8 @@ def open_convenience():
     >>> transaction.commit()
     >>> conn.close()
 
-    >>> db = ZODB.DB('data.fs', blob_dir='blobs')
+    >>> from ZODB.DB import DB
+    >>> db = DB('data.fs', blob_dir='blobs')
     >>> conn = db.open()
     >>> conn.root()['b'].open().read()
     'test'
@@ -268,7 +274,8 @@ if sys.version_info >= (2, 6):
 
 def connection_allows_empty_version_for_idiots():
     r"""
-    >>> db = ZODB.DB('t.fs')
+    >>> from ZODB.DB import DB
+    >>> db = DB('t.fs')
     >>> c = ZODB.tests.util.assert_deprecated(
     ...       (lambda : db.open('')),
     ...       'A version string was passed to open')
@@ -282,7 +289,8 @@ def warn_when_data_records_are_big():
 When data records are large, a warning is issued to try to prevent new
 users from shooting themselves in the foot.
 
-    >>> db = ZODB.DB('t.fs', create=True)
+    >>> from ZODB.DB import DB
+    >>> db = DB('t.fs', create=True)
     >>> conn = db.open()
     >>> conn.root.x = 'x'*(1<<24)
     >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
@@ -291,7 +299,8 @@ users from shooting themselves in the foot.
 
 The large_record_size option can be used to control the record size:
 
-    >>> db = ZODB.DB('t.fs', create=True, large_record_size=999)
+    >>> from ZODB.DB import DB
+    >>> db = DB('t.fs', create=True, large_record_size=999)
     >>> conn = db.open()
     >>> conn.root.x = 'x'
     >>> transaction.commit()
@@ -330,7 +339,8 @@ def minimally_test_connection_timeout():
 
     Make sure it doesn't error. :)
 
-    >>> db = ZODB.DB(None, pool_timeout=.01)
+    >>> from ZODB.DB import DB
+    >>> db = DB(None, pool_timeout=.01)
     >>> c1 = db.open()
     >>> c2 = db.open()
     >>> c1.close()
