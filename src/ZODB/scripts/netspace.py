@@ -11,7 +11,7 @@ usage: netspace.py [-P | -v] data.fs
 import ZODB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
-from ZODB.referencesf import referencesf
+from ZODB.serialize import referencesf
 
 def find_paths(root, maxdist):
     """Find Python attribute traversal paths for objects to maxdist distance.
