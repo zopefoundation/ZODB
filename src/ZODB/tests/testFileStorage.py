@@ -11,45 +11,46 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import cPickle
-import doctest
-import os
-if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
-    from zope.testing import doctest
 import unittest
-import transaction
-import ZODB.FileStorage
-import ZODB.tests.hexstorage
-import ZODB.tests.testblob
-import ZODB.tests.util
-import zope.testing.setupstack
-from ZODB import POSException
-from ZODB import DB
-from ZODB.fsIndex import fsIndex
 
-from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
-from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
-from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
-from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
-from ZODB.tests import ReadOnlyStorage, RecoveryStorage
-from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
+
+# Using these testcase base classes requires imprting at test module scope.
+from ZODB.tests.BasicStorage import BasicStorage
+from ZODB.tests.ConflictResolution import ConflictResolvingStorage
+from ZODB.tests.ConflictResolution import ConflictResolvingTransUndoStorage
+from ZODB.tests.HistoryStorage import HistoryStorage
+from ZODB.tests.IteratorStorage import ExtendedIteratorStorage
+from ZODB.tests.IteratorStorage import IteratorStorage
+from ZODB.tests.MTStorage import MTStorage
+from ZODB.tests.PackableStorage import IExternalGC_suite
+from ZODB.tests.PackableStorage import PackableStorageWithOptionalGC
+from ZODB.tests.PackableStorage import PackableUndoStorage
+from ZODB.tests.PersistentStorage import PersistentStorage
+from ZODB.tests.ReadOnlyStorage import ReadOnlyStorage
+from ZODB.tests.RecoveryStorage import RecoveryStorage
+from ZODB.tests.RevisionStorage import RevisionStorage
+from ZODB.tests.StorageTestBase import MinPO
+from ZODB.tests.StorageTestBase import StorageTestBase
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.tests.Synchronization import SynchronizedStorage
+from ZODB.tests.TransactionalUndoStorage import TransactionalUndoStorage
 
 class FileStorageTests(
-    StorageTestBase.StorageTestBase,
-    BasicStorage.BasicStorage,
-    TransactionalUndoStorage.TransactionalUndoStorage,
-    RevisionStorage.RevisionStorage,
-    PackableStorage.PackableStorageWithOptionalGC,
-    PackableStorage.PackableUndoStorage,
-    Synchronization.SynchronizedStorage,
-    ConflictResolution.ConflictResolvingStorage,
-    ConflictResolution.ConflictResolvingTransUndoStorage,
-    HistoryStorage.HistoryStorage,
-    IteratorStorage.IteratorStorage,
-    IteratorStorage.ExtendedIteratorStorage,
-    PersistentStorage.PersistentStorage,
-    MTStorage.MTStorage,
-    ReadOnlyStorage.ReadOnlyStorage
+    StorageTestBase,
+    BasicStorage,
+    TransactionalUndoStorage,
+    RevisionStorage,
+    PackableStorageWithOptionalGC,
+    PackableUndoStorage,
+    SynchronizedStorage,
+    ConflictResolvingStorage,
+    ConflictResolvingTransUndoStorage,
+    HistoryStorage,
+    IteratorStorage,
+    ExtendedIteratorStorage,
+    PersistentStorage,
+    MTStorage,
+    ReadOnlyStorage
     ):
 
     def open(self, **kwargs):
@@ -58,26 +59,27 @@ class FileStorageTests(
                                                      **kwargs)
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
+        StorageTestBase.setUp(self)
         self.open(create=1)
 
     def checkLongMetadata(self):
+        from ZODB.POSException import StorageError
         s = "X" * 75000
         try:
             self._dostore(user=s)
-        except POSException.StorageError:
+        except StorageError:
             pass
         else:
             self.fail("expect long user field to raise error")
         try:
             self._dostore(description=s)
-        except POSException.StorageError:
+        except StorageError:
             pass
         else:
             self.fail("expect long user field to raise error")
 
     def check_use_fsIndex(self):
-
+        from ZODB.fsIndex import fsIndex
         self.assertEqual(self._storage._index.__class__, fsIndex)
 
     # A helper for checking that when an .index contains a dict for the
@@ -85,6 +87,8 @@ class FileStorageTests(
     def convert_index_to_dict(self):
         # Convert the index in the current .index file to a Python dict.
         # Return the index originally found.
+        import cPickle
+        from ZODB.fsIndex import fsIndex
         data = fsIndex.load('FileStorageTests.fs.index')
         index = data['index']
 
@@ -138,6 +142,7 @@ class FileStorageTests(
         # converted the fsIndex class from using a dictionary as its
         # self._data attribute to using an OOBTree in its stead.
 
+        import transaction
         from ZODB.fsIndex import fsIndex
         from BTrees.OOBTree import OOBTree
 
@@ -168,6 +173,7 @@ class FileStorageTests(
             self.assertEqual(list(old_tree.items()), list(new_tree.items()))
 
     def check_save_after_load_with_no_index(self):
+        import os
         for i in range(10):
             self._dostore()
         self._storage.close()
@@ -179,6 +185,7 @@ class FileStorageTests(
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
         # of the largest oid in use.
+        import transaction
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         giant_oid = '\xee' * 8
@@ -196,6 +203,7 @@ class FileStorageTests(
         # knows about already, it's crucial that the storage bump its notion
         # of the largest oid in use.  Because copyTransactionsFrom(), and
         # ZRS recovery, use the .restore() method, this is plain critical.
+        import transaction
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         giant_oid = '\xee' * 8
@@ -215,7 +223,8 @@ class FileStorageTests(
         # damage, but the code to raise CorruptedError referenced an undefined
         # global.
         import time
-
+        import transaction
+        from ZODB.DB import DB
         from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
         from ZODB.serialize import referencesf
@@ -259,7 +268,8 @@ class FileStorageTests(
             self.fail("expected CorruptedError")
 
     def check_record_iternext(self):
-
+        import transaction
+        from ZODB.DB import DB
         db = DB(self._storage)
         conn = db.open()
         conn.root()['abc'] = MinPO('abc')
@@ -289,7 +299,8 @@ class FileStorageHexTests(FileStorageTests):
 
     def open(self, **kwargs):
         from ZODB.FileStorage.FileStorage import FileStorage
-        self._storage = ZODB.tests.hexstorage.HexStorage(
+        from ZODB.tests.hexstorage import HexStorage
+        self._storage = HexStorage(
             FileStorage('FileStorageTests.fs',**kwargs))
 
 
@@ -304,26 +315,24 @@ class FileStorageTestsWithBlobsEnabled(FileStorageTests):
 class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
 
     def open(self, **kwargs):
+        from ZODB.tests.hexstorage import HexStorage
         if 'blob_dir' not in kwargs:
             kwargs = kwargs.copy()
             kwargs['blob_dir'] = 'blobs'
         FileStorageTests.open(self, **kwargs)
-        self._storage = ZODB.tests.hexstorage.HexStorage(self._storage)
+        self._storage = HexStorage(self._storage)
 
-class FileStorageRecoveryTest(
-    StorageTestBase.StorageTestBase,
-    RecoveryStorage.RecoveryStorage,
-    ):
+class FileStorageRecoveryTest(StorageTestBase, RecoveryStorage,):
 
     def setUp(self):
         from ZODB.FileStorage.FileStorage import FileStorage
-        StorageTestBase.StorageTestBase.setUp(self)
+        StorageTestBase.setUp(self)
         self._storage = FileStorage("Source.fs", create=True)
         self._dst = FileStorage("Dest.fs", create=True)
 
     def tearDown(self):
         self._dst.close()
-        StorageTestBase.StorageTestBase.tearDown(self)
+        StorageTestBase.tearDown(self)
 
     def new_dest(self):
         from ZODB.FileStorage.FileStorage import FileStorage
@@ -333,10 +342,11 @@ class FileStorageHexRecoveryTest(FileStorageRecoveryTest):
 
     def setUp(self):
         from ZODB.FileStorage.FileStorage import FileStorage
-        StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = ZODB.tests.hexstorage.HexStorage(
+        from ZODB.tests.hexstorage import HexStorage
+        StorageTestBase.setUp(self)
+        self._storage = HexStorage(
             FileStorage("Source.fs", create=True))
-        self._dst = ZODB.tests.hexstorage.HexStorage(
+        self._dst = HexStorage(
             FileStorage("Dest.fs", create=True))
 
 
@@ -358,7 +368,7 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         return self._wo_restore
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
+        StorageTestBase.setUp(self)
         self._storage = self.wo_restore("Source.fs", create=True)
         self._dst = self.wo_restore("Dest.fs", create=True)
 
@@ -370,14 +380,18 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         pass
 
 
-class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
+class AnalyzeDotPyTest(StorageTestBase):
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
+        from ZODB.FileStorage.FileStorage import FileStorage
+        StorageTestBase.setUp(self)
+        self._storage = FileStorage("Source.fs", create=True)
 
     def checkanalyze(self):
-        import new, sys, pickle
+        import new
+        import sys
+        import pickle
+        import transaction
         from BTrees.OOBTree import OOBTree
         from ZODB.scripts import analyze
 
@@ -458,6 +472,7 @@ def timestamp(minutes):
 
 def testTimeTravelOnOpen():
     """
+    >>> from ZODB.DB import DB
     >>> from ZODB.FileStorage.FileStorage import FileStorage
     >>> from zope.testing.loggingsupport import InstalledHandler
 
@@ -475,6 +490,7 @@ def testTimeTravelOnOpen():
     First check the normal case:  transactions are recorded with
     increasing tids, and time doesn't run backwards.
 
+    >>> import transaction
     >>> st = FileStorage('temp.fs')
     >>> db = DB(st)
     >>> conn = db.open()
@@ -543,7 +559,10 @@ most recent transactions.
 We'll create a FileStorage and populate it with some data, keeping
 track of the transactions along the way:
 
-    >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> from ZODB.FileStorage import FileStorage
+    >>> fs = FileStorage('t.fs', create=True)
     >>> db = DB(fs)
     >>> conn = db.open()
     >>> from persistent.mapping import PersistentMapping
@@ -575,7 +594,7 @@ there are:
 Of course, calling lastInvalidations on an empty storage refturns no data:
 
     >>> db.close()
-    >>> fs = ZODB.FileStorage.FileStorage('t.fs', create=True)
+    >>> fs = FileStorage('t.fs', create=True)
     >>> list(fs.lastInvalidations(10))
     []
 
@@ -593,7 +612,10 @@ def deal_with_finish_failures():
     data.  It bothers to do very little after writing this data, so
     this should rarely, if ever, happen.
 
-    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> from ZODB.FileStorage import FileStorage
+    >>> fs = FileStorage('data.fs')
     >>> db = DB(fs)
     >>> conn = db.open()
     >>> conn.root()[1] = 1
@@ -626,7 +648,7 @@ def deal_with_finish_failures():
     ValueError: ...
 
     >>> db.close()
-    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> fs = FileStorage('data.fs')
     >>> db = DB(fs)
     >>> conn = db.open()
     >>> conn.root()
@@ -640,6 +662,7 @@ def pack_with_open_blob_files():
     """
     Make sure packing works while there are open blob files.
 
+    >>> import transaction
     >>> from ZODB.DB import DB
     >>> from ZODB.FileStorage import FileStorage
     >>> fs = FileStorage('data.fs', blob_dir='blobs')
@@ -673,39 +696,47 @@ def pack_with_open_blob_files():
     """
 
 def test_suite():
+    import doctest
+    import os
+    if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+        from zope.testing import doctest
+    from zope.testing import setupstack
+    from ZODB.FileStorage.FileStorage import FileStorage
+    from ZODB.tests.Corruption import FileStorageCorruptTests
+    from ZODB.tests.hexstorage import HexStorage
+    from ZODB.tests.testblob import storage_reusable_suite
+    from ZODB.tests.util import MinimalTestLayer
     suite = unittest.TestSuite()
     for klass in [
-        FileStorageTests, FileStorageHexTests,
-        Corruption.FileStorageCorruptTests,
-        FileStorageRecoveryTest, FileStorageHexRecoveryTest,
+        FileStorageTests,
+        FileStorageHexTests,
+        FileStorageCorruptTests,
+        FileStorageRecoveryTest,
+        FileStorageHexRecoveryTest,
         FileStorageNoRestoreRecoveryTest,
-        FileStorageTestsWithBlobsEnabled, FileStorageHexTestsWithBlobsEnabled,
+        FileStorageTestsWithBlobsEnabled,
+        FileStorageHexTestsWithBlobsEnabled,
         AnalyzeDotPyTest,
         ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
-        setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown))
-    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
-        'BlobFileStorage',
+        setUp=setupstack.setUpDirectory,
+        tearDown=setupstack.tearDown))
+    suite.addTest(storage_reusable_suite('BlobFileStorage',
         lambda name, blob_dir:
-        ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir),
+        FileStorage('%s.fs' % name, blob_dir=blob_dir),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
-    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
-        'BlobFileHexStorage',
+    suite.addTest(storage_reusable_suite('BlobFileHexStorage',
         lambda name, blob_dir:
-        ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
+        HexStorage(
+            FileStorage('%s.fs' % name, blob_dir=blob_dir)),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
-    suite.addTest(PackableStorage.IExternalGC_suite(
-        lambda : ZODB.FileStorage.FileStorage(
+    suite.addTest(IExternalGC_suite(
+        lambda : FileStorage(
             'data.fs', blob_dir='blobs', pack_gc=False)))
-    suite.layer = ZODB.tests.util.MinimalTestLayer('testFileStorage')
+    suite.layer = MinimalTestLayer('testFileStorage')
     return suite
-
-if __name__=='__main__':
-    unittest.main()
