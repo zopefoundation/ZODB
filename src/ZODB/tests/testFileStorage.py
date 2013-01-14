@@ -458,7 +458,7 @@ def timestamp(minutes):
 
 def testTimeTravelOnOpen():
     """
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.FileStorage.FileStorage import FileStorage
     >>> from zope.testing.loggingsupport import InstalledHandler
 
     Arrange to capture log messages -- they're an important part of
