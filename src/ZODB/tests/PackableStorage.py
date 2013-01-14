@@ -16,7 +16,7 @@
 from cStringIO import StringIO
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-from ZODB import DB
+from ZODB.DB import DB
 from ZODB.POSException import ConflictError, StorageError
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO

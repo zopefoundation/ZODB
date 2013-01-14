@@ -25,7 +25,7 @@ from transaction import Transaction
 from ZODB import POSException
 from ZODB.serialize import referencesf
 from ZODB.utils import p64
-from ZODB import DB
+from ZODB.DB import DB
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
