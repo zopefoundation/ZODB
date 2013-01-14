@@ -9,8 +9,7 @@ import struct
 import unittest
 import ZODB.tests.util
 
-import fstest
-from fstest import FormatError, U64
+from ZODB.scripts import fstest
 
 class TestCorruptedFS(ZODB.tests.util.TestCase):
 
@@ -39,7 +38,7 @@ class TestCorruptedFS(ZODB.tests.util.TestCase):
             self._file.close()
         try:
             fstest.check(self._temp)
-        except FormatError, msg:
+        except fstest.FormatError, msg:
             mo = re.search(rx, str(msg))
             self.failIf(mo is None, "unexpected error: %s" % msg)
         else:
@@ -49,7 +48,7 @@ class TestCorruptedFS(ZODB.tests.util.TestCase):
         buf = self._datafs.read(16)
         if not buf:
             return 0, ''
-        tl = U64(buf[8:])
+        tl = fstest.U64(buf[8:])
         return tl, buf
 
     def copyTransactions(self, n):
