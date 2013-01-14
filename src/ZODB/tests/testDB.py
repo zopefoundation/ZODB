@@ -13,32 +13,29 @@
 ##############################################################################
 import unittest
 
-import doctest
-import os
-import sys
-import time
 
-import transaction
-import ZODB
-import ZODB.DB
-from ZODB.tests.MinPO import MinPO
-import ZODB.tests.util
+# used as a base class
+from ZODB.tests.util import TestCase as utilTestCase
 
 # Return total number of connections across all pools in a db._pools.
 def nconn(pools):
     return sum([len(pool.all) for pool in pools.values()])
 
-class DBTests(ZODB.tests.util.TestCase):
+class DBTests(utilTestCase):
 
     def setUp(self):
-        ZODB.tests.util.TestCase.setUp(self)
-        self.db = ZODB.DB.DB('test.fs')
+        from ZODB.DB import DB
+        utilTestCase.setUp(self)
+        self.db = DB('test.fs')
 
     def tearDown(self):
         self.db.close()
-        ZODB.tests.util.TestCase.tearDown(self)
+        utilTestCase.tearDown(self)
 
     def dowork(self):
+        import time
+        import transaction
+        from ZODB.tests.MinPO import MinPO
         c = self.db.open()
         r = c.root()
         o = r[time.time()] = MinPO(0)
@@ -64,52 +61,54 @@ class DBTests(ZODB.tests.util.TestCase):
         #       have tests of referencesf.
 
         import ZODB.serialize
-        self.assert_(self.db.references is ZODB.serialize.referencesf)
+        self.assertTrue(self.db.references is ZODB.serialize.referencesf)
 
 
 def test_invalidateCache():
     """The invalidateCache method invalidates a connection caches for all of
     the connections attached to a database::
 
-        >>> from ZODB.tests.util import DB
-        >>> import transaction
-        >>> db = DB()
-        >>> tm1 = transaction.TransactionManager()
-        >>> c1 = db.open(transaction_manager=tm1)
-        >>> c1.root()['a'] = MinPO(1)
-        >>> tm1.commit()
-        >>> tm2 = transaction.TransactionManager()
-        >>> c2 = db.open(transaction_manager=tm2)
-        >>> c1.root()['a']._p_deactivate()
-        >>> tm3 = transaction.TransactionManager()
-        >>> c3 = db.open(transaction_manager=tm3)
-        >>> c3.root()['a'].value
-        1
-        >>> c3.close()
-        >>> db.invalidateCache()
+    >>> from ZODB.DB import DB
+    >>> from ZODB.tests.MinPO import MinPO
+    >>> import transaction
+    >>> db = DB(None)
+    >>> tm1 = transaction.TransactionManager()
+    >>> c1 = db.open(transaction_manager=tm1)
+    >>> c1.root()['a'] = MinPO(1)
+    >>> tm1.commit()
+    >>> tm2 = transaction.TransactionManager()
+    >>> c2 = db.open(transaction_manager=tm2)
+    >>> c1.root()['a']._p_deactivate()
+    >>> tm3 = transaction.TransactionManager()
+    >>> c3 = db.open(transaction_manager=tm3)
+    >>> c3.root()['a'].value
+    1
+    >>> c3.close()
+    >>> db.invalidateCache()
 
-        >>> c1.root()['a'].value
-        Traceback (most recent call last):
-        ...
-        ReadConflictError: database read conflict error
+    >>> c1.root()['a'].value
+    Traceback (most recent call last):
+    ...
+    ReadConflictError: database read conflict error
 
-        >>> c2.root()['a'].value
-        Traceback (most recent call last):
-        ...
-        ReadConflictError: database read conflict error
+    >>> c2.root()['a'].value
+    Traceback (most recent call last):
+    ...
+    ReadConflictError: database read conflict error
 
-        >>> c3 is db.open(transaction_manager=tm3)
-        True
-        >>> print c3.root()['a']._p_changed
-        None
+    >>> c3 is db.open(transaction_manager=tm3)
+    True
+    >>> print c3.root()['a']._p_changed
+    None
 
-        >>> db.close()
+    >>> db.close()
     """
 
 def connectionDebugInfo():
     r"""DB.connectionDebugInfo provides information about connections.
 
     >>> import time
+    >>> from ZODB.tests.MinPO import MinPO
     >>> now = 1228423244.5
     >>> def faux_time():
     ...     global now
@@ -118,9 +117,9 @@ def connectionDebugInfo():
     >>> real_time = time.time
     >>> time.time = faux_time
 
-    >>> from ZODB.tests.util import DB
+    >>> from ZODB.DB import DB
     >>> import transaction
-    >>> db = DB()
+    >>> db = DB(None)
     >>> c1 = db.open()
     >>> c1.setDebugInfo('test info')
     >>> c1.root()['a'] = MinPO(1)
@@ -153,6 +152,7 @@ def passing_a_file_name_to_DB():
 
     (Also note that we can access DB in ZODB.)
 
+    >>> import os
     >>> from ZODB.DB import DB
     >>> db = DB('data.fs')
     >>> db.storage # doctest: +ELLIPSIS
@@ -178,7 +178,9 @@ def passing_None_to_DB():
 def open_convenience():
     """Often, we just want to open a single connection.
 
-    >>> conn = ZODB.connection('data.fs')
+    >>> import transaction
+    >>> from ZODB import connection
+    >>> conn = connection('data.fs')
     >>> conn.root()
     {}
 
@@ -200,7 +202,7 @@ def open_convenience():
     We can pass storage-specific arguments if they don't conflict with
     DB arguments.
 
-    >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
+    >>> conn = connection('data.fs', blob_dir='blobs')
     >>> conn.root()['b'] = ZODB.blob.Blob('test')
     >>> transaction.commit()
     >>> conn.close()
@@ -214,69 +216,71 @@ def open_convenience():
 
     """
 
-if sys.version_info >= (2, 6):
-    def db_with_transaction():
-        """Using databases with with
+def db_with_transaction():
+    """Using databases with with
 
-        The transaction method returns a context manager that when entered
-        starts a transaction with a private transaction manager.  To
-        illustrate this, we start a trasnaction using a regular connection
-        and see that it isn't automatically committed or aborted as we use
-        the transaction context manager.
+    The transaction method returns a context manager that when entered
+    starts a transaction with a private transaction manager.  To
+    illustrate this, we start a trasnaction using a regular connection
+    and see that it isn't automatically committed or aborted as we use
+    the transaction context manager.
 
-        >>> db = ZODB.tests.util.DB()
-        >>> conn = db.open()
-        >>> conn.root()['x'] = conn.root().__class__()
-        >>> transaction.commit()
-        >>> conn.root()['x']['x'] = 1
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
+    >>> conn = db.open()
+    >>> conn.root()['x'] = conn.root().__class__()
+    >>> transaction.commit()
+    >>> conn.root()['x']['x'] = 1
 
-        >>> with db.transaction() as conn2:
-        ...     conn2.root()['y'] = 1
+    >>> with db.transaction() as conn2:
+    ...     conn2.root()['y'] = 1
 
-        >>> conn2.opened
+    >>> conn2.opened
 
-    Now, we'll open a 3rd connection a verify that
+Now, we'll open a 3rd connection a verify that
 
-        >>> conn3 = db.open()
-        >>> conn3.root()['x']
-        {}
-        >>> conn3.root()['y']
-        1
-        >>> conn3.close()
+    >>> conn3 = db.open()
+    >>> conn3.root()['x']
+    {}
+    >>> conn3.root()['y']
+    1
+    >>> conn3.close()
 
-    Let's try again, but this time, we'll have an exception:
+Let's try again, but this time, we'll have an exception:
 
-        >>> with db.transaction() as conn2:
-        ...     conn2.root()['y'] = 2
-        ...     XXX
-        Traceback (most recent call last):
-        ...
-        NameError: name 'XXX' is not defined
+    >>> with db.transaction() as conn2:
+    ...     conn2.root()['y'] = 2
+    ...     XXX
+    Traceback (most recent call last):
+    ...
+    NameError: name 'XXX' is not defined
 
-        >>> conn2.opened
+    >>> conn2.opened
 
-        >>> conn3 = db.open()
-        >>> conn3.root()['x']
-        {}
-        >>> conn3.root()['y']
-        1
-        >>> conn3.close()
+    >>> conn3 = db.open()
+    >>> conn3.root()['x']
+    {}
+    >>> conn3.root()['y']
+    1
+    >>> conn3.close()
 
-        >>> transaction.commit()
+    >>> transaction.commit()
 
-        >>> conn3 = db.open()
-        >>> conn3.root()['x']
-        {'x': 1}
+    >>> conn3 = db.open()
+    >>> conn3.root()['x']
+    {'x': 1}
 
 
-        >>> db.close()
-        """
+    >>> db.close()
+    """
 
 def connection_allows_empty_version_for_idiots():
     r"""
     >>> from ZODB.DB import DB
     >>> db = DB('t.fs')
-    >>> c = ZODB.tests.util.assert_deprecated(
+    >>> from ZODB.tests.util import assert_deprecated(
+    >>> c = assert_deprecated(
     ...       (lambda : db.open('')),
     ...       'A version string was passed to open')
     >>> c.root()
@@ -289,11 +293,13 @@ def warn_when_data_records_are_big():
 When data records are large, a warning is issued to try to prevent new
 users from shooting themselves in the foot.
 
+    >>> import transaction
     >>> from ZODB.DB import DB
+    >>> from ZODB.tests.util import assert_warning
     >>> db = DB('t.fs', create=True)
     >>> conn = db.open()
     >>> conn.root.x = 'x'*(1<<24)
-    >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
+    >>> assert_warning(UserWarning, transaction.commit,
     ...    "object you're saving is large.")
     >>> db.close()
 
@@ -306,7 +312,7 @@ The large_record_size option can be used to control the record size:
     >>> transaction.commit()
 
     >>> conn.root.x = 'x'*999
-    >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
+    >>> assert_warning(UserWarning, transaction.commit,
     ...    "object you're saving is large.")
 
     >>> db.close()
@@ -328,7 +334,7 @@ We can also specify it using a configuration option:
     >>> transaction.commit()
 
     >>> conn.root.x = 'x'*(1<<20)
-    >>> ZODB.tests.util.assert_warning(UserWarning, transaction.commit,
+    >>> assert_warning(UserWarning, transaction.commit,
     ...    "object you're saving is large.")
 
     >>> db.close()
@@ -339,6 +345,7 @@ def minimally_test_connection_timeout():
 
     Make sure it doesn't error. :)
 
+    >>> import time
     >>> from ZODB.DB import DB
     >>> db = DB(None, pool_timeout=.01)
     >>> c1 = db.open()
@@ -355,8 +362,10 @@ def minimally_test_connection_timeout():
     """
 
 def test_suite():
-    s = unittest.makeSuite(DBTests)
-    s.addTest(doctest.DocTestSuite(
-        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-        ))
-    return s
+    import doctest
+    from ZODB.tests.util import setUp
+    from ZODB.tests.util import tearDown
+    return unittest.TestSuite((
+        unittest.makeSuite(DBTests),
+        doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
+    ))

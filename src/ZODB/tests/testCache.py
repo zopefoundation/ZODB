@@ -18,34 +18,20 @@ purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
 import unittest
-import doctest
-import gc
-import sys
-import threading
 
-from persistent.cPickleCache import PickleCache
-from persistent import Persistent
-from persistent.mapping import PersistentMapping
-import transaction
+from ZODB.tests.util import TestCase as utilTestCase
 
-import ZODB.DB
-import ZODB.MappingStorage
-from ZODB.tests.MinPO import MinPO
-import ZODB.tests.util
-from ZODB.utils import p64
-
-class CacheTestBase(ZODB.tests.util.TestCase):
+class CacheTestBase(utilTestCase):
 
     def setUp(self):
-        ZODB.tests.util.TestCase.setUp(self)
-        store = ZODB.MappingStorage.MappingStorage()
-        self.db = ZODB.DB.DB(store,
-                             cache_size = self.CACHE_SIZE)
+        from ZODB.DB import DB
+        utilTestCase.setUp(self)
+        self.db = DB(None, cache_size = self.CACHE_SIZE)
         self.conns = []
 
     def tearDown(self):
         self.db.close()
-        ZODB.tests.util.TestCase.tearDown(self)
+        utilTestCase.tearDown(self)
 
     CACHE_SIZE = 20
 
@@ -57,6 +43,9 @@ class CacheTestBase(ZODB.tests.util.TestCase):
         self.noodle_connection(c)
 
     def noodle_connection(self, c):
+        from persistent.mapping import PersistentMapping
+        import transaction
+        from ZODB.tests.MinPO import MinPO
         r = c.root()
 
         i = len(self.conns)
@@ -74,19 +63,6 @@ class CacheTestBase(ZODB.tests.util.TestCase):
 
 
 
-# CantGetRidOfMe is used by checkMinimizeTerminates.
-make_trouble = True
-class CantGetRidOfMe(MinPO):
-    def __init__(self, value):
-        MinPO.__init__(self, value)
-        self.an_attribute = 42
-
-    def __del__(self):
-        # Referencing an attribute of self causes self to be
-        # loaded into the cache again, which also resurrects
-        # self.
-        if make_trouble:
-            self.an_attribute
 
 class DBMethods(CacheTestBase):
 
@@ -141,6 +117,23 @@ class DBMethods(CacheTestBase):
         # isn't looking out for this, it can get into an infinite loop
         # then, endlessly trying to ghostify an object that in turn keeps
         # unghostifying itself again.
+        import threading
+        import transaction
+        from ZODB.tests.MinPO import MinPO
+        global make_trouble
+        make_trouble = True
+        class CantGetRidOfMe(MinPO):
+            def __init__(self, value):
+                MinPO.__init__(self, value)
+                self.an_attribute = 42
+
+            def __del__(self):
+                # Referencing an attribute of self causes self to be
+                # loaded into the cache again, which also resurrects
+                # self.
+                global make_trouble
+                if make_trouble:
+                    self.an_attribute
         class Worker(threading.Thread):
 
             def __init__(self, testcase):
@@ -190,6 +183,8 @@ class DBMethods(CacheTestBase):
 class LRUCacheTests(CacheTestBase):
 
     def checkLRU(self):
+        import transaction
+        from ZODB.tests.MinPO import MinPO
         # verify the LRU behavior of the cache
         dataset_size = 5
         CACHE_SIZE = dataset_size*2+1
@@ -253,6 +248,7 @@ class LRUCacheTests(CacheTestBase):
             #self.assertEquals(d['size'], CACHE_SIZE)
 
     def checkDetail(self):
+        import gc
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
 
@@ -304,16 +300,21 @@ class StubDataManager:
     def setklassstate(self, object):
         pass
 
-class StubObject(Persistent):
-    pass
+def _makeStubObject():
+    from persistent import Persistent
+    class StubObject(Persistent):
+        pass
+    return StubObject()
 
 class CacheErrors(unittest.TestCase):
 
     def setUp(self):
+        from persistent.cPickleCache import PickleCache
         self.jar = StubDataManager()
         self.cache = PickleCache(self.jar)
 
     def checkGetBogusKey(self):
+        from ZODB.utils import p64
         self.assertEqual(self.cache.get(p64(0)), None)
         try:
             self.cache[12]
@@ -335,6 +336,8 @@ class CacheErrors(unittest.TestCase):
             self.fail("expected TypeError")
 
     def checkBogusObject(self):
+        import sys
+        from ZODB.utils import p64
         def add(key, obj):
             self.cache[key] = obj
 
@@ -344,7 +347,7 @@ class CacheErrors(unittest.TestCase):
         # value isn't persistent
         self.assertRaises(TypeError, add, key, 12)
 
-        o = StubObject()
+        o = _makeStubObject()
         # o._p_oid == None
         self.assertRaises(TypeError, add, key, o)
 
@@ -366,10 +369,12 @@ class CacheErrors(unittest.TestCase):
         self.assertEqual(sys.getrefcount(None), nones)
 
     def checkTwoCaches(self):
+        from persistent.cPickleCache import PickleCache
+        from ZODB.utils import p64
         jar2 = StubDataManager()
         cache2 = PickleCache(jar2)
 
-        o = StubObject()
+        o = _makeStubObject()
         key = o._p_oid = p64(1)
         o._p_jar = jar2
 
@@ -383,7 +388,8 @@ class CacheErrors(unittest.TestCase):
             self.fail("expected ValueError because object already in cache")
 
     def checkReadOnlyAttrsWhenCached(self):
-        o = StubObject()
+        from ZODB.utils import p64
+        o = _makeStubObject()
         key = o._p_oid = p64(1)
         o._p_jar = self.jar
         self.cache[key] = o
@@ -406,12 +412,13 @@ class CacheErrors(unittest.TestCase):
         # ZODB 3.2.6 didn't make sense.  This test verifies that (a) an
         # exception is raised; and, (b) the error message is the intended
         # one.
-        obj1 = StubObject()
+        from ZODB.utils import p64
+        obj1 = _makeStubObject()
         key = obj1._p_oid = p64(1)
         obj1._p_jar = self.jar
         self.cache[key] = obj1
 
-        obj2 = StubObject()
+        obj2 = _makeStubObject()
         obj2._p_oid = key
         obj2._p_jar = self.jar
         try:
@@ -425,8 +432,8 @@ class CacheErrors(unittest.TestCase):
 def check_basic_cache_size_estimation():
     """Make sure the basic accounting is correct:
 
-    >>> import ZODB.MappingStorage
-    >>> db = ZODB.MappingStorage.DB()
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> conn = db.open()
 
 The cache is empty initially:
@@ -442,7 +449,8 @@ We force the root to be loaded and the cache grows:
 
 We add some data and the cache grows:
 
-    >>> conn.root.z = ZODB.tests.util.P('x'*100)
+    >>> from ZODB.tests.util import P
+    >>> conn.root.z .P('x'*100)
     >>> import transaction
     >>> transaction.commit()
     >>> conn._cache.total_estimated_size
@@ -478,8 +486,10 @@ size correctly:
 
 
 def test_suite():
-    s = unittest.makeSuite(DBMethods, 'check')
-    s.addTest(unittest.makeSuite(LRUCacheTests, 'check'))
-    s.addTest(unittest.makeSuite(CacheErrors, 'check'))
-    s.addTest(doctest.DocTestSuite())
-    return s
+    import doctest
+    return unittest.TestSuite((
+        unittest.makeSuite(DBMethods, 'check'),
+        unittest.makeSuite(LRUCacheTests, 'check'),
+        unittest.makeSuite(CacheErrors, 'check'),
+        doctest.DocTestSuite(),
+    ))

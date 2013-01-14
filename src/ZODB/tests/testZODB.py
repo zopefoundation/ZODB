@@ -13,34 +13,26 @@
 ##############################################################################
 import unittest
 
-from persistent import Persistent
-from persistent.mapping import PersistentMapping
-import transaction
 
-import ZODB.Connection
-import ZODB.DB
-import ZODB.FileStorage
-import ZODB.MappingStorage
-from ZODB.POSException import ReadConflictError
-from ZODB.POSException import TransactionFailedError
-import ZODB.tests.util
+# Used as a base class
+from ZODB.tests.util import TestCase as utilTestCase
 
-class P(Persistent):
-    pass
-
-class ZODBTests(ZODB.tests.util.TestCase):
+class ZODBTests(utilTestCase):
 
     def setUp(self):
-        ZODB.tests.util.TestCase.setUp(self)
-        self._storage = ZODB.FileStorage.FileStorage(
-            'ZODBTests.fs', create=1)
-        self._db = ZODB.DB.DB(self._storage)
+        from ZODB.DB import DB
+        from ZODB.FileStorage import FileStorage
+        utilTestCase.setUp(self)
+        self._storage = FileStorage('ZODBTests.fs', create=1)
+        self._db = DB(self._storage)
 
     def tearDown(self):
         self._db.close()
-        ZODB.tests.util.TestCase.tearDown(self)
+        utilTestCase.tearDown(self)
 
     def populate(self):
+        from persistent.mapping import PersistentMapping
+        import transaction
         transaction.begin()
         conn = self._db.open()
         root = conn.root()
@@ -65,6 +57,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             conn.close()
 
     def duplicate(self, conn, abort_it):
+        import transaction
         transaction.begin()
         transaction.get().note('duplication')
         root = conn.root()
@@ -89,6 +82,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             raise
 
     def verify(self, conn, abort_it):
+        import transaction
         transaction.begin()
         root = conn.root()
         ob = root['test']
@@ -137,11 +131,12 @@ class ZODBTests(ZODB.tests.util.TestCase):
     def checkResetCachesAPI(self):
         # Checks the resetCaches() API.
         # (resetCaches used to be called updateCodeTimestamp.)
+        from ZODB.Connection import resetCaches
         self.populate()
         conn = self._db.open()
         conn.root()
         self.assert_(len(conn._cache) > 0)  # Precondition
-        ZODB.Connection.resetCaches()
+        resetCaches()
         conn.close()
         self.assert_(len(conn._cache) > 0)  # Still not flushed
         conn.open()  # simulate the connection being reopened
@@ -150,6 +145,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
     def checkExplicitTransactionManager(self):
         # Test of transactions that apply to only the connection,
         # not the thread.
+        import transaction
         tm1 = transaction.TransactionManager()
         conn1 = self._db.open(transaction_manager=tm1)
         tm2 = transaction.TransactionManager()
@@ -197,6 +193,11 @@ class ZODBTests(ZODB.tests.util.TestCase):
         # Set up the database, to hold
         # root --> "p" -> value = 1
         #      --> "q" -> value = 2
+        from persistent import Persistent
+        import transaction
+        class P(Persistent):
+            pass
+
         tm1 = transaction.TransactionManager()
         conn = self._db.open(transaction_manager=tm1)
         r1 = conn.root()
@@ -253,6 +254,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
     def checkTxnBeginImpliesAbort(self):
         # begin() should do an abort() first, if needed.
+        import transaction
         cn = self._db.open()
         rt = cn.root()
         rt['a'] = 1
@@ -285,6 +287,8 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
     def checkFailingCommitSticks(self):
         # See also checkFailingSavepointSticks.
+        import transaction
+        from ZODB.POSException import TransactionFailedError
         cn = self._db.open()
         rt = cn.root()
         rt['a'] = 1
@@ -330,6 +334,8 @@ class ZODBTests(ZODB.tests.util.TestCase):
         cn.close()
 
     def checkFailingSavepointSticks(self):
+        import transaction
+        from ZODB.POSException import TransactionFailedError
         cn = self._db.open()
         rt = cn.root()
         rt['a'] = 1
@@ -393,6 +399,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         # operations within a transaction.  If ZODB performs the undo
         # operations in a nondeterministic order, this test will often
         # fail.
+        import transaction
 
         conn = self._db.open()
         try:
@@ -422,11 +429,12 @@ class ZODBTests(ZODB.tests.util.TestCase):
             transaction.abort()
             conn.close()
 
-class ReadConflictTests(ZODB.tests.util.TestCase):
+class ReadConflictTests(utilTestCase):
 
     def setUp(self):
+        from ZODB.MappingStorage import MappingStorage
         ZODB.tests.utils.TestCase.setUp(self)
-        self._storage = ZODB.MappingStorage.MappingStorage()
+        self._storage = MappingStorage()
 
     def readConflict(self, shouldFail=True):
         # Two transactions run concurrently.  Each reads some object,
@@ -434,6 +442,12 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
         # modified by the first.  This read should fail with a conflict
         # error because the object state read is not necessarily
         # consistent with the objects read earlier in the transaction.
+        from persistent import Persistent
+        import transaction
+        from ZODB.POSException import ReadConflictError
+        from ZODB.POSException import TransactionFailedError
+        class P(Persistent):
+            pass
 
         tm1 = transaction.TransactionManager()
         conn = self._db.open(transaction_manager=tm1)
@@ -480,12 +494,20 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
 
 
     def checkReadConflict(self):
+        from persistent import Persistent
+        class P(Persistent):
+            pass
+
         self.obj = P()
         self.readConflict()
 
     def checkReadConflictIgnored(self):
         # Test that an application that catches a read conflict and
         # continues can not commit the transaction later.
+        from persistent.mapping import PersistentMapping
+        import transaction
+        from ZODB.POSException import ReadConflictError
+        from ZODB.POSException import TransactionFailedError
         root = self._db.open().root()
         root["real_data"] = real_data = PersistentMapping()
         root["index"] = index = PersistentMapping()
@@ -533,6 +555,9 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
         # When a transaction is aborted, the "memory" of which
         # objects were the cause of a ReadConflictError during
         # that transaction should be cleared.
+        from persistent.mapping import PersistentMapping
+        import transaction
+        from ZODB.POSException import ReadConflictError
         root = self._db.open().root()
         data = PersistentMapping({'d': 1})
         root["data"] = data
@@ -615,6 +640,3 @@ def test_suite():
     return unittest.TestSuite((
         unittest.makeSuite(ZODBTests, 'check'),
         ))
-
-if __name__ == "__main__":
-    unittest.main(defaultTest="test_suite")
