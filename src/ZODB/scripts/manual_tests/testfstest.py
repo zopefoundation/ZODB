@@ -4,6 +4,7 @@ Note:  To run this test script fstest.py must be on your PYTHONPATH.
 """
 
 from cStringIO import StringIO
+import os
 import re
 import struct
 import unittest
@@ -13,10 +14,12 @@ from ZODB.scripts import fstest
 
 class TestCorruptedFS(ZODB.tests.util.TestCase):
 
-    f = open('test-checker.fs', 'rb')
-    datafs = f.read()
-    f.close()
-    del f
+    @property
+    def datafs(self):
+        where = os.path.dirname(__file__)
+        fs = os.path.join(where, 'test-checker.fs')
+        with open(fs, 'rb') as f:
+            return f.read()
 
     def setUp(self):
         ZODB.tests.util.TestCase.setUp(self)
