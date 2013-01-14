@@ -122,7 +122,11 @@ setup(name="ZODB",
       long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = tests_require,
-      extras_require = dict(test=tests_require),
+      extras_require = {
+        'test': tests_require,
+        'testing': tests_require + ['nose', 'coverage'],
+        'docs': ['Sphinx', 'repoze.sphinx.autointerface'],
+      },
       install_requires = [
         'transaction',
         'persistent',

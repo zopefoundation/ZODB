@@ -2,6 +2,14 @@
  Change History
 ================
 
+Unreleased
+==========
+
+- Added ``setup.py docs`` alias (installs ``Sphinx`` and
+  ``repoze.sphinx.autointerface``).
+
+- Added ``setup.py dev`` alias (installs ``nose`` and ``coverage``).
+
 4.0.0a4 (2012-12-17)
 =====================
 
