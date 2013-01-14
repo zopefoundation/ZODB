@@ -714,7 +714,7 @@ def storage_reusable_suite(prefix, factory,
     if test_undo:
         add_test_based_on_test_class(BlobUndoTests)
 
-    suite.layer = ZODB.tests.util.MininalTestLayer(prefix+'BlobTests')
+    suite.layer = ZODB.tests.util.MinimalTestLayer(prefix+'BlobTests')
 
     return suite
 

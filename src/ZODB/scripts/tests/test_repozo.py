@@ -794,7 +794,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
 class MonteCarloTests(unittest.TestCase):
 
-    layer = ZODB.tests.util.MininalTestLayer('repozo')
+    layer = ZODB.tests.util.MinimalTestLayer('repozo')
 
     def setUp(self):
         # compute directory names

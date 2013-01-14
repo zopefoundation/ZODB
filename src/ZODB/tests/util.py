@@ -66,7 +66,7 @@ class P(persistent.Persistent):
     def __repr__(self):
         return 'P(%s)' % self.name
 
-class MininalTestLayer:
+class MinimalTestLayer:
 
     __bases__ = ()
     __module__ = ''
@@ -97,7 +97,7 @@ class AAAA_Test_Runner_Hack(unittest.TestCase):
     The first later (lex sorted) is run first in the foreground
     """
 
-    layer = MininalTestLayer('!no tests here!')
+    layer = MinimalTestLayer('!no tests here!')
 
     def testNothing(self):
         pass
