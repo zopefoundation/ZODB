@@ -85,7 +85,7 @@ import time
 import errno
 import getopt
 
-from ZODB.FileStorage import FileStorage
+from ZODB.FileStorage.FileStorage import FileStorage
 
 program = sys.argv[0]
 

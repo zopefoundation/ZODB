@@ -40,8 +40,8 @@ class OurDB:
         self.close()
 
     def getdb(self):
-        from ZODB import DB
-        from ZODB.FileStorage import FileStorage
+        from ZODB.DB import DB
+        from ZODB.FileStorage.FileStorage import FileStorage
         self._file_name = storage_filename = os.path.join(self.dir, 'Data.fs')
         storage = FileStorage(storage_filename)
         self.db = DB(storage)
@@ -793,8 +793,6 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self.assertEqual(open(index, 'rb').read(), 'CCC')
 
 class MonteCarloTests(unittest.TestCase):
-
-    layer = ZODB.tests.util.MinimalTestLayer('repozo')
 
     def setUp(self):
         # compute directory names
