@@ -7,10 +7,12 @@ multi-database are allowed.
 
 Lets set up a multi-database with 2 databases:
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import persistent
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> databases = {}
-    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
-    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> db1 = DB(None, databases=databases, database_name='1')
+    >>> db2 = DB(None, databases=databases, database_name='2')
 
 And create a persistent object in the first database:
 
@@ -51,7 +53,7 @@ read `p2`, use `p2` to get to `p1`, and verify that it is in database 1:
 
 It isn't valid to create references outside a multi database:
 
-    >>> db3 = ZODB.tests.util.DB()
+    >>> db3 = DB(None)
     >>> conn3 = db3.open(transaction_manager=tm)
     >>> p3 = MyClass()
     >>> conn3.root()['p'] = p3
@@ -150,8 +152,8 @@ are disallowed. (Note that currently, implicit cross references are
 the only kind of cross references allowed.)
 
     >>> databases = {}
-    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
-    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2',
+    >>> db1 = DB(None, databases=databases, database_name='1')
+    >>> db2 = DB(None, databases=databases, database_name='2',
     ...                          xrefs=False)
 
 In this example, we allow cross-references from db1 to db2, but not

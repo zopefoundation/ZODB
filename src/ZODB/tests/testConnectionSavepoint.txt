@@ -19,8 +19,8 @@ Applications
 
 To demonstrate how savepoints work with transactions, we'll show an example.
 
-    >>> import ZODB.tests.util
-    >>> db = ZODB.tests.util.DB()
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
     >>> root['name'] = 'bob'
