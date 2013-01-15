@@ -11,13 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
-import cPickle
-import cStringIO as StringIO
-import sys
 import unittest
-
-from ZODB import serialize
 
 
 class ClassWithNewargs(int):
@@ -27,19 +21,24 @@ class ClassWithNewargs(int):
     def __getnewargs__(self):
         return int(self),
 
+
 class ClassWithoutNewargs(object):
     def __init__(self, value):
         self.value = value
 
+
 def make_pickle(ob):
+    import cPickle
+    import cStringIO as StringIO
     sio = StringIO.StringIO()
     p = cPickle.Pickler(sio, 1)
     p.dump(ob)
     return sio.getvalue()
 
 
-def test_factory(conn, module_name, name):
+def _test_factory(conn, module_name, name):
     return globals()[name]
+
 
 class SerializerTestCase(unittest.TestCase):
 
@@ -60,7 +59,8 @@ class SerializerTestCase(unittest.TestCase):
         (ClassWithNewargs, (1,)))
 
     def test_getClassName(self):
-        r = serialize.ObjectReader(factory=test_factory)
+        from ZODB.serialize import ObjectReader
+        r = ObjectReader(factory=_test_factory)
         eq = self.assertEqual
         eq(r.getClassName(self.old_style_with_newargs),
            __name__ + ".ClassWithNewargs")
@@ -74,15 +74,17 @@ class SerializerTestCase(unittest.TestCase):
     def test_getGhost(self):
         # Use a TestObjectReader since we need _get_class() to be
         # implemented; otherwise this is just a BaseObjectReader.
+        import sys
+        from ZODB.serialize import ObjectReader
 
-        class TestObjectReader(serialize.ObjectReader):
+        class TestObjectReader(ObjectReader):
             # A production object reader would optimize this, but we
             # don't need to in a test
             def _get_class(self, module, name):
                 __import__(module)
                 return getattr(sys.modules[module], name)
 
-        r = TestObjectReader(factory=test_factory)
+        r = TestObjectReader(factory=_test_factory)
         g = r.getGhost(self.old_style_with_newargs)
         self.assert_(isinstance(g, ClassWithNewargs))
         self.assertEqual(g, 1)
@@ -94,6 +96,7 @@ class SerializerTestCase(unittest.TestCase):
         self.assert_(isinstance(g, ClassWithoutNewargs))
 
     def test_myhasattr(self):
+        from ZODB.serialize import myhasattr
 
         class OldStyle:
             bar = "bar"
@@ -109,17 +112,17 @@ class SerializerTestCase(unittest.TestCase):
                 raise ValueError("whee!")
             error = property(_raise)
 
-        self.assertRaises(ValueError,
-                          serialize.myhasattr, OldStyle(), "error")
-        self.assertRaises(ValueError,
-                          serialize.myhasattr, NewStyle(), "error")
-        self.assert_(serialize.myhasattr(OldStyle(), "bar"))
-        self.assert_(serialize.myhasattr(NewStyle(), "bar"))
-        self.assert_(not serialize.myhasattr(OldStyle(), "rat"))
-        self.assert_(not serialize.myhasattr(NewStyle(), "rat"))
+        self.assertRaises(ValueError, myhasattr, OldStyle(), "error")
+        self.assertRaises(ValueError, myhasattr, NewStyle(), "error")
+        self.assert_(myhasattr(OldStyle(), "bar"))
+        self.assert_(myhasattr(NewStyle(), "bar"))
+        self.assert_(not myhasattr(OldStyle(), "rat"))
+        self.assert_(not myhasattr(NewStyle(), "rat"))
 
 
 def test_suite():
-    suite = unittest.makeSuite(SerializerTestCase)
-    suite.addTest(doctest.DocTestSuite("ZODB.serialize"))
-    return suite
+    import doctest
+    return unittest.TestSuite((
+        unittest.makeSuite(SerializerTestCase),
+        doctest.DocTestSuite("ZODB.serialize"),
+    ))

@@ -11,24 +11,22 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
-import random
 import unittest
 
-from ZODB.fsIndex import fsIndex
-from ZODB.utils import p64, z64
-from ZODB.tests.util import setUp, tearDown
 
 
 class Test(unittest.TestCase):
 
     def setUp(self):
+        from ZODB.fsIndex import fsIndex
+        from ZODB.utils import p64
         self.index = fsIndex()
 
         for i in range(200):
             self.index[p64(i * 1000)] = (i * 1000L + 1)
 
     def test__del__(self):
+        from ZODB.utils import p64
         index = self.index
         self.assert_(p64(1000) in index)
         self.assert_(p64(100*1000) in index)
@@ -47,6 +45,7 @@ class Test(unittest.TestCase):
         self.assert_(not index._data)
 
     def testInserts(self):
+        from ZODB.utils import p64
         index = self.index
 
         for i in range(0,200):
@@ -65,6 +64,7 @@ class Test(unittest.TestCase):
         # self.failUnless(len(index._data) > 1)
 
     def testUpdate(self):
+        from ZODB.utils import p64
         index = self.index
         d={}
 
@@ -89,6 +89,7 @@ class Test(unittest.TestCase):
         self.assertEqual(len(index), 600)
 
     def testKeys(self):
+        from ZODB.utils import p64
         keys = list(iter(self.index))
         keys.sort()
 
@@ -121,6 +122,7 @@ class Test(unittest.TestCase):
             self.assertEqual(v, (i * 1000L + 1))
 
     def testItems(self):
+        from ZODB.utils import p64
         items = list(self.index.iteritems())
         items.sort()
 
@@ -134,6 +136,9 @@ class Test(unittest.TestCase):
             self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
 
     def testMaxKey(self):
+        import random
+        from ZODB.utils import p64
+        from ZODB.utils import z64
         index = self.index
         index.clear()
 
@@ -162,6 +167,8 @@ class Test(unittest.TestCase):
         self.assertRaises(ValueError, index.maxKey, z64)
 
     def testMinKey(self):
+        import random
+        from ZODB.utils import p64
         index = self.index
         index.clear()
 
@@ -196,6 +203,8 @@ format.  The fsIndex class has a load class method that can load data.
 Let's start by creating an fsIndex.  We'll bother to allocate the
 object ids to get multiple buckets:
 
+    >>> from ZODB.fsIndex import fsIndex
+    >>> from ZODB.utils import p64
     >>> index = fsIndex(dict((p64(i), i) for i in xrange(0, 1<<28, 1<<15)))
     >>> len(index._data)
     4096
@@ -225,7 +234,10 @@ If we save the data in the old format, we can still read it:
     """
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(Test))
-    suite.addTest(doctest.DocTestSuite(setUp=setUp, tearDown=tearDown))
-    return suite
+    import doctest
+    from ZODB.tests.util import setUp
+    from ZODB.tests.util import tearDown
+    return unittest.TestSuite((
+        unittest.makeSuite(Test),
+        doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
+    ))

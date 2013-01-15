@@ -36,10 +36,10 @@ No private attributes were added, and one new method was introduced.
 
 Creating a multi-database starts with creating a named ``DB``:
 
-    >>> from ZODB.tests.test_storage import MinimalMemoryStorage
+    >>> from ZODB.tests.test_storage import _makeStorage
     >>> from ZODB import DB
     >>> dbmap = {}
-    >>> db = DB(MinimalMemoryStorage(), database_name='root', databases=dbmap)
+    >>> db = DB(_makeStorage(), database_name='root', databases=dbmap)
 
 The database name is accessible afterwards and in a newly created collection:
 
@@ -52,7 +52,7 @@ The database name is accessible afterwards and in a newly created collection:
 
 Adding another database to the collection works like this:
 
-    >>> db2 = DB(MinimalMemoryStorage(),
+    >>> db2 = DB(_makeStorage(),
     ...     database_name='notroot',
     ...     databases=dbmap)
 
@@ -68,7 +68,7 @@ entries:
 
 It's an error to try to insert a database with a name already in use:
 
-    >>> db3 = DB(MinimalMemoryStorage(),
+    >>> db3 = DB(_makeStorage(),
     ...     database_name='root',
     ...     databases=dbmap)
     Traceback (most recent call last):

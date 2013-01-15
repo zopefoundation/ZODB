@@ -121,6 +121,7 @@ class DBMethods(CacheTestBase):
         import transaction
         from ZODB.tests.MinPO import MinPO
         global make_trouble
+        global CantGetRidOfMe
         make_trouble = True
         class CantGetRidOfMe(MinPO):
             def __init__(self, value):
@@ -336,12 +337,9 @@ class CacheErrors(unittest.TestCase):
             self.fail("expected TypeError")
 
     def checkBogusObject(self):
-        import sys
         from ZODB.utils import p64
         def add(key, obj):
             self.cache[key] = obj
-
-        nones = sys.getrefcount(None)
 
         key = p64(2)
         # value isn't persistent
@@ -366,7 +364,6 @@ class CacheErrors(unittest.TestCase):
         # same object, different keys
         self.assertRaises(ValueError, add, p64(0), o)
 
-        self.assertEqual(sys.getrefcount(None), nones)
 
     def checkTwoCaches(self):
         from persistent.cPickleCache import PickleCache
@@ -450,7 +447,7 @@ We force the root to be loaded and the cache grows:
 We add some data and the cache grows:
 
     >>> from ZODB.tests.util import P
-    >>> conn.root.z .P('x'*100)
+    >>> conn.root.z = P('x'*100)
     >>> import transaction
     >>> transaction.commit()
     >>> conn._cache.total_estimated_size

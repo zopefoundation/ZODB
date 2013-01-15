@@ -13,13 +13,9 @@
 ##############################################################################
 import unittest
 
-
 # used as a base class
 from ZODB.tests.util import TestCase as utilTestCase
 
-# Return total number of connections across all pools in a db._pools.
-def nconn(pools):
-    return sum([len(pool.all) for pool in pools.values()])
 
 class DBTests(utilTestCase):
 
@@ -202,12 +198,12 @@ def open_convenience():
     We can pass storage-specific arguments if they don't conflict with
     DB arguments.
 
+    >>> from ZODB.blob import Blob
     >>> conn = connection('data.fs', blob_dir='blobs')
-    >>> conn.root()['b'] = ZODB.blob.Blob('test')
+    >>> conn.root()['b'] = Blob('test')
     >>> transaction.commit()
     >>> conn.close()
 
-    >>> from ZODB.DB import DB
     >>> db = DB('data.fs', blob_dir='blobs')
     >>> conn = db.open()
     >>> conn.root()['b'].open().read()
@@ -279,7 +275,7 @@ def connection_allows_empty_version_for_idiots():
     r"""
     >>> from ZODB.DB import DB
     >>> db = DB('t.fs')
-    >>> from ZODB.tests.util import assert_deprecated(
+    >>> from ZODB.tests.util import assert_deprecated
     >>> c = assert_deprecated(
     ...       (lambda : db.open('')),
     ...       'A version string was passed to open')

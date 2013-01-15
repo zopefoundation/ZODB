@@ -13,22 +13,14 @@
 ##############################################################################
 """Unit tests for the Connection class."""
 
-from __future__ import with_statement
-
-import doctest
 import unittest
 
-from persistent import Persistent
-import transaction
-from ZODB.config import databaseFromString
-from ZODB.utils import p64
-from zope.interface.verify import verifyObject
-import ZODB.tests.util
+from ZODB.tests.util import TestCase as utilTestCase
 
-class ConnectionDotAdd(ZODB.tests.util.TestCase):
+class ConnectionDotAdd(utilTestCase):
 
     def setUp(self):
-        ZODB.tests.util.TestCase.setUp(self)
+        utilTestCase.setUp(self)
         from ZODB.Connection import Connection
         self.db = StubDatabase()
         self.datamgr = Connection(self.db)
@@ -37,6 +29,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
 
     def check_add(self):
         from ZODB.POSException import InvalidObjectReference
+        from ZODB.tests.examples import StubObject
         obj = StubObject()
         self.assert_(obj._p_oid is None)
         self.assert_(obj._p_jar is None)
@@ -62,6 +55,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
     def checkResetOnAbort(self):
         # Check that _p_oid and _p_jar are reset when a transaction is
         # aborted.
+        from ZODB.tests.examples import StubObject
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -71,6 +65,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
     def checkResetOnTpcAbort(self):
+        from ZODB.tests.examples import StubObject
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -86,6 +81,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
     def checkTpcAbortAfterCommit(self):
+        from ZODB.tests.examples import StubObject
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -99,6 +95,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertEquals(self.db.storage._stored, [oid])
 
     def checkCommit(self):
+        from ZODB.tests.examples import StubObject
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -115,6 +112,16 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertEquals(self.db.storage._finished, [oid])
 
     def checkModifyOnGetstate(self):
+        from persistent import Persistent
+        from ZODB.tests.examples import StubObject
+        global ModifyOnGetStateObject #pickle
+        class ModifyOnGetStateObject(Persistent):
+            def __init__(self, p):
+                self._v_p = p
+            def __getstate__(self):
+                self._p_jar.add(self._v_p)
+                self.p = self._v_p
+                return Persistent.__getstate__(self)
         member = StubObject()
         subobj = StubObject()
         subobj.member = member
@@ -133,6 +140,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
     def checkUnusedAddWorks(self):
         # When an object is added, but not committed, it shouldn't be stored,
         # but also it should be an error.
+        from ZODB.tests.examples import StubObject
         obj = StubObject()
         self.datamgr.add(obj)
         self.datamgr.tpc_begin(self.transaction)
@@ -159,6 +167,7 @@ class UserMethodTests(unittest.TestCase):
         Ensure that a new database has a root and that it is a
         PersistentMapping.
 
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> root = cn.root()
@@ -177,6 +186,8 @@ class UserMethodTests(unittest.TestCase):
         The get() method return the persistent object corresponding to
         an oid.
 
+        >>> from ZODB.config import databaseFromString
+        >>> from ZODB.utils import p64
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> obj = cn.get(p64(0))
@@ -231,6 +242,7 @@ class UserMethodTests(unittest.TestCase):
         effects on closing a connection involve its interaction with the
         database and the transaction.
 
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
 
@@ -241,6 +253,8 @@ class UserMethodTests(unittest.TestCase):
 
         It's not possible to load or store objects once the storage is closed.
 
+        >>> from persistent import Persistent
+        >>> from ZODB.utils import p64
         >>> cn.get(p64(0))
         Traceback (most recent call last):
           ...
@@ -255,14 +269,16 @@ class UserMethodTests(unittest.TestCase):
     def test_close_with_pending_changes(self):
         r"""doctest to ensure close() w/ pending changes complains
 
-        >>> import transaction
-
         Just opening and closing is fine.
+
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> cn.close()
 
         Opening, making a change, committing, and closing is fine.
+
+        >>> import transaction
         >>> cn = db.open()
         >>> cn.root()['a'] = 1
         >>> transaction.commit()
@@ -296,6 +312,7 @@ class UserMethodTests(unittest.TestCase):
     def test_onCloseCallbacks(self):
         r"""doctest of onCloseCallback() method
 
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
 
@@ -330,6 +347,7 @@ class UserMethodTests(unittest.TestCase):
         
         Set up a multi-database:
         
+            >>> import transaction
             >>> from ZODB.DB import DB
             >>> db1 = DB(None)
             >>> db2 = DB(None, databases=db1.databases, database_name='2',
@@ -362,6 +380,7 @@ class UserMethodTests(unittest.TestCase):
     def test_db(self):
         r"""doctest of db() method
 
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> cn.db() is db
@@ -374,6 +393,7 @@ class UserMethodTests(unittest.TestCase):
     def test_isReadOnly(self):
         r"""doctest of isReadOnly() method
 
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> cn.isReadOnly()
@@ -399,6 +419,7 @@ class UserMethodTests(unittest.TestCase):
         and has some effect.  We need other tests that verify the cache works
         as intended.
 
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> r = cn.root()
@@ -422,7 +443,9 @@ def test_transaction_retry_convenience():
 
     This is an adaptation of the convenience tests in transaction.
 
-    >>> db = ZODB.tests.util.DB()
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> conn = db.open()
     >>> dm = conn.root()
 
@@ -458,6 +481,9 @@ class InvalidationTests(unittest.TestCase):
         objects, then manually delivers invalidations and verifies that
         they have the expected effect.
 
+        >>> from persistent import Persistent
+        >>> import transaction
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
         >>> p1 = Persistent()
@@ -470,6 +496,7 @@ class InvalidationTests(unittest.TestCase):
         Transaction ids are 8-byte strings, just like oids; p64() will
         create one from an int.
 
+        >>> from ZODB.utils import p64
         >>> cn.invalidate(p64(1), {p1._p_oid: 1})
         >>> cn._txn_time
         '\x00\x00\x00\x00\x00\x00\x00\x01'
@@ -515,9 +542,10 @@ def test_invalidateCache():
     """The invalidateCache method invalidates a connection's cache.  It also
     prevents reads until the end of a transaction::
 
-        >>> from ZODB.tests.util import DB
         >>> import transaction
-        >>> db = DB()
+        >>> from ZODB.DB import DB
+        >>> from ZODB.tests.examples import StubObject
+        >>> db = DB(None)
         >>> tm = transaction.TransactionManager()
         >>> connection = db.open(transaction_manager=tm)
         >>> connection.root()['a'] = StubObject()
@@ -586,7 +614,8 @@ def test_invalidateCache():
 def connection_root_convenience():
     """Connection root attributes can now be used as objects with attributes
 
-    >>> db = ZODB.tests.util.DB()
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> conn = db.open()
     >>> conn.root.x
     Traceback (most recent call last):
@@ -620,15 +649,15 @@ def connection_root_convenience():
     <root: rather_long_name rather_long_name2 rather_long_name4 ...>
     """
 
-class proper_ghost_initialization_with_empty__p_deactivate_class(Persistent):
-    def _p_deactivate(self):
-        pass
-
 def proper_ghost_initialization_with_empty__p_deactivate():
     """
 See https://bugs.launchpad.net/zodb/+bug/185066
 
-    >>> db = ZODB.tests.util.DB()
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> from ZODB.tests.examples import (
+    ...     proper_ghost_initialization_with_empty__p_deactivate_class)
+    >>> db = DB(None)
     >>> conn = db.open()
     >>> C = proper_ghost_initialization_with_empty__p_deactivate_class
     >>> conn.root.x = x = C()
@@ -654,6 +683,7 @@ checkCurrentSerialInTransaction method on the storage is called in
 To demonstrate this, we'll create a storage and give it a test
 implementation of checkCurrentSerialInTransaction.
 
+    >>> import transaction
     >>> import ZODB.MappingStorage
     >>> store = ZODB.MappingStorage.MappingStorage()
 
@@ -671,10 +701,11 @@ Now, we'll use the storage as usual.  checkCurrentSerialInTransaction
 won't normally be called:
 
     >>> from ZODB.DB import DB
+    >>> from ZODB.tests.util import P
     >>> db = DB(store)
     >>> conn = db.open()
-    >>> conn.root.a = ZODB.tests.util.P('a')
-    >>> conn.root.b = ZODB.tests.util.P('b')
+    >>> conn.root.a = P('a')
+    >>> conn.root.b = P('b')
     >>> transaction.commit()
 
 If we call readCurrent for an object and we modify another object,
@@ -801,6 +832,7 @@ thatcache management is applied to all of the connections.
 
 Set up a multi-database:
 
+    >>> import transaction
     >>> from ZODB.DB import DB
     >>> db1 = DB(None)
     >>> db2 = DB(None, databases=db1.databases, database_name='2',
@@ -859,14 +891,6 @@ GC is done on reopen:
 
     """
 
-class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
-    def __init__(self):
-        self.settings = 1
-
-    def _p_invalidate(self):
-        print 'INVALIDATE', self.settings
-        Persistent._p_invalidate(self)
-        print self.settings   # POSKeyError here
 
 def abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
     r"""
@@ -876,7 +900,12 @@ def abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
     Really, when an object add is aborted, the object should be "removed" from
     the db and its invalidatuon method shouldm't even be called:
 
-    >>> conn = ZODB.connection(None)
+    >>> from persistent import Persistent
+    >>> import transaction
+    >>> from ZODB import connection
+    >>> from ZODB.tests.examples import (
+    ...      C_invalidations_of_new_objects_work_after_savepoint)
+    >>> conn = connection(None)
     >>> conn.root.x = x = C_invalidations_of_new_objects_work_after_savepoint()
     >>> _ = transaction.savepoint()
     >>> x._p_oid
@@ -894,15 +923,14 @@ After the abort, the oid and jar are None:
 
     """
 
-class Clp9460655(Persistent):
-    def __init__(self, word, id):
-        super(Clp9460655, self).__init__()
-	self.id = id
-        self._word = word
 
 def lp9460655():
     r"""
-    >>> conn = ZODB.connection(None)
+    >>> from persistent import Persistent
+    >>> import transaction
+    >>> from ZODB import connection
+    >>> from ZODB.tests.examples import Clp9460655
+    >>> conn = connection(None)
     >>> root = conn.root()
     >>> Word = Clp9460655
 
@@ -932,31 +960,34 @@ def lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
 As the following"DocTest" demonstrates, "abort" forgets to
 reset "_p_changed" for new (i.e. "added") objects.
 
->>> class P(Persistent): pass
-...
->>> c = ZODB.connection(None)
->>> obj = P()
->>> c.add(obj)
->>> obj.x = 1
->>> obj._p_changed
-True
->>> transaction.abort()
->>> obj._p_changed
-False
+    >>> from persistent import Persistent
+    >>> import transaction
+    >>> from ZODB import connection
+    >>> global P #pickle
+    >>> class P(Persistent):
+    ...     pass
+    >>> c = connection(None)
+    >>> obj = P()
+    >>> c.add(obj)
+    >>> obj.x = 1
+    >>> obj._p_changed
+    True
+    >>> transaction.abort()
+    >>> obj._p_changed
+    False
 
->>> c.close()
+    >>> c.close()
     """
-
-class Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores(Persistent):
-
-    def __getstate__(self):
-        self.got = 1
-        return self.__dict__.copy()
 
 def lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     r"""
+    >>> from persistent import Persistent
+    >>> import transaction
+    >>> from ZODB import connection
+    >>> from ZODB.tests.examples import (
+    ...     Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores)
     >>> C = Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores
-    >>> conn = ZODB.connection(None)
+    >>> conn = connection(None)
     >>> oldstore = conn._storage.store
     >>> def store(oid, *args):
     ...     print 'storing', repr(oid)
@@ -1011,22 +1042,27 @@ Let's try some combinations with savepoints:
     >>> conn.close()
     """
 
-class _PlayPersistent(Persistent):
-    def setValueWithSize(self, size=0): self.value = size*' '
-    __init__ = setValueWithSize
-
-class EstimatedSizeTests(ZODB.tests.util.TestCase):
+class EstimatedSizeTests(utilTestCase):
     """check that size estimations are handled correctly."""
 
     def setUp(self):
-        ZODB.tests.util.TestCase.setUp(self)
-        self.db = db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        from persistent import Persistent
+        import transaction
+        from ZODB.DB import DB
+        global _PlayPersistent #pickle
+        class _PlayPersistent(Persistent):
+            def setValueWithSize(self, size=0): self.value = size*' '
+            __init__ = setValueWithSize
+
+        utilTestCase.setUp(self)
+        self.db = db = DB(None)
         self.conn = c = db.open()
         self.obj = obj = _PlayPersistent()
         c.root()['obj'] = obj
         transaction.commit()
 
     def test_size_set_on_write_commit(self):
+        import transaction
         obj, cache = self.obj, self.conn._cache
         # we have just written "obj". Its size should not be zero
         size, cache_size = obj._p_estimated_size, cache.total_estimated_size
@@ -1041,6 +1077,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
                          cache_size + new_size - size)
 
     def test_size_set_on_write_savepoint(self):
+        import transaction
         obj, cache = self.obj, self.conn._cache
         # we have just written "obj". Its size should not be zero
         size, cache_size = obj._p_estimated_size, cache.total_estimated_size
@@ -1069,6 +1106,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         self.assertEqual(cache.total_estimated_size, cache_size)
 
     def test_configuration(self):
+        from ZODB.config import databaseFromString
         # verify defaults ....
         expected = 0
         # ... on db
@@ -1118,6 +1156,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         self.assert_(cache.total_estimated_size >= 0)
 
     def test_cache_garbage_collection_shrinking_object(self):
+        import transaction
         db = self.db
         # activate size based cache garbage collection
         db.setCacheSizeBytes(1000)
@@ -1140,30 +1179,9 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
 
 # ---- stubs
 
-class StubObject(Persistent):
-    pass
 
 class StubTransaction:
     pass
-
-class ErrorOnGetstateException(Exception):
-    pass
-
-class ErrorOnGetstateObject(Persistent):
-
-    def __getstate__(self):
-        raise ErrorOnGetstateException
-
-class ModifyOnGetStateObject(Persistent):
-
-    def __init__(self, p):
-        self._v_p = p
-
-    def __getstate__(self):
-        self._p_jar.add(self._v_p)
-        self.p = self._v_p
-        return Persistent.__getstate__(self)
-
 
 class StubStorage:
     """Very simple in-memory storage that does *just* enough to support tests.
@@ -1253,7 +1271,9 @@ class StubStorage:
 class TestConnectionInterface(unittest.TestCase):
 
     def test_connection_interface(self):
+        from zope.interface.verify import verifyObject
         from ZODB.interfaces import IConnection
+        from ZODB.config import databaseFromString
         db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         cn = db.open()
         verifyObject(IConnection, cn)
@@ -1275,8 +1295,10 @@ class StubDatabase:
     large_record_size = 1<<30
 
 def test_suite():
-    s = unittest.makeSuite(ConnectionDotAdd, 'check')
-    s.addTest(doctest.DocTestSuite())
-    s.addTest(unittest.makeSuite(TestConnectionInterface))
-    s.addTest(unittest.makeSuite(EstimatedSizeTests))
-    return s
+    import doctest
+    return unittest.TestSuite((
+        unittest.makeSuite(ConnectionDotAdd, 'check'),
+        doctest.DocTestSuite(),
+        unittest.makeSuite(TestConnectionInterface),
+        unittest.makeSuite(EstimatedSizeTests),
+    ))

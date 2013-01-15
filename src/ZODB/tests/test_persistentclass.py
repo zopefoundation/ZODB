@@ -12,7 +12,6 @@
 #
 ##############################################################################
 
-from doctest import DocTestSuite 
 import unittest
 
 
@@ -47,6 +46,7 @@ def test_new_ghost_w_persistent_class():
 
 
 def test_suite():
+    from doctest import DocTestSuite 
     return unittest.TestSuite((
         DocTestSuite(),
     ))

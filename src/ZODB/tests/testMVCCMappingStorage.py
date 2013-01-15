@@ -14,29 +14,25 @@
 
 import unittest
 
-from persistent.mapping import PersistentMapping
-import transaction
-from ZODB.DB import DB
-from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
-import ZODB.blob
-import ZODB.tests.testblob
 
-from ZODB.tests import (
-    BasicStorage,
-    HistoryStorage,
-    IteratorStorage,
-    MTStorage,
-    PackableStorage,
-    RevisionStorage,
-    StorageTestBase,
-    Synchronization,
-    )
+# Used as base classes for testcases
+from ZODB.tests.BasicStorage import BasicStorage
+from ZODB.tests.HistoryStorage import HistoryStorage
+from ZODB.tests.IteratorStorage import ExtendedIteratorStorage
+from ZODB.tests.IteratorStorage import IteratorStorage
+from ZODB.tests.MTStorage import MTStorage
+from ZODB.tests.PackableStorage import PackableStorageWithOptionalGC
+from ZODB.tests.RevisionStorage import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests.Synchronization import SynchronizedStorage
 
-class MVCCTests:
+class MVCCTests(object):
 
     def checkCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.
         # This will fail if the Connection doesn't poll for changes.
+        import transaction
+        from ZODB.DB import DB
         db = DB(self._storage)
         try:
             c1 = db.open(transaction.TransactionManager())
@@ -58,6 +54,9 @@ class MVCCTests:
     def checkCrossConnectionIsolation(self):
         # Verify MVCC isolates connections.
         # This will fail if Connection doesn't poll for changes.
+        from persistent.mapping import PersistentMapping
+        import transaction
+        from ZODB.DB import DB
         db = DB(self._storage)
         try:
             c1 = db.open()
@@ -126,19 +125,19 @@ class MVCCTests:
 
 class MVCCMappingStorageTests(
     StorageTestBase.StorageTestBase,
-    BasicStorage.BasicStorage,
-
-    HistoryStorage.HistoryStorage,
-    IteratorStorage.ExtendedIteratorStorage,
-    IteratorStorage.IteratorStorage,
-    MTStorage.MTStorage,
-    PackableStorage.PackableStorageWithOptionalGC,
-    RevisionStorage.RevisionStorage,
-    Synchronization.SynchronizedStorage,
+    BasicStorage,
+    HistoryStorage,
+    ExtendedIteratorStorage,
+    IteratorStorage,
+    MTStorage,
+    PackableStorageWithOptionalGC,
+    RevisionStorage,
+    SynchronizedStorage,
     MVCCTests
     ):
 
     def setUp(self):
+        from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
         self._storage = MVCCMappingStorage()
 
     def tearDown(self):
@@ -149,9 +148,7 @@ class MVCCMappingStorageTests(
     checkUndoZombie = checkLoadBeforeUndo
 
     def checkTransactionIdIncreases(self):
-        import time
-        from ZODB.utils import newTid
-        from ZODB.TimeStamp import TimeStamp
+        import transaction
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
@@ -169,22 +166,19 @@ class MVCCMappingStorageTests(
         self.assertEqual(self._storage._tid, 'zzzzzzzz')
 
 def create_blob_storage(name, blob_dir):
+    from ZODB.blob import BlobStorage
+    from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
     s = MVCCMappingStorage(name)
-    return ZODB.blob.BlobStorage(blob_dir, s)
+    return BlobStorage(blob_dir, s)
 
 def test_suite():
-    suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')
+    from ZODB.tests.testblob import storage_reusable_suite
+    return unittest.TestSuite((
+        unittest.makeSuite(MVCCMappingStorageTests, 'check'),
     # Note: test_packing doesn't work because even though MVCCMappingStorage
     # retains history, it does not provide undo methods, so the
     # BlobStorage wrapper calls _packNonUndoing instead of _packUndoing,
     # causing blobs to get deleted even though object states are retained.
-    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
-        'MVCCMapping', create_blob_storage,
-        test_undo=False,
-        ))
-    return suite
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)
+        storage_reusable_suite('MVCCMapping', create_blob_storage,
+                               test_undo=False,),
+    ))

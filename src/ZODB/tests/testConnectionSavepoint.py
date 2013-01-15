@@ -11,11 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
-import persistent.mapping
-import transaction
 import unittest
-import ZODB.tests.util
 
 def testAddingThenModifyThenAbort():
     """\
@@ -31,12 +27,14 @@ list that states that all objects in the list should have an oid and
 The fix was to abort work done after the savepoint before aborting the
 savepoint.
 
-    >>> import ZODB.tests.util
-    >>> db = ZODB.tests.util.DB()
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
 
-    >>> ob = persistent.mapping.PersistentMapping()
+    >>> from persistent.mapping import PersistentMapping
+    >>> import transaction
+    >>> ob = PersistentMapping()
     >>> root['ob'] = ob
     >>> sp = transaction.savepoint()
     >>> ob.x = 1
@@ -54,8 +52,9 @@ when commiting the current data and when committing the savepoint.
 The fix was to first make a new savepoint to move new changes to the
 savepoint storage and *then* to commit the savepoint storage.
 
-    >>> import ZODB.tests.util
-    >>> db = ZODB.tests.util.DB()
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
     >>> sp = transaction.savepoint()
@@ -67,8 +66,9 @@ savepoint storage and *then* to commit the savepoint storage.
 
 def testCantCloseConnectionWithActiveSavepoint():
     """
-    >>> import ZODB.tests.util
-    >>> db = ZODB.tests.util.DB()
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
     >>> root['a'] = 1
@@ -89,14 +89,14 @@ one traditional use for savepoints is simply to free memory space midstream
 during a long transaction.  Before ZODB 3.4.2, making a savepoint failed
 to trigger cache gc, and this test verifies that it now does.
 
-    >>> import ZODB
-    >>> from ZODB.tests.MinPO import MinPO
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> from ZODB.MappingStorage import MappingStorage
+    >>> from ZODB.tests.MinPO import MinPO
     >>> import transaction
     >>> CACHESIZE = 5  # something tiny
     >>> LOOPCOUNT = CACHESIZE * 10
     >>> st = MappingStorage("Test")
-    >>> from ZODB.DB import DB
     >>> db = DB(st, cache_size=CACHESIZE)
     >>> cn = db.open()
     >>> rt = cn.root()
@@ -142,8 +142,9 @@ def testIsReadonly():
 The connection isReadonly method relies on the _storage to have an isReadOnly.
 We simply rely on the underlying storage method.
 
-    >>> import ZODB.tests.util
-    >>> db = ZODB.tests.util.DB()
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
     >>> root['a'] = 1
@@ -152,11 +153,15 @@ We simply rely on the underlying storage method.
     False
 """
 
-class SelfActivatingObject(persistent.Persistent):
+def _makeSAO():
+    from persistent import Persistent
+    global SelfActivatingObject
+    class SelfActivatingObject(Persistent):
 
-    def _p_invalidate(self):
-        super(SelfActivatingObject, self)._p_invalidate()
-        self._p_activate()
+        def _p_invalidate(self):
+            super(SelfActivatingObject, self)._p_invalidate()
+            self._p_activate()
+    return SelfActivatingObject()
 
 def testInvalidateAfterRollback():
     """\
@@ -164,12 +169,14 @@ The rollback used to invalidate objects before resetting the TmpStore.
 This caused problems for custom _p_invalidate methods that would load
 the wrong state.
 
-    >>> import ZODB.tests.util
-    >>> db = ZODB.tests.util.DB()
+    >>> import persistent
+    >>> import transaction
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
 
-    >>> root['p'] = p = SelfActivatingObject()
+    >>> root['p'] = p = _makeSAO()
     >>> transaction.commit()
     >>> p.foo = 1
     >>> sp = transaction.savepoint()
@@ -182,13 +189,12 @@ the wrong state.
 
 
 def tearDown(test):
+    import transaction
     transaction.abort()
 
 def test_suite():
+    import doctest
     return unittest.TestSuite((
         doctest.DocFileSuite('testConnectionSavepoint.txt', tearDown=tearDown),
         doctest.DocTestSuite(tearDown=tearDown),
-        ))
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    ))

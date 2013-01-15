@@ -68,10 +68,8 @@ Clean up.
 >>> st.close()
 """
 
-import doctest
-import zope.testing.setupstack
-
 def test_suite():
-    return doctest.DocTestSuite(
-        setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown)
+    import doctest
+    from zope.testing.setupstack import setUpDirectory
+    from zope.testing.setupstack import tearDown
+    return doctest.DocTestSuite(setUp=setUpDirectory, tearDown=tearDown)

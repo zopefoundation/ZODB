@@ -13,24 +13,39 @@
 ##############################################################################
 """Test the routines to convert between long and 64-bit strings"""
 
-from persistent import Persistent
-import doctest
-import random
 import unittest
 
 NUM = 100
 
-from ZODB.utils import U64, p64, u64
 
 class TestUtils(unittest.TestCase):
 
-    small = [random.randrange(1, 1L<<32, int=long)
-             for i in range(NUM)]
-    large = [random.randrange(1L<<32, 1L<<64, int=long)
-             for i in range(NUM)]
-    all = small + large
+    _small = _large = None
+
+    @property
+    def small(self):
+        import random
+        if self._small is None:
+            self._small = [random.randrange(1, 1L<<32, int=long)
+                            for i in range(NUM)]
+        return self._small
+
+    @property
+    def large(self):
+        import random
+        if self._large is None:
+            self._large = [random.randrange(1L<<32, 1L<<64, int=long)
+                            for i in range(NUM)]
+        return self._large
+
+    @property
+    def all(self):
+        return self.small + self.large
 
     def checkLongToStringToLong(self):
+        from ZODB.utils import U64
+        from ZODB.utils import p64
+        from ZODB.utils import u64
         for num in self.all:
             s = p64(num)
             n = U64(s)
@@ -39,6 +54,9 @@ class TestUtils(unittest.TestCase):
             self.assertEquals(num, n2, "u64() failed")
 
     def checkKnownConstants(self):
+        from ZODB.utils import U64
+        from ZODB.utils import p64
+        from ZODB.utils import u64
         self.assertEquals("\000\000\000\000\000\000\000\001", p64(1))
         self.assertEquals("\000\000\000\001\000\000\000\000", p64(1L<<32))
         self.assertEquals(u64("\000\000\000\000\000\000\000\001"), 1)
@@ -47,6 +65,7 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1L<<32)
 
     def checkPersistentIdHandlesDescriptor(self):
+        from persistent import Persistent
         from ZODB.serialize import ObjectWriter
         class P(Persistent):
             pass
@@ -90,7 +109,8 @@ class TestUtils(unittest.TestCase):
 
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(TestUtils, 'check'))
-    suite.addTest(doctest.DocFileSuite('../utils.txt'))
-    return suite
+    import doctest
+    return unittest.TestSuite((
+        unittest.makeSuite(TestUtils, 'check'),
+        doctest.DocFileSuite('../utils.txt'),
+    ))

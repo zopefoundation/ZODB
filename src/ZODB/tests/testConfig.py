@@ -12,26 +12,23 @@
 #
 ##############################################################################
 
-import doctest
-import tempfile
 import unittest
 
-import transaction
-import ZODB.config
-import ZODB.tests.util
-from ZODB.POSException import ReadOnlyError
+from ZODB.tests.util import TestCase as utilTestCase
 
 
-class ConfigTestBase(ZODB.tests.util.TestCase):
+class ConfigTestBase(utilTestCase):
     def _opendb(self, s):
-        return ZODB.config.databaseFromString(s)
+        from ZODB.config import databaseFromString
+        return databaseFromString(s)
 
     def tearDown(self):
-        ZODB.tests.util.TestCase.tearDown(self)
+        utilTestCase.tearDown(self)
         if getattr(self, "storage", None) is not None:
             self.storage.cleanup()
 
     def _test(self, s):
+        import transaction
         db = self._opendb(s)
         self.storage = db._storage
         # Do something with the database to make sure it works
@@ -61,6 +58,7 @@ class ZODBConfigTest(ConfigTestBase):
             """)
 
     def test_file_config1(self):
+        import tempfile
         path = tempfile.mktemp()
         self._test(
             """
@@ -72,6 +70,8 @@ class ZODBConfigTest(ConfigTestBase):
             """ % path)
 
     def test_file_config2(self):
+        import tempfile
+        from ZODB.POSException import ReadOnlyError
         path = tempfile.mktemp()
         cfg = """
         <zodb>
@@ -98,26 +98,28 @@ class ZODBConfigTest(ConfigTestBase):
 
 def database_xrefs_config():
     r"""
-    >>> db = ZODB.config.databaseFromString(
+    >>> from ZODB.config import databaseFromString
+    >>> db = databaseFromString(
     ...    "<zodb>\n<mappingstorage>\n</mappingstorage>\n</zodb>\n")
     >>> db.xrefs
     True
-    >>> db = ZODB.config.databaseFromString(
+    >>> db = databaseFromString(
     ...    "<zodb>\nallow-implicit-cross-references true\n"
     ...    "<mappingstorage>\n</mappingstorage>\n</zodb>\n")
     >>> db.xrefs
     True
-    >>> db = ZODB.config.databaseFromString(
+    >>> db = databaseFromString(
     ...    "<zodb>\nallow-implicit-cross-references false\n"
     ...    "<mappingstorage>\n</mappingstorage>\n</zodb>\n")
     >>> db.xrefs
     False
     """
 
-def multi_atabases():
+def multi_databases():
     r"""If there are multiple codb sections -> multidatabase
 
-    >>> db = ZODB.config.databaseFromString('''
+    >>> from ZODB.config import databaseFromString
+    >>> db = databaseFromString('''
     ... <zodb>
     ...    <mappingstorage>
     ...    </mappingstorage>
@@ -148,7 +150,7 @@ def multi_atabases():
 
     Can't have repeats:
 
-    >>> ZODB.config.databaseFromString('''
+    >>> databaseFromString('''
     ... <zodb 1>
     ...    <mappingstorage>
     ...    </mappingstorage>
@@ -167,7 +169,7 @@ def multi_atabases():
     ConfigurationSyntaxError:
     section names must not be re-used within the same container:'1' (line 9)
 
-    >>> ZODB.config.databaseFromString('''
+    >>> databaseFromString('''
     ... <zodb>
     ...    <mappingstorage>
     ...    </mappingstorage>
@@ -184,12 +186,10 @@ def multi_atabases():
     """
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(doctest.DocTestSuite(
-        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown))
-    suite.addTest(unittest.makeSuite(ZODBConfigTest))
-    return suite
-
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    import doctest
+    from ZODB.tests.util import setUp
+    from ZODB.tests.util import tearDown
+    return  unittest.TestSuite((
+        doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
+        unittest.makeSuite(ZODBConfigTest),
+    ))

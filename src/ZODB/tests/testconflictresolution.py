@@ -11,49 +11,41 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import manuel.doctest
-import manuel.footnote
-import doctest
-import manuel.capture
-import manuel.testing
-import persistent
-import transaction
 import unittest
-import ZODB.ConflictResolution
-import ZODB.tests.util
-import ZODB.POSException
-import zope.testing.module
-
-def setUp(test):
-    ZODB.tests.util.setUp(test)
-    zope.testing.module.setUp(test, 'ConflictResolution_txt')
-    ZODB.ConflictResolution._class_cache.clear()
-    ZODB.ConflictResolution._unresolvable.clear()
-
-def tearDown(test):
-    zope.testing.module.tearDown(test)
-    ZODB.tests.util.tearDown(test)
-    ZODB.ConflictResolution._class_cache.clear()
-    ZODB.ConflictResolution._unresolvable.clear()
 
 
-class ResolveableWhenStateDoesNotChange(persistent.Persistent):
+def _setUp(test):
+    from ZODB.ConflictResolution import _class_cache
+    from ZODB.ConflictResolution import _unresolvable
+    from zope.testing.module import setUp
+    from ZODB.tests.util import setUp as util_setUp
+    util_setUp(test)
+    setUp(test, 'ConflictResolution_txt')
+    _class_cache.clear()
+    _unresolvable.clear()
 
-    def _p_resolveConflict(old, committed, new):
-        raise ZODB.POSException.ConflictError
+def _tearDown(test):
+    from ZODB.ConflictResolution import _class_cache
+    from ZODB.ConflictResolution import _unresolvable
+    from zope.testing.module import tearDown
+    from ZODB.tests.util import tearDown as util_tearDown
+    tearDown(test)
+    util_tearDown(test)
+    _class_cache.clear()
+    _unresolvable.clear()
 
-class Unresolvable(persistent.Persistent):
-    pass
 
 def succeed_with_resolution_when_state_is_unchanged():
     """
     If a conflicting change doesn't change the state, then don't even
     bother calling _p_resolveConflict
 
+    >>> import transaction
     >>> from ZODB.DB import DB
     >>> db = DB('t.fs') # FileStorage!
     >>> storage = db.storage
     >>> conn = db.open()
+    >>> from ZODB.tests.examples import ResolveableWhenStateDoesNotChange
     >>> conn.root.x = ResolveableWhenStateDoesNotChange()
     >>> conn.root.x.v = 1
     >>> transaction.commit()
@@ -95,6 +87,7 @@ the original:
 
 Of course, none of this applies if content doesn't support conflict resolution.
 
+    >>> from ZODB.tests.examples import Unresolvable
     >>> conn.root.y = Unresolvable()
     >>> conn.root.y.v = 1
     >>> transaction.commit()
@@ -111,58 +104,19 @@ Of course, none of this applies if content doesn't support conflict resolution.
     >>> db.close()
     """
 
-class Resolveable(persistent.Persistent):
-
-    def _p_resolveConflict(self, old, committed, new):
-
-        resolved = {}
-        for k in old:
-            if k not in committed:
-                if k in new and new[k] == old[k]:
-                    continue
-                raise ZODB.POSException.ConflictError
-            if k not in new:
-                if k in committed and committed[k] == old[k]:
-                    continue
-                raise ZODB.POSException.ConflictError
-            if committed[k] != old[k]:
-                if new[k] == old[k]:
-                    resolved[k] = committed[k]
-                    continue
-                raise ZODB.POSException.ConflictError
-            if new[k] != old[k]:
-                if committed[k] == old[k]:
-                    resolved[k] = new[k]
-                    continue
-                raise ZODB.POSException.ConflictError
-            resolved[k] = old[k]
-
-        for k in new:
-            if k in old:
-                continue
-            if k in committed:
-                raise ZODB.POSException.ConflictError
-            resolved[k] = new[k]
-
-        for k in committed:
-            if k in old:
-                continue
-            if k in new:
-                raise ZODB.POSException.ConflictError
-            resolved[k] = committed[k]
-
-        return resolved
-
 def resolve_even_when_referenced_classes_are_absent():
     """
 
 We often want to be able to resolve even when there are pesistent
 references to classes that can't be imported.
 
-    >>> class P(persistent.Persistent):
+    >>> from persistent import Persistent
+    >>> class P(Persistent):
     ...     pass
 
+    >>> import transaction
     >>> from ZODB.DB import DB
+    >>> from ZODB.tests.examples import Resolveable
     >>> db = DB('t.fs') # FileStorage!
     >>> storage = db.storage
     >>> conn = db.open()
@@ -242,15 +196,18 @@ Bwahaha:
 def resolve_even_when_xdb_referenced_classes_are_absent():
     """Cross-database persistent refs!
 
-    >>> class P(persistent.Persistent):
+    >>> from persistent import Persistent
+    >>> class P(Persistent):
     ...     pass
 
+    >>> import transaction
     >>> from ZODB.DB import DB
     >>> databases = {}
     >>> db = DB('t.fs', databases=databases, database_name='')
     >>> db2 = DB('o.fs', databases=databases, database_name='o')
     >>> storage = db.storage
     >>> conn = db.open()
+    >>> from ZODB.tests.examples import Resolveable
     >>> conn.root.x = Resolveable()
     >>> transaction.commit()
     >>> oid = conn.root.x._p_oid
@@ -297,15 +254,21 @@ And load the pickle:
     """
 
 def test_suite():
-    return unittest.TestSuite([
+    import doctest
+    import manuel.doctest
+    import manuel.footnote
+    import manuel.capture
+    import manuel.testing
+    return unittest.TestSuite((
         manuel.testing.TestSuite(
             manuel.doctest.Manuel()
             + manuel.footnote.Manuel()
             + manuel.capture.Manuel(),
             '../ConflictResolution.txt',
-            setUp=setUp, tearDown=tearDown,
+            setUp=_setUp,
+            tearDown=_tearDown,
             ),
         doctest.DocTestSuite(
-            setUp=setUp, tearDown=tearDown),
-        ])
-
+            setUp=_setUp,
+            tearDown=_tearDown),
+    ))

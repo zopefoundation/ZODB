@@ -13,27 +13,19 @@
 ##############################################################################
 """Tests of the file storage recovery script."""
 
-import base64
-import os
-import random
-import sys
 import unittest
-import StringIO
 
-import ZODB
-import ZODB.tests.util
-from ZODB.FileStorage.FileStorage import FileStorage
-import ZODB.fsrecover
 
-from persistent.mapping import PersistentMapping
-import transaction
+from ZODB.tests.util import TestCase as utilTestCase
 
-class RecoverTest(ZODB.tests.util.TestCase):
+
+class RecoverTest(utilTestCase):
 
     path = None
 
     def setUp(self):
-        ZODB.tests.util.TestCase.setUp(self)
+        from ZODB.FileStorage.FileStorage import FileStorage
+        utilTestCase.setUp(self)
         self.path = 'source.fs'
         self.storage = FileStorage(self.path)
         self.populate()
@@ -41,14 +33,17 @@ class RecoverTest(ZODB.tests.util.TestCase):
         self.recovered = None
 
     def tearDown(self):
+        from ZODB.FileStorage.FileStorage import FileStorage
         self.storage.close()
         if self.recovered is not None:
             self.recovered.close()
         temp = FileStorage(self.dest)
         temp.close()
-        ZODB.tests.util.TestCase.tearDown(self)
+        utilTestCase.tearDown(self)
 
     def populate(self):
+        from persistent.mapping import PersistentMapping
+        import transaction
         from ZODB.DB import DB
         db = DB(self.storage)
         cn = db.open()
@@ -63,6 +58,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
             transaction.commit()
 
     def damage(self, num, size):
+        import random
         self.storage.close()
         # Drop size null bytes into num random spots.
         for i in range(num):
@@ -77,12 +73,15 @@ class RecoverTest(ZODB.tests.util.TestCase):
     # Run recovery, from self.path to self.dest.  Return whatever
     # recovery printed to stdout, as a string.
     def recover(self):
+        import StringIO
+        import sys
+        from ZODB.fsrecover import recover
         orig_stdout = sys.stdout
         faux_stdout = StringIO.StringIO()
         try:
             sys.stdout = faux_stdout
             try:
-                ZODB.fsrecover.recover(self.path, self.dest,
+                recover(self.path, self.dest,
                         verbose=0, partial=True, force=False, pack=1)
             except SystemExit:
                 raise RuntimeError("recover tried to exit")
@@ -114,6 +113,8 @@ class RecoverTest(ZODB.tests.util.TestCase):
                          "recovery changed a non-damaged .fs file")
 
     def testOneBlock(self):
+        import os
+        from ZODB.FileStorage.FileStorage import FileStorage
         for i in range(self.ITERATIONS):
             self.damage(1, 1024)
             output = self.recover()
@@ -124,6 +125,8 @@ class RecoverTest(ZODB.tests.util.TestCase):
             os.rename(self.dest, self.path)
 
     def testFourBlocks(self):
+        import os
+        from ZODB.FileStorage.FileStorage import FileStorage
         for i in range(self.ITERATIONS):
             self.damage(4, 512)
             output = self.recover()
@@ -134,6 +137,8 @@ class RecoverTest(ZODB.tests.util.TestCase):
             os.rename(self.dest, self.path)
 
     def testBigBlock(self):
+        import os
+        from ZODB.FileStorage.FileStorage import FileStorage
         for i in range(self.ITERATIONS):
             self.damage(1, 32 * 1024)
             output = self.recover()
@@ -145,6 +150,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
 
     def testBadTransaction(self):
         # Find transaction headers and blast them.
+        import base64
+        import os
+        from ZODB.FileStorage.FileStorage import FileStorage
 
         L = self.storage.undoLog()
         r = L[3]
@@ -184,6 +192,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
     # into an infinite loop.
     def testUncommittedAtEnd(self):
         # Find a transaction near the end.
+        import base64
+        import os
+        import ZODB.fsrecover
         L = self.storage.undoLog()
         r = L[1]
         tid = base64.decodestring(r["id"] + b"\n")

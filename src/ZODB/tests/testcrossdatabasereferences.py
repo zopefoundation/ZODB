@@ -11,17 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
-import persistent
 import unittest
-
-class MyClass(persistent.Persistent):
-    pass
-
-class MyClass_w_getnewargs(persistent.Persistent):
-
-    def __getnewargs__(self):
-        return ()
 
 def test_must_use_consistent_connections():
     """
@@ -33,13 +23,17 @@ work.
 For example, it's tempting to open a second database using the
 database open function, but this doesn't work:
 
-    >>> import ZODB.tests.util, transaction, persistent
+
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> databases = {}
-    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
-    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> db1 = DB(None, databases=databases, database_name='1')
+    >>> db2 = DB(None, databases=databases, database_name='2')
 
     >>> tm = transaction.TransactionManager()
     >>> conn1 = db1.open(transaction_manager=tm)
+
+    >>> from ZODB.tests.crossrefs import MyClass
     >>> p1 = MyClass()
     >>> conn1.root()['p'] = p1
     >>> tm.commit()
@@ -56,7 +50,7 @@ database open function, but this doesn't work:
     ('Attempt to store a reference to an object from a separate connection to
     the same database or multidatabase',
     <Connection at ...>,
-    <ZODB.tests.testcrossdatabasereferences.MyClass object at ...>)
+    <ZODB.tests.crossrefs.MyClass object at ...>)
 
     >>> tm.abort()
 
@@ -75,7 +69,7 @@ different connections to the same database.
     ('Attempt to store a reference to an object from a separate connection
     to the same database or multidatabase',
     <Connection at ...>,
-    <ZODB.tests.testcrossdatabasereferences.MyClass object at ...>)
+    <ZODB.tests.crossrefs.MyClass object at ...>)
 
     >>> tm.abort()
 
@@ -88,13 +82,16 @@ If a connection participates in a multidatabase, then it's
 connections must remain so that references between it's cached
 objects remain sane.
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> databases = {}
-    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
-    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> db1 = DB(None, databases=databases, database_name='1')
+    >>> db2 = DB(None, databases=databases, database_name='2')
     >>> tm = transaction.TransactionManager()
     >>> conn1 = db1.open(transaction_manager=tm)
     >>> conn2 = conn1.get_connection('2')
+
+    >>> from ZODB.tests.crossrefs import MyClass
     >>> z = MyClass()
     >>> conn2.root()['z'] = z
     >>> tm.commit()
@@ -127,13 +124,16 @@ if we get the same objects:
 def test_explicit_adding_with_savepoint():
     """
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> databases = {}
-    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
-    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> db1 = DB(None, databases=databases, database_name='1')
+    >>> db2 = DB(None, databases=databases, database_name='2')
     >>> tm = transaction.TransactionManager()
     >>> conn1 = db1.open(transaction_manager=tm)
     >>> conn2 = conn1.get_connection('2')
+
+    >>> from ZODB.tests.crossrefs import MyClass
     >>> z = MyClass()
 
     >>> conn1.root()['z'] = z
@@ -152,13 +152,16 @@ def test_explicit_adding_with_savepoint():
 def test_explicit_adding_with_savepoint2():
     """
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> databases = {}
-    >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
-    >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
+    >>> db1 = DB(None, databases=databases, database_name='1')
+    >>> db2 = DB(None, databases=databases, database_name='2')
     >>> tm = transaction.TransactionManager()
     >>> conn1 = db1.open(transaction_manager=tm)
     >>> conn2 = conn1.get_connection('2')
+
+    >>> from ZODB.tests.crossrefs import MyClass
     >>> z = MyClass()
 
     >>> conn1.root()['z'] = z
@@ -180,6 +183,10 @@ def tearDownDbs(test):
     test.globs['db2'].close()
 
 def test_suite():
+    import doctest
+    from ZODB.tests.crossrefs import MyClass
+    from ZODB.tests.crossrefs import MyClass_w_getnewargs
+
     return unittest.TestSuite((
         doctest.DocFileSuite('../cross-database-references.txt',
                              globs=dict(MyClass=MyClass),
@@ -190,8 +197,4 @@ def test_suite():
                              tearDown=tearDownDbs,
                              ),
         doctest.DocTestSuite(),
-        ))
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
-
+    ))

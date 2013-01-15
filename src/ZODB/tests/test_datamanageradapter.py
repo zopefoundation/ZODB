@@ -12,14 +12,12 @@
 #
 ##############################################################################
 import unittest
-from doctest import DocTestSuite
-from transaction._transaction import DataManagerAdapter
-from ZODB.tests.sampledm import DataManager
 
 def test_normal_commit():
     """
     So, we have a data manager:
 
+    >>> from ZODB.tests.sampledm import DataManager
     >>> dm = DataManager()
 
     and we do some work that modifies uncommited state:
@@ -31,6 +29,7 @@ def test_normal_commit():
     Now we'll commit the changes.  When the data manager joins a transaction,
     the transaction will create an adapter.
 
+    >>> from transaction._transaction import DataManagerAdapter
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -84,6 +83,7 @@ def test_abort():
     """
     So, we have a data manager:
 
+    >>> from ZODB.tests.sampledm import DataManager
     >>> dm = DataManager()
 
     and we do some work that modifies uncommited state:
@@ -95,6 +95,7 @@ def test_abort():
     When the data manager joins a transaction,
     the transaction will create an adapter.
 
+    >>> from transaction._transaction import DataManagerAdapter
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object.
@@ -124,6 +125,7 @@ def test_tpc_abort_phase1():
     """
     So, we have a data manager:
 
+    >>> from ZODB.tests.sampledm import DataManager
     >>> dm = DataManager()
 
     and we do some work that modifies uncommited state:
@@ -135,6 +137,7 @@ def test_tpc_abort_phase1():
     Now we'll commit the changes.  When the data manager joins a transaction,
     the transaction will create an adapter.
 
+    >>> from transaction._transaction import DataManagerAdapter
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -175,6 +178,7 @@ def test_tpc_abort_phase2():
     """
     So, we have a data manager:
 
+    >>> from ZODB.tests.sampledm import DataManager
     >>> dm = DataManager()
 
     and we do some work that modifies uncommited state:
@@ -186,6 +190,7 @@ def test_tpc_abort_phase2():
     Now we'll commit the changes.  When the data manager joins a transaction,
     the transaction will create an adapter.
 
+    >>> from transaction._transaction import DataManagerAdapter
     >>> dma = DataManagerAdapter(dm)
 
     and register it as a modified object. At commit time, the
@@ -236,7 +241,5 @@ def test_tpc_abort_phase2():
     """
 
 def test_suite():
+    from doctest import DocTestSuite
     return DocTestSuite()
-
-if __name__ == '__main__':
-    unittest.main()

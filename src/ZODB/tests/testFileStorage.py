@@ -706,37 +706,35 @@ def test_suite():
     from ZODB.tests.hexstorage import HexStorage
     from ZODB.tests.testblob import storage_reusable_suite
     from ZODB.tests.util import MinimalTestLayer
-    suite = unittest.TestSuite()
-    for klass in [
-        FileStorageTests,
-        FileStorageHexTests,
-        FileStorageCorruptTests,
-        FileStorageRecoveryTest,
-        FileStorageHexRecoveryTest,
-        FileStorageNoRestoreRecoveryTest,
-        FileStorageTestsWithBlobsEnabled,
-        FileStorageHexTestsWithBlobsEnabled,
-        AnalyzeDotPyTest,
-        ]:
-        suite.addTest(unittest.makeSuite(klass, "check"))
-    suite.addTest(doctest.DocTestSuite(
-        setUp=setupstack.setUpDirectory,
-        tearDown=setupstack.tearDown))
-    suite.addTest(storage_reusable_suite('BlobFileStorage',
-        lambda name, blob_dir:
-        FileStorage('%s.fs' % name, blob_dir=blob_dir),
-        test_blob_storage_recovery=True,
-        test_packing=True,
-        ))
-    suite.addTest(storage_reusable_suite('BlobFileHexStorage',
-        lambda name, blob_dir:
-        HexStorage(
-            FileStorage('%s.fs' % name, blob_dir=blob_dir)),
-        test_blob_storage_recovery=True,
-        test_packing=True,
-        ))
-    suite.addTest(IExternalGC_suite(
-        lambda : FileStorage(
-            'data.fs', blob_dir='blobs', pack_gc=False)))
+    suite = unittest.TestSuite((
+        unittest.makeSuite(FileStorageTests, "check"),
+        unittest.makeSuite(FileStorageHexTests, "check"),
+        unittest.makeSuite(FileStorageCorruptTests, "check"),
+        unittest.makeSuite(FileStorageRecoveryTest, "check"),
+        unittest.makeSuite(FileStorageHexRecoveryTest, "check"),
+        unittest.makeSuite(FileStorageNoRestoreRecoveryTest, "check"),
+        unittest.makeSuite(FileStorageTestsWithBlobsEnabled, "check"),
+        unittest.makeSuite(FileStorageHexTestsWithBlobsEnabled, "check"),
+        unittest.makeSuite(AnalyzeDotPyTest, "check"),
+        doctest.DocTestSuite(setUp=setupstack.setUpDirectory,
+                             tearDown=setupstack.tearDown),
+        storage_reusable_suite('BlobFileStorage',
+                               lambda name, blob_dir:
+                                FileStorage('%s.fs' % name,
+                                            blob_dir=blob_dir),
+                               test_blob_storage_recovery=True,
+                               test_packing=True,
+                              ),
+        storage_reusable_suite('BlobFileHexStorage',
+                               lambda name, blob_dir:
+                                HexStorage(
+                                   FileStorage('%s.fs' % name,
+                                               blob_dir=blob_dir)),
+                               test_blob_storage_recovery=True,
+                               test_packing=True,
+                              ),
+        IExternalGC_suite(lambda : FileStorage(
+                            'data.fs', blob_dir='blobs', pack_gc=False)),
+    ))
     suite.layer = MinimalTestLayer('testFileStorage')
     return suite

@@ -11,19 +11,19 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
 import unittest
 
-__test__ = dict(
-    cross_db_refs_to_blank_db_name = """
-
+def cross_db_refs_to_blank_db_name():
+    """
     There was a bug that caused bad refs to be generated is a database
     name was blank.
 
-    >>> import ZODB.tests.util, persistent.mapping, transaction
+    >>> import persistent.mapping
+    >>> import transaction
+    >>> from ZODB.DB import DB
     >>> dbs = {}
-    >>> db1 = ZODB.tests.util.DB(database_name='', databases=dbs)
-    >>> db2 = ZODB.tests.util.DB(database_name='2', databases=dbs)
+    >>> db1 = DB(None, database_name='', databases=dbs)
+    >>> db2 = DB(None, database_name='2', databases=dbs)
     >>> conn1 = db1.open()
     >>> conn2 = conn1.get_connection('2')
     >>> for i in range(10):
@@ -38,15 +38,14 @@ __test__ = dict(
     >>> list(conn2.root()[0].keys())
     []
 
-    """,
-    )
+    """
 
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(doctest.DocFileSuite("dbopen.txt",
-                                       "multidb.txt",
-                                       "synchronizers.txt",
-                                       ))
-    suite.addTest(doctest.DocTestSuite())
-    return suite
+    import doctest
+    return unittest.TestSuite((
+        doctest.DocFileSuite("dbopen.txt",
+                             "multidb.txt",
+                             "synchronizers.txt"),
+        doctest.DocTestSuite(),
+    ))

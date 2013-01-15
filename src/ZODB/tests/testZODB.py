@@ -13,9 +13,9 @@
 ##############################################################################
 import unittest
 
-
 # Used as a base class
 from ZODB.tests.util import TestCase as utilTestCase
+
 
 class ZODBTests(utilTestCase):
 
@@ -195,6 +195,7 @@ class ZODBTests(utilTestCase):
         #      --> "q" -> value = 2
         from persistent import Persistent
         import transaction
+        global P
         class P(Persistent):
             pass
 
@@ -429,11 +430,12 @@ class ZODBTests(utilTestCase):
             transaction.abort()
             conn.close()
 
+
 class ReadConflictTests(utilTestCase):
 
     def setUp(self):
         from ZODB.MappingStorage import MappingStorage
-        ZODB.tests.utils.TestCase.setUp(self)
+        utilTestCase.setUp(self)
         self._storage = MappingStorage()
 
     def readConflict(self, shouldFail=True):
@@ -597,8 +599,10 @@ class ReadConflictTests(utilTestCase):
 
         cn2.close()
 
+
 class PoisonedError(Exception):
     pass
+
 
 # PoisonedJar arranges to raise PoisonedError from interesting places.
 class PoisonedJar:
@@ -636,7 +640,10 @@ class PoisonedObject:
     def __init__(self, poisonedjar):
         self._p_jar = poisonedjar
 
+
 def test_suite():
     return unittest.TestSuite((
         unittest.makeSuite(ZODBTests, 'check'),
+        # XXX why wasn't this being tested?
+        #unittest.makeSuite(ReadConflictTests, 'check'),
         ))

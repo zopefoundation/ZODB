@@ -11,38 +11,35 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import ZODB.MappingStorage
 import unittest
-import ZODB.tests.hexstorage
 
-
-from ZODB.tests import (
-    BasicStorage,
-    HistoryStorage,
-    IteratorStorage,
-    MTStorage,
-    PackableStorage,
-    RevisionStorage,
-    StorageTestBase,
-    Synchronization,
-    )
+# Used as base classes for test cases
+from ZODB.tests.BasicStorage import BasicStorage
+from ZODB.tests.HistoryStorage import HistoryStorage
+from ZODB.tests.IteratorStorage import ExtendedIteratorStorage
+from ZODB.tests.IteratorStorage import IteratorStorage
+from ZODB.tests.MTStorage import MTStorage
+from ZODB.tests.PackableStorage import PackableStorageWithOptionalGC
+from ZODB.tests.RevisionStorage import RevisionStorage
+from ZODB.tests.StorageTestBase import StorageTestBase
+from ZODB.tests.Synchronization import SynchronizedStorage
 
 class MappingStorageTests(
-    StorageTestBase.StorageTestBase,
-    BasicStorage.BasicStorage,
-
-    HistoryStorage.HistoryStorage,
-    IteratorStorage.ExtendedIteratorStorage,
-    IteratorStorage.IteratorStorage,
-    MTStorage.MTStorage,
-    PackableStorage.PackableStorageWithOptionalGC,
-    RevisionStorage.RevisionStorage,
-    Synchronization.SynchronizedStorage,
+    StorageTestBase,
+    BasicStorage,
+    HistoryStorage,
+    ExtendedIteratorStorage,
+    IteratorStorage,
+    MTStorage,
+    PackableStorageWithOptionalGC,
+    RevisionStorage,
+    SynchronizedStorage,
     ):
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self, )
-        self._storage = ZODB.MappingStorage.MappingStorage()
+        from ZODB.MappingStorage import MappingStorage
+        StorageTestBase.setUp(self, )
+        self._storage = MappingStorage()
 
     def checkOversizeNote(self):
         # This base class test checks for the common case where a storage
@@ -54,19 +51,18 @@ class MappingStorageTests(
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
+
 class MappingStorageHexTests(MappingStorageTests):
 
     def setUp(self):
-        StorageTestBase.StorageTestBase.setUp(self, )
-        self._storage = ZODB.tests.hexstorage.HexStorage(
-            ZODB.MappingStorage.MappingStorage())
+        from ZODB.MappingStorage import MappingStorage
+        from ZODB.tests.hexstorage import HexStorage
+        StorageTestBase.setUp(self, )
+        self._storage = HexStorage(MappingStorage())
+
 
 def test_suite():
-    suite = unittest.makeSuite(MappingStorageTests, 'check')
-    suite = unittest.makeSuite(MappingStorageHexTests, 'check')
-    return suite
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)
+    return unittest.TestSuite((
+        unittest.makeSuite(MappingStorageTests, 'check'),
+        unittest.makeSuite(MappingStorageHexTests, 'check'),
+    ))

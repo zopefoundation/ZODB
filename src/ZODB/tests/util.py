@@ -13,22 +13,24 @@
 ##############################################################################
 """Conventience function for creating test databases
 """
-
-from __future__ import with_statement
-
-from ZODB.MappingStorage import DB
-
 import atexit
 import os
-import persistent
 import sys
 import tempfile
 import time
-import transaction
 import unittest
 import warnings
-import ZODB.utils
+
+import persistent
+import transaction
 import zope.testing.setupstack
+import ZODB.utils
+
+def DB(*args, **kw):
+    from ZODB.DB import DB
+    warnings.warn('Please use the normal DB with None as the storage',
+                  DeprecationWarning, stacklevel=2)
+    return DB(None, *args, **kw)
 
 def setUp(test, name='test'):
     transaction.abort()

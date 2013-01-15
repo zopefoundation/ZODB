@@ -13,31 +13,26 @@
 ##############################################################################
 """Test broken-object suppport
 """
-
-import sys
 import unittest
-import persistent
-import transaction
-import os
-if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
-    from zope.testing.doctest import DocTestSuite
-else:
-    from doctest import DocTestSuite
-from ZODB.tests.util import DB
+
 
 def test_integration():
     r"""Test the integration of broken object support with the databse:
 
-    >>> db = DB()
+    >>> from ZODB.DB import DB
+    >>> db = DB(None)
 
     We'll create a fake module with a class:
 
+    >>> import persistent
+    >>> import transaction
     >>> class NotThere:
     ...     Atall = type('Atall', (persistent.Persistent, ),
     ...                  {'__module__': 'ZODB.not.there'})
 
     And stuff this into sys.modules to simulate a regular module:
 
+    >>> import sys
     >>> sys.modules['ZODB.not.there'] = NotThere
     >>> sys.modules['ZODB.not'] = NotThere
 
@@ -91,9 +86,12 @@ def test_integration():
     """
 
 def test_suite():
+    import os
+    if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+        from zope.testing.doctest import DocTestSuite
+    else:
+        from doctest import DocTestSuite
     return unittest.TestSuite((
         DocTestSuite('ZODB.broken'),
         DocTestSuite(),
         ))
-
-if __name__ == '__main__': unittest.main()

@@ -12,45 +12,6 @@
 #
 ##############################################################################
 """Test behavior of Connection plus cPickleCache."""
-from persistent import Persistent
-from ZODB.config import databaseFromString
-import doctest
-import transaction
-
-class RecalcitrantObject(Persistent):
-    """A Persistent object that will not become a ghost."""
-
-    deactivations = 0
-
-    def _p_deactivate(self):
-        self.__class__.deactivations += 1
-
-    def init(cls):
-        cls.deactivations = 0
-
-    init = classmethod(init)
-
-class RegularObject(Persistent):
-
-    deactivations = 0
-    invalidations = 0
-
-    def _p_deactivate(self):
-        self.__class__.deactivations += 1
-        super(RegularObject, self)._p_deactivate()
-
-    def _p_invalidate(self):
-        self.__class__.invalidations += 1
-        super(RegularObject, self)._p_invalidate()
-
-    def init(cls):
-        cls.deactivations = 0
-        cls.invalidations = 0
-
-    init = classmethod(init)
-
-class PersistentObject(Persistent):
-    pass
 
 class CacheTests:
 
@@ -59,9 +20,12 @@ class CacheTests:
 
         Let's start with a clean transaction
 
+        >>> import transaction
         >>> transaction.abort()
 
+        >>> from ZODB.tests.examples import RegularObject
         >>> RegularObject.init()
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n"
         ...                         "cache-size 4\n"
         ...                         "<mappingstorage/>\n"
@@ -135,7 +99,10 @@ class CacheTests:
         also return when it's looked at each item, regardless of whether
         it became a ghost.
 
+        >>> import transaction
+        >>> from ZODB.tests.examples import RecalcitrantObject
         >>> RecalcitrantObject.init()
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n"
         ...                         "cache-size 4\n"
         ...                         "<mappingstorage/>\n"
@@ -172,7 +139,10 @@ class CacheTests:
     def test_cache_on_abort(self):
         r"""Test that the cache handles transaction abort correctly.
 
+        >>> import transaction
+        >>> from ZODB.tests.examples import RegularObject
         >>> RegularObject.init()
+        >>> from ZODB.config import databaseFromString
         >>> db = databaseFromString("<zodb>\n"
         ...                         "cache-size 4\n"
         ...                         "<mappingstorage/>\n"
@@ -213,27 +183,31 @@ class CacheTests:
 
         We start with a persistent object and add a list attribute::
 
-            >>> db = databaseFromString("<zodb>\n"
-            ...                         "cache-size 0\n"
-            ...                         "<mappingstorage/>\n"
-            ...                         "</zodb>")
-            >>> cn1 = db.open()
-            >>> r = cn1.root()
-            >>> r['ob'] = PersistentObject()
-            >>> r['ob'].l = []
-            >>> transaction.commit()
+        >>> import transaction
+        >>> from ZODB.tests.examples import PersistentObject
+        >>> from ZODB.config import databaseFromString
+        >>> db = databaseFromString("<zodb>\n"
+        ...                         "cache-size 0\n"
+        ...                         "<mappingstorage/>\n"
+        ...                         "</zodb>")
+        >>> cn1 = db.open()
+        >>> r = cn1.root()
+        >>> r['ob'] = PersistentObject()
+        >>> r['ob'].l = []
+        >>> transaction.commit()
 
         Now, let's modify the object in a way that doesn't get noticed. Then,
         we open another connection which triggers automatic garbage
         connection. After that, the object should not have been ghostified::
 
-            >>> r['ob'].l.append(1)
-            >>> cn2 = db.open()
-            >>> r['ob'].l
-            [1]
+        >>> r['ob'].l.append(1)
+        >>> cn2 = db.open()
+        >>> r['ob'].l
+        [1]
 
         """
 
 
 def test_suite():
+    import doctest
     return doctest.DocTestSuite()

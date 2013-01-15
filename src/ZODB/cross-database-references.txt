@@ -64,7 +64,7 @@ It isn't valid to create references outside a multi database:
     InvalidObjectReference:
       ('Attempt to store an object from a foreign database connection',
        <Connection at ...>,
-       <ZODB.tests.testcrossdatabasereferences.MyClass...>)
+       <ZODB.tests.crossrefs.MyClass...>)
 
     >>> tm.abort()
 
@@ -93,7 +93,7 @@ reachable from multiple databases:
     ("A new object is reachable from multiple databases. Won't try to
     guess which one was correct!",
     <Connection at ...>,
-    <ZODB.tests.testcrossdatabasereferences.MyClass...>)
+    <ZODB.tests.crossrefs.MyClass...>)
 
     >>> tm.abort()
 
@@ -121,7 +121,7 @@ This doesn't work with a savepoint:
     ("A new object is reachable from multiple databases. Won't try to guess
     which one was correct!",
     <Connection at ...>,
-    <ZODB.tests.testcrossdatabasereferences.MyClass...>)
+    <ZODB.tests.crossrefs.MyClass...>)
 
     >>> tm.abort()
 

@@ -22,13 +22,6 @@ old code, developers will have a hard time testing the new code.
 
 import unittest
 
-import transaction
-from transaction import Transaction
-import ZODB.DB
-from ZODB.MappingStorage import MappingStorage
-import cPickle
-import cStringIO
-import sys
 
 # This pickle contains a persistent mapping pickle created from the
 # old code.
@@ -45,6 +38,9 @@ class PMTests(unittest.TestCase):
             import Persistence
         except ImportError:
             return
+        from transaction import Transaction
+        from ZODB.DB import DB
+        from ZODB.MappingStorage import MappingStorage
         # insert the pickle in place of the root
         s = MappingStorage()
         t = Transaction()
@@ -53,7 +49,7 @@ class PMTests(unittest.TestCase):
         s.tpc_vote(t)
         s.tpc_finish(t)
 
-        db = ZODB.DB.DB(s)
+        db = DB(s)
         # If the root can be loaded successfully, we should be okay.
         r = db.open().root()
         # But make sure it looks like a new mapping
@@ -67,6 +63,11 @@ class PMTests(unittest.TestCase):
     # below.  I noticed that when the new checkBackwardCompat() test wasn't
     # getting run.
     def TODO_checkNewPicklesAreSafe(self):
+        import cPickle
+        import cStringIO
+        import transaction
+        from ZODB.DB import DB
+        from ZODB.MappingStorage import MappingStorage
         s = MappingStorage()
         db = ZODB.DB.DB(s)
         r = db.open().root()
@@ -163,6 +164,7 @@ class PMTests(unittest.TestCase):
             keylist.append(key)
         check(keylist)
 
+
 def find_global(modulename, classname):
     """Helper for this test suite to get special PersistentMapping"""
 
@@ -172,12 +174,10 @@ def find_global(modulename, classname):
                 self.__dict__.update(state)
         return PersistentMapping
     else:
+        import sys
         __import__(modulename)
         mod = sys.modules[modulename]
         return getattr(mod, classname)
 
 def test_suite():
     return unittest.makeSuite(PMTests, 'check')
-
-if __name__ == "__main__":
-    unittest.main()

@@ -13,22 +13,24 @@
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
 
+import cPickle
 from cStringIO import StringIO
+import doctest
+import time
+
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
+import transaction
+import zope.testing.setupstack
+
 from ZODB.DB import DB
+from ZODB.interfaces import IStorageIteration
 from ZODB.POSException import ConflictError, StorageError
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-import cPickle
-import doctest
-import time
-import transaction
-import ZODB.interfaces
-import ZODB.tests.util
-import zope.testing.setupstack
+
 
 ZERO = '\0'*8
 
@@ -148,7 +150,7 @@ class PackableStorageBase:
 
     def _sanity_check(self):
         # Iterate over the storage to make sure it's sane.
-        if not ZODB.interfaces.IStorageIteration.providedBy(self._storage):
+        if not IStorageIteration.providedBy(self._storage):
             return
         it = self._storage.iterator()
         for txn in it:
@@ -307,7 +309,7 @@ class PackableStorage(PackableStorageBase):
     def checkPackWithMultiDatabaseReferences(self):
         databases = {}
         db = DB(self._storage, databases=databases, database_name='')
-        otherdb = ZODB.tests.util.DB(databases=databases, database_name='o')
+        otherdb = DB(None, databases=databases, database_name='o')
         conn = db.open()
         root = conn.root()
         root[1] = C()
@@ -763,7 +765,8 @@ def IExternalGC_suite(factory):
     """
 
     def setup(test):
-        ZODB.tests.util.setUp(test)
+        from ZODB.tests.util import setUp as _setUp
+        _setUp(test)
         test.globs['create_storage'] = factory
 
     return doctest.DocFileSuite(

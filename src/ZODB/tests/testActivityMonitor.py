@@ -11,39 +11,20 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Tests of the default activity monitor.
-
-See ZODB/ActivityMonitor.py
-
-$Id$
-"""
-
 import unittest
-import time
-
-from ZODB.ActivityMonitor import ActivityMonitor
 
 
-class FakeConnection:
+class ActivityMonitorTests(unittest.TestCase):
 
-    loads = 0
-    stores = 0
+    def _getTargetClass(self):
+        from ZODB.ActivityMonitor import ActivityMonitor
+        return ActivityMonitor
 
-    def _transferred(self, loads, stores):
-        self.loads = self.loads + loads
-        self.stores = self.stores + stores
-
-    def getTransferCounts(self, clear=0):
-        res = self.loads, self.stores
-        if clear:
-            self.loads = self.stores = 0
-        return res
-
-
-class Tests(unittest.TestCase):
+    def _makeOne(self, *args, **kw):
+        return self._getTargetClass()(*args, **kw)
 
     def testAddLogEntries(self):
-        am = ActivityMonitor(history_length=3600)
+        am = self._makeOne(history_length=3600)
         self.assertEqual(len(am.log), 0)
         c = FakeConnection()
         c._transferred(1, 2)
@@ -53,7 +34,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(len(am.log), 2)
 
     def testTrim(self):
-        am = ActivityMonitor(history_length=0.1)
+        import time
+        am = self._makeOne(history_length=0.1)
         c = FakeConnection()
         c._transferred(1, 2)
         am.closedConnection(c)
@@ -63,7 +45,8 @@ class Tests(unittest.TestCase):
         self.assert_(len(am.log) <= 1)
 
     def testSetHistoryLength(self):
-        am = ActivityMonitor(history_length=3600)
+        import time
+        am = self._makeOne(history_length=3600)
         c = FakeConnection()
         c._transferred(1, 2)
         am.closedConnection(c)
@@ -76,7 +59,7 @@ class Tests(unittest.TestCase):
         self.assert_(len(am.log) <= 1)
 
     def testActivityAnalysis(self):
-        am = ActivityMonitor(history_length=3600)
+        am = self._makeOne(history_length=3600)
         c = FakeConnection()
         c._transferred(1, 2)
         am.closedConnection(c)
@@ -100,8 +83,21 @@ class Tests(unittest.TestCase):
         self.assert_(div['start'] < div['end'])
 
 
-def test_suite():
-    return unittest.makeSuite(Tests)
+class FakeConnection:
 
-if __name__=='__main__':
-    unittest.main(defaultTest='test_suite')
+    loads = 0
+    stores = 0
+
+    def _transferred(self, loads, stores):
+        self.loads = self.loads + loads
+        self.stores = self.stores + stores
+
+    def getTransferCounts(self, clear=0):
+        res = self.loads, self.stores
+        if clear:
+            self.loads = self.stores = 0
+        return res
+
+
+def test_suite():
+    return unittest.makeSuite(ActivityMonitorTests)

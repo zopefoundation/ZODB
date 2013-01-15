@@ -11,47 +11,36 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from ZODB.DB import DB
-from ZODB.tests import (
+import unittest
+
+# Used as base classes for test cases
+from ZODB.tests.BasicStorage import BasicStorage
+from ZODB.tests.HistoryStorage import HistoryStorage
+from ZODB.tests.IteratorStorage import ExtendedIteratorStorage
+from ZODB.tests.IteratorStorage import IteratorStorage
+from ZODB.tests.MTStorage import MTStorage
+from ZODB.tests.PackableStorage import PackableStorage
+from ZODB.tests.RevisionStorage import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests.Synchronization import SynchronizedStorage
+
+
+class DemoStorageTests(
+    StorageTestBase.StorageTestBase,
     BasicStorage,
     HistoryStorage,
+    ExtendedIteratorStorage,
     IteratorStorage,
     MTStorage,
     PackableStorage,
     RevisionStorage,
-    StorageTestBase,
-    Synchronization,
-    )
-
-import os
-if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
-    from zope.testing import doctest
-else:
-    import doctest
-import random
-import transaction
-import unittest
-import ZODB.DemoStorage
-import ZODB.tests.hexstorage
-import ZODB.tests.util
-import ZODB.utils
-
-class DemoStorageTests(
-    StorageTestBase.StorageTestBase,
-    BasicStorage.BasicStorage,
-
-    HistoryStorage.HistoryStorage,
-    IteratorStorage.ExtendedIteratorStorage,
-    IteratorStorage.IteratorStorage,
-    MTStorage.MTStorage,
-    PackableStorage.PackableStorage,
-    RevisionStorage.RevisionStorage,
-    Synchronization.SynchronizedStorage,
+    SynchronizedStorage,
     ):
 
     def setUp(self):
+        from ZODB.DemoStorage import DemoStorage
         StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = ZODB.DemoStorage.DemoStorage()
+        self._storage = DemoStorage()
 
     def checkOversizeNote(self):
         # This base class test checks for the common case where a storage
@@ -61,12 +50,16 @@ class DemoStorageTests(
 
     def checkLoadDelegation(self):
         # Minimal test of loadEX w/o version -- ironically
+        from ZODB.DB import DB
+        from ZODB.DemoStorage import DemoStorage
+        from ZODB.utils import z64
         db = DB(self._storage) # creates object 0. :)
-        s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
-        self.assertEqual(s2.load(ZODB.utils.z64, ''),
-                         self._storage.load(ZODB.utils.z64, ''))
+        s2 = DemoStorage(base=self._storage)
+        self.assertEqual(s2.load(z64, ''), self._storage.load(z64, ''))
 
     def checkLengthAndBool(self):
+        import transaction
+        from ZODB.DB import DB
         self.assertEqual(len(self._storage), 0)
         self.assert_(not self._storage)
         db = DB(self._storage) # creates object 0. :)
@@ -87,16 +80,18 @@ class DemoStorageTests(
 class DemoStorageHexTests(DemoStorageTests):
 
     def setUp(self):
+        from ZODB.DemoStorage import DemoStorage
+        from ZODB.tests.hexstorage import HexStorage
         StorageTestBase.StorageTestBase.setUp(self)
-        self._storage = ZODB.tests.hexstorage.HexStorage(
-            ZODB.DemoStorage.DemoStorage())
+        self._storage = HexStorage(DemoStorage())
 
 class DemoStorageWrappedBase(DemoStorageTests):
 
     def setUp(self):
+        from ZODB.DemoStorage import DemoStorage
         StorageTestBase.StorageTestBase.setUp(self)
         self._base = self._makeBaseStorage()
-        self._storage = ZODB.DemoStorage.DemoStorage(base=self._base)
+        self._storage = DemoStorage(base=self._base)
 
     def tearDown(self):
         self._base.close()
@@ -128,12 +123,15 @@ class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         from ZODB.MappingStorage import MappingStorage
-        return ZODB.tests.hexstorage.HexStorage(MappingStorage())
+        from ZODB.tests.hexstorage import HexStorage
+        return HexStorage(MappingStorage())
 
 
 def setUp(test):
+    import random
+    from ZODB.tests.util import setUp
     random.seed(0)
-    ZODB.tests.util.setUp(test)
+    setUp(test)
 
 def testSomeDelegation():
     r"""
@@ -176,13 +174,15 @@ def testSomeDelegation():
 
 def blob_pos_key_error_with_non_blob_base():
     """
-    >>> storage = ZODB.DemoStorage.DemoStorage()
-    >>> storage.loadBlob(ZODB.utils.p64(1), ZODB.utils.p64(1))
+    >>> from ZODB.DemoStorage import DemoStorage
+    >>> from ZODB.utils import p64
+    >>> storage = DemoStorage()
+    >>> storage.loadBlob(p64(1), p64(1))
     Traceback (most recent call last):
     ...
     POSKeyError: 0x01
 
-    >>> storage.openCommittedBlobFile(ZODB.utils.p64(1), ZODB.utils.p64(1))
+    >>> storage.openCommittedBlobFile(p64(1), p64(1))
     Traceback (most recent call last):
     ...
     POSKeyError: 0x01
@@ -197,28 +197,29 @@ def load_before_base_storage_current():
 
     >>> import time
     >>> import transaction
-    >>> import ZODB.DB
-    >>> import ZODB.DemoStorage
     >>> import ZODB.MappingStorage
-    >>> import ZODB.utils
+    >>> from ZODB.utils import p64
+    >>> from ZODB.utils import u64
+    >>> from ZODB.utils import z64
 
     >>> from ZODB.DB import DB
+    >>> from ZODB.DemoStorage import DemoStorage
     >>> base = ZODB.MappingStorage.MappingStorage()
     >>> basedb = DB(base)
     >>> conn = basedb.open()
     >>> conn.root()['foo'] = 'bar'
     >>> transaction.commit()
     >>> conn.close()
-    >>> storage = ZODB.DemoStorage.DemoStorage(base=base)
+    >>> storage = DemoStorage(base=base)
     >>> db = DB(storage)
     >>> conn = db.open()
     >>> conn.root()['foo'] = 'baz'
     >>> time.sleep(.1) # Windows has a low-resolution clock
     >>> transaction.commit()
 
-    >>> oid = ZODB.utils.z64
+    >>> oid = z64
     >>> base_current = storage.base.load(oid)
-    >>> tid = ZODB.utils.p64(ZODB.utils.u64(base_current[1]) + 1)
+    >>> tid = p64(u64(base_current[1]) + 1)
     >>> base_record = storage.base.loadBefore(oid, tid)
     >>> base_record[-1] is None
     True
@@ -241,21 +242,19 @@ def load_before_base_storage_current():
     """
 
 def test_suite():
-    suite = unittest.TestSuite((
-        doctest.DocTestSuite(
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
-        doctest.DocFileSuite(
-            '../DemoStorage.test',
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
-        ))
-    suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageHexTests, 'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,
-                                     'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundMappingStorage,
-                                     'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage,
-                                     'check'))
-    return suite
+    import os
+    if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
+        from zope.testing import doctest
+    else:
+        import doctest
+    from ZODB.tests.util import tearDown
+    return unittest.TestSuite((
+        doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
+        doctest.DocFileSuite('../DemoStorage.test',
+                             setUp=setUp, tearDown=tearDown),
+        unittest.makeSuite(DemoStorageTests, 'check'),
+        unittest.makeSuite(DemoStorageHexTests, 'check'),
+        unittest.makeSuite(DemoStorageWrappedAroundFileStorage, 'check'),
+        unittest.makeSuite(DemoStorageWrappedAroundMappingStorage, 'check'),
+        unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage, 'check'),
+    ))

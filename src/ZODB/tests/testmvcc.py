@@ -33,9 +33,9 @@ This note includes doctests that explain how MVCC is implemented (and
 test that the implementation is correct).  The tests use a
 MinimalMemoryStorage that implements MVCC support, but not much else.
 
->>> from ZODB.tests.test_storage import MinimalMemoryStorage
->>> from ZODB import DB
->>> db = DB(MinimalMemoryStorage())
+>>> from ZODB.tests.test_storage import _makeStorage
+>>> from ZODB.DB import DB
+>>> db = DB(_makeStorage())
 
 We will use two different connections with different transaction managers
 to make sure that the connections act independently, even though they'll
@@ -318,7 +318,7 @@ MinimalMemoryStorage has a hook.  We'll write a subclass that will
 deliver an invalidation when it loads an object.  The hook allows us
 to test the Connection code.
 
->>> class TestStorage(MinimalMemoryStorage):
+>>> class TestStorage(_makeStorage(just_klass=True)):
 ...    def __init__(self):
 ...        self.hooked = {}
 ...        self.count = 0
@@ -402,7 +402,7 @@ True
 1
 """
 
-import doctest
 
 def test_suite():
+    import doctest
     return doctest.DocTestSuite()
