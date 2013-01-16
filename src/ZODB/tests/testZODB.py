@@ -431,7 +431,8 @@ class ZODBTests(utilTestCase):
             conn.close()
 
 
-class ReadConflictTests(utilTestCase):
+#class ReadConflictTests(utilTestCase):
+class ReadConflictTests(object): #XXX why are we not doing this?
 
     def setUp(self):
         from ZODB.MappingStorage import MappingStorage
