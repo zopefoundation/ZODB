@@ -42,13 +42,13 @@ class DemoStorageTests(
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = DemoStorage()
 
-    def checkOversizeNote(self):
+    def testOversizeNote(self):
         # This base class test checks for the common case where a storage
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
         pass
 
-    def checkLoadDelegation(self):
+    def testLoadDelegation(self):
         # Minimal test of loadEX w/o version -- ironically
         from ZODB.DB import DB
         from ZODB.DemoStorage import DemoStorage
@@ -57,7 +57,7 @@ class DemoStorageTests(
         s2 = DemoStorage(base=self._storage)
         self.assertEqual(s2.load(z64, ''), self._storage.load(z64, ''))
 
-    def checkLengthAndBool(self):
+    def testLengthAndBool(self):
         import transaction
         from ZODB.DB import DB
         self.assertEqual(len(self._storage), 0)
@@ -72,9 +72,9 @@ class DemoStorageTests(
         self.assertEqual(len(self._storage), 11)
         self.assert_(self._storage)
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass # we don't support undo yet
-    checkUndoZombie = checkLoadBeforeUndo
+    testUndoZombie = testLoadBeforeUndo
 
 
 class DemoStorageHexTests(DemoStorageTests):
@@ -85,7 +85,7 @@ class DemoStorageHexTests(DemoStorageTests):
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = HexStorage(DemoStorage())
 
-class DemoStorageWrappedBase(DemoStorageTests):
+class _DemoStorageWrappedBase(DemoStorageTests):
 
     def setUp(self):
         from ZODB.DemoStorage import DemoStorage
@@ -100,26 +100,26 @@ class DemoStorageWrappedBase(DemoStorageTests):
     def _makeBaseStorage(self):
         raise NotImplementedError
 
-    def checkPackOnlyOneObject(self):
+    def testPackOnlyOneObject(self):
         pass # Wrapping demo storages don't do gc
 
-    def checkPackWithMultiDatabaseReferences(self):
+    def testPackWithMultiDatabaseReferences(self):
         pass # we never do gc
-    checkPackAllRevisions = checkPackWithMultiDatabaseReferences
+    testPackAllRevisions = testPackWithMultiDatabaseReferences
 
-class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
+class DemoStorageWrappedAroundMappingStorage(_DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         from ZODB.MappingStorage import MappingStorage
         return MappingStorage()
 
-class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
+class DemoStorageWrappedAroundFileStorage(_DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
-        from ZODB.FileStorage import FileStorage
+        from ZODB.FileStorage.FileStorage import FileStorage
         return FileStorage('FileStorageTests.fs')
 
-class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
+class DemoStorageWrappedAroundHexMappingStorage(_DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         from ZODB.MappingStorage import MappingStorage
@@ -252,9 +252,9 @@ def test_suite():
         doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
         doctest.DocFileSuite('../DemoStorage.test',
                              setUp=setUp, tearDown=tearDown),
-        unittest.makeSuite(DemoStorageTests, 'check'),
-        unittest.makeSuite(DemoStorageHexTests, 'check'),
-        unittest.makeSuite(DemoStorageWrappedAroundFileStorage, 'check'),
-        unittest.makeSuite(DemoStorageWrappedAroundMappingStorage, 'check'),
-        unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage, 'check'),
+        unittest.makeSuite(DemoStorageTests),
+        unittest.makeSuite(DemoStorageHexTests),
+        unittest.makeSuite(DemoStorageWrappedAroundFileStorage),
+        unittest.makeSuite(DemoStorageWrappedAroundMappingStorage),
+        unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage),
     ))

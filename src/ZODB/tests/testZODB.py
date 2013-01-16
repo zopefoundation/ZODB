@@ -43,7 +43,7 @@ class ZODBTests(utilTestCase):
         transaction.commit()
         conn.close()
 
-    def checkExportImport(self, abort_it=False):
+    def testExportImport(self, abort_it=False):
         self.populate()
         conn = self._db.open()
         try:
@@ -113,10 +113,10 @@ class ZODBTests(utilTestCase):
                 'Did not fully separate duplicate from original')
         transaction.commit()
 
-    def checkExportImportAborted(self):
-        self.checkExportImport(abort_it=True)
+    def testExportImportAborted(self):
+        self.testExportImport(abort_it=True)
 
-    def checkResetCache(self):
+    def testResetCache(self):
         # The cache size after a reset should be 0.  Note that
         # _resetCache is not a public API, but the resetCaches()
         # function is, and resetCaches() causes _resetCache() to be
@@ -128,7 +128,7 @@ class ZODBTests(utilTestCase):
         conn._resetCache()
         self.assertEqual(len(conn._cache), 0)
 
-    def checkResetCachesAPI(self):
+    def testResetCachesAPI(self):
         # Checks the resetCaches() API.
         # (resetCaches used to be called updateCodeTimestamp.)
         from ZODB.Connection import resetCaches
@@ -142,7 +142,7 @@ class ZODBTests(utilTestCase):
         conn.open()  # simulate the connection being reopened
         self.assertEqual(len(conn._cache), 0)
 
-    def checkExplicitTransactionManager(self):
+    def testExplicitTransactionManager(self):
         # Test of transactions that apply to only the connection,
         # not the thread.
         import transaction
@@ -181,7 +181,7 @@ class ZODBTests(utilTestCase):
             conn1.close()
             conn2.close()
 
-    def checkSavepointDoesntGetInvalidations(self):
+    def testSavepointDoesntGetInvalidations(self):
         # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
         # invalidations even for a subtxn commit.  This could make
         # inconsistent state visible after a subtxn commit.  There was a
@@ -253,7 +253,7 @@ class ZODBTests(utilTestCase):
         finally:
             tm1.abort()
 
-    def checkTxnBeginImpliesAbort(self):
+    def testTxnBeginImpliesAbort(self):
         # begin() should do an abort() first, if needed.
         import transaction
         cn = self._db.open()
@@ -286,7 +286,7 @@ class ZODBTests(utilTestCase):
         # Later (ZODB 3.6):  Transaction.begin() no longer exists, so the
         # rest of this test was tossed.
 
-    def checkFailingCommitSticks(self):
+    def testFailingCommitSticks(self):
         # See also checkFailingSavepointSticks.
         import transaction
         from ZODB.POSException import TransactionFailedError
@@ -334,7 +334,7 @@ class ZODBTests(utilTestCase):
 
         cn.close()
 
-    def checkFailingSavepointSticks(self):
+    def testFailingSavepointSticks(self):
         import transaction
         from ZODB.POSException import TransactionFailedError
         cn = self._db.open()
@@ -395,7 +395,7 @@ class ZODBTests(utilTestCase):
         cn.close()
         cn2.close()
 
-    def checkMultipleUndoInOneTransaction(self):
+    def testMultipleUndoInOneTransaction(self):
         # Verify that it's possible to perform multiple undo
         # operations within a transaction.  If ZODB performs the undo
         # operations in a nondeterministic order, this test will often
@@ -477,7 +477,7 @@ class ReadConflictTests(utilTestCase):
         if shouldFail:
             self.assertRaises(ReadConflictError, lambda: obj.child1)
             # And since ReadConflictError was raised, attempting to commit
-            # the transaction should re-raise it.  checkNotIndependent()
+            # the transaction should re-raise it.  testNotIndependent()
             # failed this part of the test for a long time.
             self.assertRaises(ReadConflictError, tm2.get().commit)
 
@@ -495,7 +495,7 @@ class ReadConflictTests(utilTestCase):
         tm2.get().abort()
 
 
-    def checkReadConflict(self):
+    def testReadConflict(self):
         from persistent import Persistent
         class P(Persistent):
             pass
@@ -503,7 +503,7 @@ class ReadConflictTests(utilTestCase):
         self.obj = P()
         self.readConflict()
 
-    def checkReadConflictIgnored(self):
+    def testReadConflictIgnored(self):
         # Test that an application that catches a read conflict and
         # continues can not commit the transaction later.
         from persistent.mapping import PersistentMapping
@@ -553,7 +553,7 @@ class ReadConflictTests(utilTestCase):
         self.assertRaises(TransactionFailedError, tm.get().commit)
         tm.get().abort()
 
-    def checkReadConflictErrorClearedDuringAbort(self):
+    def testReadConflictErrorClearedDuringAbort(self):
         # When a transaction is aborted, the "memory" of which
         # objects were the cause of a ReadConflictError during
         # that transaction should be cleared.
@@ -643,7 +643,7 @@ class PoisonedObject:
 
 def test_suite():
     return unittest.TestSuite((
-        unittest.makeSuite(ZODBTests, 'check'),
+        unittest.makeSuite(ZODBTests),
         # XXX why wasn't this being tested?
-        #unittest.makeSuite(ReadConflictTests, 'check'),
+        #unittest.makeSuite(ReadConflictTests),
         ))

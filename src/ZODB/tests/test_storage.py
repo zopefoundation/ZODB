@@ -41,7 +41,7 @@ class MinimalTestSuite(StorageTestBase,
 
     # we don't implement undo
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass
 
 
@@ -160,4 +160,4 @@ def _makeStorage(just_klass=False):
 
 
 def test_suite():
-    return unittest.makeSuite(MinimalTestSuite, "check")
+    return unittest.makeSuite(MinimalTestSuite)

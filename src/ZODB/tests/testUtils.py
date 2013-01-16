@@ -42,7 +42,7 @@ class TestUtils(unittest.TestCase):
     def all(self):
         return self.small + self.large
 
-    def checkLongToStringToLong(self):
+    def testLongToStringToLong(self):
         from ZODB.utils import U64
         from ZODB.utils import p64
         from ZODB.utils import u64
@@ -53,7 +53,7 @@ class TestUtils(unittest.TestCase):
             n2 = u64(s)
             self.assertEquals(num, n2, "u64() failed")
 
-    def checkKnownConstants(self):
+    def testKnownConstants(self):
         from ZODB.utils import U64
         from ZODB.utils import p64
         from ZODB.utils import u64
@@ -64,7 +64,7 @@ class TestUtils(unittest.TestCase):
         self.assertEquals(u64("\000\000\000\001\000\000\000\000"), 1L<<32)
         self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1L<<32)
 
-    def checkPersistentIdHandlesDescriptor(self):
+    def testPersistentIdHandlesDescriptor(self):
         from persistent import Persistent
         from ZODB.serialize import ObjectWriter
         class P(Persistent):
@@ -78,7 +78,7 @@ class TestUtils(unittest.TestCase):
     # deduce the class path from a pickle, instead of actually loading
     # the pickle (and so also trying to import application module and
     # class objects, which isn't a good idea on a ZEO server when avoidable).
-    def checkConflictErrorDoesntImport(self):
+    def testConflictErrorDoesntImport(self):
         from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
         from ZODB.tests.MinPO import MinPO
@@ -111,6 +111,6 @@ class TestUtils(unittest.TestCase):
 def test_suite():
     import doctest
     return unittest.TestSuite((
-        unittest.makeSuite(TestUtils, 'check'),
+        unittest.makeSuite(TestUtils),
         doctest.DocFileSuite('../utils.txt'),
     ))

@@ -41,15 +41,15 @@ class MappingStorageTests(
         StorageTestBase.setUp(self, )
         self._storage = MappingStorage()
 
-    def checkOversizeNote(self):
+    def testOversizeNote(self):
         # This base class test checks for the common case where a storage
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
         pass
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass # we don't support undo yet
-    checkUndoZombie = checkLoadBeforeUndo
+    testUndoZombie = testLoadBeforeUndo
 
 
 class MappingStorageHexTests(MappingStorageTests):
@@ -63,6 +63,6 @@ class MappingStorageHexTests(MappingStorageTests):
 
 def test_suite():
     return unittest.TestSuite((
-        unittest.makeSuite(MappingStorageTests, 'check'),
-        unittest.makeSuite(MappingStorageHexTests, 'check'),
+        unittest.makeSuite(MappingStorageTests),
+        unittest.makeSuite(MappingStorageHexTests),
     ))

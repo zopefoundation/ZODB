@@ -62,7 +62,7 @@ class FileStorageTests(
         StorageTestBase.setUp(self)
         self.open(create=1)
 
-    def checkLongMetadata(self):
+    def testLongMetadata(self):
         from ZODB.POSException import StorageError
         s = "X" * 75000
         try:
@@ -78,7 +78,7 @@ class FileStorageTests(
         else:
             self.fail("expect long user field to raise error")
 
-    def check_use_fsIndex(self):
+    def test_use_fsIndex(self):
         from ZODB.fsIndex import fsIndex
         self.assertEqual(self._storage._index.__class__, fsIndex)
 
@@ -98,7 +98,7 @@ class FileStorageTests(
         cPickle.dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
         return index
 
-    def check_conversion_to_fsIndex(self, read_only=False):
+    def test_conversion_to_fsIndex(self, read_only=False):
         from ZODB.fsIndex import fsIndex
 
         # Create some data, and remember the index.
@@ -131,12 +131,12 @@ class FileStorageTests(
         else:
             self.assert_(isinstance(current_index, fsIndex))
 
-    def check_conversion_to_fsIndex_readonly(self):
+    def test_conversion_to_fsIndex_readonly(self):
         # Same thing, but the disk .index should continue to hold a
         # Python dict.
-        self.check_conversion_to_fsIndex(read_only=True)
+        self.test_conversion_to_fsIndex(read_only=True)
 
-    def check_conversion_from_dict_to_btree_data_in_fsIndex(self):
+    def test_conversion_from_dict_to_btree_data_in_fsIndex(self):
         # To support efficient range searches on its keys as part of
         # implementing a record iteration protocol in FileStorage, we
         # converted the fsIndex class from using a dictionary as its
@@ -172,7 +172,7 @@ class FileStorageTests(
             new_tree = new_data_dict[k]
             self.assertEqual(list(old_tree.items()), list(new_tree.items()))
 
-    def check_save_after_load_with_no_index(self):
+    def test_save_after_load_with_no_index(self):
         import os
         for i in range(10):
             self._dostore()
@@ -181,7 +181,7 @@ class FileStorageTests(
         self.open()
         self.assertEqual(self._storage._saved, 1)
 
-    def checkStoreBumpsOid(self):
+    def testStoreBumpsOid(self):
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
         # of the largest oid in use.
@@ -198,7 +198,7 @@ class FileStorageTests(
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
 
-    def checkRestoreBumpsOid(self):
+    def testRestoreBumpsOid(self):
         # As above, if .restore() is handed an oid bigger than the storage
         # knows about already, it's crucial that the storage bump its notion
         # of the largest oid in use.  Because copyTransactionsFrom(), and
@@ -216,7 +216,7 @@ class FileStorageTests(
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
 
-    def checkCorruptionInPack(self):
+    def testCorruptionInPack(self):
         # This sets up a corrupt .fs file, with a redundant transaction
         # length mismatch.  The implementation of pack in many releases of
         # ZODB blew up if the .fs file had such damage:  it detected the
@@ -267,7 +267,7 @@ class FileStorageTests(
         else:
             self.fail("expected CorruptedError")
 
-    def check_record_iternext(self):
+    def test_record_iternext(self):
         import transaction
         from ZODB.DB import DB
         db = DB(self._storage)
@@ -375,7 +375,7 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
     def new_dest(self):
         return self.wo_restore('Dest.fs')
 
-    def checkRestoreAcrossPack(self):
+    def testRestoreAcrossPack(self):
         # Skip this check as it calls restore directly.
         pass
 
@@ -387,7 +387,7 @@ class AnalyzeDotPyTest(StorageTestBase):
         StorageTestBase.setUp(self)
         self._storage = FileStorage("Source.fs", create=True)
 
-    def checkanalyze(self):
+    def testanalyze(self):
         import new
         import sys
         import pickle
@@ -455,7 +455,7 @@ class AnalyzeDotPyTest(StorageTestBase):
 
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
-def checkIncreasingTids(fs):
+def assertIncreasingTids(fs):
     lasttid = b'\0' * 8
     for txn in fs.iterator():
         if lasttid >= txn.tid:
@@ -496,7 +496,7 @@ def testTimeTravelOnOpen():
     >>> conn = db.open()
     >>> conn.root()['xyz'] = 1
     >>> transaction.get().commit()
-    >>> checkIncreasingTids(st)
+    >>> assertIncreasingTids(st)
     >>> db.close()
     >>> st.cleanup() # remove .fs, .index, etc files
     >>> handler.records   # i.e., no log messages
@@ -515,7 +515,7 @@ def testTimeTravelOnOpen():
     >>> conn = db.open()
     >>> conn.root()['xyz'] = 1
     >>> transaction.get().commit()
-    >>> checkIncreasingTids(st)
+    >>> assertIncreasingTids(st)
     >>> db.close()
     >>> st.cleanup()
 
@@ -538,7 +538,7 @@ def testTimeTravelOnOpen():
     >>> conn = db.open()
     >>> conn.root()['xyz'] = 1
     >>> transaction.get().commit()
-    >>> checkIncreasingTids(st)
+    >>> assertIncreasingTids(st)
     >>> db.close()
     >>> st.cleanup()
 
@@ -707,15 +707,15 @@ def test_suite():
     from ZODB.tests.testblob import storage_reusable_suite
     from ZODB.tests.util import MinimalTestLayer
     suite = unittest.TestSuite((
-        unittest.makeSuite(FileStorageTests, "check"),
-        unittest.makeSuite(FileStorageHexTests, "check"),
-        unittest.makeSuite(FileStorageCorruptTests, "check"),
-        unittest.makeSuite(FileStorageRecoveryTest, "check"),
-        unittest.makeSuite(FileStorageHexRecoveryTest, "check"),
-        unittest.makeSuite(FileStorageNoRestoreRecoveryTest, "check"),
-        unittest.makeSuite(FileStorageTestsWithBlobsEnabled, "check"),
-        unittest.makeSuite(FileStorageHexTestsWithBlobsEnabled, "check"),
-        unittest.makeSuite(AnalyzeDotPyTest, "check"),
+        unittest.makeSuite(FileStorageTests),
+        unittest.makeSuite(FileStorageHexTests),
+        unittest.makeSuite(FileStorageCorruptTests),
+        unittest.makeSuite(FileStorageRecoveryTest),
+        unittest.makeSuite(FileStorageHexRecoveryTest),
+        unittest.makeSuite(FileStorageNoRestoreRecoveryTest),
+        unittest.makeSuite(FileStorageTestsWithBlobsEnabled),
+        unittest.makeSuite(FileStorageHexTestsWithBlobsEnabled),
+        unittest.makeSuite(AnalyzeDotPyTest),
         doctest.DocTestSuite(setUp=setupstack.setUpDirectory,
                              tearDown=setupstack.tearDown),
         storage_reusable_suite('BlobFileStorage',

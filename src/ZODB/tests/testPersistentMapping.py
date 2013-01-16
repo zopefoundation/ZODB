@@ -30,7 +30,7 @@ pickle = ('((U\x0bPersistenceq\x01U\x11PersistentMappingtq\x02Nt.}q\x03U\n'
 
 class PMTests(unittest.TestCase):
 
-    def checkOldStyleRoot(self):
+    def testOldStyleRoot(self):
         # The Persistence module doesn't exist in Zope3's idea of what ZODB
         # is, but the global `pickle` references it explicitly.  So just
         # bail if Persistence isn't available.
@@ -62,7 +62,7 @@ class PMTests(unittest.TestCase):
     # a mysterious "return None" at the start of the test_suite() function
     # below.  I noticed that when the new checkBackwardCompat() test wasn't
     # getting run.
-    def TODO_checkNewPicklesAreSafe(self):
+    def TODO_testNewPicklesAreSafe(self):
         import cPickle
         import cStringIO
         import transaction
@@ -89,14 +89,14 @@ class PMTests(unittest.TestCase):
         self.assert_(hasattr(inst, '_container'))
         self.assert_(not hasattr(inst, 'data'))
 
-    def checkBackwardCompat(self):
+    def testBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from persistent.mapping import PersistentMapping as newPath
         from ZODB.PersistentMapping import PersistentMapping as oldPath
 
         self.assert_(oldPath is newPath)
 
-    def checkBasicOps(self):
+    def testBasicOps(self):
         from persistent.mapping import PersistentMapping
         m = PersistentMapping({'x': 1}, a=2, b=3)
         m['name'] = 'bob'
@@ -142,17 +142,17 @@ class PMTests(unittest.TestCase):
 
     # PersistentMapping didn't have an __iter__ method before ZODB 3.4.2.
     # Check that it plays well now with the Python iteration protocol.
-    def checkIteration(self):
+    def testIteration(self):
         from persistent.mapping import PersistentMapping
         m = PersistentMapping({'x': 1}, a=2, b=3)
         m['name'] = 'bob'
 
-        def check(keylist):
+        def _check(keylist):
             keylist.sort()
             self.assertEqual(keylist, ['a', 'b', 'name', 'x'])
 
-        check(list(m))
-        check([key for key in m])
+        _check(list(m))
+        _check([key for key in m])
 
         i = iter(m)
         keylist = []
@@ -162,7 +162,7 @@ class PMTests(unittest.TestCase):
             except StopIteration:
                 break
             keylist.append(key)
-        check(keylist)
+        _check(keylist)
 
 
 def find_global(modulename, classname):
@@ -180,4 +180,4 @@ def find_global(modulename, classname):
         return getattr(mod, classname)
 
 def test_suite():
-    return unittest.makeSuite(PMTests, 'check')
+    return unittest.makeSuite(PMTests)

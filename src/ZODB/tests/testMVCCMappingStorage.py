@@ -28,7 +28,7 @@ from ZODB.tests.Synchronization import SynchronizedStorage
 
 class MVCCTests(object):
 
-    def checkCrossConnectionInvalidation(self):
+    def testCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.
         # This will fail if the Connection doesn't poll for changes.
         import transaction
@@ -51,7 +51,7 @@ class MVCCTests(object):
         finally:
             db.close()
 
-    def checkCrossConnectionIsolation(self):
+    def testCrossConnectionIsolation(self):
         # Verify MVCC isolates connections.
         # This will fail if Connection doesn't poll for changes.
         from persistent.mapping import PersistentMapping
@@ -143,11 +143,11 @@ class MVCCMappingStorageTests(
     def tearDown(self):
         self._storage.close()
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass # we don't support undo yet
-    checkUndoZombie = checkLoadBeforeUndo
+    testUndoZombie = testLoadBeforeUndo
 
-    def checkTransactionIdIncreases(self):
+    def testTransactionIdIncreases(self):
         import transaction
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
@@ -174,7 +174,7 @@ def create_blob_storage(name, blob_dir):
 def test_suite():
     from ZODB.tests.testblob import storage_reusable_suite
     return unittest.TestSuite((
-        unittest.makeSuite(MVCCMappingStorageTests, 'check'),
+        unittest.makeSuite(MVCCMappingStorageTests),
     # Note: test_packing doesn't work because even though MVCCMappingStorage
     # retains history, it does not provide undo methods, so the
     # BlobStorage wrapper calls _packNonUndoing instead of _packUndoing,
