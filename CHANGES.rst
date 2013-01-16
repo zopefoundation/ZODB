@@ -5,8 +5,8 @@
 4.0.0.dev (unreleased)
 ======================
 
-- improve logging when blob is not found: include the filename requested
-  which doesn't exists
+- Include the filename in the exception message to support debugging in case 
+  loadBlob does not find the file.
 
 4.0.0a4 (2012-12-17)
 =====================
@@ -315,7 +315,7 @@ Bugs fixed
   their subconnections weren't cleaned up properly.
 
 - ZEO didn't work with IPv6 addrsses.
-  Added IPv6 support contributed by Martin v. Löwis.
+  Added IPv6 support contributed by Martin v. Lï¿½wis.
 
 - A file storage bug could cause ZEO clients to have incorrect
   information about current object revisions after reconnecting to a
