@@ -682,6 +682,9 @@ def storage_reusable_suite(prefix, factory,
         "blob_connection.txt", "blob_importexport.txt",
         "blob_transaction.txt",
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+        checker=zope.testing.renormalizing.RENormalizing([
+            (re.compile(r'/.*/blobs/.*\.blob'), '<BLOB STORAGE PATH>')
+            ]),
         optionflags=doctest.ELLIPSIS,
         ))
     if test_packing:
