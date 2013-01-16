@@ -2,6 +2,12 @@
  Change History
 ================
 
+4.0.0.dev (unreleased)
+======================
+
+- improve logging when blob is not found: include the filename requested
+  which doesn't exists
+
 4.0.0a4 (2012-12-17)
 =====================
 
