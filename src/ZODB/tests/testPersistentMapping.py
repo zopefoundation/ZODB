@@ -62,14 +62,14 @@ class PMTests(unittest.TestCase):
     # a mysterious "return None" at the start of the test_suite() function
     # below.  I noticed that when the new checkBackwardCompat() test wasn't
     # getting run.
-    def TODO_testNewPicklesAreSafe(self):
+    def _TODO_testNewPicklesAreSafe(self):
         import cPickle
         import cStringIO
         import transaction
         from ZODB.DB import DB
         from ZODB.MappingStorage import MappingStorage
         s = MappingStorage()
-        db = ZODB.DB.DB(s)
+        db = DB(s)
         r = db.open().root()
         r[1] = 1
         r[2] = 2
