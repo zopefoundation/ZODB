@@ -5,6 +5,8 @@
 Unreleased
 ==========
 
+- Tests are now runnable via ``python setup.py test`` and via ``nose``.
+
 - Added ``setup.py docs`` alias (installs ``Sphinx`` and
   ``repoze.sphinx.autointerface``).
 
