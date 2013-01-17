@@ -27,7 +27,7 @@ list that states that all objects in the list should have an oid and
 The fix was to abort work done after the savepoint before aborting the
 savepoint.
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
@@ -53,7 +53,7 @@ The fix was to first make a new savepoint to move new changes to the
 savepoint storage and *then* to commit the savepoint storage.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
@@ -67,7 +67,7 @@ savepoint storage and *then* to commit the savepoint storage.
 def testCantCloseConnectionWithActiveSavepoint():
     """
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
@@ -90,7 +90,7 @@ during a long transaction.  Before ZODB 3.4.2, making a savepoint failed
 to trigger cache gc, and this test verifies that it now does.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.MappingStorage import MappingStorage
     >>> from ZODB.tests.MinPO import MinPO
     >>> import transaction
@@ -143,7 +143,7 @@ The connection isReadonly method relies on the _storage to have an isReadOnly.
 We simply rely on the underlying storage method.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()
@@ -171,7 +171,7 @@ the wrong state.
 
     >>> import persistent
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> connection = db.open()
     >>> root = connection.root()

@@ -39,7 +39,7 @@ class PMTests(unittest.TestCase):
         except ImportError:
             return
         from transaction import Transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.MappingStorage import MappingStorage
         # insert the pickle in place of the root
         s = MappingStorage()
@@ -66,7 +66,7 @@ class PMTests(unittest.TestCase):
         import cPickle
         import cStringIO
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.MappingStorage import MappingStorage
         s = MappingStorage()
         db = DB(s)

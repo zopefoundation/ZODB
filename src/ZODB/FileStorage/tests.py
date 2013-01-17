@@ -25,7 +25,7 @@ def pack_keep_old():
 
 The pack_keep_old constructor argument controls whether a .old file (and .old directory for blobs is kept.)
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.blob import Blob
     >>> fs = FileStorage('data.fs', blob_dir='blobs')
@@ -95,7 +95,7 @@ def pack_with_repeated_blob_records():
     fixed by the time you read this, but there might still be
     transactions in the wild that have duplicate records.
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.FileStorage import FileStorage
     >>> from ZODB.blob import Blob
     >>> fs = FileStorage('t', blob_dir='bobs')

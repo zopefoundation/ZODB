@@ -10,7 +10,7 @@ Simple fetch, modify, commit
 Participants
 ------------
 
-- ``DB``:  ``ZODB.DB.DB``
+- ``DB``:  ``ZODB.db.DB``
 - ``C``:  ``ZODB.Connection.Connection``
 - ``S``:  ``ZODB.FileStorage.FileStorage``
 - ``T``:  ``transaction.interfaces.ITransaction``
@@ -69,7 +69,7 @@ Simple fetch, modify, abort
 Participants
 ------------
 
-- ``DB``:  ``ZODB.DB.DB``
+- ``DB``:  ``ZODB.db.DB``
 - ``C``:  ``ZODB.Connection.Connection``
 - ``S``:  ``ZODB.FileStorage.FileStorage``
 - ``T``:  ``transaction.interfaces.ITransaction``

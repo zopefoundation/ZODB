@@ -46,7 +46,7 @@ The database name is accessible afterwards and in a newly created collection:
     >>> db.database_name
     'root'
     >>> db.databases        # doctest: +ELLIPSIS
-    {'root': <ZODB.DB.DB object at ...>}
+    {'root': <ZODB.db.DB object at ...>}
     >>> db.databases is dbmap
     True
 

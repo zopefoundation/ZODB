@@ -19,7 +19,7 @@ It should be possible for a class to refer to itself.
 
     >>> import transaction
     >>> from ZODB.persistentclass import PersistentMetaClass
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> class C:
     ...     __metaclass__ = PersistentMetaClass
 
@@ -45,7 +45,7 @@ class FakeModule:
 
 def _setUp(test):
     import sys
-    from ZODB.DB import DB
+    from ZODB.db import DB
     from ZODB.tests.util import setUp as util_setUp
     util_setUp(test)
     test.globs['some_database'] = DB(None)

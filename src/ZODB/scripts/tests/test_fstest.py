@@ -14,7 +14,7 @@
 
 def test_fstest_verbose():
     r"""
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB('data.fs')
     >>> db.close()
     >>> from ZODB.scripts.fstest import main

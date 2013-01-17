@@ -224,7 +224,7 @@ class FileStorageTests(
         # global.
         import time
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
         from ZODB.serialize import referencesf
@@ -269,7 +269,7 @@ class FileStorageTests(
 
     def test_record_iternext(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         db = DB(self._storage)
         conn = db.open()
         conn.root()['abc'] = MinPO('abc')
@@ -472,7 +472,7 @@ def timestamp(minutes):
 
 def testTimeTravelOnOpen():
     """
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.FileStorage.FileStorage import FileStorage
     >>> from zope.testing.loggingsupport import InstalledHandler
 
@@ -560,7 +560,7 @@ We'll create a FileStorage and populate it with some data, keeping
 track of the transactions along the way:
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.FileStorage import FileStorage
     >>> fs = FileStorage('t.fs', create=True)
     >>> db = DB(fs)
@@ -613,7 +613,7 @@ def deal_with_finish_failures():
     this should rarely, if ever, happen.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.FileStorage import FileStorage
     >>> fs = FileStorage('data.fs')
     >>> db = DB(fs)
@@ -663,7 +663,7 @@ def pack_with_open_blob_files():
     Make sure packing works while there are open blob files.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.FileStorage import FileStorage
     >>> fs = FileStorage('data.fs', blob_dir='blobs')
     >>> db = DB(fs)

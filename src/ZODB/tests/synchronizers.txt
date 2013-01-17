@@ -7,7 +7,6 @@ times in the life of a transaction.  The tested behavior is new in ZODB 3.4.
 
 First define a lightweight storage with a ``sync()`` method:
 
-    >>> import ZODB
     >>> from ZODB.MappingStorage import MappingStorage
     >>> import transaction
 
@@ -19,6 +18,7 @@ First define a lightweight storage with a ``sync()`` method:
 
 Make a change locally:
 
+    >>> import ZODB
     >>> st = SimpleStorage()
     >>> db = ZODB.DB(st)
     >>> cn = db.open()

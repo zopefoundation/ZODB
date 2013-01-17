@@ -20,7 +20,7 @@ from ZODB.tests.util import TestCase as utilTestCase
 class ZODBTests(utilTestCase):
 
     def setUp(self):
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.FileStorage.FileStorage import FileStorage
         utilTestCase.setUp(self)
         self._storage = FileStorage('ZODBTests.fs', create=1)
@@ -637,6 +637,30 @@ class PoisonedJar:
         pass
 
 
+
+class BBBAliasTests(unittest.TestCase):
+
+    def test_importing_ZODB_DB_direct(self):
+        import ZODB.db
+        from ZODB import DB
+        self.assertTrue(DB is ZODB.db.DB)
+
+    def test_importing_ZODB_DB_via_aliased_module(self):
+        import ZODB.db
+        from ZODB.DB import DB
+        self.assertTrue(DB is ZODB.db.DB)
+
+    def test_importing_ZODB_connection_direct(self):
+        import ZODB.db
+        from ZODB import connection
+        self.assertTrue(connection is ZODB.db.connection)
+
+    def test_importing_ZODB_connection_via_aliased_module(self):
+        import ZODB.db
+        from ZODB.DB import connection
+        self.assertTrue(connection is ZODB.db.connection)
+    
+
 class PoisonedObject:
     def __init__(self, poisonedjar):
         self._p_jar = poisonedjar
@@ -645,6 +669,7 @@ class PoisonedObject:
 def test_suite():
     return unittest.TestSuite((
         unittest.makeSuite(ZODBTests),
+        unittest.makeSuite(BBBAliasTests),
         # XXX why wasn't this being tested?
         #unittest.makeSuite(ReadConflictTests),
         ))

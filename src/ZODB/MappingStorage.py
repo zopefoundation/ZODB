@@ -365,5 +365,5 @@ class DataRecord(object):
         self.data = data
 
 def DB(*args, **kw):
-    from ZODB.DB import DB
+    from ZODB.db import DB
     return DB(MappingStorage(), *args, **kw)

@@ -50,7 +50,7 @@ class DemoStorageTests(
 
     def testLoadDelegation(self):
         # Minimal test of loadEX w/o version -- ironically
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.DemoStorage import DemoStorage
         from ZODB.utils import z64
         db = DB(self._storage) # creates object 0. :)
@@ -59,7 +59,7 @@ class DemoStorageTests(
 
     def testLengthAndBool(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         self.assertEqual(len(self._storage), 0)
         self.assert_(not self._storage)
         db = DB(self._storage) # creates object 0. :)
@@ -202,7 +202,7 @@ def load_before_base_storage_current():
     >>> from ZODB.utils import u64
     >>> from ZODB.utils import z64
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.DemoStorage import DemoStorage
     >>> base = ZODB.MappingStorage.MappingStorage()
     >>> basedb = DB(base)

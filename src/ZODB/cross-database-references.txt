@@ -9,7 +9,7 @@ Lets set up a multi-database with 2 databases:
 
     >>> import persistent
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> databases = {}
     >>> db1 = DB(None, databases=databases, database_name='1')
     >>> db2 = DB(None, databases=databases, database_name='2')

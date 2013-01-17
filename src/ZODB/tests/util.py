@@ -27,7 +27,7 @@ import zope.testing.setupstack
 import ZODB.utils
 
 def DB(*args, **kw):
-    from ZODB.DB import DB
+    from ZODB.db import DB
     warnings.warn('Please use the normal DB with None as the storage',
                   DeprecationWarning, stacklevel=2)
     return DB(None, *args, **kw)

@@ -8,7 +8,7 @@ usage: netspace.py [-P | -v] data.fs
 -v: print info for all objects, even if a traversal path isn't found
 """
 
-from ZODB.DB import DB
+from ZODB.db import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
 from ZODB.serialize import referencesf

@@ -6,7 +6,7 @@ import time
 from persistent.mapping import PersistentMapping
 import transaction
 
-from ZODB.DB import DB
+from ZODB.db import DB
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.tests.MinPO import MinPO

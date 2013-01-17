@@ -11,7 +11,7 @@ Here we exercise the connection management done by the DB class.
 Capturing log messages from DB is important for some of the examples:
 
     >>> from zope.testing.loggingsupport import InstalledHandler
-    >>> handler = InstalledHandler('ZODB.DB')
+    >>> handler = InstalledHandler('ZODB.db')
 
 Create a storage, and wrap it in a DB wrapper:
 
@@ -31,7 +31,7 @@ Open one more, and we get a warning:
     1
     >>> msg = handler.records[0]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB WARNING DB.open() has 8 open connections with a pool_size of 7
+    ZODB.db WARNING DB.open() has 8 open connections with a pool_size of 7
 
 Open 6 more, and we get 6 more warnings:
 
@@ -42,7 +42,7 @@ Open 6 more, and we get 6 more warnings:
     7
     >>> msg = handler.records[-1]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB WARNING DB.open() has 14 open connections with a pool_size of 7
+    ZODB.db WARNING DB.open() has 14 open connections with a pool_size of 7
 
 Add another, so that it's more than twice the default, and the level
 rises to critical:
@@ -54,7 +54,7 @@ rises to critical:
     8
     >>> msg = handler.records[-1]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB CRITICAL DB.open() has 15 open connections with a pool_size of 7
+    ZODB.db CRITICAL DB.open() has 15 open connections with a pool_size of 7
 
 While it's boring, it's important to verify that the same relationships
 hold if the default pool size is overridden.
@@ -75,7 +75,7 @@ A warning for opening one more:
     1
     >>> msg = handler.records[0]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB WARNING DB.open() has 3 open connections with a pool_size of 2
+    ZODB.db WARNING DB.open() has 3 open connections with a pool_size of 2
 
 More warnings through 4 connections:
 
@@ -86,7 +86,7 @@ More warnings through 4 connections:
     2
     >>> msg = handler.records[-1]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB WARNING DB.open() has 4 open connections with a pool_size of 2
+    ZODB.db WARNING DB.open() has 4 open connections with a pool_size of 2
 
 And critical for going beyond that:
 
@@ -97,7 +97,7 @@ And critical for going beyond that:
     3
     >>> msg = handler.records[-1]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB CRITICAL DB.open() has 5 open connections with a pool_size of 2
+    ZODB.db CRITICAL DB.open() has 5 open connections with a pool_size of 2
 
 We can change the pool size on the fly:
 
@@ -111,7 +111,7 @@ We can change the pool size on the fly:
     1
     >>> msg = handler.records[0]
     >>> print msg.name, msg.levelname, msg.getMessage()
-    ZODB.DB WARNING DB.open() has 7 open connections with a pool_size of 6
+    ZODB.db WARNING DB.open() has 7 open connections with a pool_size of 6
 
 Enough of that.
 

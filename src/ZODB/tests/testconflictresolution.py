@@ -41,7 +41,7 @@ def succeed_with_resolution_when_state_is_unchanged():
     bother calling _p_resolveConflict
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB('t.fs') # FileStorage!
     >>> storage = db.storage
     >>> conn = db.open()
@@ -115,7 +115,7 @@ references to classes that can't be imported.
     ...     pass
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.tests.examples import Resolveable
     >>> db = DB('t.fs') # FileStorage!
     >>> storage = db.storage
@@ -201,7 +201,7 @@ def resolve_even_when_xdb_referenced_classes_are_absent():
     ...     pass
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> databases = {}
     >>> db = DB('t.fs', databases=databases, database_name='')
     >>> db2 = DB('o.fs', databases=databases, database_name='o')

@@ -19,7 +19,7 @@ import unittest
 def test_integration():
     r"""Test the integration of broken object support with the databse:
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
 
     We'll create a fake module with a class:

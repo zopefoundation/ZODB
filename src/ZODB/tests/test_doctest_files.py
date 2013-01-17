@@ -20,7 +20,7 @@ def cross_db_refs_to_blank_db_name():
 
     >>> import persistent.mapping
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> dbs = {}
     >>> db1 = DB(None, database_name='', databases=dbs)
     >>> db2 = DB(None, database_name='2', databases=dbs)

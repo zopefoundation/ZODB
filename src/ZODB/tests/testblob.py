@@ -84,7 +84,7 @@ class BlobCloneTests(utilTestCase):
         from pickle import Unpickler
         from StringIO import StringIO
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.MappingStorage import MappingStorage
         from ZODB.blob import Blob
         from ZODB.blob import BlobStorage
@@ -122,7 +122,7 @@ class _BlobUndoTests(BlobTestBase):
 
     def testUndoWithoutPreviousVersion(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.blob import Blob
         database = DB(self._storage)
         connection = database.open()
@@ -140,7 +140,7 @@ class _BlobUndoTests(BlobTestBase):
 
     def testUndo(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.blob import Blob
         database = DB(self._storage)
         connection = database.open()
@@ -165,7 +165,7 @@ class _BlobUndoTests(BlobTestBase):
 
     def testUndoAfterConsumption(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.blob import Blob
         database = DB(self._storage)
         connection = database.open()
@@ -192,7 +192,7 @@ class _BlobUndoTests(BlobTestBase):
 
     def testRedo(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.blob import Blob
         database = DB(self._storage)
         connection = database.open()
@@ -223,7 +223,7 @@ class _BlobUndoTests(BlobTestBase):
 
     def testRedoOfCreation(self):
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.blob import Blob
         database = DB(self._storage)
         connection = database.open()
@@ -264,7 +264,7 @@ class _RecoveryBlobStorage(BlobTestBase,
         import random
         import struct
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         from ZODB.blob import Blob
         from ZODB.interfaces import IBlobStorageRestoreable
         self.assertTrue(IBlobStorageRestoreable.providedBy(self._storage))
@@ -326,7 +326,7 @@ def commit_from_wrong_partition():
     >>> logger.addHandler(handler)
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> blob_storage = create_storage()
     >>> database = DB(blob_storage)
     >>> connection = database.open()
@@ -372,7 +372,7 @@ def packing_with_uncommitted_data_non_undoing():
     temporary directory that is ignored while packing.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.serialize import referencesf
 
     >>> blob_storage = create_storage()
@@ -402,7 +402,7 @@ def packing_with_uncommitted_data_undoing():
 
     >>> from ZODB.serialize import referencesf
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> blob_storage = create_storage()
     >>> database = DB(blob_storage)
     >>> connection = database.open()
@@ -470,7 +470,7 @@ def loadblob_tmpstore():
 
     First, let's setup a regular database and store a blob:
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> blob_storage = create_storage()
     >>> database = DB(blob_storage)
     >>> connection = database.open()
@@ -505,7 +505,7 @@ def loadblob_tmpstore():
 def is_blob_record():
     r"""
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.blob import Blob
     >>> from ZODB.blob import is_blob_record
     >>> from ZODB.utils import p64
@@ -540,7 +540,7 @@ def do_not_depend_on_cwd():
     """
     >>> import os
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.blob import Blob
     >>> bs = create_storage()
     >>> here = os.getcwd()
@@ -562,7 +562,7 @@ def savepoint_isolation():
     """Make sure savepoint data is distinct accross transactions
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.blob import Blob
     >>> bs = create_storage()
     >>> db = DB(bs)
@@ -592,7 +592,7 @@ def savepoint_commits_without_invalidations_out_of_order():
     invalidations out of order error (LP #509801)
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.blob import Blob
     >>> bs = create_storage()
     >>> db = DB(bs)
@@ -625,7 +625,7 @@ def savepoint_cleanup():
 
     >>> import os
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.blob import Blob
     >>> bs = create_storage()
     >>> tdir = bs.temporaryDirectory()

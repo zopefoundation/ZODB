@@ -45,6 +45,7 @@ create
 
     To demonstrate this, we'll first write some data:
 
+    >>> import ZODB
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> import ZODB.blob, transaction

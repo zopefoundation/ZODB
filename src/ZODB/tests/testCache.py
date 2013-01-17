@@ -24,7 +24,7 @@ from ZODB.tests.util import TestCase as utilTestCase
 class CacheTestBase(utilTestCase):
 
     def setUp(self):
-        from ZODB.DB import DB
+        from ZODB.db import DB
         utilTestCase.setUp(self)
         self.db = DB(None, cache_size = self.CACHE_SIZE)
         self.conns = []
@@ -429,7 +429,7 @@ class CacheErrors(unittest.TestCase):
 def test_basic_cache_size_estimation():
     """Make sure the basic accounting is correct:
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> conn = db.open()
 

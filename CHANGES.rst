@@ -5,6 +5,10 @@
 Unreleased
 ==========
 
+- Renamed the hard-to-grab module, ``ZODB.DB`` as ``ZODB.db``.
+  ``ZODB.DB`` is now unambigously the ``DB`` class, imported as a convenience
+  api from the no-longer-shadowed ``ZODB.db``.
+
 - Tests are now runnable via ``python setup.py test`` and via ``nose``.
 
 - Added ``setup.py docs`` alias (installs ``Sphinx`` and

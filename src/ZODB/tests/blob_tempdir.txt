@@ -31,7 +31,7 @@ First, we need a datatabase with blob support::
 
   >>> from ZODB.MappingStorage import MappingStorage
   >>> from ZODB.blob import BlobStorage
-  >>> from ZODB.DB import DB
+  >>> from ZODB.db import DB
   >>> import os.path
   >>> base_storage = MappingStorage('test')
   >>> blob_dir = os.path.abspath('blobs')

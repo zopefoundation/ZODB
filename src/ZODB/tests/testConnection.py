@@ -348,7 +348,7 @@ class UserMethodTests(unittest.TestCase):
         Set up a multi-database:
         
             >>> import transaction
-            >>> from ZODB.DB import DB
+            >>> from ZODB.db import DB
             >>> db1 = DB(None)
             >>> db2 = DB(None, databases=db1.databases, database_name='2',
             ...               cache_size=10)
@@ -444,7 +444,7 @@ def test_transaction_retry_convenience():
     This is an adaptation of the convenience tests in transaction.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> conn = db.open()
     >>> dm = conn.root()
@@ -543,7 +543,7 @@ def test_invalidateCache():
     prevents reads until the end of a transaction::
 
         >>> import transaction
-        >>> from ZODB.DB import DB
+        >>> from ZODB.db import DB
         >>> from ZODB.tests.examples import StubObject
         >>> db = DB(None)
         >>> tm = transaction.TransactionManager()
@@ -614,7 +614,7 @@ def test_invalidateCache():
 def connection_root_convenience():
     """Connection root attributes can now be used as objects with attributes
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
     >>> conn = db.open()
     >>> conn.root.x
@@ -654,7 +654,7 @@ def proper_ghost_initialization_with_empty__p_deactivate():
 See https://bugs.launchpad.net/zodb/+bug/185066
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.tests.examples import (
     ...     proper_ghost_initialization_with_empty__p_deactivate_class)
     >>> db = DB(None)
@@ -700,7 +700,7 @@ implementation of checkCurrentSerialInTransaction.
 Now, we'll use the storage as usual.  checkCurrentSerialInTransaction
 won't normally be called:
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> from ZODB.tests.util import P
     >>> db = DB(store)
     >>> conn = db.open()
@@ -833,7 +833,7 @@ thatcache management is applied to all of the connections.
 Set up a multi-database:
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db1 = DB(None)
     >>> db2 = DB(None, databases=db1.databases, database_name='2',
     ...               cache_size=10)
@@ -1048,7 +1048,7 @@ class EstimatedSizeTests(utilTestCase):
     def setUp(self):
         from persistent import Persistent
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         global _PlayPersistent #pickle
         class _PlayPersistent(Persistent):
             def setValueWithSize(self, size=0): self.value = size*' '

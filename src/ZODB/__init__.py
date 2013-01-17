@@ -23,6 +23,8 @@ sys.modules['ZODB.TimeStamp'] = sys.modules['persistent.TimeStamp']
 sys.modules['ZODB.PersistentMapping'] = sys.modules['persistent.mapping']
 sys.modules['ZODB.PersistentList'] = sys.modules['persistent.list']
 
-del mapping, list, sys
+from .db import DB, connection
+# BBB alias
+sys.modules['ZODB.DB'] = sys.modules['ZODB.db']
 
-from DB import DB, connection
+del mapping, list, sys

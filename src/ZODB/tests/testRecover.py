@@ -44,7 +44,7 @@ class RecoverTest(utilTestCase):
     def populate(self):
         from persistent.mapping import PersistentMapping
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         db = DB(self.storage)
         cn = db.open()
         rt = cn.root()

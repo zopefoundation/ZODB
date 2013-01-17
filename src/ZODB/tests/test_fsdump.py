@@ -37,7 +37,7 @@ For empty DB fsdump() output definitely empty:
 
 Create a root object and try again:
 
->>> from ZODB.DB import DB
+>>> from ZODB.db import DB
 >>> db = DB(st) # yes, that creates a root object!
 >>> fsdump(path) #doctest: +ELLIPSIS
 Trans #00000 tid=... time=... offset=52

@@ -8,7 +8,7 @@ Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
 
-from ZODB.DB import DB
+from ZODB.db import DB
 from ZODB.FileStorag.FileStoragee import FileStorage
 from BTrees.check import check
 

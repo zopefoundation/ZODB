@@ -39,7 +39,7 @@ import transaction
 from persistent.TimeStamp import TimeStamp
 
 
-logger = logging.getLogger('ZODB.DB')
+logger = logging.getLogger('ZODB.db')
 
 class AbstractConnectionPool(object):
     """Manage a pool of connections.

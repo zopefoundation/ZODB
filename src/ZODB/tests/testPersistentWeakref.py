@@ -30,7 +30,7 @@ def test_weakrefs_functional():
     >>> import transaction
     >>> from persistent.wref import WeakRef
     >>> import persistent, ZODB.tests.MinPO
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> ob = ZODB.tests.MinPO.MinPO()
     >>> ref = WeakRef(ob)
     >>> ref() is ob
@@ -188,7 +188,7 @@ def test_PersistentWeakKeyDictionary():
 
     We can add the dict and the referenced objects to a database:
 
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> db = DB(None)
 
     >>> conn1 = db.open()

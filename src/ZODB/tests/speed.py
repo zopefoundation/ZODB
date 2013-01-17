@@ -38,7 +38,7 @@ Options:
 import sys, os, getopt, string, time
 sys.path.insert(0, os.getcwd())
 
-import ZODB.DB
+import ZODB.db
 import ZODB.FileStorage
 import persistent
 import transaction
@@ -77,7 +77,7 @@ def main(args):
         s=ZODB.FileStorage.FileStorage('zeo_speed.fs', create=1)
 
     data=open(data).read()
-    db=ZODB.DB.DB(s,
+    db=ZODB.db.DB(s,
                # disable cache deactivation
                cache_size=4000,
                cache_deactivate_after=6000,)

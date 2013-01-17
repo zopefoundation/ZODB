@@ -34,7 +34,7 @@ test that the implementation is correct).  The tests use a
 MinimalMemoryStorage that implements MVCC support, but not much else.
 
 >>> from ZODB.tests.test_storage import _makeStorage
->>> from ZODB.DB import DB
+>>> from ZODB.db import DB
 >>> db = DB(_makeStorage())
 
 We will use two different connections with different transaction managers

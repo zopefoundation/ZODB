@@ -32,7 +32,7 @@ class MVCCTests(object):
         # Verify connections see updated state at txn boundaries.
         # This will fail if the Connection doesn't poll for changes.
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         db = DB(self._storage)
         try:
             c1 = db.open(transaction.TransactionManager())
@@ -56,7 +56,7 @@ class MVCCTests(object):
         # This will fail if Connection doesn't poll for changes.
         from persistent.mapping import PersistentMapping
         import transaction
-        from ZODB.DB import DB
+        from ZODB.db import DB
         db = DB(self._storage)
         try:
             c1 = db.open()

@@ -6,7 +6,7 @@ Set up:
     >>> from ZODB.serialize import referencesf
     >>> from ZODB.blob import Blob
     >>> from ZODB import utils
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> import transaction
 
 A helper method to assure a unique timestamp across multiple platforms:

@@ -25,7 +25,7 @@ database open function, but this doesn't work:
 
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> databases = {}
     >>> db1 = DB(None, databases=databases, database_name='1')
     >>> db2 = DB(None, databases=databases, database_name='2')
@@ -83,7 +83,7 @@ connections must remain so that references between it's cached
 objects remain sane.
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> databases = {}
     >>> db1 = DB(None, databases=databases, database_name='1')
     >>> db2 = DB(None, databases=databases, database_name='2')
@@ -125,7 +125,7 @@ def test_explicit_adding_with_savepoint():
     """
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> databases = {}
     >>> db1 = DB(None, databases=databases, database_name='1')
     >>> db2 = DB(None, databases=databases, database_name='2')
@@ -153,7 +153,7 @@ def test_explicit_adding_with_savepoint2():
     """
 
     >>> import transaction
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> databases = {}
     >>> db1 = DB(None, databases=databases, database_name='1')
     >>> db2 = DB(None, databases=databases, database_name='2')

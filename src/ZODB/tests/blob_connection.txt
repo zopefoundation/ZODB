@@ -17,7 +17,7 @@ FileStorage rather than MappingStorage here because we will want ``loadBefore``
 for one of our examples.)
 
     >>> blob_storage = create_storage()
-    >>> from ZODB.DB import DB
+    >>> from ZODB.db import DB
     >>> database = DB(blob_storage)
 
 Putting a Blob into a Connection works like every other object:

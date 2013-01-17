@@ -97,7 +97,7 @@ class BaseConfig:
 class ZODBDatabase(BaseConfig):
 
     def open(self, databases=None):
-        from ZODB.DB import DB
+        from ZODB.db import DB
         section = self.config
         storage = section.storage.open()
         options = {}

@@ -23,7 +23,7 @@ from persistent.mapping import PersistentMapping
 import transaction
 import zope.testing.setupstack
 
-from ZODB.DB import DB
+from ZODB.db import DB
 from ZODB.interfaces import IStorageIteration
 from ZODB.POSException import ConflictError, StorageError
 from ZODB.serialize import referencesf

@@ -17,7 +17,7 @@ Transaction support for Blobs
 
 We need a database with a blob supporting storage::
 
-    >>> import ZODB.blob, transaction
+    >>> import ZODB, ZODB.blob, transaction
     >>> blob_dir = 'blobs'
     >>> blob_storage = create_storage(blob_dir=blob_dir)
     >>> database = ZODB.DB(blob_storage)
