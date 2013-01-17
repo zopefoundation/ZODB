@@ -110,7 +110,6 @@ tests_require = ['zope.testing', 'manuel']
 
 setup(name="ZODB",
       version=VERSION,
-      setup_requires=['persistent'],
       maintainer="Zope Foundation and Contributors",
       maintainer_email="zodb-dev@zope.org",
       packages = find_packages('src'),
