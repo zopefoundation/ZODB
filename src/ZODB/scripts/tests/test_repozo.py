@@ -41,7 +41,7 @@ class OurDB:
 
     def getdb(self):
         from ZODB.db import DB
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         self._file_name = storage_filename = os.path.join(self.dir, 'Data.fs')
         storage = FileStorage(storage_filename)
         self.db = DB(storage)

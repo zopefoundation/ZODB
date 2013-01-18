@@ -20,11 +20,11 @@ from cPickle import Pickler, loads
 from persistent.TimeStamp import TimeStamp
 from struct import pack, unpack
 from zc.lockfile import LockFile
-from ZODB.FileStorage.format import CorruptedError, CorruptedDataError
-from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
-from ZODB.FileStorage.fspack import FileStoragePacker
+from ZODB.filestorage.format import CorruptedError, CorruptedDataError
+from ZODB.filestorage.format import FileStorageFormatter, DataHeader
+from ZODB.filestorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.filestorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
+from ZODB.filestorage.fspack import FileStoragePacker
 from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
@@ -47,7 +47,7 @@ fsync = getattr(os, "fsync", None)
 
 packed_version = "FS21"
 
-logger = logging.getLogger('ZODB.FileStorage')
+logger = logging.getLogger('ZODB.filestorage')
 
 def panic(message, *data):
     logger.critical(message, *data)

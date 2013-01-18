@@ -21,7 +21,7 @@ class ZODBTests(utilTestCase):
 
     def setUp(self):
         from ZODB.db import DB
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         utilTestCase.setUp(self)
         self._storage = FileStorage('ZODBTests.fs', create=1)
         self._db = DB(self._storage)

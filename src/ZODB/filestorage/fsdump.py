@@ -13,9 +13,9 @@
 ##############################################################################
 import struct
 
-from ZODB.FileStorage import FileIterator
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import DATA_HDR, DATA_HDR_LEN
+from ZODB.filestorage import FileIterator
+from ZODB.filestorage.format import TRANS_HDR, TRANS_HDR_LEN
+from ZODB.filestorage.format import DATA_HDR, DATA_HDR_LEN
 from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64, get_pickle_metadata
 

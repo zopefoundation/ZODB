@@ -22,10 +22,10 @@ Let's get a path to work with first.
 More imports.
 
 >>> import ZODB
->>> from ZODB.FileStorage import FileStorage
+>>> from ZODB.filestorage import FileStorage
 >>> import transaction as txn
 >>> from BTrees.OOBTree import OOBTree
->>> from ZODB.FileStorage.fsoids import Tracer  # we're testing this
+>>> from ZODB.filestorage.fsoids import Tracer  # we're testing this
 
 Create an empty FileStorage.
 

@@ -12,7 +12,7 @@ Participants
 
 - ``DB``:  ``ZODB.db.DB``
 - ``C``:  ``ZODB.Connection.Connection``
-- ``S``:  ``ZODB.FileStorage.FileStorage``
+- ``S``:  ``ZODB.filestorage.FileStorage``
 - ``T``:  ``transaction.interfaces.ITransaction``
 - ``TM``: ``transaction.interfaces.ITransactionManager``
 - ``o1``, ``o2``, ...:  pre-existing persistent objects
@@ -71,7 +71,7 @@ Participants
 
 - ``DB``:  ``ZODB.db.DB``
 - ``C``:  ``ZODB.Connection.Connection``
-- ``S``:  ``ZODB.FileStorage.FileStorage``
+- ``S``:  ``ZODB.filestorage.FileStorage``
 - ``T``:  ``transaction.interfaces.ITransaction``
 - ``TM``: ``transaction.interfaces.ITransactionManager``
 - ``o1``, ``o2``, ...:  pre-existing persistent objects

@@ -682,7 +682,7 @@ def setUpBlobAdaptedFileStorage(test):
     _setUp(test)
 
     def create_storage(name='data', blob_dir=None):
-        from ZODB.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         from ZODB.blob import BlobStorage
         if blob_dir is None:
             blob_dir = '%s.bobs' % name
@@ -769,7 +769,7 @@ def test_suite():
     else:
         import doctest
     from zope.testing.renormalizing import RENormalizing
-    from ZODB.FileStorage import FileStorage
+    from ZODB.filestorage import FileStorage
     from ZODB.blob import BlobStorage
     from zope.testing.setupstack import tearDown
 

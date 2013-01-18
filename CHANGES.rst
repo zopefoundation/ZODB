@@ -5,9 +5,25 @@
 Unreleased
 ==========
 
+- Renamed the hard-to-grab module, ``ZODB.FileStorage.FileStorage`` as
+  ``ZODB.filestorage._impl``.  The expected API to get to the ``FileStorage``
+  class is now::
+
+    import ZODB.filestorage # and use FileStorage attr
+
+  or::
+
+    from ZODB.filestorage import FileStorage
+  
+  BBB aliases exist to support code which imported the ``FileStorage`` class
+  via ``ZODB.FileStorage``  or ``ZODB.FileStorage.FileStorage``.
+
 - Renamed the hard-to-grab module, ``ZODB.DB`` as ``ZODB.db``.
   ``ZODB.DB`` is now unambigously the ``DB`` class, imported as a convenience
   api from the no-longer-shadowed ``ZODB.db``.
+  
+  A BBB aliases exist to support code which imported the ``DB`` class or
+  the ``connection`` function via ``ZODB.DB``.
 
 - Tests are now runnable via ``python setup.py test`` and via ``nose``.
 

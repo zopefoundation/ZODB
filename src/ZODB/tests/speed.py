@@ -39,7 +39,7 @@ import sys, os, getopt, string, time
 sys.path.insert(0, os.getcwd())
 
 import ZODB.db
-import ZODB.FileStorage
+import ZODB.filestorage
 import persistent
 import transaction
 
@@ -74,7 +74,7 @@ def main(args):
         s=__import__(s, globals(), globals(), ('__doc__',))
         s=s.Storage
     else:
-        s=ZODB.FileStorage.FileStorage('zeo_speed.fs', create=1)
+        s=ZODB.filestorage.FileStorage('zeo_speed.fs', create=1)
 
     data=open(data).read()
     db=ZODB.db.DB(s,

@@ -80,10 +80,10 @@ except ImportError:
         sys.path.append('..')
     import ZODB
 
-import ZODB.FileStorage
 from ZODB.utils import u64
-from ZODB.FileStorage import TransactionRecord
-from ZODB.FileStorage.FileStorage import FileStorage
+from ZODB.filestorage import TransactionRecord
+from ZODB.filestorage import FileStorage
+from ZODB.filestorage import packed_version
 
 from persistent.TimeStamp import TimeStamp
 
@@ -266,7 +266,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
         die("%s exists" % outp)
 
     f = open(inp, "rb")
-    if f.read(4) != ZODB.FileStorage.packed_version:
+    if f.read(4) != packed_version:
         die("input is not a file storage")
 
     f.seek(0,2)

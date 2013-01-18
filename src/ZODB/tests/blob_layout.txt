@@ -156,10 +156,10 @@ This function interacts with the automatic detection in the way, that an
 unmarked directory will be marked the first time when it is auto-guessed and
 the marker will be used in the future:
 
->>> import ZODB.FileStorage
+>>> from ZODB.filestorage import FileStorage
 >>> from ZODB.blob import BlobStorage
 >>> datafs = 'data.fs'
->>> base_storage = ZODB.FileStorage.FileStorage(datafs)
+>>> base_storage = FileStorage(datafs)
 
 >>> os.mkdir(blobs)
 >>> open(os.path.join(blobs, 'foo'), 'wb').write('foo')

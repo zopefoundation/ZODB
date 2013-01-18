@@ -9,7 +9,7 @@ usage: netspace.py [-P | -v] data.fs
 """
 
 from ZODB.db import DB
-from ZODB.FileStorage import FileStorage
+from ZODB.filestorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
 from ZODB.serialize import referencesf
 

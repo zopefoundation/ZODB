@@ -40,7 +40,7 @@ See testfsoids.py for a tutorial doctest.
 
 import sys
 
-from ZODB.FileStorage.fsoids import Tracer
+from ZODB.filestorage.fsoids import Tracer
 
 def usage():
     print __doc__

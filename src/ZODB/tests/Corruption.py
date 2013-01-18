@@ -17,14 +17,14 @@ import os
 import random
 import stat
 
-import ZODB.FileStorage
-from StorageTestBase import StorageTestBase
+from ZODB.filestorage import FileStorage
+from ZODB.tests.StorageTestBase import StorageTestBase
 
 class FileStorageCorruptTests(StorageTestBase):
 
     def setUp(self):
         StorageTestBase.setUp(self)
-        self._storage = ZODB.FileStorage.FileStorage('Data.fs', create=1)
+        self._storage = FileStorage('Data.fs', create=1)
 
     def _do_stores(self):
         oids = []
@@ -52,7 +52,7 @@ class FileStorageCorruptTests(StorageTestBase):
         f.truncate()
         f.close()
 
-        self._storage = ZODB.FileStorage.FileStorage('Data.fs')
+        self._storage = FileStorage('Data.fs')
         self._check_stores(oids)
 
     def checkCorruptedIndex(self):
@@ -68,5 +68,5 @@ class FileStorageCorruptTests(StorageTestBase):
             f.write('\000')
         f.close()
 
-        self._storage = ZODB.FileStorage.FileStorage('Data.fs')
+        self._storage = FileStorage('Data.fs')
         self._check_stores(oids)

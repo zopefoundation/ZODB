@@ -93,7 +93,7 @@ class RecoveryStorage(IteratorDeepCompare):
         raises(KeyError, self._dst.load, obj2._p_oid, '')
 
     def checkRestoreWithMultipleObjectsInUndoRedo(self):
-        from ZODB.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
 
         # Undo creates backpointers in (at least) FileStorage.  ZODB 3.2.1
         # FileStorage._data_find() had an off-by-8 error, neglecting to

@@ -399,7 +399,7 @@ class DB(object):
             references are allowed
         """
         if isinstance(storage, basestring):
-            from ZODB.FileStorage.FileStorage import FileStorage
+            from ZODB.filestorage import FileStorage
             storage = FileStorage(storage, **storage_args)
         elif storage is None:
             from ZODB.MappingStorage import MappingStorage

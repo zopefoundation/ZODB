@@ -11,22 +11,18 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
-import os
-import time
-import transaction
 import unittest
-import ZODB.blob
-import ZODB.FileStorage
-import ZODB.tests.util
 
 def pack_keep_old():
     """Should a copy of the database be kept?
 
 The pack_keep_old constructor argument controls whether a .old file (and .old directory for blobs is kept.)
 
+    >>> import os
+    >>> import time
+    >>> import transaction
     >>> from ZODB.db import DB
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> from ZODB.blob import Blob
     >>> fs = FileStorage('data.fs', blob_dir='blobs')
     >>> db = DB(fs)
@@ -95,8 +91,10 @@ def pack_with_repeated_blob_records():
     fixed by the time you read this, but there might still be
     transactions in the wild that have duplicate records.
 
+    >>> import time
+    >>> import transaction
     >>> from ZODB.db import DB
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> from ZODB.blob import Blob
     >>> fs = FileStorage('t', blob_dir='bobs')
     >>> db = DB(fs)
@@ -132,8 +130,10 @@ def _save_index():
 
 _save_index can fail for large indexes.
 
+    >>> import transaction
     >>> import ZODB.utils
-    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> from ZODB.filestorage import FileStorage
+    >>> fs = FileStorage('data.fs')
 
     >>> t = transaction.begin()
     >>> fs.tpc_begin(t)
@@ -153,7 +153,7 @@ Make sure we can restore:
 
     >>> import logging
     >>> handler = logging.StreamHandler(sys.stdout)
-    >>> logger = logging.getLogger('ZODB.FileStorage')
+    >>> logger = logging.getLogger('ZODB.filestorage')
     >>> logger.setLevel(logging.DEBUG)
     >>> logger.addHandler(handler)
     >>> index, pos, tid = fs._restore_index()
@@ -172,13 +172,12 @@ cleanup
 
 
 def test_suite():
+    import doctest
+    from ZODB.tests.util import setUp
+    from ZODB.tests.util import tearDown
     return unittest.TestSuite((
         doctest.DocFileSuite(
-            'zconfig.txt', 'iterator.test',
-            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
-        doctest.DocTestSuite(
-            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
+            'zconfig.txt', 'iterator.test', setUp=setUp, tearDown=tearDown),
+        doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
         ))
 

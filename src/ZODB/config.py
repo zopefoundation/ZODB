@@ -155,7 +155,7 @@ class DemoStorage(BaseConfig):
 class FileStorage(BaseConfig):
 
     def open(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         config = self.config
         options = {}
         if getattr(config, 'packer', None):

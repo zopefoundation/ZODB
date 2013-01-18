@@ -24,7 +24,7 @@ class RecoverTest(utilTestCase):
     path = None
 
     def setUp(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         utilTestCase.setUp(self)
         self.path = 'source.fs'
         self.storage = FileStorage(self.path)
@@ -33,7 +33,7 @@ class RecoverTest(utilTestCase):
         self.recovered = None
 
     def tearDown(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         self.storage.close()
         if self.recovered is not None:
             self.recovered.close()
@@ -114,7 +114,7 @@ class RecoverTest(utilTestCase):
 
     def testOneBlock(self):
         import os
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         for i in range(self.ITERATIONS):
             self.damage(1, 1024)
             output = self.recover()
@@ -126,7 +126,7 @@ class RecoverTest(utilTestCase):
 
     def testFourBlocks(self):
         import os
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         for i in range(self.ITERATIONS):
             self.damage(4, 512)
             output = self.recover()
@@ -138,7 +138,7 @@ class RecoverTest(utilTestCase):
 
     def testBigBlock(self):
         import os
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         for i in range(self.ITERATIONS):
             self.damage(1, 32 * 1024)
             output = self.recover()
@@ -152,7 +152,7 @@ class RecoverTest(utilTestCase):
         # Find transaction headers and blast them.
         import base64
         import os
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
 
         L = self.storage.undoLog()
         r = L[3]

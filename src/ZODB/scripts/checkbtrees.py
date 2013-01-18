@@ -9,7 +9,7 @@ and run them through BTrees.check.check().
 """
 
 from ZODB.db import DB
-from ZODB.FileStorag.FileStoragee import FileStorage
+from ZODB.filestorage import FileStorage
 from BTrees.check import check
 
 # Set of oids we've already visited.  Since the object structure is

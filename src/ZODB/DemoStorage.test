@@ -19,7 +19,7 @@ existing, base, storage without updating the storage.
 To see how this works, we'll start by creating a base storage and
 puting an object (in addition to the root object) in it:
 
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> base = FileStorage('base.fs')
     >>> from ZODB.DB import DB
     >>> db = DB(base)

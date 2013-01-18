@@ -54,7 +54,7 @@ class FileStorageTests(
     ):
 
     def open(self, **kwargs):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         self._storage = FileStorage('FileStorageTests.fs',
                                                      **kwargs)
 
@@ -226,7 +226,7 @@ class FileStorageTests(
         import transaction
         from ZODB.db import DB
         from ZODB.utils import U64, p64
-        from ZODB.FileStorage.format import CorruptedError
+        from ZODB.filestorage.format import CorruptedError
         from ZODB.serialize import referencesf
 
         db = DB(self._storage)
@@ -298,7 +298,7 @@ class FileStorageTests(
 class FileStorageHexTests(FileStorageTests):
 
     def open(self, **kwargs):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         from ZODB.tests.hexstorage import HexStorage
         self._storage = HexStorage(
             FileStorage('FileStorageTests.fs',**kwargs))
@@ -325,7 +325,7 @@ class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
 class FileStorageRecoveryTest(StorageTestBase, RecoveryStorage,):
 
     def setUp(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         StorageTestBase.setUp(self)
         self._storage = FileStorage("Source.fs", create=True)
         self._dst = FileStorage("Dest.fs", create=True)
@@ -335,13 +335,13 @@ class FileStorageRecoveryTest(StorageTestBase, RecoveryStorage,):
         StorageTestBase.tearDown(self)
 
     def new_dest(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         return FileStorage('Dest.fs')
 
 class FileStorageHexRecoveryTest(FileStorageRecoveryTest):
 
     def setUp(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         from ZODB.tests.hexstorage import HexStorage
         StorageTestBase.setUp(self)
         self._storage = HexStorage(
@@ -358,7 +358,7 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
     @property
     def wo_restore(self):
         if self._wo_restore is None:
-            from ZODB.FileStorage.FileStorage import FileStorage
+            from ZODB.filestorage import FileStorage
             class FileStorageNoRestore(FileStorage):
 
                 @property
@@ -380,10 +380,23 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         pass
 
 
+class BBBAliasTests(unittest.TestCase):
+
+    def test_importing_ZODB_FileStorage_direct(self):
+        import ZODB.filestorage
+        from ZODB.FileStorage import FileStorage
+        self.assertTrue(FileStorage is ZODB.filestorage.FileStorage)
+
+    def test_importing_ZODB_DB_via_aliased_module(self):
+        import ZODB.filestorage
+        from ZODB.FileStorage.FileStorage import FileStorage
+        self.assertTrue(FileStorage is ZODB.filestorage.FileStorage)
+
+
 class AnalyzeDotPyTest(StorageTestBase):
 
     def setUp(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         StorageTestBase.setUp(self)
         self._storage = FileStorage("Source.fs", create=True)
 
@@ -473,13 +486,13 @@ def timestamp(minutes):
 def testTimeTravelOnOpen():
     """
     >>> from ZODB.db import DB
-    >>> from ZODB.FileStorage.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> from zope.testing.loggingsupport import InstalledHandler
 
     Arrange to capture log messages -- they're an important part of
     this test!
 
-    >>> handler = InstalledHandler('ZODB.FileStorage')
+    >>> handler = InstalledHandler('ZODB.filestorage')
 
     Create a new file storage.
 
@@ -561,7 +574,7 @@ track of the transactions along the way:
 
     >>> import transaction
     >>> from ZODB.db import DB
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> fs = FileStorage('t.fs', create=True)
     >>> db = DB(fs)
     >>> conn = db.open()
@@ -614,7 +627,7 @@ def deal_with_finish_failures():
 
     >>> import transaction
     >>> from ZODB.db import DB
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> fs = FileStorage('data.fs')
     >>> db = DB(fs)
     >>> conn = db.open()
@@ -629,7 +642,7 @@ def deal_with_finish_failures():
 
     >>> import zope.testing.loggingsupport
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
-    ...     'ZODB.FileStorage')
+    ...     'ZODB.filestorage')
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
@@ -637,7 +650,7 @@ def deal_with_finish_failures():
 
 
     >>> print handler
-    ZODB.FileStorage CRITICAL
+    ZODB.filestorage CRITICAL
       Failure in _finish. Closing.
 
     >>> handler.uninstall()
@@ -664,7 +677,7 @@ def pack_with_open_blob_files():
 
     >>> import transaction
     >>> from ZODB.db import DB
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> fs = FileStorage('data.fs', blob_dir='blobs')
     >>> db = DB(fs)
     >>> tm1 = transaction.TransactionManager()
@@ -701,7 +714,7 @@ def test_suite():
     if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
         from zope.testing import doctest
     from zope.testing import setupstack
-    from ZODB.FileStorage.FileStorage import FileStorage
+    from ZODB.filestorage import FileStorage
     from ZODB.tests.Corruption import FileStorageCorruptTests
     from ZODB.tests.hexstorage import HexStorage
     from ZODB.tests.testblob import storage_reusable_suite
@@ -715,6 +728,7 @@ def test_suite():
         unittest.makeSuite(FileStorageNoRestoreRecoveryTest),
         unittest.makeSuite(FileStorageTestsWithBlobsEnabled),
         unittest.makeSuite(FileStorageHexTestsWithBlobsEnabled),
+        unittest.makeSuite(BBBAliasTests),
         unittest.makeSuite(AnalyzeDotPyTest),
         doctest.DocTestSuite(setUp=setupstack.setUpDirectory,
                              tearDown=setupstack.tearDown),

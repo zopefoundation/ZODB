@@ -24,8 +24,8 @@ from the revision of the root at that time or if it is reachable from
 a backpointer after that time.
 """
 
-from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
-from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
+from ZODB.filestorage.format import DataHeader, TRANS_HDR_LEN
+from ZODB.filestorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.utils import p64, u64, z64
 
 import logging
@@ -247,7 +247,7 @@ class GC(FileStorageFormatter):
         if th.status == 'p':
             # Delayed import to cope with circular imports.
             # TODO:  put exceptions in a separate module.
-            from ZODB.FileStorage.FileStorage import RedundantPackWarning
+            from ZODB.filestorage import RedundantPackWarning
             raise RedundantPackWarning(
                 "The database has already been packed to a later time"
                 " or no changes have been made since the last pack")

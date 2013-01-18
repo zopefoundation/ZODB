@@ -11,7 +11,7 @@ To see how this works, we'll create a small database:
 
     >>> import transaction
     >>> from persistent.mapping import PersistentMapping
-    >>> from ZODB.FileStorage import FileStorage
+    >>> from ZODB.filestorage import FileStorage
     >>> from ZODB.db import DB
     >>> import os, tempfile
     >>> dest = tempfile.mkdtemp()

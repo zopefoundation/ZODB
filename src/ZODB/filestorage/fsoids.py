@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-import ZODB.FileStorage
+from ZODB.filestorage import FileIterator
 from ZODB.utils import get_pickle_metadata, p64, oid_repr, tid_repr
 from ZODB.serialize import get_refs
 from ZODB.TimeStamp import TimeStamp
@@ -127,7 +127,7 @@ class Tracer(object):
 
         # Maps oid of a reference to its module.class name.
         self._ref2name = {}
-        for txn in ZODB.FileStorage.FileIterator(self.path):
+        for txn in FileIterator(self.path):
             self._check_trec(txn)
 
     # Process next transaction record.

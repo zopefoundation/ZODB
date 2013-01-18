@@ -7,7 +7,7 @@ transactions:
 
 We have to prepare a FileStorage first:
 
-  >>> from ZODB.FileStorage import FileStorage
+  >>> from ZODB.filestorage import FileStorage
   >>> from ZODB.db import DB
   >>> import transaction
   >>> from tempfile import mktemp

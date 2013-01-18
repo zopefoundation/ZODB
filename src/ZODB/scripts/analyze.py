@@ -4,7 +4,7 @@
 
 import pickle
 import sys
-from ZODB.FileStorage import FileStorage
+from ZODB.filestorage import FileStorage
 from cStringIO import StringIO
 
 class FakeError(Exception):

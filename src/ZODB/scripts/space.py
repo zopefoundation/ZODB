@@ -9,7 +9,7 @@ The current implementation only supports FileStorage.
 Current limitations / simplifications: Ignores revisions and versions.
 """
 
-from ZODB.FileStorage import FileStorage
+from ZODB.filestorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
 
 def run(path, v=0):

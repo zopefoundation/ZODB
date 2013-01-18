@@ -116,7 +116,7 @@ class DemoStorageWrappedAroundMappingStorage(_DemoStorageWrappedBase):
 class DemoStorageWrappedAroundFileStorage(_DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
-        from ZODB.FileStorage.FileStorage import FileStorage
+        from ZODB.filestorage import FileStorage
         return FileStorage('FileStorageTests.fs')
 
 class DemoStorageWrappedAroundHexMappingStorage(_DemoStorageWrappedBase):

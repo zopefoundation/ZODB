@@ -65,7 +65,7 @@ in non-current revisions.
 
 import traceback
 
-from ZODB.FileStorage import FileStorage
+from ZODB.filestorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64, oid_repr, get_pickle_metadata
 from ZODB.serialize import get_refs

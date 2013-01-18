@@ -17,7 +17,7 @@
 import time
 
 import transaction
-from ZODB.FileStorage import FileStorage
+from ZODB.filestorage import FileStorage
 from ZODB import DB
 
 from persistent import Persistent

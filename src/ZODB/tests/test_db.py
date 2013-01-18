@@ -152,7 +152,7 @@ def passing_a_file_name_to_DB():
     >>> from ZODB.db import DB
     >>> db = DB('data.fs')
     >>> db.storage # doctest: +ELLIPSIS
-    <ZODB.FileStorage.FileStorage.FileStorage object at ...
+    <ZODB.filestorage._impl.FileStorage object at ...
     >>> os.path.exists('data.fs')
     True
 
