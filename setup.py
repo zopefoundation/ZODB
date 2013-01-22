@@ -19,16 +19,13 @@ take advantage of object database features with few, if any, changes
 to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
-
-VERSION = "4.0.0dev"
-
-from ez_setup import use_setuptools
-use_setuptools()
-
-from setuptools import setup, find_packages
-from setuptools.extension import Extension
 import os
 import sys
+
+from setuptools import setup
+from setuptools import find_packages
+
+VERSION = "4.0.0dev"
 
 if sys.version_info < (2, 6):
     print "This version of ZODB requires Python 2.6 or higher"
@@ -39,12 +36,20 @@ if sys.version_info < (2, 6):
 # Development Status :: 4 - Beta
 # Development Status :: 3 - Alpha
 
+#TODO
+# Programming Language :: Python :: Implementation :: PyPy
+# Programming Language :: Python :: 3',
+# Programming Language :: Python :: 3.2',
+# Programming Language :: Python :: 3.3',
+
 classifiers = """\
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
+Programming Language :: Python :: 2
 Programming Language :: Python :: 2.6
 Programming Language :: Python :: 2.7
+Programming Language :: Python :: Implementation :: CPython
 Topic :: Database
 Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
