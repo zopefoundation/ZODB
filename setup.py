@@ -69,8 +69,8 @@ def alltests():
     import unittest
 
     # Something wacked in setting recursion limit when running setup test
-    import ZODB.FileStorage.tests
-    del ZODB.FileStorage.tests._save_index
+    import ZODB.filestorage.tests
+    del ZODB.filestorage.tests._save_index
 
     class NullHandler(logging.Handler):
         level = 50
@@ -143,7 +143,7 @@ setup(name="ZODB",
       zip_safe = False,
       entry_points = """
       [console_scripts]
-      fsdump = ZODB.FileStorage.fsdump:main
+      fsdump = ZODB.filestorage.fsdump:main
       fsoids = ZODB.scripts.fsoids:main
       fsrefs = ZODB.scripts.fsrefs:main
       fstail = ZODB.scripts.fstail:Main
