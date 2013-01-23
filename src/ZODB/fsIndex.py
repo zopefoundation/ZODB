@@ -44,7 +44,7 @@ from __future__ import with_statement
 import cPickle
 import struct
 
-from BTrees._fsBTree import fsBucket
+from BTrees.fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
 
 # convert between numbers and six-byte strings
