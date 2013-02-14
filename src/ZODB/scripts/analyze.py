@@ -1,20 +1,7 @@
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-#!/usr/bin/env python2.4
+#!/usr/bin/env python
 
 # Based on a transaction analyzer by Matt Kromer.
-
+from __future__ import print_function
 import pickle
 import sys
 from ZODB.FileStorage import FileStorage

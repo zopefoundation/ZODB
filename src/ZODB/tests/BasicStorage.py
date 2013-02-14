@@ -18,9 +18,6 @@ http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storag
 
 All storages should be able to pass these tests.
 """
-
-from __future__ import with_statement
-
 from ZODB import POSException
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
@@ -31,8 +28,6 @@ import time
 import transaction
 import zope.interface
 import zope.interface.verify
-from six.moves import map
-from six.moves import zip
 
 ZERO = b'\0'*8
 

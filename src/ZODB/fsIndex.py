@@ -38,9 +38,6 @@
 # high-order bytes when saving. On loading data, we add the leading
 # bytes back before using u64 to convert the data back to (long)
 # integers.
-
-from __future__ import with_statement
-
 import struct
 
 from BTrees._fsBTree import fsBucket
@@ -189,7 +186,7 @@ class fsIndex(object):
     iterkeys = __iter__
 
     def keys(self):
-        return list(six.iterkeys(self))
+        return list(self.iterkeys())
 
     def iteritems(self):
         for prefix, tree in six.iteritems(self._data):
@@ -205,7 +202,7 @@ class fsIndex(object):
                 yield str2num(value)
 
     def values(self):
-        return list(six.itervalues(self))
+        return list(self.itervalues())
 
     # Comment below applies for the following minKey and maxKey methods
     #

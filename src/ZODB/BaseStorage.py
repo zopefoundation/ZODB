@@ -16,7 +16,7 @@
 The base class here is tightly coupled with its subclasses and
 its use is not recommended.  It's still here for historical reasons.
 """
-from __future__ import print_function, with_statement
+from __future__ import print_function
 
 import threading
 import time

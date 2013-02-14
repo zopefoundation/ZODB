@@ -18,8 +18,6 @@ storage to use for unit tests.  MappingStorage isn't sufficient.
 Since even a minimal storage has some complexity, we run standard
 storage tests against the test storage.
 """
-from __future__ import with_statement
-
 import bisect
 import unittest
 

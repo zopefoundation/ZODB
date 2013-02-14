@@ -22,7 +22,7 @@ from zope.testing import renormalizing
 from ZODB.utils import U64, p64, u64
 
 try:
-    long(1)
+    long
 except NameError:
     # Py3
     long = int

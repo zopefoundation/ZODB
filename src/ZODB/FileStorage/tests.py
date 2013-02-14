@@ -34,18 +34,22 @@ checker = renormalizing.RENormalizing([
 def pack_keep_old():
     """Should a copy of the database be kept?
 
-The pack_keep_old constructor argument controls whether a .old file (and .old directory for blobs is kept.)
+The pack_keep_old constructor argument controls whether a .old file (and .old
+directory for blobs is kept.)
 
     >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> import ZODB.blob
     >>> conn.root()[1] = ZODB.blob.Blob()
-    >>> _ = conn.root()[1].open('w').write(b'some data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
-    >>> _ = conn.root()[2].open('w').write(b'some data')
+    >>> with conn.root()[2].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> transaction.commit()
-    >>> _ = conn.root()[1].open('w').write(b'some other data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some other data')
     >>> del conn.root()[2]
     >>> transaction.commit()
     >>> old_size = os.stat('data.fs').st_size
@@ -77,11 +81,14 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> conn.root()[1] = ZODB.blob.Blob()
-    >>> _ = conn.root()[1].open('w').write(b'some data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     file.write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
-    >>> _ = conn.root()[2].open('w').write(b'some data')
+    >>> with conn.root()[2].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> transaction.commit()
-    >>> _ = conn.root()[1].open('w').write(b'some other data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some other data')
     >>> del conn.root()[2]
     >>> transaction.commit()
 
@@ -117,7 +124,8 @@ def pack_with_repeated_blob_records():
 
     >>> trans = tm.begin()
     >>> fs.tpc_begin(trans)
-    >>> _ = open('ablob', 'w').write('some data')
+    >>> with open('ablob', 'w') as file:
+    ...     _ = file.write('some data')
     >>> _ = fs.store(oid, oldserial, blob_record, '', trans)
     >>> _ = fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
     >>> fs.tpc_vote(trans)
@@ -182,11 +190,9 @@ def test_suite():
         doctest.DocFileSuite(
             'zconfig.txt', 'iterator.test',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-            checker=checker
-            ),
+            checker=checker),
         doctest.DocTestSuite(
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-            checker=checker
-            ),
+            checker=checker),
         ))
 

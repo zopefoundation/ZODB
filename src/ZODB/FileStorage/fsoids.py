@@ -1,9 +1,3 @@
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
 ##############################################################################
 #
 # Copyright (c) 2004 Zope Foundation and Contributors.
@@ -17,7 +11,7 @@ from __future__ import print_function
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
+from __future__ import print_function
 import ZODB.FileStorage
 from ZODB.utils import get_pickle_metadata, p64, oid_repr, tid_repr
 from ZODB.serialize import get_refs

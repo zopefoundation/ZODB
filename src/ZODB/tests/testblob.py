@@ -163,13 +163,15 @@ class BlobUndoTests(BlobTestBase):
         root = connection.root()
         transaction.begin()
         blob = Blob()
-        blob.open('w').write('this is state 1')
+        with blob.open('w') as file:
+            file.write('this is state 1')
         root['blob'] = blob
         transaction.commit()
 
         transaction.begin()
         blob = root['blob']
-        blob.open('w').write('this is state 2')
+        with blob.open('w') as file:
+            file.write('this is state 2')
         transaction.commit()
 
 
@@ -184,7 +186,8 @@ class BlobUndoTests(BlobTestBase):
         connection = database.open()
         root = connection.root()
         transaction.begin()
-        open('consume1', 'w').write('this is state 1')
+        with open('consume1', 'w') as file:
+            file.write('this is state 1')
         blob = Blob()
         blob.consumeFile('consume1')
         root['blob'] = blob
@@ -192,7 +195,8 @@ class BlobUndoTests(BlobTestBase):
 
         transaction.begin()
         blob = root['blob']
-        open('consume2', 'w').write('this is state 2')
+        with open('consume2', 'w') as file:
+            file.write('this is state 2')
         blob.consumeFile('consume2')
         transaction.commit()
 
@@ -210,13 +214,15 @@ class BlobUndoTests(BlobTestBase):
         blob = Blob()
 
         transaction.begin()
-        blob.open('w').write('this is state 1')
+        with blob.open('w') as file:
+            file.write('this is state 1')
         root['blob'] = blob
         transaction.commit()
 
         transaction.begin()
         blob = root['blob']
-        blob.open('w').write('this is state 2')
+        with blob.open('w') as file:
+            file.write('this is state 2')
         transaction.commit()
 
         database.undo(database.undoLog(0, 1)[0]['id'])
@@ -238,7 +244,8 @@ class BlobUndoTests(BlobTestBase):
         blob = Blob()
 
         transaction.begin()
-        blob.open('w').write('this is state 1')
+        with blob.open('w') as file:
+            file.write('this is state 1')
         root['blob'] = blob
         transaction.commit()
 
@@ -276,17 +283,20 @@ class RecoveryBlobStorage(BlobTestBase,
         conn.root()[1] = ZODB.blob.Blob()
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
-        conn.root()[2].open('w').write('some data')
+        with conn.root()[2].open('w') as file:
+            file.write('some data')
         transaction.commit()
         conn.root()[3] = ZODB.blob.Blob()
-        conn.root()[3].open('w').write(
-            (''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
-                     for i in range(random.randint(10000,20000)))
-             )[:-random.randint(1,4)]
-            )
+        with conn.root()[3].open('w') as file:
+            file.write(
+                (''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
+                         for i in range(random.randint(10000,20000)))
+                 )[:-random.randint(1,4)]
+                )
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
-        conn.root()[2].open('w').write('some other data')
+        with conn.root()[2].open('w') as file:
+            file.write('some other data')
         transaction.commit()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
@@ -295,7 +305,8 @@ class RecoveryBlobStorage(BlobTestBase,
 def gc_blob_removes_uncommitted_data():
     """
     >>> blob = Blob()
-    >>> blob.open('w').write('x')
+    >>> with blob.open('w') as file:
+    ...     file.write('x')
     >>> fname = blob._p_blob_uncommitted
     >>> os.path.exists(fname)
     True
@@ -330,7 +341,8 @@ def commit_from_wrong_partition():
     >>> root = connection.root()
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     file.write('test')
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
 
@@ -340,7 +352,8 @@ def commit_from_wrong_partition():
 Works with savepoints too:
 
     >>> root['blob2'] = Blob()
-    >>> root['blob2'].open('w').write('test2')
+    >>> with root['blob2'].open('w') as file:
+    ...     file.write('test2')
     >>> _ = transaction.savepoint() # doctest: +ELLIPSIS
     Copied blob file ...
 
@@ -379,7 +392,8 @@ def packing_with_uncommitted_data_non_undoing():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     file.write('test')
 
     >>> blob_storage.pack(new_time(), referencesf)
 
@@ -406,7 +420,8 @@ def packing_with_uncommitted_data_undoing():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     file.write('test')
 
     >>> blob_storage.pack(new_time(), referencesf)
 
@@ -478,7 +493,8 @@ def loadblob_tmpstore():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     file.write('test')
     >>> import transaction
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
@@ -540,7 +556,8 @@ def do_not_depend_on_cwd():
     >>> db = DB(bs)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
-    >>> conn.root()['blob'].open('w').write('data')
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     file.write('data')
     >>> transaction.commit()
     >>> os.chdir(here)
     >>> conn.root()['blob'].open().read()
@@ -557,11 +574,13 @@ def savepoint_isolation():
     >>> conn = db.open()
     >>> conn.root.b = ZODB.blob.Blob('initial')
     >>> transaction.commit()
-    >>> conn.root.b.open('w').write('1')
+    >>> with conn.root.b.open('w') as file:
+    ...     file.write('1')
     >>> _ = transaction.savepoint()
     >>> tm = transaction.TransactionManager()
     >>> conn2 = db.open(transaction_manager=tm)
-    >>> conn2.root.b.open('w').write('2')
+    >>> with conn2.root.b.open('w') as file:
+    ...     file.write('2')
     >>> _ = tm.savepoint()
     >>> conn.root.b.open().read()
     '1'
@@ -585,12 +604,14 @@ def savepoint_commits_without_invalidations_out_of_order():
     >>> conn1 = db.open(transaction_manager=tm1)
     >>> conn1.root.b = ZODB.blob.Blob('initial')
     >>> tm1.commit()
-    >>> conn1.root.b.open('w').write('1')
+    >>> with conn1.root.b.open('w') as file:
+    ...     file.write('1')
     >>> _ = tm1.savepoint()
 
     >>> tm2 = transaction.TransactionManager()
     >>> conn2 = db.open(transaction_manager=tm2)
-    >>> conn2.root.b.open('w').write('2')
+    >>> with conn2.root.b.open('w') as file:
+    ...     file.write('2')
     >>> _ = tm1.savepoint()
     >>> conn1.root.b.open().read()
     '1'
@@ -624,7 +645,8 @@ def savepoint_cleanup():
     []
     >>> conn.root.b = ZODB.blob.Blob('initial')
     >>> transaction.commit()
-    >>> conn.root.b.open('w').write('1')
+    >>> with conn.root.b.open('w') as file:
+    ...     file.write('1')
     >>> _ = transaction.savepoint()
     >>> transaction.abort()
     >>> os.listdir(tdir)

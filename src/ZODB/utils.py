@@ -78,8 +78,6 @@ def deprecated38(msg):
 
 
 if sys.version_info[0] < 3:
-    bytes = str
-
     def as_bytes(obj):
         "Convert obj into bytes"
         return str(obj)
@@ -93,10 +91,6 @@ if sys.version_info[0] < 3:
     byte_chr = chr
 
 else:
-
-    import builtins
-    bytes = builtins.bytes
-
     def as_bytes(obj):
         if isinstance(obj, bytes):
             # invoking str on a bytes object gives its repr()

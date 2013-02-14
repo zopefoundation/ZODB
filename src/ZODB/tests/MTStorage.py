@@ -15,10 +15,6 @@ from ZODB.POSException import ConflictError
 
 SHORT_DELAY = 0.01
 
-def sort(l):
-    "Sort a list in place and return it."
-    return sorted(l)
-
 class TestThread(threading.Thread):
     """Base class for defining threads that run from unittest.
 
@@ -68,7 +64,7 @@ class ZODBClientThread(TestThread):
         else:
             for i in range(self.commits):
                 self.commit(d, i)
-        self.test.assertEqual(sort(d.keys()), list(range(self.commits)))
+        self.test.assertEqual(sorted(d.keys()), list(range(self.commits)))
 
     def commit(self, d, num):
         d[num] = time.time()

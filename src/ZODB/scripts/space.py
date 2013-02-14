@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 """Report on the space used by objects in a storage.
 
 usage: space.py data.fs
@@ -9,12 +8,6 @@ The current implementation only supports FileStorage.
 Current limitations / simplifications: Ignores revisions and versions.
 """
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
 import six

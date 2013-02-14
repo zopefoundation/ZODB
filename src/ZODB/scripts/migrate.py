@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002, 2003 Zope Foundation and Contributors.
@@ -13,7 +12,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
 """A script to gather statistics while doing a storage migration.
 
 This is very similar to a standard storage's copyTransactionsFrom() method,
@@ -75,25 +73,6 @@ Positional arguments:
         pairs.  E.g. "name=full;frequency=3600"
 """
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 import re
 import sys
 import time

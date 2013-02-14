@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Foundation and Contributors.
@@ -112,14 +111,8 @@ Usage: loadmail2 [options]
          -mbox 'foo.mbox 300 -100'
 
        are equivalent
-
-$Id$
 """
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 import mailbox
 import math
 import os
@@ -129,8 +122,6 @@ import sys
 import threading
 import time
 import transaction
-from six.moves import filter
-import six
 
 class JobProducer:
 
@@ -189,7 +180,7 @@ class MBox:
 
         self.number = start
         while min:
-            six.advance_iterator(mb)
+            next(mb)
             min -= 1
 
         self._lock = threading.Lock()
@@ -201,7 +192,7 @@ class MBox:
         try:
             if self._max > 0 and self.number >= self._max:
                 raise IndexError(self.number + 1)
-            message = six.advance_iterator(self._mbox)
+            message = next(self._mbox)
             message.body = message.fp.read()
             message.headers = list(message.headers)
             self.number += 1
@@ -233,7 +224,7 @@ def VmSize():
     except:
         return 0
     else:
-        l = filter(lambda l: l[:7] == 'VmSize:', f.readlines())
+        l = list(filter(lambda l: l[:7] == 'VmSize:', f.readlines()))
         if l:
             l = l[0][7:].strip().split()[0]
             return int(l)
@@ -328,7 +319,7 @@ def run1(tid, db, factory, job, args):
 def run(jobs, tid=b''):
     import Zope2
     while 1:
-        factory, job, args, repeatp = six.advance_iterator(jobs)
+        factory, job, args, repeatp = next(jobs)
         run1(tid, Zope2.DB, factory, job, args)
         if repeatp:
             while 1:
@@ -392,7 +383,7 @@ class IndexJob:
         self.mbox, self.number, self.max = mbox, int(number), int(max)
 
     def create(self):
-        messages = [six.advance_iterator(self.mbox) for i in range(self.number)]
+        messages = [next(self.mbox) for i in range(self.number)]
         return index, (messages, self.catalog, self.max)
 
 

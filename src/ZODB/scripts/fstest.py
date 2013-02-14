@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Foundation and Contributors.
@@ -13,7 +12,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
 """Simple consistency checker for FileStorage.
 
 usage: fstest.py [-v] data.fs
@@ -32,7 +30,6 @@ Note: It does not check the consistency of the object pickles.  It is
 possible for the damage to occur only in the part of the file that
 stores object pickles.  Those errors will go undetected.
 """
-from __future__ import print_function
 from __future__ import print_function
 
 # The implementation is based closely on the read_index() function in

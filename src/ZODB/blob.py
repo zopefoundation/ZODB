@@ -81,7 +81,8 @@ class Blob(persistent.Persistent):
             raise TypeError('Blobs do not support subclassing.')
         self.__setstate__()
         if data is not None:
-            self.open('w').write(data)
+            with self.open('w') as file:
+                file.write(data)
 
     def __setstate__(self, state=None):
         # we use lists here because it will allow us to add and remove

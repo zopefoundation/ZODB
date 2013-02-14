@@ -644,7 +644,8 @@ def pack_with_open_blob_files():
     >>> import ZODB.blob
     >>> conn1.root()[1] = ZODB.blob.Blob()
     >>> conn1.add(conn1.root()[1])
-    >>> conn1.root()[1].open('w').write('some data')
+    >>> with conn1.root()[1].open('w') as file:
+    ...     file.write('some data')
     >>> tm1.commit()
 
     >>> tm2 = transaction.TransactionManager()
@@ -652,7 +653,8 @@ def pack_with_open_blob_files():
     >>> f = conn1.root()[1].open()
     >>> conn1.root()[2] = ZODB.blob.Blob()
     >>> conn1.add(conn1.root()[2])
-    >>> conn1.root()[2].open('w').write('some more data')
+    >>> with conn1.root()[2].open('w') as file:
+    ...     file.write('some more data')
 
     >>> db.pack()
     >>> f.read()

@@ -144,7 +144,7 @@ class IteratorStorage(IteratorCompare):
 
     def checkIterateRecordsRepeatedly(self):
         self._dostore()
-        tinfo = six.advance_iterator(self._storage.iterator())
+        tinfo = next(self._storage.iterator())
         self.assertEquals(1, len(list(tinfo)))
         self.assertEquals(1, len(list(tinfo)))
 
@@ -152,7 +152,7 @@ class IteratorStorage(IteratorCompare):
         self._dostore()
         iterator = self._storage.iterator()
         # We have one transaction with 1 modified object.
-        txn_1 = six.advance_iterator(iterator)
+        txn_1 = next(iterator)
         self.assertEquals(1, len(list(txn_1)))
 
         # We store another transaction with 1 object, the already running
@@ -187,14 +187,14 @@ class ExtendedIteratorStorage(IteratorCompare):
         txniter = self._storage.iterator(revid2, revid3)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify an upper bound somewhere in between values
-        revid3a = p64(int((U64(revid3) + U64(revid4)) / 2))
+        revid3a = p64((U64(revid3) + U64(revid4)) // 2)
         txniter = self._storage.iterator(revid2, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify a lower bound somewhere in between values.
         # revid2 == revid1+1 is very likely on Windows.  Adding 1 before
         # dividing ensures that "the midpoint" we compute is strictly larger
         # than revid1.
-        revid1a = p64(int((U64(revid1) + 1 + U64(revid2)) / 2))
+        revid1a = p64((U64(revid1) + 1 + U64(revid2)) // 2)
         assert revid1 < revid1a
         txniter = self._storage.iterator(revid1a, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)

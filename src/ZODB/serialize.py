@@ -449,7 +449,7 @@ class ObjectWriter:
         return self._dump(meta, obj.__getstate__())
 
     def _dump(self, classmeta, state):
-        # To reuse the existing cBytesIO object, we must reset
+        # To reuse the existing BytesIO object, we must reset
         # the file position to 0 and truncate the file after the
         # new pickle is written.
         self._file.seek(0)
@@ -659,6 +659,7 @@ def referencesf(p, oids=None):
         u.noload()
         u.noload()
     else:
+        # Py3: There is no `noload()` in Python 3.
         u.persistent_load = refs.append
         u.load()
         u.load()

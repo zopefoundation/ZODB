@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2002 Zope Foundation and Contributors.
@@ -63,10 +62,6 @@ revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 import traceback
 
 from ZODB.FileStorage import FileStorage
@@ -110,7 +105,7 @@ def main(path=None):
 
         path, = args
 
-    
+
     fs = FileStorage(path, read_only=1)
 
     # Set of oids in the index that failed to load due to POSKeyError.

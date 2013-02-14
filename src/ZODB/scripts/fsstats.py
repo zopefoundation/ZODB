@@ -1,20 +1,6 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python2
 """Print details statistics from fsdump output."""
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 import re
 import sys
 import six

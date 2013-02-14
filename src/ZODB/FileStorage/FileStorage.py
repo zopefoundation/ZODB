@@ -13,7 +13,7 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 """
-from __future__ import print_function, with_statement
+from __future__ import print_function
 
 from persistent.TimeStamp import TimeStamp
 from struct import pack, unpack
@@ -129,7 +129,7 @@ class FileStorage(
             raise ValueError("time-travel only supported in read-only mode")
 
         if stop is None:
-            stop=b'\377'*8
+            stop = b'\377'*8
 
         # Lock the database and set up the temp file.
         if not read_only:
@@ -1062,7 +1062,7 @@ class FileStorage(
             raise POSException.ReadOnlyError()
 
         stop = TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
-        if stop==z64:
+        if stop == z64:
             raise FileStorageError('Invalid pack time')
 
         # If the storage is empty, there's nothing to do.

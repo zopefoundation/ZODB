@@ -27,7 +27,6 @@ from transaction import Transaction
 import ZODB
 from ZODB.MappingStorage import MappingStorage
 import sys
-import six
 
 try:
     import cPickle
@@ -138,15 +137,15 @@ class PMTests(unittest.TestCase):
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
-        keys = list(six.iterkeys(m))
+        keys = list(m.iterkeys())
         keys.sort()
         self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
-        values = list(six.itervalues(m))
+        values = list(m.itervalues())
         values.sort()
         self.assertEqual(values, [1, 2, 3, 'bob'])
 
-        items = list(six.iteritems(m))
+        items = list(m.iteritems())
         items.sort()
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
@@ -169,7 +168,7 @@ class PMTests(unittest.TestCase):
         keylist = []
         while 1:
             try:
-                key = six.advance_iterator(i)
+                key = next(i)
             except StopIteration:
                 break
             keylist.append(key)

@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Foundation and Contributors.
@@ -15,8 +14,6 @@
 ##############################################################################
 """Tool to dump the last few transactions from a FileStorage."""
 from __future__ import print_function
-from __future__ import print_function
-
 from ZODB.fstools import prev_txn
 
 import binascii

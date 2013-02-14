@@ -14,8 +14,6 @@
 """A script to migrate a blob directory into a different layout.
 """
 from __future__ import print_function
-from __future__ import print_function
-
 import logging
 import optparse
 import os

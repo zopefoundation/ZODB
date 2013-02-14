@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 """Check the consistency of BTrees in a Data.fs
 
 usage: checkbtrees.py data.fs
@@ -8,16 +7,6 @@ Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 import ZODB
 from ZODB.FileStorage import FileStorage
 from BTrees.check import check

@@ -48,8 +48,8 @@ class ExportImport:
         f.write(b'ZEXP')
         oids = [oid]
         done_oids = {}
-        done=done_oids.__contains__
-        load=self._storage.load
+        done = done_oids.__contains__
+        load = self._storage.load
         supports_blobs = IBlobStorage.providedBy(self._storage)
         while oids:
             oid = oids.pop(0)

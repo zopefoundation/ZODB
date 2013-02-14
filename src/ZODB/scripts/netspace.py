@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 """Report on the net size of objects counting subobjects.
 
 usage: netspace.py [-P | -v] data.fs
@@ -8,11 +7,6 @@ usage: netspace.py [-P | -v] data.fs
 -v: print info for all objects, even if a traversal path isn't found
 """
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
-
 import ZODB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata

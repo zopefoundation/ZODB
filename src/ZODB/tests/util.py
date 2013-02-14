@@ -13,9 +13,6 @@
 ##############################################################################
 """Conventience function for creating test databases
 """
-
-from __future__ import with_statement
-
 from ZODB.MappingStorage import DB
 
 import atexit

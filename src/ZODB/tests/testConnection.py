@@ -12,7 +12,7 @@
 #
 ##############################################################################
 """Unit tests for the Connection class."""
-from __future__ import print_function, with_statement
+from __future__ import print_function
 
 import doctest
 import re
@@ -676,7 +676,7 @@ implementation of checkCurrentSerialInTransaction.
     >>> bad = set()
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     six.print_('checkCurrentSerialInTransaction', repr(oid))
-    ...     if not trans == transaction.get(): print('oops')
+    ...     if trans != transaction.get(): print('oops')
     ...     if oid in bad:
     ...         raise ReadConflictError(oid=oid)
 

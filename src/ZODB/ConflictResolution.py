@@ -274,7 +274,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         if sys.version_info[0] < 3:
             pickler.inst_persistent_id = persistent_id
         else:
-            pickler.inst_persistent_id = persistent_id
+            pickler.persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)
         return self._crs_transform_record_data(file.getvalue(1))
