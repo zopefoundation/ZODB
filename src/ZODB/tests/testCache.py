@@ -96,12 +96,12 @@ class DBMethods(CacheTestBase):
         for i in range(4):
             self.noodle_new_connection()
 
-    def checkCacheDetail(self):
+    def testCacheDetail(self):
         for name, count in self.db.cacheDetail():
             self.assertEqual(isinstance(name, str), True)
             self.assertEqual(isinstance(count, int), True)
 
-    def checkCacheExtremeDetail(self):
+    def testCacheExtremeDetail(self):
         expected = ['conn_no', 'id', 'oid', 'rc', 'klass', 'state']
         for dict in self.db.cacheExtremeDetail():
             for k, v in dict.items():
@@ -110,19 +110,19 @@ class DBMethods(CacheTestBase):
     # TODO:  not really sure how to do a black box test of the cache.
     # Should the full sweep and minimize calls always remove things?
 
-    def checkFullSweep(self):
+    def testFullSweep(self):
         old_size = self.db.cacheSize()
         self.db.cacheFullSweep()
         new_size = self.db.cacheSize()
         self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
 
-    def checkMinimize(self):
+    def testMinimize(self):
         old_size = self.db.cacheSize()
         self.db.cacheMinimize()
         new_size = self.db.cacheSize()
         self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
 
-    def checkMinimizeTerminates(self):
+    def testMinimizeTerminates(self):
         # This is tricky.  cPickleCache had a case where it could get into
         # an infinite loop, but we don't want the test suite to hang
         # if this bug reappears.  So this test spawns a thread to run the
@@ -179,18 +179,18 @@ class DBMethods(CacheTestBase):
     # connection and database call it internally.
     # Same for the get and invalidate methods.
 
-    def checkLRUitems(self):
+    def testLRUitems(self):
         # get a cache
         c = self.conns[0]._cache
         c.lru_items()
 
-    def checkClassItems(self):
+    def testClassItems(self):
         c = self.conns[0]._cache
         c.klass_items()
 
 class LRUCacheTests(CacheTestBase):
 
-    def checkLRU(self):
+    def testLRU(self):
         # verify the LRU behavior of the cache
         dataset_size = 5
         CACHE_SIZE = dataset_size*2+1
@@ -229,7 +229,7 @@ class LRUCacheTests(CacheTestBase):
             # the root, depending on precise order of access. We do
             # not bother to check this
 
-    def checkSize(self):
+    def testSize(self):
         self.assertEqual(self.db.cacheSize(), 0)
         self.assertEqual(self.db.cacheDetailSize(), [])
 
@@ -253,7 +253,7 @@ class LRUCacheTests(CacheTestBase):
 
             #self.assertEquals(d['size'], CACHE_SIZE)
 
-    def checkDetail(self):
+    def testDetail(self):
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
 
@@ -314,7 +314,7 @@ class CacheErrors(unittest.TestCase):
         self.jar = StubDataManager()
         self.cache = PickleCache(self.jar)
 
-    def checkGetBogusKey(self):
+    def testGetBogusKey(self):
         self.assertEqual(self.cache.get(p64(0)), None)
         try:
             self.cache[12]
@@ -335,7 +335,7 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expected TypeError")
 
-    def checkBogusObject(self):
+    def testBogusObject(self):
         def add(key, obj):
             self.cache[key] = obj
 
@@ -366,7 +366,7 @@ class CacheErrors(unittest.TestCase):
 
         self.assertEqual(sys.getrefcount(None), nones)
 
-    def checkTwoCaches(self):
+    def testTwoCaches(self):
         jar2 = StubDataManager()
         cache2 = PickleCache(jar2)
 
@@ -383,7 +383,7 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expected ValueError because object already in cache")
 
-    def checkReadOnlyAttrsWhenCached(self):
+    def testReadOnlyAttrsWhenCached(self):
         o = StubObject()
         key = o._p_oid = p64(1)
         o._p_jar = self.jar
@@ -401,7 +401,7 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expect that you can't delete jar of cached object")
 
-    def checkTwoObjsSameOid(self):
+    def testTwoObjsSameOid(self):
         # Try to add two distinct objects with the same oid to the cache.
         # This has always been an error, but the error message prior to
         # ZODB 3.2.6 didn't make sense.  This test verifies that (a) an
@@ -423,7 +423,7 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("two objects with the same oid should have failed")
 
-def check_basic_cache_size_estimation():
+def test_basic_cache_size_estimation():
     """Make sure the basic accounting is correct:
 
     >>> import ZODB.MappingStorage
@@ -481,8 +481,8 @@ size correctly:
 
 
 def test_suite():
-    s = unittest.makeSuite(DBMethods, 'check')
-    s.addTest(unittest.makeSuite(LRUCacheTests, 'check'))
-    s.addTest(unittest.makeSuite(CacheErrors, 'check'))
+    s = unittest.makeSuite(DBMethods)
+    s.addTest(unittest.makeSuite(LRUCacheTests))
+    s.addTest(unittest.makeSuite(CacheErrors))
     s.addTest(doctest.DocTestSuite())
     return s
