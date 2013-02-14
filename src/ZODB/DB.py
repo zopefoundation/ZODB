@@ -13,9 +13,6 @@
 ##############################################################################
 """Database objects
 """
-
-import cPickle
-import cStringIO
 import sys
 import threading
 import logging
@@ -37,7 +34,19 @@ from ZODB.interfaces import IMVCCStorage
 import transaction
 
 from persistent.TimeStamp import TimeStamp
+import six
 
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -271,7 +280,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
             return pool.pop()
 
     def map(self, f):
-        for pool in self.pools.itervalues():
+        for pool in six.itervalues(self.pools):
             pool.map(f)
 
     def availableGC(self):
@@ -283,14 +292,14 @@ class KeyedConnectionPool(AbstractConnectionPool):
     @property
     def test_all(self):
         result = set()
-        for pool in self.pools.itervalues():
+        for pool in six.itervalues(self.pools):
             result.update(pool.all)
         return frozenset(result)
 
     @property
     def test_available(self):
         result = []
-        for pool in self.pools.itervalues():
+        for pool in six.itervalues(self.pools):
             result.extend(pool.available)
         return tuple(result)
 
@@ -398,7 +407,7 @@ class DB(object):
           - `xrefs` - Boolian flag indicating whether implicit cross-database
             references are allowed
         """
-        if isinstance(storage, basestring):
+        if isinstance(storage, six.string_types):
             from ZODB import FileStorage
             storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
         elif storage is None:
@@ -448,8 +457,8 @@ class DB(object):
                 root = PersistentMapping()
                 # Manually create a pickle for the root to put in the storage.
                 # The pickle must be in the special ZODB format.
-                file = cStringIO.StringIO()
-                p = cPickle.Pickler(file, 1)
+                file = BytesIO()
+                p = pickle.Pickler(file, ZODB.serialize._protocol)
                 p.dump((root.__class__, None))
                 p.dump(root.__getstate__())
                 t = transaction.Transaction()
@@ -540,9 +549,9 @@ class DB(object):
                 id = ''
                 if hasattr(ob, '__dict__'):
                     d = ob.__dict__
-                    if d.has_key('id'):
+                    if 'id' in d:
                         id = d['id']
-                    elif d.has_key('__name__'):
+                    elif '__name__' in d:
                         id = d['__name__']
 
                 module = getattr(ob.__class__, '__module__', '')
@@ -713,7 +722,7 @@ class DB(object):
             raise ValueError(
                 'cannot open an historical connection in the future.')
 
-        if isinstance(transaction_manager, basestring):
+        if isinstance(transaction_manager, six.string_types):
             if transaction_manager:
                 raise TypeError("Versions aren't supported.")
             warnings.warn(

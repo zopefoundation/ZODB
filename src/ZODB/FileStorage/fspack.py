@@ -28,6 +28,7 @@ from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
 from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.utils import p64, u64, z64
 
+import binascii
 import logging
 import os
 import ZODB.fsIndex
@@ -196,7 +197,7 @@ class GC(FileStorageFormatter):
             self.reachable = self.oid2curpos
 
     def buildPackIndex(self):
-        pos = 4L
+        pos = 4
         # We make the initial assumption that the database has been
         # packed before and set unpacked to True only after seeing the
         # first record with a status == " ".  If we get to the packtime
@@ -241,7 +242,7 @@ class GC(FileStorageFormatter):
         # packed earlier and the current pack is redudant.
         try:
             th = self._read_txn_header(pos)
-        except CorruptedDataError, err:
+        except CorruptedDataError as err:
             if err.buf != "":
                 raise
         if th.status == 'p':
@@ -297,7 +298,7 @@ class GC(FileStorageFormatter):
                 self.checkData(th, tpos, dh, pos)
 
                 if dh.back and dh.back < self.packpos:
-                    if self.reachable.has_key(dh.oid):
+                    if dh.oid in self.reachable:
                         L = self.reach_ex.setdefault(dh.oid, [])
                         if dh.back not in L:
                             L.append(dh.back)
@@ -343,7 +344,7 @@ class FileStoragePacker(FileStorageFormatter):
         if storage.blob_dir:
             self.pack_blobs = True
             self.blob_removed = open(
-                os.path.join(storage.blob_dir, '.removed'), 'w')
+                os.path.join(storage.blob_dir, '.removed'), 'wb')
         else:
             self.pack_blobs = False
 
@@ -453,7 +454,7 @@ class FileStoragePacker(FileStorageFormatter):
             raise
 
     def copyToPacktime(self):
-        offset = 0L  # the amount of space freed by packing
+        offset = 0  # the amount of space freed by packing
         pos = self._metadata_size
         new_pos = pos
 
@@ -489,7 +490,7 @@ class FileStoragePacker(FileStorageFormatter):
         If any data records are copied, also write txn header (th).
         """
         copy = 0
-        new_tpos = 0L
+        new_tpos = 0
         tend = pos + th.tlen
         pos += th.headerlen()
         while pos < tend:
@@ -515,10 +516,10 @@ class FileStoragePacker(FileStorageFormatter):
                         if not is_dup:
                             if h.oid not in self.gc.reachable:
                                 self.blob_removed.write(
-                                    h.oid.encode('hex')+'\n')
+                                    binascii.hexlify(h.oid)+b'\n')
                             else:
                                 self.blob_removed.write(
-                                    (h.oid+h.tid).encode('hex')+'\n')
+                                    binascii.hexlify(h.oid+h.tid)+b'\n')
 
                 pos += h.recordlen()
                 continue
@@ -584,7 +585,7 @@ class FileStoragePacker(FileStorageFormatter):
         try:
             while 1:
                 ipos = self.copyOne(ipos)
-        except CorruptedDataError, err:
+        except CorruptedDataError as err:
             # The last call to copyOne() will raise
             # CorruptedDataError, because it will attempt to read past
             # the end of the file.  Double-check that the exception

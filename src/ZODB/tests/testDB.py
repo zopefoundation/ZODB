@@ -98,7 +98,7 @@ def test_invalidateCache():
 
         >>> c3 is db.open(transaction_manager=tm3)
         True
-        >>> print c3.root()['a']._p_changed
+        >>> print(c3.root()['a']._p_changed)
         None
 
         >>> db.close()

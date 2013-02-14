@@ -7,11 +7,17 @@ usage: netspace.py [-P | -v] data.fs
 -P: do a pack first
 -v: print info for all objects, even if a traversal path isn't found
 """
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
 
 import ZODB
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata
 from ZODB.referencesf import referencesf
+from six.moves import filter
 
 def find_paths(root, maxdist):
     """Find Python attribute traversal paths for objects to maxdist distance.
@@ -67,7 +73,7 @@ def main(path):
             data, serialno = fs.load(oid, '')
             size = len(data)
             for suboid in referencesf(data):
-                if seen.has_key(suboid):
+                if suboid in seen:
                     continue
                 seen[suboid] = 1
                 size += _total_size(suboid, seen)
@@ -93,7 +99,7 @@ def main(path):
         mod, klass = get_pickle_metadata(data)
         refs = referencesf(data)
         path = paths.get(oid, '-')
-        print fmt % (U64(oid), len(data), total_size(oid), path, mod, klass)
+        print(fmt % (U64(oid), len(data), total_size(oid), path, mod, klass))
 
 def Main():
     import sys
@@ -107,13 +113,13 @@ def Main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'Pv')
         path, = args
-    except getopt.error, err:
-        print err
-        print __doc__
+    except getopt.error as err:
+        print(err)
+        print(__doc__)
         sys.exit(2)
     except ValueError:
-        print "expected one argument, got", len(args)
-        print __doc__
+        print("expected one argument, got", len(args))
+        print(__doc__)
         sys.exit(2)
     for o, v in opts:
         if o == '-P':

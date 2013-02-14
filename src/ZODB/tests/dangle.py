@@ -13,6 +13,7 @@
 ##############################################################################
 
 """Functional test to produce a dangling reference."""
+from __future__ import print_function
 
 import time
 
@@ -50,7 +51,7 @@ def create_dangling_ref(db):
     # an oid, so a new commit of it won't create a new object.
     db.pack()
 
-    print repr(c._p_oid)
+    print(repr(c._p_oid))
     o2.child = c
     transaction.get().note("set child on o2")
     transaction.commit()

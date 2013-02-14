@@ -249,7 +249,7 @@ class DemoStorage(object):
 
         try:
             self.changes.pack(t, referencesf, gc=False)
-        except TypeError, v:
+        except TypeError as v:
             if 'gc' in str(v):
                 pass # The gc arg isn't supported. Don't pack
             raise

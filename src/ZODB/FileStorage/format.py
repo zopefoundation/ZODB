@@ -83,11 +83,12 @@
 #   When we undo a record, we don't copy (or delete)
 #   data.  Instead, we write records with back pointers.
 
-import struct
 import logging
+import struct
+import sys
 
 from ZODB.POSException import POSKeyError
-from ZODB.utils import u64, oid_repr
+from ZODB.utils import u64, oid_repr, as_bytes
 
 
 class CorruptedError(Exception):
@@ -126,7 +127,7 @@ class FileStorageFormatter(object):
 
     # subclasses must provide _file
 
-    _metadata_size = 4L
+    _metadata_size = 4
     _format_version = "21"
 
     def _read_num(self, pos):
@@ -260,7 +261,10 @@ class DataHeader(object):
         return DATA_HDR_LEN + (self.plen or 8)
 
 def TxnHeaderFromString(s):
-    return TxnHeader(*struct.unpack(TRANS_HDR, s))
+    res = TxnHeader(*struct.unpack(TRANS_HDR, s))
+    if sys.version_info[0] >= 3:
+        res.status = res.status.decode('ascii')
+    return res
 
 class TxnHeader(object):
     """Header for a transaction record."""
@@ -278,9 +282,9 @@ class TxnHeader(object):
         assert elen >= 0
 
     def asString(self):
-        s = struct.pack(TRANS_HDR, self.tid, self.tlen, self.status,
+        s = struct.pack(TRANS_HDR, self.tid, self.tlen, as_bytes(self.status),
                         self.ulen, self.dlen, self.elen)
-        return "".join(map(str, [s, self.user, self.descr, self.ext]))
+        return b"".join(map(as_bytes, [s, self.user, self.descr, self.ext]))
 
     def headerlen(self):
         return TRANS_HDR_LEN + self.ulen + self.dlen + self.elen

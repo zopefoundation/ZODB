@@ -18,13 +18,19 @@ TODO:  This module needs tests.
 Caution:  This file needs to be kept in sync with FileStorage.py.
 """
 
-import cPickle
 import struct
 
 from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN
 from ZODB.FileStorage.format import DATA_HDR_LEN
 from ZODB.utils import u64
 from persistent.TimeStamp import TimeStamp
+
+try:
+    import cPickle
+except ImportError:
+    # Py3
+    import pickle as cPickle
+
 
 class TxnHeader:
     """Object representing a transaction record header.

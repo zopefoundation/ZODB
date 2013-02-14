@@ -34,7 +34,7 @@ def _recon(class_, state):
     return err
 _recon.__no_side_effects__ = True
 
-class POSError(StandardError):
+class POSError(Exception):
     """Persistent object system error."""
 
     if sys.version_info[:2] == (2, 6):

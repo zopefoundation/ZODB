@@ -13,12 +13,23 @@
 ##############################################################################
 import doctest
 import os
+import re
 import time
 import transaction
 import unittest
 import ZODB.blob
 import ZODB.FileStorage
 import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
+    (re.compile("ZODB.FileStorage.FileStorage.FileStorageQuotaError"),
+     r"FileStorageQuotaError"),
+    ])
 
 def pack_keep_old():
     """Should a copy of the database be kept?
@@ -30,11 +41,11 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     >>> conn = db.open()
     >>> import ZODB.blob
     >>> conn.root()[1] = ZODB.blob.Blob()
-    >>> conn.root()[1].open('w').write('some data')
+    >>> _ = conn.root()[1].open('w').write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
-    >>> conn.root()[2].open('w').write('some data')
+    >>> _ = conn.root()[2].open('w').write(b'some data')
     >>> transaction.commit()
-    >>> conn.root()[1].open('w').write('some other data')
+    >>> _ = conn.root()[1].open('w').write(b'some other data')
     >>> del conn.root()[2]
     >>> transaction.commit()
     >>> old_size = os.stat('data.fs').st_size
@@ -66,11 +77,11 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> conn.root()[1] = ZODB.blob.Blob()
-    >>> conn.root()[1].open('w').write('some data')
+    >>> _ = conn.root()[1].open('w').write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
-    >>> conn.root()[2].open('w').write('some data')
+    >>> _ = conn.root()[2].open('w').write(b'some data')
     >>> transaction.commit()
-    >>> conn.root()[1].open('w').write('some other data')
+    >>> _ = conn.root()[1].open('w').write(b'some other data')
     >>> del conn.root()[2]
     >>> transaction.commit()
 
@@ -106,7 +117,7 @@ def pack_with_repeated_blob_records():
 
     >>> trans = tm.begin()
     >>> fs.tpc_begin(trans)
-    >>> open('ablob', 'w').write('some data')
+    >>> _ = open('ablob', 'w').write('some data')
     >>> _ = fs.store(oid, oldserial, blob_record, '', trans)
     >>> _ = fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
     >>> fs.tpc_vote(trans)
@@ -135,7 +146,7 @@ _save_index can fail for large indexes.
     >>> oid = 0
     >>> for i in range(5000):
     ...     oid += (1<<16)
-    ...     _ = fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, 'x', '', t)
+    ...     _ = fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, b'x', '', t)
     >>> fs.tpc_vote(t)
     >>> fs.tpc_finish(t)
 
@@ -171,9 +182,11 @@ def test_suite():
         doctest.DocFileSuite(
             'zconfig.txt', 'iterator.test',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            checker=checker
             ),
         doctest.DocTestSuite(
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            checker=checker
             ),
         ))
 

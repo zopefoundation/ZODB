@@ -70,10 +70,11 @@ Options for -R/--recover:
         Note:  for the stdout case, the index file will **not** be restored
         automatically.
 """
-
+from __future__ import print_function
 import os
 import shutil
 import sys
+from six.moves import filter
 try:
     # the hashlib package is available from Python 2.5
     from hashlib import md5
@@ -110,9 +111,9 @@ def usage(code, msg=''):
     if code == 0:
         outfp = sys.stdout
 
-    print >> outfp, __doc__ % globals()
+    print(__doc__ % globals(), file=outfp)
     if msg:
-        print >> outfp, msg
+        print(msg, file=outfp)
 
     sys.exit(code)
 
@@ -120,7 +121,7 @@ def usage(code, msg=''):
 def log(msg, *args):
     if VERBOSE:
         # Use stderr here so that -v flag works with -R and no -o
-        print >> sys.stderr, msg % args
+        print(msg % args, file=sys.stderr)
 
 
 def parseargs(argv):
@@ -140,7 +141,7 @@ def parseargs(argv):
                                     'date=',
                                     'output=',
                                    ])
-    except getopt.error, msg:
+    except getopt.error as msg:
         usage(1, msg)
 
     class Options:
@@ -229,7 +230,7 @@ def fsync(afile):
 # passed in all to func().  Leaves the file position just after the
 # last byte read.
 def dofile(func, fp, n=None):
-    bytesread = 0L
+    bytesread = 0
     while n is None or n > 0:
         if n is None:
             todo = READCHUNK
@@ -336,9 +337,9 @@ def find_files(options):
     if not when:
         when = gen_filename(options, ext='')
     log('looking for files between last full backup and %s...', when)
-    all = filter(is_data_file, os.listdir(options.repository))
-    all.sort()
-    all.reverse()   # newest file first
+    # newest file first
+    all = sorted(
+        filter(is_data_file, os.listdir(options.repository)), reverse=True)
     # Find the last full backup before date, then include all the
     # incrementals between that full backup and "when".
     needed = []
@@ -376,8 +377,8 @@ def scandat(repofiles):
     fn = startpos = endpos = sum = None # assume .dat file missing or empty
     try:
         fp = open(datfile)
-    except IOError, e:
-        if e.errno <> errno.ENOENT:
+    except IOError as e:
+        if e.errno != errno.ENOENT:
             raise
     else:
         # We only care about the last one.
@@ -385,15 +386,14 @@ def scandat(repofiles):
         fp.close()
         if lines:
             fn, startpos, endpos, sum = lines[-1].split()
-            startpos = long(startpos)
-            endpos = long(endpos)
+            startpos = int(startpos)
+            endpos = int(endpos)
 
     return fn, startpos, endpos, sum
 
 def delete_old_backups(options):
     # Delete all full backup files except for the most recent full backup file
-    all = filter(is_data_file, os.listdir(options.repository))
-    all.sort()
+    all = sorted(filter(is_data_file, os.listdir(options.repository)))
 
     deletable = []
     full = []
@@ -456,7 +456,7 @@ def do_full_backup(options):
     # Write the data file for this full backup
     datfile = os.path.splitext(dest)[0] + '.dat'
     fp = open(datfile, 'w')
-    print >> fp, dest, 0, pos, sum
+    print(dest, 0, pos, sum, file=fp)
     fp.flush()
     os.fsync(fp.fileno())
     fp.close()
@@ -492,7 +492,7 @@ def do_incremental_backup(options, reposz, repofiles):
     datfile = os.path.splitext(fullfile)[0] + '.dat'
     # This .dat file better exist.  Let the exception percolate if not.
     fp = open(datfile, 'a')
-    print >> fp, dest, reposz, pos, sum
+    print(dest, reposz, pos, sum, file=fp)
     fp.flush()
     os.fsync(fp.fileno())
     fp.close()
@@ -593,7 +593,7 @@ def do_recover(options):
         log('Recovering file to %s', options.output)
         outfp = open(options.output, 'wb')
     reposz, reposum = concat(repofiles, outfp)
-    if outfp <> sys.stdout:
+    if outfp != sys.stdout:
         outfp.close()
     log('Recovered %s bytes, md5: %s', reposz, reposum)
 
@@ -615,15 +615,15 @@ def main(argv=None):
     if options.mode == BACKUP:
         try:
             do_backup(options)
-        except WouldOverwriteFiles, e:
-            print >> sys.stderr, str(e)
+        except WouldOverwriteFiles as e:
+            print(str(e), file=sys.stderr)
             sys.exit(1)
     else:
         assert options.mode == RECOVER
         try:
             do_recover(options)
-        except NoFiles, e:
-            print >> sys.stderr, str(e)
+        except NoFiles as e:
+            print(str(e), file=sys.stderr)
             sys.exit(1)
 
 

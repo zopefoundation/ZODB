@@ -12,13 +12,16 @@
 #
 ##############################################################################
 """Open database and storage from a configuration."""
-
 import os
-from cStringIO import StringIO
-
 import ZConfig
-
 import ZODB
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    # Py3
+    from io import StringIO
+
 
 db_schema_path = os.path.join(ZODB.__path__[0], "config.xml")
 _db_schema = None

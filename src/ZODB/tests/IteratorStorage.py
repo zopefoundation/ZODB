@@ -24,8 +24,16 @@ from ZODB.utils import U64, p64
 
 from transaction import Transaction
 
+import sys
 import itertools
 import ZODB.blob
+import six
+
+try:
+    from itertools import izip as zip
+except ImportError:
+    # Py3: zip() already returns an iterable.
+    pass
 
 class IteratorCompare:
 
@@ -33,7 +41,7 @@ class IteratorCompare:
         eq = self.assertEqual
         oid = self._oid
         val = val0
-        for reciter, revid in itertools.izip(txniter, revids + [None]):
+        for reciter, revid in zip(txniter, revids + [None]):
             eq(reciter.tid, revid)
             for rec in reciter:
                 eq(rec.oid, oid)
@@ -136,7 +144,7 @@ class IteratorStorage(IteratorCompare):
 
     def checkIterateRecordsRepeatedly(self):
         self._dostore()
-        tinfo = self._storage.iterator().next()
+        tinfo = six.advance_iterator(self._storage.iterator())
         self.assertEquals(1, len(list(tinfo)))
         self.assertEquals(1, len(list(tinfo)))
 
@@ -144,13 +152,16 @@ class IteratorStorage(IteratorCompare):
         self._dostore()
         iterator = self._storage.iterator()
         # We have one transaction with 1 modified object.
-        txn_1 = iterator.next()
+        txn_1 = six.advance_iterator(iterator)
         self.assertEquals(1, len(list(txn_1)))
 
         # We store another transaction with 1 object, the already running
         # iterator does not pick this up.
         self._dostore()
-        self.assertRaises(StopIteration, iterator.next)
+        if sys.version_info[0] < 3:
+            self.assertRaises(StopIteration, iterator.next)
+        else:
+            self.assertRaises(StopIteration, iterator.__next__)
 
 
 class ExtendedIteratorStorage(IteratorCompare):
@@ -176,14 +187,14 @@ class ExtendedIteratorStorage(IteratorCompare):
         txniter = self._storage.iterator(revid2, revid3)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify an upper bound somewhere in between values
-        revid3a = p64((U64(revid3) + U64(revid4)) / 2)
+        revid3a = p64(int((U64(revid3) + U64(revid4)) / 2))
         txniter = self._storage.iterator(revid2, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify a lower bound somewhere in between values.
         # revid2 == revid1+1 is very likely on Windows.  Adding 1 before
         # dividing ensures that "the midpoint" we compute is strictly larger
         # than revid1.
-        revid1a = p64((U64(revid1) + 1 + U64(revid2)) / 2)
+        revid1a = p64(int((U64(revid1) + 1 + U64(revid2)) / 2))
         assert revid1 < revid1a
         txniter = self._storage.iterator(revid1a, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
@@ -201,7 +212,7 @@ class IteratorDeepCompare:
         eq = self.assertEqual
         iter1 = storage1.iterator()
         iter2 = storage2.iterator()
-        for txn1, txn2 in itertools.izip(iter1, iter2):
+        for txn1, txn2 in zip(iter1, iter2):
             eq(txn1.tid,         txn2.tid)
             eq(txn1.status,      txn2.status)
             eq(txn1.user,        txn2.user)
@@ -209,7 +220,7 @@ class IteratorDeepCompare:
             eq(txn1.extension,  txn2.extension)
             itxn1 = iter(txn1)
             itxn2 = iter(txn2)
-            for rec1, rec2 in itertools.izip(itxn1, itxn2):
+            for rec1, rec2 in zip(itxn1, itxn2):
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)
                 eq(rec1.data,    rec2.data)
@@ -224,7 +235,7 @@ class IteratorDeepCompare:
                         fn2 = storage2.loadBlob(rec1.oid, rec1.tid)
                         self.assert_(fn1 != fn2)
                         eq(open(fn1, 'rb').read(), open(fn2, 'rb').read())
-                
+
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
             # Additionally, check that we're backwards compatible to the

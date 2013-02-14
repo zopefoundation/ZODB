@@ -14,8 +14,6 @@
 """Blobs
 """
 
-import cPickle
-import cStringIO
 import base64
 import binascii
 import logging
@@ -31,9 +29,24 @@ import zope.interface
 
 import ZODB.interfaces
 from ZODB.interfaces import BlobError
-from ZODB import utils
+from ZODB import utils, serialize
 from ZODB.POSException import POSKeyError
 import persistent
+
+try:
+    import cPickle
+except ImportError:
+    # Py3
+    import pickle as cPickle
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
+
+if sys.version_info[0] >= 3:
+    from io import FileIO as file
 
 logger = logging.getLogger('ZODB.blob')
 
@@ -337,18 +350,18 @@ class FilesystemHelper:
 
     def create(self):
         if not os.path.exists(self.base_dir):
-            os.makedirs(self.base_dir, 0700)
+            os.makedirs(self.base_dir, 0o700)
             log("Blob directory '%s' does not exist. "
                 "Created new directory." % self.base_dir)
         if not os.path.exists(self.temp_dir):
-            os.makedirs(self.temp_dir, 0700)
+            os.makedirs(self.temp_dir, 0o700)
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
         if not os.path.exists(os.path.join(self.base_dir, LAYOUT_MARKER)):
             layout_marker = open(
                 os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
-            layout_marker.write(self.layout_name)
+            layout_marker.write(utils.as_bytes(self.layout_name))
         else:
             layout = open(os.path.join(self.base_dir, LAYOUT_MARKER), 'rb'
                           ).read().strip()
@@ -360,7 +373,7 @@ class FilesystemHelper:
 
     def isSecure(self, path):
         """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 077) == 0
+        return (os.stat(path).st_mode & 0o77) == 0
 
     def checkSecure(self):
         if not self.isSecure(self.base_dir):
@@ -385,7 +398,7 @@ class FilesystemHelper:
 
         if create and not os.path.exists(path):
             try:
-                os.makedirs(path, 0700)
+                os.makedirs(path, 0o700)
             except OSError:
                 # We might have lost a race.  If so, the directory
                 # must exist now
@@ -544,8 +557,8 @@ class BushyLayout(object):
         directories = []
         # Create the bushy directory structure with the least significant byte
         # first
-        for byte in str(oid):
-            directories.append('0x%s' % binascii.hexlify(byte))
+        for byte in oid.decode():
+            directories.append('0x%s' % binascii.hexlify(byte.encode()))
         return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
@@ -927,8 +940,8 @@ def is_blob_record(record):
     storage to another.
 
     """
-    if record and ('ZODB.blob' in record):
-        unpickler = cPickle.Unpickler(cStringIO.StringIO(record))
+    if record and (b'ZODB.blob' in record):
+        unpickler = serialize._Unpickler(BytesIO(record))
         unpickler.find_global = find_global_Blob
 
         try:

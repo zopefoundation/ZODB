@@ -12,25 +12,37 @@
 #
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
+from __future__ import print_function
 
-from cStringIO import StringIO
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB import DB
 from ZODB.POSException import ConflictError, StorageError
-from ZODB.serialize import referencesf
+from ZODB.serialize import referencesf, _Unpickler, _protocol
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-import cPickle
 import doctest
+import sys
 import time
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util
 import zope.testing.setupstack
 
-ZERO = '\0'*8
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
+
+ZERO = b'\0'*8
 
 
 # This class is for the root object.  It must not contain a getoid() method
@@ -74,16 +86,19 @@ def dumps(obj):
         if hasattr(obj, 'getoid'):
             return obj.getoid()
         return None
-    s = StringIO()
-    p = cPickle.Pickler(s, 1)
-    p.inst_persistent_id = getpersid
+    s = BytesIO()
+    p = pickle.Pickler(s, _protocol)
+    if sys.version_info[0] < 3:
+        p.inst_persistent_id = getpersid
+    else:
+        p.persistent_id = getpersid
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
 
 def pdumps(obj):
-    s = StringIO()
-    p = cPickle.Pickler(s)
+    s = BytesIO()
+    p = pickle.Pickler(s)
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
@@ -120,12 +135,12 @@ class PackableStorageBase:
         # with an argument bound to an instance attribute method, we do it
         # this way because it makes the code in the tests more succinct.
         #
-        # BUT!  Be careful in your use of loads() vs. cPickle.loads().  loads()
+        # BUT!  Be careful in your use of loads() vs. pickle.loads().  loads()
         # should only be used on the Root object's pickle since it's the only
-        # special one.  All the Object instances should use cPickle.loads().
+        # special one.  All the Object instances should use pickle.loads().
         def loads(str, persfunc=self._cache.get):
-            fp = StringIO(str)
-            u = cPickle.Unpickler(fp)
+            fp = BytesIO(str)
+            u = _Unpickler(fp)
             u.persistent_load = persfunc
             return u.load()
         return loads
@@ -135,8 +150,8 @@ class PackableStorageBase:
             self._storage.load(ZERO, '')
         except KeyError:
             from transaction import Transaction
-            file = StringIO()
-            p = cPickle.Pickler(file, 1)
+            file = BytesIO()
+            p = pickle.Pickler(file, _protocol)
             p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
             t=Transaction()
@@ -186,7 +201,7 @@ class PackableStorage(PackableStorageBase):
         snooze()
         packt = time.time()
 
-        choices = range(10)
+        choices = list(range(10))
         for dummy in choices:
             for i in choices:
                 root[i].value = MinPO(i)
@@ -219,7 +234,7 @@ class PackableStorage(PackableStorageBase):
         liveness = [t.isAlive() for t in threads]
         if True in liveness:
             # They should have finished by now.
-            print 'Liveness:', liveness
+            print('Liveness:', liveness)
             # Combine the outcomes, and sort by start time.
             outcomes = []
             for t in threads:
@@ -242,21 +257,21 @@ class PackableStorage(PackableStorageBase):
                 n = len(outcome)
                 assert n >= 2
                 tid = outcome[0]
-                print 'tid:%d top:%5d' % (tid, outcome[1]),
+                print('tid:%d top:%5d' % (tid, outcome[1]), end=' ')
                 if n > 2:
-                    print 'commit:%5d' % outcome[2],
+                    print('commit:%5d' % outcome[2], end=' ')
                     if n > 3:
-                        print 'index:%2d' % outcome[3],
+                        print('index:%2d' % outcome[3], end=' ')
                         if n > 4:
-                            print 'known:%5d' % outcome[4],
+                            print('known:%5d' % outcome[4], end=' ')
                             if n > 5:
-                                print '%8s' % outcome[5],
+                                print('%8s' % outcome[5], end=' ')
                                 if n > 6:
-                                    print 'assigned:%5s' % outcome[6],
+                                    print('assigned:%5s' % outcome[6], end=' ')
                 counts[tid] += 1
                 if counts[tid] == NUM_LOOP_TRIP:
-                    print 'thread %d done' % tid,
-                print
+                    print('thread %d done' % tid, end=' ')
+                print()
 
             self.fail('a thread is still alive')
 
@@ -279,7 +294,7 @@ class PackableStorage(PackableStorageBase):
         conn = db.open()
         root = conn.root()
 
-        choices = range(10)
+        choices = list(range(10))
         for i in choices:
             root[i] = MinPO(i)
         transaction.commit()
@@ -336,15 +351,15 @@ class PackableStorage(PackableStorageBase):
         revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         # Now pack all transactions; need to sleep a second to make
@@ -389,15 +404,15 @@ class PackableStorage(PackableStorageBase):
         revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         # Now pack just revisions 1 and 2.  The object's current revision
@@ -414,12 +429,12 @@ class PackableStorage(PackableStorageBase):
         raises(KeyError, self._storage.loadSerial, oid, revid1)
         raises(KeyError, self._storage.loadSerial, oid, revid2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         data, revid = self._storage.load(oid, '')
         eq(revid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
 
@@ -457,15 +472,15 @@ class PackableStorage(PackableStorageBase):
         revid3 = self._dostoreNP(oid1, revid=revid2, data=pdumps(obj1))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid1, revid1)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid1, revid2)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid1, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
         # Now commit a revision of the second object
@@ -473,7 +488,7 @@ class PackableStorage(PackableStorageBase):
         revid4 = self._dostoreNP(oid2, data=pdumps(obj2))
         # And make sure the revision can be extracted
         data = self._storage.loadSerial(oid2, revid4)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
         # Now pack just revisions 1 and 2 of object1.  Object1's current
@@ -491,19 +506,19 @@ class PackableStorage(PackableStorageBase):
         raises(KeyError, self._storage.loadSerial, oid1, revid1)
         raises(KeyError, self._storage.loadSerial, oid1, revid2)
         data = self._storage.loadSerial(oid1, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
         data, revid = self._storage.load(oid1, '')
         eq(revid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
         data, revid = self._storage.load(oid2, '')
         eq(revid, revid4)
         eq(loads(data).value, 11)
         data = self._storage.loadSerial(oid2, revid4)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
 
@@ -525,15 +540,15 @@ class PackableStorageWithOptionalGC(PackableStorage):
         revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = pickle.loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         # Now pack all transactions; need to sleep a second to make
@@ -694,12 +709,12 @@ class PackableUndoStorage(PackableStorageBase):
                         data=pdumps(obj2), description="2-5")
         # Now pack
         self.assertEqual(6,len(self._storage.undoLog()))
-        print '\ninitial undoLog was'
-        for r in self._storage.undoLog(): print r
+        print('\ninitial undoLog was')
+        for r in self._storage.undoLog(): print(r)
         self._storage.pack(packtime, referencesf)
         # The undo log contains only two undoable transaction.
-        print '\nafter packing undoLog was'
-        for r in self._storage.undoLog(): print r
+        print('\nafter packing undoLog was')
+        for r in self._storage.undoLog(): print(r)
         # what can we assert about that?
 
 

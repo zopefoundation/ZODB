@@ -96,7 +96,7 @@ class DBMethods(CacheTestBase):
 
     def checkCacheDetail(self):
         for name, count in self.db.cacheDetail():
-            self.assert_(isinstance(name, str))
+            self.assert_(isinstance(name, bytes))
             self.assert_(isinstance(count, int))
 
     def checkCacheExtremeDetail(self):
@@ -415,7 +415,7 @@ class CacheErrors(unittest.TestCase):
         obj2._p_jar = self.jar
         try:
             self.cache[key] = obj2
-        except ValueError, detail:
+        except ValueError as detail:
             self.assertEqual(str(detail),
                              "A different object already has the same oid")
         else:

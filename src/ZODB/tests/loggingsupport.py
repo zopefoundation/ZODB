@@ -29,9 +29,10 @@ Then, any log output is collected in the handler:
   >>> logging.getLogger('foo.bar').exception('eek')
   >>> logging.getLogger('foo.bar').info('blah blah')
 
+  >>> import six
   >>> for record in handler.records:
-  ...     print record.name, record.levelname
-  ...     print ' ', record.getMessage()
+  ...     six.print_(record.name, record.levelname)
+  ...     six.print_(' ', record.getMessage())
   foo.bar ERROR
     eek
   foo.bar INFO
@@ -39,7 +40,7 @@ Then, any log output is collected in the handler:
 
 A similar effect can be gotten by just printing the handler:
 
-  >>> print handler
+  >>> print(handler)
   foo.bar ERROR
     eek
   foo.bar INFO

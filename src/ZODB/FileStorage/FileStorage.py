@@ -13,10 +13,8 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 """
+from __future__ import print_function, with_statement
 
-from __future__ import with_statement
-
-from cPickle import Pickler, loads
 from persistent.TimeStamp import TimeStamp
 from struct import pack, unpack
 from zc.lockfile import LockFile
@@ -28,13 +26,14 @@ from ZODB.FileStorage.fspack import FileStoragePacker
 from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from ZODB.utils import p64, u64, z64
+from ZODB.utils import p64, u64, z64, as_bytes, as_text, bytes
 
-import base64
+import binascii
 import contextlib
 import errno
 import logging
 import os
+import six
 import threading
 import time
 import ZODB.blob
@@ -42,10 +41,23 @@ import ZODB.interfaces
 import zope.interface
 import ZODB.utils
 
+try:
+    from cPickle import Pickler, loads
+except ImportError:
+    # Py3
+    from pickle import Pickler, loads
+
+try:
+    from base64 import decodestring as decodebytes, encodestring as decodebytes
+except ImportError:
+    # Py3
+    from base64 import decodebytes, encodebytes
+
+
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
 
-packed_version = "FS21"
+packed_version = b"FS21"
 
 logger = logging.getLogger('ZODB.FileStorage')
 
@@ -117,7 +129,7 @@ class FileStorage(
             raise ValueError("time-travel only supported in read-only mode")
 
         if stop is None:
-            stop='\377'*8
+            stop=b'\377'*8
 
         # Lock the database and set up the temp file.
         if not read_only:
@@ -146,7 +158,7 @@ class FileStorage(
         if not create:
             try:
                 self._file = open(file_name, read_only and 'rb' or 'r+b')
-            except IOError, exc:
+            except IOError as exc:
                 if exc.errno == errno.EFBIG:
                     # The file is too big to open.  Fail visibly.
                     raise
@@ -353,7 +365,7 @@ class FileStorage(
         pos = info.get('pos')
         if index is None or pos is None:
             return None
-        pos = long(pos)
+        pos = int(pos)
 
         if (isinstance(index, dict) or
                 (isinstance(index, fsIndex) and
@@ -542,6 +554,7 @@ class FileStorage(
         self._file.seek(tpos)
         h = self._file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        status = as_text(status)
         self._file.read(ul + dl + el)
         tend = tpos + tl + 8
         pos = self._file.tell()
@@ -709,7 +722,7 @@ class FileStorage(
         if self._nextpos:
             # Clear the checkpoint flag
             self._file.seek(self._pos+16)
-            self._file.write(self._tstatus)
+            self._file.write(as_bytes(self._tstatus))
             try:
                 # At this point, we may have committed the data to disk.
                 # If we fail from here, we're in bad shape.
@@ -894,7 +907,7 @@ class FileStorage(
 
         with self._lock:
           # Find the right transaction to undo and call _txn_undo_write().
-          tid = base64.decodestring(transaction_id + b'\n')
+          tid = decodebytes(transaction_id + b'\n')
           assert len(tid) == 8
           tpos = self._txn_find(tid, 1)
           tindex = self._txn_undo_write(tpos)
@@ -913,7 +926,7 @@ class FileStorage(
                 return pos
             if stop_at_pack:
                 # check the status field of the transaction header
-                if h[16] == 'p':
+                if h[16] == b'p':
                     break
         raise UndoError("Invalid transaction id")
 
@@ -944,7 +957,7 @@ class FileStorage(
             try:
                 p, prev, ipos = self._transactionalUndoRecord(
                     h.oid, pos, h.tid, h.prev)
-            except UndoError, v:
+            except UndoError as v:
                 # Don't fail right away. We may be redeemed later!
                 failures[h.oid] = v
             else:
@@ -1077,7 +1090,7 @@ class FileStorage(
             pack_result = None
             try:
                 pack_result = self.packer(self, referencesf, stop, gc)
-            except RedundantPackWarning, detail:
+            except RedundantPackWarning as detail:
                 logger.info(str(detail))
             if pack_result is None:
                 return
@@ -1161,14 +1174,14 @@ class FileStorage(
 
         if self.pack_keep_old:
             # Helpers that move oid dir or revision file to the old dir.
-            os.mkdir(old, 0777)
+            os.mkdir(old, 0o777)
             link_or_copy(os.path.join(self.blob_dir, '.layout'),
                          os.path.join(old, '.layout'))
             def handle_file(path):
                 newpath = old+path[lblob_dir:]
                 dest = os.path.dirname(newpath)
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0700)
+                    os.makedirs(dest, 0o700)
                 os.rename(path, newpath)
             handle_dir = handle_file
         else:
@@ -1177,8 +1190,8 @@ class FileStorage(
             handle_dir = ZODB.blob.remove_committed_dir
 
         # Fist step: move or remove oids or revisions
-        for line in open(os.path.join(self.blob_dir, '.removed')): #XXX bytes
-            line = line.strip().decode('hex')
+        for line in open(os.path.join(self.blob_dir, '.removed'), 'rb'):
+            line = binascii.unhexlify(line.strip())
 
             if len(line) == 8:
                 # oid is garbage, re/move dir
@@ -1215,7 +1228,7 @@ class FileStorage(
                 file_path = os.path.join(path, file_name)
                 dest = os.path.dirname(old+file_path[lblob_dir:])
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0700)
+                    os.makedirs(dest, 0o700)
                 link_or_copy(file_path, old+file_path[lblob_dir:])
 
     def iterator(self, start=None, stop=None):
@@ -1252,7 +1265,7 @@ class FileStorage(
         for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
             try:
                 os.remove(self._file_name + ext)
-            except OSError, e:
+            except OSError as e:
                 if e.errno != errno.ENOENT:
                     raise
 
@@ -1316,6 +1329,7 @@ def shift_transactions_forward(index, tindex, file, pos, opos):
         h=read(TRANS_HDR_LEN)
         if len(h) < TRANS_HDR_LEN: break
         tid, stl, status, ul, dl, el = unpack(TRANS_HDR,h)
+        status = as_text(status)
         if status=='c': break # Oops. we found a checkpoint flag.
         tl=u64(stl)
         tpos=pos
@@ -1403,7 +1417,7 @@ def recover(file_name):
 
     pos, oid, tid = read_index(file, file_name, index, tindex, recover=1)
     if oid is not None:
-        print "Nothing to recover"
+        print("Nothing to recover")
         return
 
     opos=pos
@@ -1413,13 +1427,13 @@ def recover(file_name):
 
     file.truncate(npos)
 
-    print "Recovered file, lost %s, ended up with %s bytes" % (
-        pos-opos, npos)
+    print("Recovered file, lost %s, ended up with %s bytes" % (
+        pos-opos, npos))
 
 
 
-def read_index(file, name, index, tindex, stop='\377'*8,
-               ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
+def read_index(file, name, index, tindex, stop=b'\377'*8,
+               ltid=z64, start=4, maxoid=z64, recover=0, read_only=0):
     """Scan the file storage and update the index.
 
     Returns file position, max oid, and last transaction id.  It also
@@ -1466,7 +1480,7 @@ def read_index(file, name, index, tindex, stop='\377'*8,
     else:
         if not read_only:
             file.write(packed_version)
-        return 4L, z64, ltid
+        return 4, z64, ltid
 
     index_get = index.get
 
@@ -1487,6 +1501,7 @@ def read_index(file, name, index, tindex, stop='\377'*8,
             break
 
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        status = as_text(status)
 
         if tid <= ltid:
             logger.warning("%s time-stamp reduction at %s", name, pos)
@@ -1635,8 +1650,8 @@ class FileIterator(FileStorageFormatter):
     _ltid = z64
     _file = None
 
-    def __init__(self, filename, start=None, stop=None, pos=4L):
-        assert isinstance(filename, str)
+    def __init__(self, filename, start=None, stop=None, pos=4):
+        assert isinstance(filename, six.string_types)
         file = open(filename, 'rb')
         self._file = file
         self._file_name = filename
@@ -1648,8 +1663,8 @@ class FileIterator(FileStorageFormatter):
             raise ValueError("Given position is greater than the file size",
                              pos, self._file_size)
         self._pos = pos
-        assert start is None or isinstance(start, str)
-        assert stop is None or isinstance(stop, str)
+        assert start is None or isinstance(start, bytes)
+        assert stop is None or isinstance(stop, bytes)
         self._start = start
         self._stop = stop
         if start:
@@ -1765,7 +1780,7 @@ class FileIterator(FileStorageFormatter):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self._file is None:
             raise StopIteration()
 
@@ -1775,7 +1790,7 @@ class FileIterator(FileStorageFormatter):
             # Read the transaction record
             try:
                 h = self._read_txn_header(pos)
-            except CorruptedDataError, err:
+            except CorruptedDataError as err:
                 # If buf is empty, we've reached EOF.
                 if not err.buf:
                     break
@@ -1857,6 +1872,8 @@ class FileIterator(FileStorageFormatter):
 
         self.close()
         raise StopIteration()
+
+    next = __next__
 
 
 class TransactionRecord(BaseStorage.TransactionRecord):
@@ -1961,6 +1978,7 @@ class UndoSearch:
         self.file.seek(self.pos)
         h = self.file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        status = as_text(status)
         if status == 'p':
             self.stop = 1
             return None
@@ -1977,7 +1995,7 @@ class UndoSearch:
                 e = loads(self.file.read(el))
             except:
                 pass
-        d = {'id': base64.encodestring(tid).rstrip(),
+        d = {'id': encodebytes(tid).rstrip(),
              'time': TimeStamp(tid).timeTime(),
              'user_name': u,
              'size': tl,

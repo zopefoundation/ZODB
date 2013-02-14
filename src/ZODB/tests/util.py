@@ -121,7 +121,7 @@ def assert_deprecated(func, warning_text=''):
 def wait(func=None, timeout=30):
     if func is None:
         return lambda f: wait(f, timeout)
-    for i in xrange(int(timeout*100)):
+    for i in range(int(timeout*100)):
         if func():
             return
         time.sleep(.01)

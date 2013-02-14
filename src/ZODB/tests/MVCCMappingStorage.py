@@ -89,7 +89,7 @@ class MVCCMappingStorage(MappingStorage):
                     self._data_snapshot[oid] = tid_data[tid], tid
 
             if self._polled_tid:
-                if not self._transactions.has_key(self._polled_tid):
+                if self._polled_tid not in self._transactions:
                     # This connection is so old that we can no longer enumerate
                     # all the changes.
                     self._polled_tid = new_tid

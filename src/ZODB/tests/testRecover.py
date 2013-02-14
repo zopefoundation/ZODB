@@ -18,7 +18,6 @@ import os
 import random
 import sys
 import unittest
-import StringIO
 
 import ZODB
 import ZODB.tests.util
@@ -27,6 +26,12 @@ import ZODB.fsrecover
 
 from persistent.mapping import PersistentMapping
 import transaction
+
+try:
+    import StringIO
+except ImportError:
+    # Py3
+    import io as StringIO
 
 class RecoverTest(ZODB.tests.util.TestCase):
 

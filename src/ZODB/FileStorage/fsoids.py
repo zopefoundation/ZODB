@@ -1,3 +1,9 @@
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
 ##############################################################################
 #
 # Copyright (c) 2004 Zope Foundation and Contributors.
@@ -16,6 +22,8 @@ import ZODB.FileStorage
 from ZODB.utils import get_pickle_metadata, p64, oid_repr, tid_repr
 from ZODB.serialize import get_refs
 from ZODB.TimeStamp import TimeStamp
+from six.moves import map
+from six.moves import zip
 
 # Extract module.class string from pickle.
 def get_class(pickle):
@@ -73,7 +81,7 @@ class Tracer(object):
         entire database, including references.
         """
         for oid in oids:
-            if isinstance(oid, str):
+            if isinstance(oid, bytes):
                 assert len(oid) == 8
             else:
                 oid = p64(oid)
@@ -104,22 +112,22 @@ class Tracer(object):
                 nrev = oids[oid]
                 revision = "revision" + (nrev != 1 and 's' or '')
                 name = oid2name.get(oid, "<unknown>")
-                print "oid", oid_repr(oid), name, nrev, revision
+                print("oid", oid_repr(oid), name, nrev, revision)
                 current_oid = oid
                 current_tid = None
                 if msg is NOT_SEEN:
                     assert tid is None
-                    print "   ", msg
+                    print("   ", msg)
                     continue
             if tid != current_tid:
                 current_tid = tid
                 status, user, description, pos = self.tid2info[tid]
-                print "    tid %s offset=%d %s" % (tid_repr(tid),
+                print("    tid %s offset=%d %s" % (tid_repr(tid),
                                                    pos,
-                                                   TimeStamp(tid))
-                print "        tid user=%r" % shorten(user)
-                print "        tid description=%r" % shorten(description)
-            print "       ", msg
+                                                   TimeStamp(tid)))
+                print("        tid user=%r" % shorten(user))
+                print("        tid description=%r" % shorten(description))
+            print("       ", msg)
 
     # Do the analysis.
     def run(self):

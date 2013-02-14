@@ -1,3 +1,4 @@
+from __future__ import print_function
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Foundation and Contributors.
@@ -89,7 +90,7 @@ def main(args):
             transaction.begin()
             rt=jar.root()
             key='s%s' % r
-            if rt.has_key(key): p=rt[key]
+            if key in rt: p=rt[key]
             else: rt[key]=p=P()
             for i in range(r):
                 if z is not None: d=z(data)
@@ -109,7 +110,7 @@ def main(args):
                 time.sleep(3)
                 jar.cacheMinimize(3)
 
-    if detailed: print '-'*24
+    if detailed: print('-'*24)
     for r in 1, 10, 100, 1000:
         t=results[r]/nrep
         sys.stderr.write("mean:\t%s\t%.4f\t%.4f (s/o)\n" % (r, t, t/r))

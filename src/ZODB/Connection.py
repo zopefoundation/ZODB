@@ -48,8 +48,9 @@ from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.POSException import Unsupported, ReadOnlyHistoryError
 from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader
-from ZODB.utils import p64, u64, z64, oid_repr, positive_id
+from ZODB.utils import p64, u64, z64, oid_repr, positive_id, bytes
 from ZODB import utils
+import six
 
 global_reset_counter = 0
 
@@ -260,14 +261,14 @@ class Connection(ExportImport, object):
     def cacheMinimize(self):
         """Deactivate all unmodified objects in the cache.
         """
-        for connection in self.connections.itervalues():
+        for connection in six.itervalues(self.connections):
             connection._cache.minimize()
 
     # TODO: we should test what happens when cacheGC is called mid-transaction.
     def cacheGC(self):
         """Reduce cache size to target size.
         """
-        for connection in self.connections.itervalues():
+        for connection in six.itervalues(self.connections):
             connection._cache.incrgc()
 
     __onCloseCallbacks = None
@@ -566,7 +567,7 @@ class Connection(ExportImport, object):
         else:
             self._commit(transaction)
 
-        for oid, serial in self._readCurrent.iteritems():
+        for oid, serial in six.iteritems(self._readCurrent):
             try:
                 self._storage.checkCurrentSerialInTransaction(
                     oid, serial, transaction)
@@ -708,7 +709,7 @@ class Connection(ExportImport, object):
 
         if not serial:
             return
-        if not isinstance(serial, str):
+        if not isinstance(serial, bytes):
             raise serial
         obj = self._cache.get(oid, None)
         if obj is None:
@@ -779,7 +780,7 @@ class Connection(ExportImport, object):
             return
         try:
             s = vote(transaction)
-        except ReadConflictError, v:
+        except ReadConflictError as v:
             if v.oid:
                 self._cache.invalidate(v.oid)
             raise
@@ -1070,7 +1071,7 @@ class Connection(ExportImport, object):
             self._reader._cache = cache
 
     def _release_resources(self):
-        for c in self.connections.itervalues():
+        for c in six.itervalues(self.connections):
             if c._mvcc_storage:
                 c._storage.release()
             c._storage = c._normal_storage = None
@@ -1248,7 +1249,7 @@ class TmpStore:
         self._file = tempfile.TemporaryFile()
         # position: current file position
         # _tpos: file position at last commit point
-        self.position = 0L
+        self.position = 0
         # index: map oid to pos of last committed version
         self.index = {}
         self.creating = {}
@@ -1301,7 +1302,7 @@ class TmpStore:
 
         targetpath = self._getBlobPath()
         if not os.path.exists(targetpath):
-            os.makedirs(targetpath, 0700)
+            os.makedirs(targetpath, 0o700)
 
         targetname = self._getCleanFilename(oid, serial)
         rename_or_copy_blob(blobfilename, targetname, chmod=False)

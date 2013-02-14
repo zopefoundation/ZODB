@@ -26,9 +26,21 @@ import transaction
 from transaction import Transaction
 import ZODB
 from ZODB.MappingStorage import MappingStorage
-import cPickle
-import cStringIO
 import sys
+import six
+
+try:
+    import cPickle
+except ImportError:
+    # Py3
+    import pickle as cPickle
+
+try:
+    import cStringIO
+except ImportError:
+    # Py3
+    import io as cStringIO
+
 
 # This pickle contains a persistent mapping pickle created from the
 # old code.
@@ -126,15 +138,15 @@ class PMTests(unittest.TestCase):
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
-        keys = list(m.iterkeys())
+        keys = list(six.iterkeys(m))
         keys.sort()
         self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
-        values = list(m.itervalues())
+        values = list(six.itervalues(m))
         values.sort()
         self.assertEqual(values, [1, 2, 3, 'bob'])
 
-        items = list(m.iteritems())
+        items = list(six.iteritems(m))
         items.sort()
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
@@ -157,7 +169,7 @@ class PMTests(unittest.TestCase):
         keylist = []
         while 1:
             try:
-                key = i.next()
+                key = six.advance_iterator(i)
             except StopIteration:
                 break
             keylist.append(key)

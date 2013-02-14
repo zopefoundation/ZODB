@@ -7,6 +7,16 @@ usage: checkbtrees.py data.fs
 Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
 
 import ZODB
 from ZODB.FileStorage import FileStorage
@@ -26,7 +36,7 @@ def add_if_new_persistent(L, obj, path):
     getattr(obj, '_', None) # unghostify
     if hasattr(obj, '_p_oid'):
         oid = obj._p_oid
-        if not oids_seen.has_key(oid):
+        if oid not in oids_seen:
             L.append((obj, path))
             oids_seen[oid] = 1
 
@@ -69,7 +79,7 @@ def main(fname=None):
         try:
             fname, = sys.argv[1:]
         except:
-            print __doc__
+            print(__doc__)
             sys.exit(2)
         
     fs = FileStorage(fname, read_only=1)
@@ -83,26 +93,26 @@ def main(fname=None):
         obj, path = todo.pop(0)
         found += 1
         if not path:
-            print "<root>", repr(obj)
+            print("<root>", repr(obj))
         else:
-            print path, repr(obj)
+            print(path, repr(obj))
 
         mod = str(obj.__class__.__module__)
         if mod.startswith("BTrees"):
             if hasattr(obj, "_check"):
                 try:
                     obj._check()
-                except AssertionError, msg:
-                    print "*" * 60
-                    print msg
-                    print "*" * 60
+                except AssertionError as msg:
+                    print("*" * 60)
+                    print(msg)
+                    print("*" * 60)
 
                 try:
                     check(obj)
-                except AssertionError, msg:
-                    print "*" * 60
-                    print msg
-                    print "*" * 60
+                except AssertionError as msg:
+                    print("*" * 60)
+                    print(msg)
+                    print("*" * 60)
 
         if found % 100 == 0:
             cn.cacheMinimize()
@@ -115,7 +125,7 @@ def main(fname=None):
                 newpath = "%s.%s" % (path, k)
             add_if_new_persistent(todo, v, newpath)
 
-    print "total", len(fs._index), "found", found
+    print("total", len(fs._index), "found", found)
 
 if __name__ == "__main__":
     main()

@@ -31,6 +31,8 @@ import time
 import transaction
 import zope.interface
 import zope.interface.verify
+from six.moves import map
+from six.moves import zip
 
 ZERO = b'\0'*8
 
@@ -50,12 +52,12 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            ZERO, ZERO, '', '', transaction.Transaction())
+            ZERO, ZERO, b'', '', transaction.Transaction())
 
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            ZERO, 1, '2', '', transaction.Transaction())
+            ZERO, 1, b'2', '', transaction.Transaction())
 
         self.assertRaises(
             POSException.StorageTransactionError,
@@ -223,7 +225,7 @@ class BasicStorage:
         oid = b'\0\0\0\0\0\0\0\xf0'
         tid = self._dostore(oid)
         tid2 = self._dostore(oid, revid=tid)
-        data = 'cpersistent\nPersistent\nq\x01.N.' # a simple persistent obj
+        data = b'cpersistent\nPersistent\nq\x01.N.' # a simple persistent obj
 
         #----------------------------------------------------------------------
         # stale read
@@ -235,7 +237,7 @@ class BasicStorage:
                                 b'\0\0\0\0\0\0\0\0', data, '', t)
             self._storage.checkCurrentSerialInTransaction(oid, tid, t)
             self._storage.tpc_vote(t)
-        except POSException.ReadConflictError, v:
+        except POSException.ReadConflictError as v:
             self.assert_(v.oid) == oid
             self.assert_(v.serials == (tid2, tid))
         else:
@@ -313,7 +315,7 @@ class BasicStorage:
         # First, some initial data.
         t = transaction.get()
         self._storage.tpc_begin(t)
-        self._storage.store(ZERO, ZERO, 'x', '', t)
+        self._storage.store(ZERO, ZERO, b'x', '', t)
         self._storage.tpc_vote(t)
         tids = []
         self._storage.tpc_finish(t, lambda tid: tids.append(tid))
@@ -323,7 +325,7 @@ class BasicStorage:
 
         t = transaction.get()
         self._storage.tpc_begin(t)
-        self._storage.store(ZERO, tids[0], 'y', '', t)
+        self._storage.store(ZERO, tids[0], b'y', '', t)
         self._storage.tpc_vote(t)
 
         to_join = []

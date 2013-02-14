@@ -16,10 +16,8 @@
 The base class here is tightly coupled with its subclasses and
 its use is not recommended.  It's still here for historical reasons.
 """
+from __future__ import print_function, with_statement
 
-from __future__ import with_statement
-
-import cPickle
 import threading
 import time
 import logging
@@ -31,8 +29,15 @@ from persistent.TimeStamp import TimeStamp
 
 import ZODB.interfaces
 from ZODB import POSException
-from ZODB.utils import z64, oid_repr
+from ZODB.utils import z64, oid_repr, byte_ord, byte_chr
 from ZODB.UndoLogCompatible import UndoLogCompatible
+
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
 
 log = logging.getLogger("ZODB.BaseStorage")
 
@@ -173,9 +178,9 @@ class BaseStorage(UndoLogCompatible):
         self._lock_acquire()
         try:
             last = self._oid
-            d = ord(last[-1])
+            d = byte_ord(last[-1])
             if d < 255:  # fast path for the usual case
-                last = last[:-1] + chr(d+1)
+                last = last[:-1] + byte_chr(d+1)
             else:        # there's a carry out of the last byte
                 last_as_long, = _structunpack(">Q", last)
                 last = _structpack(">Q", last_as_long + 1)
@@ -237,7 +242,7 @@ class BaseStorage(UndoLogCompatible):
             desc = transaction.description
             ext = transaction._extension
             if ext:
-                ext = cPickle.dumps(ext, 1)
+                ext = pickle.dumps(ext, 1)
             else:
                 ext = ""
 
@@ -377,24 +382,24 @@ def copy(source, dest, verbose=0):
         else:
             t = TimeStamp(tid)
             if t <= _ts:
-                if ok: print ('Time stamps out of order %s, %s' % (_ts, t))
+                if ok: print(('Time stamps out of order %s, %s' % (_ts, t)))
                 ok = 0
                 _ts = t.laterThan(_ts)
                 tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:
-                    print ('Time stamps back in order %s' % (t))
+                    print(('Time stamps back in order %s' % (t)))
                     ok = 1
 
         if verbose:
-            print _ts
+            print(_ts)
 
         dest.tpc_begin(transaction, tid, transaction.status)
         for r in transaction:
             oid = r.oid
             if verbose:
-                print oid_repr(oid), r.version, len(r.data)
+                print(oid_repr(oid), r.version, len(r.data))
             if restoring:
                 dest.restore(oid, r.tid, r.data, r.version,
                              r.data_txn, transaction)

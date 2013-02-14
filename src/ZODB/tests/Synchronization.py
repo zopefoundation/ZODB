@@ -82,11 +82,11 @@ class SynchronizedStorage:
 
     def checkStoreNotCommitting(self):
         self.verifyNotCommitting(self._storage.store,
-                                 OID, SERIALNO, "", "", Transaction())
+                                 OID, SERIALNO, b"", "", Transaction())
 
     def checkStoreWrongTrans(self):
         self.verifyWrongTrans(self._storage.store,
-                              OID, SERIALNO, "", "", Transaction())
+                              OID, SERIALNO, b"", "", Transaction())
 
     def checkAbortNotCommitting(self):
         self._storage.tpc_abort(Transaction())

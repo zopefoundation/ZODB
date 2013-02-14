@@ -4,6 +4,7 @@ import threading
 import time
 
 from persistent.mapping import PersistentMapping
+import six
 import transaction
 
 import ZODB
@@ -16,8 +17,7 @@ SHORT_DELAY = 0.01
 
 def sort(l):
     "Sort a list in place and return it."
-    l.sort()
-    return l
+    return sorted(l)
 
 class TestThread(threading.Thread):
     """Base class for defining threads that run from unittest.
@@ -43,7 +43,8 @@ class TestThread(threading.Thread):
     def join(self, timeout=None):
         threading.Thread.join(self, timeout)
         if self._exc_info:
-            raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
+            raise six.reraise(
+                self._exc_info[0], self._exc_info[1], self._exc_info[2])
 
 class ZODBClientThread(TestThread):
 
@@ -67,7 +68,7 @@ class ZODBClientThread(TestThread):
         else:
             for i in range(self.commits):
                 self.commit(d, i)
-        self.test.assertEqual(sort(d.keys()), range(self.commits))
+        self.test.assertEqual(sort(d.keys()), list(range(self.commits)))
 
     def commit(self, d, num):
         d[num] = time.time()
@@ -190,7 +191,7 @@ class ExtStorageClientThread(StorageClientThread):
         self.check()
 
     def pick_oid(self):
-        return random.choice(self.oids.keys())
+        return random.choice(tuple(self.oids))
 
     def do_load(self):
         oid = self.pick_oid()

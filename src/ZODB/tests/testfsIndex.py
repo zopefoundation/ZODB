@@ -18,6 +18,7 @@ import unittest
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import p64, z64
 from ZODB.tests.util import setUp, tearDown
+import six
 
 
 class Test(unittest.TestCase):
@@ -26,7 +27,7 @@ class Test(unittest.TestCase):
         self.index = fsIndex()
 
         for i in range(200):
-            self.index[p64(i * 1000)] = (i * 1000L + 1)
+            self.index[p64(i * 1000)] = (i * 1000 + 1)
 
     def test__del__(self):
         index = self.index
@@ -50,7 +51,7 @@ class Test(unittest.TestCase):
         index = self.index
 
         for i in range(0,200):
-            self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000L+1)))
+            self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000+1)))
 
         self.assertEqual(len(index), 200)
 
@@ -69,17 +70,17 @@ class Test(unittest.TestCase):
         d={}
 
         for i in range(200):
-            d[p64(i*1000)]=(i*1000L+1)
+            d[p64(i*1000)]=(i*1000+1)
 
         index.update(d)
 
         for i in range(400,600):
-            d[p64(i*1000)]=(i*1000L+1)
+            d[p64(i*1000)]=(i*1000+1)
 
         index.update(d)
 
         for i in range(100, 500):
-            d[p64(i*1000)]=(i*1000L+2)
+            d[p64(i*1000)]=(i*1000+2)
 
         index.update(d)
 
@@ -95,7 +96,7 @@ class Test(unittest.TestCase):
         for i, k in enumerate(keys):
             self.assertEqual(k, p64(i * 1000))
 
-        keys = list(self.index.iterkeys())
+        keys = list(six.iterkeys(self.index))
         keys.sort()
 
         for i, k in enumerate(keys):
@@ -108,30 +109,30 @@ class Test(unittest.TestCase):
             self.assertEqual(k, p64(i * 1000))
 
     def testValues(self):
-        values = list(self.index.itervalues())
+        values = list(six.itervalues(self.index))
         values.sort()
 
         for i, v in enumerate(values):
-            self.assertEqual(v, (i * 1000L + 1))
+            self.assertEqual(v, (i * 1000 + 1))
 
         values = self.index.values()
         values.sort()
 
         for i, v in enumerate(values):
-            self.assertEqual(v, (i * 1000L + 1))
+            self.assertEqual(v, (i * 1000 + 1))
 
     def testItems(self):
-        items = list(self.index.iteritems())
+        items = list(six.iteritems(self.index))
         items.sort()
 
         for i, item in enumerate(items):
-            self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
+            self.assertEqual(item, (p64(i * 1000), (i * 1000 + 1)))
 
         items = self.index.items()
         items.sort()
 
         for i, item in enumerate(items):
-            self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
+            self.assertEqual(item, (p64(i * 1000), (i * 1000 + 1)))
 
     def testMaxKey(self):
         index = self.index
@@ -214,7 +215,11 @@ Note that we pass a file position, which gets saved with the index data.
 
 If we save the data in the old format, we can still read it:
 
-    >>> import cPickle
+    >>> try:
+    ...     import cPickle
+    ... except ImportError:
+    ...     # Py3
+    ...     import pickle as cPickle
     >>> cPickle.dump(dict(pos=42, index=index), open('old', 'wb'), 1)
     >>> info = fsIndex.load('old')
     >>> info['pos']

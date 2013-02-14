@@ -12,21 +12,35 @@
 #
 ##############################################################################
 """Test the routines to convert between long and 64-bit strings"""
-
-from persistent import Persistent
 import doctest
 import random
+import re
 import unittest
+from persistent import Persistent
+
+from zope.testing import renormalizing
+from ZODB.utils import U64, p64, u64
+
+try:
+    long(1)
+except NameError:
+    # Py3
+    long = int
 
 NUM = 100
 
-from ZODB.utils import U64, p64, u64
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"),
+     r"\1"),
+    ])
 
 class TestUtils(unittest.TestCase):
 
-    small = [random.randrange(1, 1L<<32, int=long)
+    small = [random.randrange(1, 1<<32, int=long)
              for i in range(NUM)]
-    large = [random.randrange(1L<<32, 1L<<64, int=long)
+    large = [random.randrange(1<<32, 1<<64, int=long)
              for i in range(NUM)]
     all = small + large
 
@@ -40,11 +54,11 @@ class TestUtils(unittest.TestCase):
 
     def checkKnownConstants(self):
         self.assertEquals("\000\000\000\000\000\000\000\001", p64(1))
-        self.assertEquals("\000\000\000\001\000\000\000\000", p64(1L<<32))
+        self.assertEquals("\000\000\000\001\000\000\000\000", p64(1<<32))
         self.assertEquals(u64("\000\000\000\000\000\000\000\001"), 1)
         self.assertEquals(U64("\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(u64("\000\000\000\001\000\000\000\000"), 1L<<32)
-        self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1L<<32)
+        self.assertEquals(u64("\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1<<32)
 
     def checkPersistentIdHandlesDescriptor(self):
         from ZODB.serialize import ObjectWriter
@@ -63,7 +77,11 @@ class TestUtils(unittest.TestCase):
         from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
         from ZODB.tests.MinPO import MinPO
-        import cPickle as pickle
+        try:
+            import cPickle as pickle
+        except ImportError:
+            # Py3
+            import pickle
 
         obj = MinPO()
         data = ObjectWriter().serialize(obj)
@@ -81,7 +99,7 @@ class TestUtils(unittest.TestCase):
         # Verify that building ConflictError doesn't get ImportError.
         try:
             raise ConflictError(object=obj, data=data)
-        except ConflictError, detail:
+        except ConflictError as detail:
             # And verify that the msg names the impossible path.
             self.assert_('path.that.does.not.exist.likewise.the.class' in
                          str(detail))
@@ -92,5 +110,5 @@ class TestUtils(unittest.TestCase):
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(TestUtils, 'check'))
-    suite.addTest(doctest.DocFileSuite('../utils.txt'))
+    suite.addTest(doctest.DocFileSuite('../utils.txt', checker=checker))
     return suite

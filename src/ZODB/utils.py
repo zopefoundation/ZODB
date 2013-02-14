@@ -11,17 +11,27 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
 import sys
 import time
 import struct
 from struct import pack, unpack
 from binascii import hexlify, unhexlify
-import cPickle as pickle
-from cStringIO import StringIO
 import warnings
 from tempfile import mkstemp
 import os
+
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    # Py3
+    from io import StringIO
+
 
 from persistent.TimeStamp import TimeStamp
 
@@ -65,6 +75,42 @@ def deprecated37(msg):
 def deprecated38(msg):
     warnings.warn("This will be removed in ZODB 3.8:\n%s" % msg,
                   DeprecationWarning, stacklevel=3)
+
+
+if sys.version_info[0] < 3:
+    bytes = str
+
+    def as_bytes(obj):
+        "Convert obj into bytes"
+        return str(obj)
+
+    def as_text(bytes):
+        "Convert bytes into string"
+        return bytes
+
+    # Convert an element of a bytes object into an int
+    byte_ord = ord
+    byte_chr = chr
+
+else:
+
+    import builtins
+    bytes = builtins.bytes
+
+    def as_bytes(obj):
+        if isinstance(obj, bytes):
+            # invoking str on a bytes object gives its repr()
+            return obj
+        return str(obj).encode("ascii")
+
+    def as_text(bytes):
+        return bytes.decode("ascii")
+
+    def byte_ord(byte):
+        return byte # elements of bytes are already ints
+
+    def byte_chr(int):
+        return bytes((int,))
 
 z64 = b'\0' * 8
 
@@ -121,15 +167,15 @@ def newTid(old):
 
 
 def oid_repr(oid):
-    if isinstance(oid, str) and len(oid) == 8:
+    if isinstance(oid, bytes) and len(oid) == 8:
         # Convert to hex and strip leading zeroes.
-        as_hex = hexlify(oid).lstrip('0')
+        as_hex = hexlify(oid).lstrip(b'0')
         # Ensure two characters per input byte.
         if len(as_hex) & 1:
-            as_hex = '0' + as_hex
-        elif as_hex == '':
-            as_hex = '00'
-        return '0x' + as_hex
+            as_hex = b'0' + as_hex
+        elif as_hex == b'':
+            as_hex = b'00'
+        return '0x' + as_hex.decode()
     else:
         return repr(oid)
 
@@ -204,7 +250,7 @@ def get_pickle_metadata(data):
     u = pickle.Unpickler(f)
     try:
         class_info = u.load()
-    except Exception, err:
+    except Exception as err:
         return '', ''
     if isinstance(class_info, tuple):
         if isinstance(class_info[0], tuple):
@@ -228,19 +274,20 @@ def mktemp(dir=None):
 class Locked(object):
 
     def __init__(self, func, inst=None, class_=None, preconditions=()):
-        self.im_func = func
-        self.im_self = inst
-        self.im_class = class_
+        self.__func__ = func
+        self.__self__ = inst
+        self.__self_class__ = class_
         self.preconditions = preconditions
 
     def __get__(self, inst, class_):
-        return self.__class__(self.im_func, inst, class_, self.preconditions)
+        return self.__class__(
+            self.__func__, inst, class_, self.preconditions)
 
     def __call__(self, *args, **kw):
-        inst = self.im_self
+        inst = self.__self__
         if inst is None:
             inst = args[0]
-        func = self.im_func.__get__(self.im_self, self.im_class)
+        func = self.__func__.__get__(self.__self__, self.__self_class__)
 
         inst._lock_acquire()
         try:

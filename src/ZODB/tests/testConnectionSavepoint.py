@@ -13,9 +13,19 @@
 ##############################################################################
 import doctest
 import persistent.mapping
+import re
 import transaction
 import unittest
 import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.ConnectionStateError"),
+     r"ConnectionStateError"),
+    ])
 
 def testAddingThenModifyThenAbort():
     """\
@@ -185,8 +195,10 @@ def tearDown(test):
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('testConnectionSavepoint.txt', tearDown=tearDown),
-        doctest.DocTestSuite(tearDown=tearDown),
+        doctest.DocFileSuite(
+                'testConnectionSavepoint.txt',
+                tearDown=tearDown, checker=checker),
+        doctest.DocTestSuite(tearDown=tearDown, checker=checker),
         ))
 
 if __name__ == '__main__':

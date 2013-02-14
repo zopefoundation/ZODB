@@ -32,6 +32,8 @@ Note: It does not check the consistency of the object pickles.  It is
 possible for the damage to occur only in the part of the file that
 stores object pickles.  Those errors will go undetected.
 """
+from __future__ import print_function
+from __future__ import print_function
 
 # The implementation is based closely on the read_index() function in
 # ZODB.FileStorage.  If anything about the FileStorage layout changes,
@@ -90,7 +92,7 @@ def check(path):
     if file.read(4) != packed_version:
         raise FormatError("invalid file header")
 
-    pos = 4L
+    pos = 4
     tid = b'\000' * 8 # lowest possible tid to start
     i = 0
     while pos:
@@ -200,7 +202,7 @@ def check_drec(path, file, pos, tpos, tid):
     return pos, oid
 
 def usage():
-    print __doc__
+    print(__doc__)
     sys.exit(-1)
 
 def main(args=None):
@@ -221,8 +223,8 @@ def main(args=None):
 
     try:
         check(args[0])
-    except FormatError, msg:
-        print msg
+    except FormatError as msg:
+        print(msg)
         sys.exit(-1)
 
     chatter("no errors detected")

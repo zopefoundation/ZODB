@@ -82,7 +82,11 @@ class Broken(object):
          >>> r[2]
          {'x': 1}
 
-         >>> import cPickle
+         >>> try:
+         ...     import cPickle
+         ... except ImportError:
+         ...     # Py3
+         ...     import pickle as cPickle
          >>> a2 = cPickle.loads(cPickle.dumps(a, 1))
          >>> a2
          <broken not.there.Atall instance>

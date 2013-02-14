@@ -22,5 +22,9 @@ class MinPO(Persistent):
     def __cmp__(self, aMinPO):
         return cmp(self.value, aMinPO.value)
 
+    # Py3: Python 3 does not support cmp() anymore.
+    def __eq__(self, aMinPO):
+        return self.value == aMinPO.value
+
     def __repr__(self):
         return "MinPO(%s)" % self.value

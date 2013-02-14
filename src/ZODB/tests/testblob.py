@@ -12,9 +12,7 @@
 #
 ##############################################################################
 
-from pickle import Pickler
-from pickle import Unpickler
-from StringIO import StringIO
+from pickle import Pickler, Unpickler
 from ZODB.blob import Blob
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
@@ -41,6 +39,14 @@ import ZODB.tests.IteratorStorage
 import ZODB.tests.StorageTestBase
 import ZODB.tests.util
 import zope.testing.renormalizing
+
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    # Py3
+    from io import StringIO
+
 
 def new_time():
     """Create a _new_ time stamp.

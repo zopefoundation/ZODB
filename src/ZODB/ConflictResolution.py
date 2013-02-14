@@ -13,14 +13,26 @@
 ##############################################################################
 
 import logging
-from cStringIO import StringIO
-from cPickle import Unpickler, Pickler
 from pickle import PicklingError
 
 import zope.interface
 
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
+from ZODB.serialize import _protocol
+
+try:
+    from cStringIO import StringIO
+except ImportError:
+    # Py3
+    from io import StringIO
+
+try:
+    from cPickle import Unpickler, Pickler
+except ImportError:
+    # Py3
+    from pickle import Unpickler, Pickler
+
 
 logger = logging.getLogger('ZODB.ConflictResolution')
 
@@ -130,7 +142,7 @@ class PersistentReference(object):
                 # it.  Fortunately, a class reference in a persistent
                 # reference is allowed to be a module+name tuple.
                 self.data = self.oid, klass.args
-        elif isinstance(data, str):
+        elif isinstance(data, bytes):
             self.oid = data
         else: # a list
             reference_type = data[0]
@@ -258,8 +270,11 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         resolved = resolve(old, committed, newstate)
 
         file = StringIO()
-        pickler = Pickler(file,1)
-        pickler.inst_persistent_id = persistent_id
+        pickler = Pickler(file, _protocol)
+        if sys.version_info[0] < 3:
+            pickler.inst_persistent_id = persistent_id
+        else:
+            pickler.inst_persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)
         return self._crs_transform_record_data(file.getvalue(1))

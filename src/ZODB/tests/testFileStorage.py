@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import cPickle
 import doctest
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
@@ -33,6 +32,14 @@ from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
 from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
 from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
+
+
+try:
+    import cPickle
+except ImportError:
+    # Py3
+    import pickle as cPickle
+
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -251,7 +258,7 @@ class FileStorageTests(
         #     NameError: global name 's' is not defined
         try:
             self._storage.pack(time.time(), referencesf)
-        except CorruptedError, detail:
+        except CorruptedError as detail:
             self.assert_("redundant transaction length does not match "
                          "initial transaction length" in str(detail))
         else:

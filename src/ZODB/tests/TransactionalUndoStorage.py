@@ -29,6 +29,9 @@ from ZODB import DB
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
+from six.moves import map
+import six
+from six.moves import zip
 
 ZERO = '\0'*8
 
@@ -677,7 +680,7 @@ class TransactionalUndoStorage:
         eq = self.assertEqual
 
         for i in range(BATCHES):
-            txn = transactions.next()
+            txn = six.advance_iterator(transactions)
 
             tid = p64(i + 1)
             eq(txn.tid, tid)
@@ -689,11 +692,11 @@ class TransactionalUndoStorage:
             eq(L1, L2)
 
         for i in range(BATCHES * OBJECTS):
-            txn = transactions.next()
+            txn = six.advance_iterator(transactions)
             eq(len([rec for rec in txn if rec.data_txn is None]), 1)
 
         for i in range(BATCHES):
-            txn = transactions.next()
+            txn = six.advance_iterator(transactions)
 
             # The undos are performed in reverse order.
             otid = p64(BATCHES - i)

@@ -12,18 +12,34 @@
 #
 ##############################################################################
 """Unit tests for the Connection class."""
-
-from __future__ import with_statement
+from __future__ import print_function, with_statement
 
 import doctest
+import re
+import six
 import unittest
 
-from persistent import Persistent
 import transaction
+import ZODB.tests.util
 from ZODB.config import databaseFromString
 from ZODB.utils import p64
+from persistent import Persistent
 from zope.interface.verify import verifyObject
-import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Python 3 removes empty list representation.
+    (re.compile("set\(\[\]\)"), r"set()"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
+    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
+    (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
+    (re.compile("ZODB.POSException.ConnectionStateError"),
+     r"ConnectionStateError"),
+    ])
+
 
 class ConnectionDotAdd(ZODB.tests.util.TestCase):
 
@@ -327,30 +343,30 @@ class UserMethodTests(unittest.TestCase):
 
     def test_close_dispatches_to_activity_monitors(self):
         r"""doctest that connection close updates activity monitors
-        
+
         Set up a multi-database:
-        
+
             >>> db1 = ZODB.DB(None)
             >>> db2 = ZODB.DB(None, databases=db1.databases, database_name='2',
             ...               cache_size=10)
             >>> conn1 = db1.open()
             >>> conn2 = conn1.get_connection('2')
-        
+
         Add activity monitors to both dbs:
-        
+
             >>> from ZODB.ActivityMonitor import ActivityMonitor
             >>> db1.setActivityMonitor(ActivityMonitor())
             >>> db2.setActivityMonitor(ActivityMonitor())
-        
+
         Commit a transaction that affects both connections:
-        
+
             >>> conn1.root()[0] = conn1.root().__class__()
             >>> conn2.root()[0] = conn2.root().__class__()
             >>> transaction.commit()
 
         After closing the primary connection, both monitors should be up to
         date:
-        
+
             >>> conn1.close()
             >>> len(db1.getActivityMonitor().log)
             1
@@ -433,7 +449,7 @@ def test_transaction_retry_convenience():
     >>> for attempt in transaction.manager.attempts():
     ...     with attempt as t:
     ...         t.note('test')
-    ...         print dm['ntry'], ntry
+    ...         six.print_(dm['ntry'], ntry)
     ...         ntry += 1
     ...         dm['ntry'] = ntry
     ...         if ntry % 3:
@@ -550,11 +566,11 @@ def test_invalidateCache():
 
     and the cache will have been cleared:
 
-        >>> print connection.root()['a']._p_changed
+        >>> print(connection.root()['a']._p_changed)
         None
-        >>> print connection.root()['b']._p_changed
+        >>> print(connection.root()['b']._p_changed)
         None
-        >>> print connection.root()['c']._p_changed
+        >>> print(connection.root()['c']._p_changed)
         None
 
     But we'll be able to access data again:
@@ -659,8 +675,8 @@ implementation of checkCurrentSerialInTransaction.
     >>> from ZODB.POSException import ReadConflictError
     >>> bad = set()
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
-    ...     print 'checkCurrentSerialInTransaction', repr(oid)
-    ...     if not trans == transaction.get(): print 'oops'
+    ...     six.print_('checkCurrentSerialInTransaction', repr(oid))
+    ...     if not trans == transaction.get(): print('oops')
     ...     if oid in bad:
     ...         raise ReadConflictError(oid=oid)
 
@@ -729,8 +745,8 @@ The conflict error will cause the affected object to be invalidated:
 The storage may raise it later:
 
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
-    ...     if not trans == transaction.get(): print 'oops'
-    ...     print 'checkCurrentSerialInTransaction', repr(oid)
+    ...     if not trans == transaction.get(): print('oops')
+    ...     six.print_('checkCurrentSerialInTransaction', repr(oid))
     ...     store.badness = ReadConflictError(oid=oid)
 
     >>> def tpc_vote(t):
@@ -861,9 +877,9 @@ class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
         self.settings = 1
 
     def _p_invalidate(self):
-        print 'INVALIDATE', self.settings
+        print('INVALIDATE', self.settings)
         Persistent._p_invalidate(self)
-        print self.settings   # POSKeyError here
+        print(self.settings)   # POSKeyError here
 
 def abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
     r"""
@@ -894,7 +910,7 @@ After the abort, the oid and jar are None:
 class Clp9460655(Persistent):
     def __init__(self, word, id):
         super(Clp9460655, self).__init__()
-	self.id = id
+        self.id = id
         self._word = word
 
 def lp9460655():
@@ -918,7 +934,7 @@ def lp9460655():
     ...         data[word.id] = word
 
     >>> sv.rollback()
-    >>> print commonWords[1].id  # raises POSKeyError
+    >>> print(commonWords[1].id)  # raises POSKeyError
     1
 
     """
@@ -956,7 +972,7 @@ def lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     >>> conn = ZODB.connection(None)
     >>> oldstore = conn._storage.store
     >>> def store(oid, *args):
-    ...     print 'storing', repr(oid)
+    ...     six.print_('storing', repr(oid))
     ...     return oldstore(oid, *args)
     >>> conn._storage.store = store
 
@@ -988,7 +1004,7 @@ Let's try some combinations with savepoints:
 
     >>> oldspstore = conn._storage.store
     >>> def store(oid, *args):
-    ...     print 'savepoint storing', repr(oid)
+    ...     six.print_('savepoint storing', repr(oid))
     ...     return oldspstore(oid, *args)
     >>> conn._storage.store = store
 
@@ -1096,7 +1112,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
                                 "  <mappingstorage />\n"
                                 "</zodb>"
                                 )
-        self.assertEqual(db.getCacheSizeBytes(), 0x1L << 33)
+        self.assertEqual(db.getCacheSizeBytes(), 0x1 << 33)
 
 
     def test_cache_garbage_collection(self):
@@ -1190,7 +1206,7 @@ class StubStorage:
     def new_oid(self):
         oid = str(self._oid)
         self._oid += 1
-        return oid
+        return str(oid).encode()
 
     def sortKey(self):
         return 'StubStorage sortKey'
@@ -1273,7 +1289,7 @@ class StubDatabase:
 
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd, 'check')
-    s.addTest(doctest.DocTestSuite())
+    s.addTest(doctest.DocTestSuite(checker=checker))
     s.addTest(unittest.makeSuite(TestConnectionInterface))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
     return s

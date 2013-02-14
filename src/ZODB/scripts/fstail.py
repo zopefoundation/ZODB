@@ -14,6 +14,8 @@
 #
 ##############################################################################
 """Tool to dump the last few transactions from a FileStorage."""
+from __future__ import print_function
+from __future__ import print_function
 
 from ZODB.fstools import prev_txn
 
@@ -35,11 +37,11 @@ def main(path, ntxn):
         hash = sha1(th.get_raw_data()).digest()
         l = len(str(th.get_timestamp())) + 1
         th.read_meta()
-        print "%s: hash=%s" % (th.get_timestamp(),
-                               binascii.hexlify(hash))
-        print ("user=%r description=%r length=%d offset=%d"
-               % (th.user, th.descr, th.length, th.get_data_offset()))
-        print
+        print("%s: hash=%s" % (th.get_timestamp(),
+                               binascii.hexlify(hash)))
+        print(("user=%r description=%r length=%d offset=%d"
+               % (th.user, th.descr, th.length, th.get_data_offset())))
+        print()
         th = th.prev_txn()
         i -= 1
 

@@ -1,3 +1,16 @@
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
 #!/usr/bin/env python2.4
 
 # Based on a transaction analyzer by Matt Kromer.
@@ -47,39 +60,39 @@ def shorten(s, n):
     return "..." + s
 
 def report(rep):
-    print "Processed %d records in %d transactions" % (rep.OIDS, rep.TIDS)
-    print "Average record size is %7.2f bytes" % (rep.DBYTES * 1.0 / rep.OIDS)
-    print ("Average transaction size is %7.2f bytes" %
-           (rep.DBYTES * 1.0 / rep.TIDS))
+    print("Processed %d records in %d transactions" % (rep.OIDS, rep.TIDS))
+    print("Average record size is %7.2f bytes" % (rep.DBYTES * 1.0 / rep.OIDS))
+    print(("Average transaction size is %7.2f bytes" %
+           (rep.DBYTES * 1.0 / rep.TIDS)))
 
-    print "Types used:"
+    print("Types used:")
     fmt = "%-46s %7s %9s %6s %7s"
     fmtp = "%-46s %7d %9d %5.1f%% %7.2f" # per-class format
     fmts = "%46s %7d %8dk %5.1f%% %7.2f" # summary format
-    print fmt % ("Class Name", "Count", "TBytes", "Pct", "AvgSize")
-    print fmt % ('-'*46, '-'*7, '-'*9, '-'*5, '-'*7)
+    print(fmt % ("Class Name", "Count", "TBytes", "Pct", "AvgSize"))
+    print(fmt % ('-'*46, '-'*7, '-'*9, '-'*5, '-'*7))
     typemap = rep.TYPEMAP.keys()
     typemap.sort()
     cumpct = 0.0
     for t in typemap:
         pct = rep.TYPESIZE[t] * 100.0 / rep.DBYTES
         cumpct += pct
-        print fmtp % (shorten(t, 46), rep.TYPEMAP[t], rep.TYPESIZE[t],
-                      pct, rep.TYPESIZE[t] * 1.0 / rep.TYPEMAP[t])
+        print(fmtp % (shorten(t, 46), rep.TYPEMAP[t], rep.TYPESIZE[t],
+                      pct, rep.TYPESIZE[t] * 1.0 / rep.TYPEMAP[t]))
 
-    print fmt % ('='*46, '='*7, '='*9, '='*5, '='*7)
-    print "%46s %7d %9s %6s %6.2fk" % ('Total Transactions', rep.TIDS, ' ',
-        ' ', rep.DBYTES * 1.0 / rep.TIDS / 1024.0)
-    print fmts % ('Total Records', rep.OIDS, rep.DBYTES / 1024.0, cumpct,
-                  rep.DBYTES * 1.0 / rep.OIDS)
+    print(fmt % ('='*46, '='*7, '='*9, '='*5, '='*7))
+    print("%46s %7d %9s %6s %6.2fk" % ('Total Transactions', rep.TIDS, ' ',
+        ' ', rep.DBYTES * 1.0 / rep.TIDS / 1024.0))
+    print(fmts % ('Total Records', rep.OIDS, rep.DBYTES / 1024.0, cumpct,
+                  rep.DBYTES * 1.0 / rep.OIDS))
 
-    print fmts % ('Current Objects', rep.COIDS, rep.CBYTES / 1024.0,
+    print(fmts % ('Current Objects', rep.COIDS, rep.CBYTES / 1024.0,
                   rep.CBYTES * 100.0 / rep.DBYTES,
-                  rep.CBYTES * 1.0 / rep.COIDS)
+                  rep.CBYTES * 1.0 / rep.COIDS))
     if rep.FOIDS:
-        print fmts % ('Old Objects', rep.FOIDS, rep.FBYTES / 1024.0,
+        print(fmts % ('Old Objects', rep.FOIDS, rep.FBYTES / 1024.0,
                       rep.FBYTES * 100.0 / rep.DBYTES,
-                      rep.FBYTES * 1.0 / rep.FOIDS)
+                      rep.FBYTES * 1.0 / rep.FOIDS))
 
 def analyze(path):
     fs = FileStorage(path, read_only=1)
@@ -97,7 +110,7 @@ def analyze_trans(report, txn):
 def get_type(record):
     try:
         unpickled = FakeUnpickler(StringIO(record.data)).load()
-    except FakeError, err:
+    except FakeError as err:
         return "%s.%s" % (err.module, err.name)
     except:
         raise
@@ -133,8 +146,8 @@ def analyze_rec(report, record):
             report.CBYTES += size - fsize
         report.TYPEMAP[type] = report.TYPEMAP.get(type, 0) + 1
         report.TYPESIZE[type] = report.TYPESIZE.get(type, 0) + size
-    except Exception, err:
-        print err
+    except Exception as err:
+        print(err)
 
 if __name__ == "__main__":
     path = sys.argv[1]

@@ -29,12 +29,20 @@ if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
 else:
     import doctest
 import random
+import re
 import transaction
 import unittest
 import ZODB.DemoStorage
 import ZODB.tests.hexstorage
 import ZODB.tests.util
 import ZODB.utils
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
+    ])
+
 
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
@@ -137,13 +145,14 @@ def setUp(test):
 
 def testSomeDelegation():
     r"""
+    >>> import six
     >>> class S:
     ...     def __init__(self, name):
     ...         self.name = name
     ...     def registerDB(self, db):
-    ...         print self.name, db
+    ...         six.print_(self.name, db)
     ...     def close(self):
-    ...         print self.name, 'closed'
+    ...         six.print_(self.name, 'closed')
     ...     sortKey = getSize = __len__ = history = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
     ...     _lock_acquire = _lock_release = lambda self: None
@@ -154,7 +163,7 @@ def testSomeDelegation():
     ...     def new_oid(self):
     ...         return '\0' * 8
     ...     def tpc_begin(self, t, tid, status):
-    ...         print 'begin', tid, status
+    ...         six.print_('begin', tid, status)
     ...     def tpc_abort(self, t):
     ...         pass
 
@@ -242,7 +251,7 @@ def load_before_base_storage_current():
 def test_suite():
     suite = unittest.TestSuite((
         doctest.DocTestSuite(
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
+            setUp=setUp, tearDown=ZODB.tests.util.tearDown, checker=checker
             ),
         doctest.DocFileSuite(
             '../DemoStorage.test',

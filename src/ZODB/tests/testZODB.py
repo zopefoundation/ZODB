@@ -24,6 +24,8 @@ import ZODB
 import ZODB.FileStorage
 import ZODB.MappingStorage
 import ZODB.tests.util
+from six.moves import map
+from six.moves import zip
 
 class P(Persistent):
     pass
@@ -106,8 +108,8 @@ class ZODBTests(ZODB.tests.util.TestCase):
         l1.sort()
         l2 = list(ob2.items())
         l2.sort()
-        l1 = map(lambda (k, v): (k, v[0]), l1)
-        l2 = map(lambda (k, v): (k, v[0]), l2)
+        l1 = map(lambda k_v: (k_v[0], k_v[1][0]), l1)
+        l2 = map(lambda k_v1: (k_v1[0], k_v1[1][0]), l2)
         self.assertEqual(l1, l2)
         self.assert_(ob._p_oid != ob2._p_oid)
         self.assertEqual(ob._p_jar, ob2._p_jar)
@@ -115,7 +117,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         for v in ob.values():
             oids[v._p_oid] = 1
         for v in ob2.values():
-            assert not oids.has_key(v._p_oid), (
+            assert v._p_oid not in oids, (
                 'Did not fully separate duplicate from original')
         transaction.commit()
 
@@ -157,7 +159,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         try:
             r1 = conn1.root()
             r2 = conn2.root()
-            if r1.has_key('item'):
+            if 'item' in r1:
                 del r1['item']
                 tm1.get().commit()
             r1.get('item')

@@ -31,7 +31,7 @@
 # Because
 #  - the mapping from suffix to data contains at most 65535 entries,
 #  - this is an in-memory data structure
-#  - new keys are inserted sequentially, 
+#  - new keys are inserted sequentially,
 # we use a BTree bucket instead of a full BTree to store the results.
 #
 # We use p64 to convert integers to 8-byte strings and lop off the two
@@ -41,11 +41,18 @@
 
 from __future__ import with_statement
 
-import cPickle
 import struct
 
 from BTrees._fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
+import six
+
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
 
 # convert between numbers and six-byte strings
 
@@ -53,7 +60,7 @@ def num2str(n):
     return struct.pack(">Q", n)[2:]
 
 def str2num(s):
-    return struct.unpack(">Q", "\000\000" + s)[0]
+    return struct.unpack(">Q", b"\000\000" + s)[0]
 
 def prefix_plus_one(s):
     num = str2num(s)
@@ -74,7 +81,7 @@ class fsIndex(object):
         return dict(
             state_version = 1,
             _data = [(k, v.toString())
-                     for (k, v) in self._data.iteritems()
+                     for (k, v) in six.iteritems(self._data)
                      ]
             )
 
@@ -97,19 +104,19 @@ class fsIndex(object):
 
     def save(self, pos, fname):
         with open(fname, 'wb') as f:
-            pickler = cPickle.Pickler(f, 1)
+            pickler = pickle.Pickler(f, 1)
             pickler.fast = True
             pickler.dump(pos)
-            for k, v in self._data.iteritems():
+            for k, v in six.iteritems(self._data):
                 pickler.dump((k, v.toString()))
             pickler.dump(None)
 
     @classmethod
     def load(class_, fname):
         with open(fname, 'rb') as f:
-            unpickler = cPickle.Unpickler(f)
+            unpickler = pickle.Unpickler(f)
             pos = unpickler.load()
-            if not isinstance(pos, (int, long)):
+            if not isinstance(pos, int):
                 return pos                  # Old format
             index = class_()
             data = index._data
@@ -143,14 +150,14 @@ class fsIndex(object):
         treekey = key[:6]
         tree = self._data.get(treekey)
         if tree is None:
-            raise KeyError, key
+            raise KeyError(key)
         del tree[key[6:]]
         if not tree:
             del self._data[treekey]
 
     def __len__(self):
         r = 0
-        for tree in self._data.itervalues():
+        for tree in six.itervalues(self._data):
             r += len(tree)
         return r
 
@@ -175,30 +182,30 @@ class fsIndex(object):
         self._data.clear()
 
     def __iter__(self):
-        for prefix, tree in self._data.iteritems():
+        for prefix, tree in six.iteritems(self._data):
             for suffix in tree:
                 yield prefix + suffix
 
     iterkeys = __iter__
 
     def keys(self):
-        return list(self.iterkeys())
+        return list(six.iterkeys(self))
 
     def iteritems(self):
-        for prefix, tree in self._data.iteritems():
-            for suffix, value in tree.iteritems():
+        for prefix, tree in six.iteritems(self._data):
+            for suffix, value in six.iteritems(tree):
                 yield (prefix + suffix, str2num(value))
 
     def items(self):
         return list(self.iteritems())
 
     def itervalues(self):
-        for tree in self._data.itervalues():
-            for value in tree.itervalues():
+        for tree in six.itervalues(self._data):
+            for value in six.itervalues(tree):
                 yield str2num(value)
 
     def values(self):
-        return list(self.itervalues())
+        return list(six.itervalues(self))
 
     # Comment below applies for the following minKey and maxKey methods
     #

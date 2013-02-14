@@ -22,16 +22,12 @@ interface, rich transaction support, and undo.
 
 VERSION = "4.0.0dev"
 
-from ez_setup import use_setuptools
-use_setuptools()
-
-from setuptools import setup, find_packages
-from setuptools.extension import Extension
 import os
 import sys
+from setuptools import setup, find_packages
 
 if sys.version_info < (2, 6):
-    print "This version of ZODB requires Python 2.6 or higher"
+    print("This version of ZODB requires Python 2.6 or higher")
     sys.exit(0)
 
 # The (non-obvious!) choices for the Trove Development Status line:
@@ -96,14 +92,15 @@ doclines = __doc__.split("\n")
 def read_file(*path):
     base_dir = os.path.dirname(__file__)
     file_path = (base_dir, ) + tuple(path)
-    return file(os.path.join(*file_path)).read()
+    with open(os.path.join(*file_path), 'rb') as file:
+        return file.read()
 
 long_description = str(
     ("\n".join(doclines[2:]) + "\n\n" +
      ".. contents::\n\n" +
-     read_file("README.rst")  + "\n\n" +
-     read_file("CHANGES.rst")
-    ).decode('latin-1').replace(u'L\xf6wis', '|Lowis|')
+     read_file("README.rst").decode('latin-1')  + "\n\n" +
+     read_file("CHANGES.rst").decode('latin-1')
+    ).replace(u'L\xf6wis', '|Lowis|')
     )+ '''\n\n.. |Lowis| unicode:: L \\xf6 wis\n'''
 
 tests_require = ['zope.testing', 'manuel']
@@ -124,11 +121,12 @@ setup(name="ZODB",
       tests_require = tests_require,
       extras_require = dict(test=tests_require),
       install_requires = [
-        'transaction',
-        'persistent',
         'BTrees',
-        'zc.lockfile',
         'ZConfig',
+        'persistent',
+        'transaction',
+        'six',
+        'zc.lockfile',
         'zdaemon',
         'zope.interface',
         ],

@@ -18,19 +18,29 @@ semantics (which you can override), and it also provides a helper
 method _dostore() which performs a complete store transaction for a
 single object revision.
 """
-
+from __future__ import print_function
 import sys
 import time
-from cPickle import Pickler, Unpickler
-from cStringIO import StringIO
-
 import transaction
 
 from ZODB.utils import u64
 from ZODB.tests.MinPO import MinPO
 import ZODB.tests.util
 
-ZERO = '\0'*8
+try:
+    from cPickle import Pickler, Unpickler
+except ImportError:
+    # Py3
+    from pickle import Pickler, Unpickler
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
+
+
+ZERO = b'\0'*8
 
 def snooze():
     # In Windows, it's possible that two successive time.time() calls return
@@ -50,9 +60,12 @@ def _persistent_id(obj):
 
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
-    f = StringIO()
+    f = BytesIO()
     p = Pickler(f, 1)
-    p.inst_persistent_id = _persistent_id
+    if sys.version_info[0] < 3:
+        p.inst_persistent_id = _persistent_id
+    else:
+        p.persistent_id = _persistent_id
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
     args = None
@@ -65,7 +78,7 @@ def zodb_pickle(obj):
 
     p.dump((klass, args))
     p.dump(state)
-    return f.getvalue(1)
+    return f.getvalue()
 
 def persistent_load(pid):
     # helper for zodb_unpickle
@@ -73,7 +86,7 @@ def persistent_load(pid):
 
 def zodb_unpickle(data):
     """Unpickle an object stored using the format expected by ZODB."""
-    f = StringIO(data)
+    f = BytesIO(data)
     u = Unpickler(f)
     u.persistent_load = persistent_load
     klass_info = u.load()
@@ -95,7 +108,7 @@ def zodb_unpickle(data):
             try:
                 klass = ns[klassname]
             except KeyError:
-                print >> sys.stderr, "can't find %s in %r" % (klassname, ns)
+                print("can't find %s in %r" % (klassname, ns), file=sys.stderr)
         inst = klass()
     else:
         raise ValueError("expected class info: %s" % repr(klass_info))
@@ -118,13 +131,13 @@ def handle_all_serials(oid, *args):
     """
     d = {}
     for arg in args:
-        if isinstance(arg, str):
+        if isinstance(arg, bytes):
             d[oid] = arg
         elif arg is None:
             pass
         else:
             for oid, serial in arg:
-                if not isinstance(serial, str):
+                if not isinstance(serial, bytes):
                     raise serial # error from ZEO server
                 d[oid] = serial
     return d

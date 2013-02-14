@@ -12,12 +12,22 @@
 #
 ##############################################################################
 import doctest
-import cPickle
-import cStringIO as StringIO
 import sys
 import unittest
 
 from ZODB import serialize
+
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
 
 
 class ClassWithNewargs(int):
@@ -32,8 +42,8 @@ class ClassWithoutNewargs(object):
         self.value = value
 
 def make_pickle(ob):
-    sio = StringIO.StringIO()
-    p = cPickle.Pickler(sio, 1)
+    sio = BytesIO()
+    p = pickle.Pickler(sio, 1)
     p.dump(ob)
     return sio.getvalue()
 

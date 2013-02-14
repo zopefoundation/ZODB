@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from __future__ import print_function
 import unittest
 import os
 try:
@@ -21,6 +22,12 @@ except ImportError:
     from md5 import new as md5
 
 import ZODB.tests.util  # layer used at class scope
+
+try:
+    from StringIO import StringIO as BytesIO
+except ImportError:
+    from io import BytesIO
+
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
 
@@ -82,13 +89,12 @@ class FileopsBase:
 
     def _makeChunks(self):
         from ZODB.scripts.repozo import READCHUNK
-        return ['x' * READCHUNK, 'y' * READCHUNK, 'z']
+        return [b'x' * READCHUNK, b'y' * READCHUNK, b'z']
 
     def _makeFile(self, text=None):
-        from StringIO import StringIO
         if text is None:
-            text = ''.join(self._makeChunks())
-        return StringIO(text)
+            text = b''.join(self._makeChunks())
+        return BytesIO(text)
 
 
 class Test_dofile(unittest.TestCase, FileopsBase):
@@ -99,14 +105,14 @@ class Test_dofile(unittest.TestCase, FileopsBase):
 
     def test_empty_read_all(self):
         chunks = []
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         bytes = self._callFUT(chunks.append, file, None)
         self.assertEqual(bytes, 0)
         self.assertEqual(chunks, [])
 
     def test_empty_read_count(self):
         chunks = []
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         bytes = self._callFUT(chunks.append, file, 42)
         self.assertEqual(bytes, 0)
         self.assertEqual(chunks, [])
@@ -123,7 +129,7 @@ class Test_dofile(unittest.TestCase, FileopsBase):
         file = self._makeFile()
         bytes = self._callFUT(chunks.append, file, 42)
         self.assertEqual(bytes, 42)
-        self.assertEqual(chunks, ['x' * 42])
+        self.assertEqual(chunks, [b'x' * 42])
 
 
 class Test_checksum(unittest.TestCase, FileopsBase):
@@ -133,25 +139,25 @@ class Test_checksum(unittest.TestCase, FileopsBase):
         return checksum(fp, n)
 
     def test_empty_read_all(self):
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         sum = self._callFUT(file, None)
-        self.assertEqual(sum, md5('').hexdigest())
+        self.assertEqual(sum, md5(b'').hexdigest())
 
     def test_empty_read_count(self):
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         sum = self._callFUT(file, 42)
-        self.assertEqual(sum, md5('').hexdigest())
+        self.assertEqual(sum, md5(b'').hexdigest())
 
     def test_nonempty_read_all(self):
         file = self._makeFile()
         sum = self._callFUT(file, None)
-        self.assertEqual(sum, md5(''.join(self._makeChunks())).hexdigest())
+        self.assertEqual(sum, md5(b''.join(self._makeChunks())).hexdigest())
 
     def test_nonempty_read_count(self):
         chunks = []
         file = self._makeFile()
         sum = self._callFUT(file, 42)
-        self.assertEqual(sum, md5('x' * 42).hexdigest())
+        self.assertEqual(sum, md5(b'x' * 42).hexdigest())
 
 
 class OptionsTestBase:
@@ -188,12 +194,12 @@ class Test_copyfile(OptionsTestBase, unittest.TestCase):
         source = options.file = os.path.join(self._repository_directory,
                                              'source.txt')
         f = open(source, 'wb')
-        f.write('x' * 1000)
+        f.write(b'x' * 1000)
         f.close()
         target = os.path.join(self._repository_directory, 'target.txt')
         sum = self._callFUT(options, target, 0, 100)
-        self.assertEqual(sum, md5('x' * 100).hexdigest())
-        self.assertEqual(open(target, 'rb').read(), 'x' * 100)
+        self.assertEqual(sum, md5(b'x' * 100).hexdigest())
+        self.assertEqual(open(target, 'rb').read(), b'x' * 100)
 
     def test_w_gzip(self):
         import gzip
@@ -201,12 +207,12 @@ class Test_copyfile(OptionsTestBase, unittest.TestCase):
         source = options.file = os.path.join(self._repository_directory,
                                              'source.txt')
         f = open(source, 'wb')
-        f.write('x' * 1000)
+        f.write(b'x' * 1000)
         f.close()
         target = os.path.join(self._repository_directory, 'target.txt')
         sum = self._callFUT(options, target, 0, 100)
-        self.assertEqual(sum, md5('x' * 100).hexdigest())
-        self.assertEqual(gzip.open(target, 'rb').read(), 'x' * 100)
+        self.assertEqual(sum, md5(b'x' * 100).hexdigest())
+        self.assertEqual(gzip.open(target, 'rb').read(), b'x' * 100)
 
 
 class Test_concat(OptionsTestBase, unittest.TestCase):
@@ -233,19 +239,19 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
     def test_empty_list_no_ofp(self):
         bytes, sum = self._callFUT([], None)
         self.assertEqual(bytes, 0)
-        self.assertEqual(sum, md5('').hexdigest())
+        self.assertEqual(sum, md5(b'').hexdigest())
 
     def test_w_plain_files_no_ofp(self):
-        files = [self._makeFile(x, x, False) for x in 'ABC']
+        files = [self._makeFile(x, x.encode(), False) for x in 'ABC']
         bytes, sum = self._callFUT(files, None)
         self.assertEqual(bytes, 3)
-        self.assertEqual(sum, md5('ABC').hexdigest())
+        self.assertEqual(sum, md5(b'ABC').hexdigest())
 
     def test_w_gzipped_files_no_ofp(self):
-        files = [self._makeFile('%s.fsz' % x, x, True) for x in 'ABC']
+        files = [self._makeFile('%s.fsz' % x, x.encode(), True) for x in 'ABC']
         bytes, sum = self._callFUT(files, None)
         self.assertEqual(bytes, 3)
-        self.assertEqual(sum, md5('ABC').hexdigest())
+        self.assertEqual(sum, md5(b'ABC').hexdigest())
 
     def test_w_ofp(self):
 
@@ -258,10 +264,10 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
             def close(self):
                 self._closed = True
 
-        files = [self._makeFile(x, x, False) for x in 'ABC']
+        files = [self._makeFile(x, x.encode(), False) for x in 'ABC']
         ofp = Faux()
         bytes, sum = self._callFUT(files, ofp)
-        self.assertEqual(ofp._written, [x for x in 'ABC'])
+        self.assertEqual(ofp._written, [x.encode() for x in 'ABC'])
         self.failUnless(ofp._closed)
 
 _marker = object()
@@ -322,7 +328,7 @@ class Test_find_files(OptionsTestBase, unittest.TestCase):
         name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
         fqn = os.path.join(self._repository_directory, name)
         f = open(fqn, 'wb')
-        f.write(name)
+        f.write(name.encode())
         f.flush()
         f.close()
         return fqn
@@ -401,7 +407,7 @@ class Test_scandat(OptionsTestBase, unittest.TestCase):
         fsfile = os.path.join(self._repository_directory, 'foo.fs')
         datfile = os.path.join(self._repository_directory, 'foo.dat')
         f = open(datfile, 'wb')
-        f.write('foo.fs 0 123 ABC\n')
+        f.write(b'foo.fs 0 123 ABC\n')
         f.flush()
         f.close()
         fn, startpos, endpos, sum = self._callFUT([fsfile])
@@ -415,8 +421,8 @@ class Test_scandat(OptionsTestBase, unittest.TestCase):
         fsfile = os.path.join(self._repository_directory, 'foo.fs')
         datfile = os.path.join(self._repository_directory, 'foo.dat')
         f = open(datfile, 'wb')
-        f.write('foo.fs 0 123 ABC\n')
-        f.write('bar.deltafs 123 456 DEF\n')
+        f.write(b'foo.fs 0 123 ABC\n')
+        f.write(b'bar.deltafs 123 456 DEF\n')
         f.flush()
         f.close()
         fn, startpos, endpos, sum = self._callFUT([fsfile])
@@ -433,7 +439,7 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         for filename in filenames:
             fqn = os.path.join(options.repository, filename)
             f = open(fqn, 'wb')
-            f.write('testing delete_old_backups')
+            f.write(b'testing delete_old_backups')
             f.close()
         return options
 
@@ -640,10 +646,10 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
         self._callFUT(options, oldpos, repofiles)
         target = os.path.join(self._repository_directory,
                               gen_filename(options))
-        self.assertEqual(open(target, 'rb').read(), '')
+        self.assertEqual(open(target, 'rb').read(), b'')
         self.assertEqual(open(datfile).read(),
                          '%s %d %d %s\n' %
-                            (target, oldpos, oldpos, md5('').hexdigest()))
+                            (target, oldpos, oldpos, md5(b'').hexdigest()))
         ndxfile = os.path.join(self._repository_directory,
                                gen_filename(options, '.index'))
         ndx_info = fsIndex.load(ndxfile)
@@ -712,7 +718,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
             text = name
         fqn = os.path.join(self._repository_directory, name)
         f = open(fqn, 'wb')
-        f.write(text)
+        f.write(text.encode())
         f.flush()
         f.close()
         return fqn
@@ -750,7 +756,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'BBB')
+        self.assertEqual(open(output, 'rb').read(), b'BBB')
 
     def test_w_full_backup_latest_index(self):
         import tempfile
@@ -763,8 +769,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'BBB')
-        self.assertEqual(open(index, 'rb').read(), 'CCC')
+        self.assertEqual(open(output, 'rb').read(), b'BBB')
+        self.assertEqual(open(index, 'rb').read(), b'CCC')
 
     def test_w_incr_backup_latest_no_index(self):
         import tempfile
@@ -776,7 +782,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'AAABBB')
+        self.assertEqual(open(output, 'rb').read(), b'AAABBB')
 
     def test_w_incr_backup_latest_index(self):
         import tempfile
@@ -789,8 +795,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'AAABBB')
-        self.assertEqual(open(index, 'rb').read(), 'CCC')
+        self.assertEqual(open(output, 'rb').read(), b'AAABBB')
+        self.assertEqual(open(index, 'rb').read(), b'CCC')
 
 class MonteCarloTests(unittest.TestCase):
 
@@ -831,8 +837,8 @@ class MonteCarloTests(unittest.TestCase):
         # Verify snapshots can be reproduced exactly.
         for copyname, copytime in self.saved_snapshots:
             if _NOISY:
-                print "Checking that", copyname,
-                print "at", copytime, "is reproducible."
+                print("Checking that", copyname, end=' ')
+                print("at", copytime, "is reproducible.")
             self.assertRestored(copyname, copytime)
 
     def mutate_pack_backup(self, i):
@@ -845,7 +851,7 @@ class MonteCarloTests(unittest.TestCase):
         # Pack about each tenth time.
         if random.random() < 0.1:
             if _NOISY:
-                print "packing"
+                print("packing")
             self.db.pack()
             self.db.close()
 

@@ -74,7 +74,7 @@ an invalidation arrives.
 
 >>> cn = db.open()
 
->>> print cn._txn_time
+>>> print(cn._txn_time)
 None
 >>> cn.invalidate(100, dict.fromkeys([1, 2]))
 >>> cn._txn_time
@@ -94,7 +94,7 @@ but that doesn't work unless an object is modified.  sync() will abort
 a transaction and process invalidations.
 
 >>> cn.sync()
->>> print cn._txn_time  # the high-water mark got reset to None
+>>> print(cn._txn_time)  # the high-water mark got reset to None
 None
 
 Basic functionality
@@ -152,7 +152,7 @@ ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO.MinPO)
 This example will demonstrate that we can commit a transaction if we only
 modify current revisions.
 
->>> print cn2._txn_time
+>>> print(cn2._txn_time)
 None
 
 >>> r1 = cn1.root()
@@ -166,7 +166,7 @@ True
 >>> r2["b"].value
 3
 >>> tm2.get().commit()
->>> print cn2._txn_time
+>>> print(cn2._txn_time)
 None
 
 Object cache
@@ -401,8 +401,18 @@ True
 >>> ts.count
 1
 """
-
 import doctest
+import re
+
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
+    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
+    ])
 
 def test_suite():
-    return doctest.DocTestSuite()
+    return doctest.DocTestSuite(checker=checker)

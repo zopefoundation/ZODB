@@ -114,7 +114,7 @@ oid
         of a database name, an object id, and class meta data.
 
 The following legacy format is also supported.
-    
+
 [oid]
     A persistent weak reference
 
@@ -133,19 +133,43 @@ A number of legacyforms are defined:
 
 
 """
-
-import cPickle
-import cStringIO
 import logging
-
+import sys
 
 from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
-from ZODB.broken import Broken
 from ZODB.POSException import InvalidObjectReference
 
+try:
+    import cPickle as pickle
+except ImportError:
+    # Py3
+    import pickle
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
+
+if sys.version_info[0] < 3:
+    _Unpickler = pickle.Unpickler
+else:
+    # Py3: Python 3 doesn't allow assignments to find_global,
+    # instead, find_class can be overridden
+    class _Unpickler(pickle.Unpickler):
+        find_global = None
+        def find_class(self, modulename, name):
+            if self.find_global is None:
+                return super(_Unpickler, self).find_class(modulename, name)
+            return self.find_global(modulename, name)
+
 _oidtypes = str, type(None)
+
+# Py3: Python 3 uses protocol 3 by default, which is not loadable by Python
+# 2. If we want this, we can add a condition here for Python 3.
+_protocol = 1
 
 # Might to update or redo coptimizations to reflect weakrefs:
 # from ZODB.coptimizations import new_persistent_id
@@ -172,9 +196,12 @@ class ObjectWriter:
     _jar = None
 
     def __init__(self, obj=None):
-        self._file = cStringIO.StringIO()
-        self._p = cPickle.Pickler(self._file, 1)
-        self._p.inst_persistent_id = self.persistent_id
+        self._file = BytesIO()
+        self._p = pickle.Pickler(self._file, _protocol)
+        if sys.version_info[0] < 3:
+            self._p.inst_persistent_id = self.persistent_id
+        else:
+            self._p.persistent_id = self.persistent_id
         self._stack = []
         if obj is not None:
             self._stack.append(obj)
@@ -193,7 +220,7 @@ class ObjectWriter:
         ...     def db(self):
         ...         return self
         ...     databases = {}
-        
+
         >>> jar = DummyJar()
         >>> class O:
         ...     _p_jar = jar
@@ -284,7 +311,7 @@ class ObjectWriter:
             # Not persistent, pickle normally
             return None
 
-        if not (oid is None or isinstance(oid, str)):
+        if not (oid is None or isinstance(oid, bytes)):
             # Deserves a closer look:
 
             # Make sure it's not a descriptor
@@ -422,7 +449,7 @@ class ObjectWriter:
         return self._dump(meta, obj.__getstate__())
 
     def _dump(self, classmeta, state):
-        # To reuse the existing cStringIO object, we must reset
+        # To reuse the existing cBytesIO object, we must reset
         # the file position to 0 and truncate the file after the
         # new pickle is written.
         self._file.seek(0)
@@ -446,12 +473,14 @@ class NewObjectIterator:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self._stack:
             elt = self._stack.pop()
             return elt
         else:
             raise StopIteration
+
+    next = __next__
 
 class ObjectReader:
 
@@ -464,8 +493,8 @@ class ObjectReader:
         return self._factory(self._conn, module, name)
 
     def _get_unpickler(self, pickle):
-        file = cStringIO.StringIO(pickle)
-        unpickler = cPickle.Unpickler(file)
+        file = BytesIO(pickle)
+        unpickler = _Unpickler(file)
         unpickler.persistent_load = self._persistent_load
         factory = self._factory
         conn = self._conn
@@ -482,7 +511,7 @@ class ObjectReader:
     def _persistent_load(self, reference):
         if isinstance(reference, tuple):
             return self.load_persistent(*reference)
-        elif isinstance(reference, str):
+        elif isinstance(reference, bytes):
             return self.load_oid(reference)
         else:
             try:
@@ -504,7 +533,7 @@ class ObjectReader:
         if isinstance(klass, tuple):
             klass = self._get_class(*klass)
 
-        if issubclass(klass, Broken):
+        if issubclass(klass, broken.Broken):
             # We got a broken class. We might need to make it
             # PersistentBroken
             if not issubclass(klass, broken.PersistentBroken):
@@ -590,7 +619,7 @@ class ObjectReader:
             # Definitely new style direct class reference
             args = ()
 
-        if issubclass(klass, Broken):
+        if issubclass(klass, broken.Broken):
             # We got a broken class. We might need to make it
             # PersistentBroken
             if not issubclass(klass, broken.PersistentBroken):
@@ -603,7 +632,7 @@ class ObjectReader:
         try:
             unpickler.load() # skip the class metadata
             return unpickler.load()
-        except EOFError, msg:
+        except EOFError as msg:
             log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
@@ -624,28 +653,33 @@ def referencesf(p, oids=None):
     """
 
     refs = []
-    u = cPickle.Unpickler(cStringIO.StringIO(p))
-    u.persistent_load = refs
-    u.noload()
-    u.noload()
+    u = pickle.Unpickler(BytesIO(p))
+    if sys.version_info[0] < 3:
+        u.persistent_load = refs
+        u.noload()
+        u.noload()
+    else:
+        u.persistent_load = refs.append
+        u.load()
+        u.load()
 
     # Now we have a list of referencs.  Need to convert to list of
     # oids:
 
     if oids is None:
         oids = []
-        
+
     for reference in refs:
         if isinstance(reference, tuple):
             oid = reference[0]
-        elif isinstance(reference, str):
+        elif isinstance(reference, bytes):
             oid = reference
         else:
             assert isinstance(reference, list)
             continue
 
         oids.append(oid)
-    
+
     return oids
 
 oid_klass_loaders = {
@@ -659,9 +693,9 @@ def get_refs(a_pickle):
     If the reference doesn't contain class information, then the
     klass information is None.
     """
-    
+
     refs = []
-    u = cPickle.Unpickler(cStringIO.StringIO(a_pickle))
+    u = pickle.Unpickler(BytesIO(a_pickle))
     u.persistent_load = refs
     u.noload()
     u.noload()
@@ -674,12 +708,12 @@ def get_refs(a_pickle):
     for reference in refs:
         if isinstance(reference, tuple):
             data = reference
-        elif isinstance(reference, str):
+        elif isinstance(reference, bytes):
             data = reference, None
         else:
             assert isinstance(reference, list)
             continue
 
         result.append(data)
-    
+
     return result
