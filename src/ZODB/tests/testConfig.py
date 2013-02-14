@@ -186,7 +186,9 @@ def multi_atabases():
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocTestSuite(
-        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown))
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        checker=ZODB.tests.util.checker))
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
     return suite
 

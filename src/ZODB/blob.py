@@ -359,13 +359,13 @@ class FilesystemHelper:
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
-        if not os.path.exists(os.path.join(self.base_dir, LAYOUT_MARKER)):
-            layout_marker = open(
-                os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
-            layout_marker.write(utils.as_bytes(self.layout_name))
+        layout_marker_path = os.path.join(self.base_dir, LAYOUT_MARKER)
+        if not os.path.exists(layout_marker_path):
+            with open(layout_marker_path, 'w') as layout_marker:
+                layout_marker.write(self.layout_name)
         else:
-            layout = open(os.path.join(self.base_dir, LAYOUT_MARKER), 'rb'
-                          ).read().strip()
+            with open(layout_marker_path, 'r') as layout_marker:
+                layout = open(layout_marker_path, 'r').read().strip()
             if layout != self.layout_name:
                 raise ValueError(
                     "Directory layout `%s` selected for blob directory %s, but "
@@ -517,7 +517,7 @@ def auto_layout_select(path):
     # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
     if os.path.exists(layout_marker):
-        layout = open(layout_marker, 'rb').read()
+        layout = open(layout_marker, 'r').read()
         layout = layout.strip()
         log('Blob directory `%s` has layout marker set. '
             'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
@@ -559,7 +559,8 @@ class BushyLayout(object):
         # Create the bushy directory structure with the least significant byte
         # first
         for byte in oid.decode():
-            directories.append('0x%s' % binascii.hexlify(byte.encode()))
+            directories.append(
+                '0x%s' % binascii.hexlify(byte.encode()).decode())
         return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
@@ -568,7 +569,7 @@ class BushyLayout(object):
         path = path.split(os.path.sep)
         # Each path segment stores a byte in hex representation. Turn it into
         # an int and then get the character for our byte string.
-        oid = ''.join(binascii.unhexlify(byte[2:]) for byte in path)
+        oid = b''.join(binascii.unhexlify(byte[2:]) for byte in path)
         return oid
 
     def getBlobFilePath(self, oid, tid):
@@ -599,7 +600,7 @@ class LawnLayout(BushyLayout):
                 # OID z64.
                 raise TypeError()
             return utils.repr_to_oid(path)
-        except TypeError:
+        except (TypeError, binascii.Error):
             raise ValueError('Not a valid OID path: `%s`' % path)
 
 LAYOUTS['lawn'] = LawnLayout()

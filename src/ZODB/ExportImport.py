@@ -17,6 +17,7 @@ import os
 from tempfile import TemporaryFile
 import logging
 import six
+import sys
 
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage

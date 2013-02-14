@@ -15,7 +15,6 @@
 import functools
 from persistent import Persistent
 
-@functools.total_ordering
 class MinPO(Persistent):
     def __init__(self, value=None):
         self.value = value
@@ -23,12 +22,18 @@ class MinPO(Persistent):
     def __cmp__(self, aMinPO):
         return cmp(self.value, aMinPO.value)
 
-    # Py3: Python 3 does not support cmp() anymore.
+    # Py3: Python 3 does not support cmp() anymore. This is insane!!
     def __eq__(self, aMinPO):
         return self.value == aMinPO.value
 
+    def __ne__(self, aMinPO):
+        return self.value != aMinPO.value
+
+    def __gt__(self, aMinPO):
+        return self.value > aMinPO.value
+
     def __lt__(self, aMinPO):
-        return self.value <= aMinPO.value
+        return self.value < aMinPO.value
 
     def __repr__(self):
         return "MinPO(%s)" % self.value

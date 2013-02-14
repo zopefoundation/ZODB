@@ -116,10 +116,7 @@ class ConflictError(POSError, transaction.interfaces.TransientError):
         if data is not None:
             # avoid circular import chain
             from ZODB.utils import get_pickle_metadata
-            self.class_name = "%s.%s" % get_pickle_metadata(data)
-##        else:
-##            if message != "data read conflict error":
-##                raise RuntimeError
+            self.class_name = '.'.join(get_pickle_metadata(data))
 
         self.serials = serials
 

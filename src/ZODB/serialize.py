@@ -165,7 +165,7 @@ else:
                 return super(_Unpickler, self).find_class(modulename, name)
             return self.find_global(modulename, name)
 
-_oidtypes = str, type(None)
+_oidtypes = bytes, type(None)
 
 # Py3: Python 3 uses protocol 3 by default, which is not loadable by Python
 # 2. If we want this, we can add a condition here for Python 3.
@@ -697,9 +697,15 @@ def get_refs(a_pickle):
 
     refs = []
     u = pickle.Unpickler(BytesIO(a_pickle))
-    u.persistent_load = refs
-    u.noload()
-    u.noload()
+    if sys.version_info[0] < 3:
+        u.persistent_load = refs
+        u.noload()
+        u.noload()
+    else:
+        # Py3: There is no `noload()` in Python 3.
+        u.persistent_load = refs.append
+        u.load()
+        u.load()
 
     # Now we have a list of referencs.  Need to convert to list of
     # oids and class info:

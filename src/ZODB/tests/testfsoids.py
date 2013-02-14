@@ -168,6 +168,7 @@ Clean up.
 """
 
 import doctest
+import ZODB.tests.util
 
 def test_suite():
-    return doctest.DocTestSuite()
+    return doctest.DocTestSuite(checker=ZODB.tests.util.checker)

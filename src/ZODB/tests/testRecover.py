@@ -73,7 +73,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
             offset = random.randint(0, self.storage._pos - size)
             f = open(self.path, "a+b")
             f.seek(offset)
-            f.write("\0" * size)
+            f.write(b"\0" * size)
             f.close()
 
     ITERATIONS = 5
@@ -106,11 +106,11 @@ class RecoverTest(ZODB.tests.util.TestCase):
         self.assert_('\n0 bytes removed during recovery' in output, output)
 
         # Verify that the recovered database is identical to the original.
-        before = file(self.path, 'rb')
+        before = open(self.path, 'rb')
         before_guts = before.read()
         before.close()
 
-        after = file(self.dest, 'rb')
+        after = open(self.dest, 'rb')
         after_guts = after.read()
         after.close()
 
@@ -164,10 +164,10 @@ class RecoverTest(ZODB.tests.util.TestCase):
         # Overwrite the entire header.
         f = open(self.path, "a+b")
         f.seek(pos1 - 50)
-        f.write("\0" * 100)
+        f.write(b"\0" * 100)
         f.close()
         output = self.recover()
-        self.assert_('error' in output, output)
+        self.assertTrue('error' in output, output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
         os.remove(self.path)
@@ -176,10 +176,10 @@ class RecoverTest(ZODB.tests.util.TestCase):
         # Overwrite part of the header.
         f = open(self.path, "a+b")
         f.seek(pos2 + 10)
-        f.write("\0" * 100)
+        f.write(b"\0" * 100)
         f.close()
         output = self.recover()
-        self.assert_('error' in output, output)
+        self.assertTrue('error' in output, output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
 
@@ -197,9 +197,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
         f = open(self.path, "r+b")
         f.seek(pos + 16)
         current_status = f.read(1)
-        self.assertEqual(current_status, ' ')
+        self.assertEqual(current_status, b' ')
         f.seek(pos + 16)
-        f.write('c')
+        f.write(b'c')
         f.close()
 
         # Try to recover.  The original bug was that this never completed --

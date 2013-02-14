@@ -69,8 +69,10 @@ Clean up.
 
 import doctest
 import zope.testing.setupstack
+import ZODB.tests.util
 
 def test_suite():
     return doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown)
+        tearDown=zope.testing.setupstack.tearDown,
+        checker=ZODB.tests.util.checker)

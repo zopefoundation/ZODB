@@ -14,6 +14,7 @@
 import doctest
 import persistent
 import unittest
+import ZODB.tests.util
 
 class MyClass(persistent.Persistent):
     pass
@@ -119,7 +120,7 @@ if we get the same objects:
 
     >>> conn1.root()['x'].z is conn1.root()['y'].z
     True
-    
+
     >>> db1.close()
     >>> db2.close()
 """
@@ -143,7 +144,7 @@ def test_explicit_adding_with_savepoint():
     >>> tm.commit()
     >>> z._p_jar.db().database_name
     '1'
-    
+
     >>> db1.close()
     >>> db2.close()
 
@@ -169,7 +170,7 @@ def test_explicit_adding_with_savepoint2():
     >>> tm.commit()
     >>> z._p_jar.db().database_name
     '1'
-    
+
     >>> db1.close()
     >>> db2.close()
 
@@ -181,15 +182,19 @@ def tearDownDbs(test):
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('../cross-database-references.txt',
-                             globs=dict(MyClass=MyClass),
-                             tearDown=tearDownDbs,
-                             ),
-        doctest.DocFileSuite('../cross-database-references.txt',
-                             globs=dict(MyClass=MyClass_w_getnewargs),
-                             tearDown=tearDownDbs,
-                             ),
-        doctest.DocTestSuite(),
+        doctest.DocFileSuite(
+                '../cross-database-references.txt',
+                globs=dict(MyClass=MyClass),
+                tearDown=tearDownDbs,
+                checker=ZODB.tests.util.checker,
+                ),
+        doctest.DocFileSuite(
+                '../cross-database-references.txt',
+                globs=dict(MyClass=MyClass_w_getnewargs),
+                tearDown=tearDownDbs,
+                checker=ZODB.tests.util.checker,
+                ),
+        doctest.DocTestSuite(checker=ZODB.tests.util.checker),
         ))
 
 if __name__ == '__main__':

@@ -21,6 +21,7 @@ from __future__ import print_function
 import threading
 import time
 import logging
+import sys
 from struct import pack as _structpack, unpack as _structunpack
 
 import zope.interface
@@ -41,7 +42,6 @@ except ImportError:
 
 log = logging.getLogger("ZODB.BaseStorage")
 
-import sys
 
 
 class BaseStorage(UndoLogCompatible):

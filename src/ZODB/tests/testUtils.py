@@ -53,12 +53,12 @@ class TestUtils(unittest.TestCase):
             self.assertEquals(num, n2, "u64() failed")
 
     def checkKnownConstants(self):
-        self.assertEquals("\000\000\000\000\000\000\000\001", p64(1))
-        self.assertEquals("\000\000\000\001\000\000\000\000", p64(1<<32))
-        self.assertEquals(u64("\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(U64("\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(u64("\000\000\000\001\000\000\000\000"), 1<<32)
-        self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEquals(b"\000\000\000\000\000\000\000\001", p64(1))
+        self.assertEquals(b"\000\000\000\001\000\000\000\000", p64(1<<32))
+        self.assertEquals(u64(b"\000\000\000\000\000\000\000\001"), 1)
+        self.assertEquals(U64(b"\000\000\000\000\000\000\000\001"), 1)
+        self.assertEquals(u64(b"\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEquals(U64(b"\000\000\000\001\000\000\000\000"), 1<<32)
 
     def checkPersistentIdHandlesDescriptor(self):
         from ZODB.serialize import ObjectWriter
@@ -88,11 +88,11 @@ class TestUtils(unittest.TestCase):
 
         # The pickle contains a GLOBAL ('c') opcode resolving to MinPO's
         # module and class.
-        self.assert_('cZODB.tests.MinPO\nMinPO\n' in data)
+        self.assert_(b'cZODB.tests.MinPO\nMinPO\n' in data)
 
         # Fiddle the pickle so it points to something "impossible" instead.
-        data = data.replace('cZODB.tests.MinPO\nMinPO\n',
-                            'cpath.that.does.not.exist\nlikewise.the.class\n')
+        data = data.replace(b'cZODB.tests.MinPO\nMinPO\n',
+                            b'cpath.that.does.not.exist\nlikewise.the.class\n')
         # Pickle can't resolve that GLOBAL opcode -- gets ImportError.
         self.assertRaises(ImportError, pickle.loads, data)
 
@@ -101,8 +101,8 @@ class TestUtils(unittest.TestCase):
             raise ConflictError(object=obj, data=data)
         except ConflictError as detail:
             # And verify that the msg names the impossible path.
-            self.assert_('path.that.does.not.exist.likewise.the.class' in
-                         str(detail))
+            self.assertTrue(
+                'path.that.does.not.exist.likewise.the.class' in str(detail))
         else:
             self.fail("expected ConflictError, but no exception raised")
 

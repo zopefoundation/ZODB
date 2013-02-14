@@ -48,11 +48,12 @@ from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.POSException import Unsupported, ReadOnlyHistoryError
 from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader
-from ZODB.utils import p64, u64, z64, oid_repr, positive_id, bytes
+from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 import six
 
 global_reset_counter = 0
+
 
 def resetCaches():
     """Causes all connection caches to be reset as connections are reopened.
@@ -494,7 +495,7 @@ class Connection(ExportImport, object):
             if invalidated is None:
                 # special value: the transaction is so old that
                 # we need to flush the whole cache.
-                self._cache.invalidate(self._cache.cache_data.keys())
+                self._cache.invalidate(list(self._cache.cache_data.keys()))
             elif invalidated:
                 self._cache.invalidate(invalidated)
 
@@ -1013,7 +1014,7 @@ class Connection(ExportImport, object):
         for k,v in items:
             del everything[k]
         # return a list of [ghosts....not recently used.....recently used]
-        return everything.items() + items
+        return list(everything.items()) + items
 
     def open(self, transaction_manager=None, delegate=True):
         """Register odb, the DB that this Connection uses.

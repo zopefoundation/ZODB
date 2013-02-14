@@ -15,6 +15,7 @@ import doctest
 import sys
 import unittest
 
+import ZODB.tests.util
 from ZODB import serialize
 
 try:
@@ -131,5 +132,6 @@ class SerializerTestCase(unittest.TestCase):
 
 def test_suite():
     suite = unittest.makeSuite(SerializerTestCase)
-    suite.addTest(doctest.DocTestSuite("ZODB.serialize"))
+    suite.addTest(
+        doctest.DocTestSuite("ZODB.serialize", checker=ZODB.tests.util.checker))
     return suite

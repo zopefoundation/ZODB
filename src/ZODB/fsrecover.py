@@ -215,7 +215,7 @@ def scan(f, pos):
 
         s = 0
         while 1:
-            l = data.find(".", s)
+            l = data.find(b".", s)
             if l < 0:
                 pos += len(data)
                 break

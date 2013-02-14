@@ -34,7 +34,7 @@ We can open a new blob file for reading, but it won't have any data::
 But we can write data to a new Blob by opening it for writing::
 
     >>> f = myblob.open("w")
-    >>> f.write("Hi, Blob!")
+    >>> _ = f.write(b"Hi, Blob!")
 
 If we try to open a Blob again while it is open for writing, we get an error::
 
@@ -77,7 +77,7 @@ Before we can write, we have to close the readers::
 Now we can open it for writing again and e.g. append data::
 
     >>> f4 = myblob.open("a")
-    >>> f4.write("\nBlob is fine.")
+    >>> _ = f4.write(b"\nBlob is fine.")
 
 We can't open a blob while it is open for writing:
 
@@ -122,7 +122,7 @@ We can read lines out of the blob too::
 We can seek to certain positions in a blob and read portions of it::
 
     >>> f6 = myblob.open('r')
-    >>> f6.seek(4)
+    >>> _ = f6.seek(4)
     >>> int(f6.tell())
     4
     >>> f6.read(5)
@@ -133,7 +133,7 @@ We can use the object returned by a blob open call as an iterable::
 
     >>> f7 = myblob.open('r')
     >>> for line in f7:
-    ...     print line
+    ...     print(line.decode())
     Hi, Blob!
     <BLANKLINE>
     Blob is fine.
@@ -142,7 +142,7 @@ We can use the object returned by a blob open call as an iterable::
 We can truncate a blob::
 
     >>> f8 = myblob.open('a')
-    >>> f8.truncate(0)
+    >>> _ = f8.truncate(0)
     >>> f8.close()
     >>> f8 = myblob.open('r')
     >>> f8.read()
@@ -159,12 +159,13 @@ Blobs are always opened in binary mode::
 Blobs that have not been committed can be opened using any mode,
 except for "c"::
 
+    >>> import six
     >>> from ZODB.blob import BlobError, valid_modes
     >>> for mode in valid_modes:
     ...     try:
     ...         f10 = Blob().open(mode)
     ...     except BlobError:
-    ...         print 'open failed with mode "%s"' % mode
+    ...         six.print_('open failed with mode "%s"' % mode)
     ...     else:
     ...         f10.close()
     open failed with mode "c"
@@ -192,6 +193,6 @@ Passing data to the blob constructor
 If you have a small amount of data, you can pass it to the blob
 constructor.  (This is a convenience, mostly for writing tests.)
 
-    >>> myblob = Blob('some data')
+    >>> myblob = Blob(b'some data')
     >>> myblob.open().read()
     'some data'

@@ -535,9 +535,7 @@ class DB(object):
                     detail[c] = 1
 
         self._connectionMap(f)
-        detail = detail.items()
-        detail.sort()
-        return detail
+        return sorted(detail.items())
 
     def cacheExtremeDetail(self):
         detail = []
@@ -611,8 +609,9 @@ class DB(object):
                       'ngsize': con._cache.cache_non_ghost_count,
                       'size': len(con._cache)})
         self._connectionMap(f)
-        m.sort()
-        return m
+        # Py3: Simulate Python 2 m.sort() functionality.
+        return sorted(
+            m, key=lambda x: (x['connection'], x['ngsize'], x['size']))
 
     def close(self):
         """Close the database and its underlying storage.
@@ -932,7 +931,7 @@ class DB(object):
             raise NotImplementedError
         if txn is None:
             txn = transaction.get()
-        if isinstance(ids, basestring):
+        if isinstance(ids, six.string_types):
             ids = [ids]
         txn.join(TransactionalUndo(self, ids))
 

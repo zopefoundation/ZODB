@@ -20,6 +20,11 @@ from ZODB.utils import p64, z64
 from ZODB.tests.util import setUp, tearDown
 import six
 
+try:
+    xrange
+except NameError:
+    # Py3: No xrange.
+    xrange = range
 
 class Test(unittest.TestCase):
 
@@ -143,7 +148,7 @@ class Test(unittest.TestCase):
 
         # Now build up a tree with random values, and check maxKey at each
         # step.
-        correct_max = ""   # smaller than anything we'll add
+        correct_max = b""   # smaller than anything we'll add
         for i in range(1000):
             key = p64(random.randrange(100000000))
             index[key] = i
@@ -152,10 +157,10 @@ class Test(unittest.TestCase):
             self.assertEqual(index_max, correct_max)
 
         index.clear()
-        a = '\000\000\000\000\000\001\000\000'
-        b = '\000\000\000\000\000\002\000\000'
-        c = '\000\000\000\000\000\003\000\000'
-        d = '\000\000\000\000\000\004\000\000'
+        a = b'\000\000\000\000\000\001\000\000'
+        b = b'\000\000\000\000\000\002\000\000'
+        c = b'\000\000\000\000\000\003\000\000'
+        d = b'\000\000\000\000\000\004\000\000'
         index[a] = 1
         index[c] = 2
         self.assertEqual(index.maxKey(b), a)
@@ -171,7 +176,7 @@ class Test(unittest.TestCase):
 
         # Now build up a tree with random values, and check minKey at each
         # step.
-        correct_min = "\xff" * 8   # bigger than anything we'll add
+        correct_min = b"\xff" * 8   # bigger than anything we'll add
         for i in range(1000):
             key = p64(random.randrange(100000000))
             index[key] = i
@@ -180,10 +185,10 @@ class Test(unittest.TestCase):
             self.assertEqual(index_min, correct_min)
 
         index.clear()
-        a = '\000\000\000\000\000\001\000\000'
-        b = '\000\000\000\000\000\002\000\000'
-        c = '\000\000\000\000\000\003\000\000'
-        d = '\000\000\000\000\000\004\000\000'
+        a = b'\000\000\000\000\000\001\000\000'
+        b = b'\000\000\000\000\000\002\000\000'
+        c = b'\000\000\000\000\000\003\000\000'
+        d = b'\000\000\000\000\000\004\000\000'
         index[a] = 1
         index[c] = 2
         self.assertEqual(index.minKey(b), c)

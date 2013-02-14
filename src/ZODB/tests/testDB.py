@@ -15,12 +15,23 @@
 from ZODB.tests.MinPO import MinPO
 import doctest
 import os
+import re
 import sys
 import time
 import transaction
 import unittest
 import ZODB
 import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"),
+     r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
+    ])
+
 
 # Return total number of connections across all pools in a db._pools.
 def nconn(pools):
@@ -196,7 +207,7 @@ def open_convenience():
     DB arguments.
 
     >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
-    >>> conn.root()['b'] = ZODB.blob.Blob('test')
+    >>> conn.root()['b'] = ZODB.blob.Blob(b'test')
     >>> transaction.commit()
     >>> conn.close()
 
@@ -348,5 +359,6 @@ def test_suite():
     s = unittest.makeSuite(DBTests)
     s.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+        checker=checker
         ))
     return s

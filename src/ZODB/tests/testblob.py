@@ -42,11 +42,10 @@ import zope.testing.renormalizing
 
 
 try:
-    from StringIO import StringIO
+    from StringIO import StringIO as BytesIO
 except ImportError:
     # Py3
-    from io import StringIO
-
+    from io import BytesIO
 
 def new_time():
     """Create a _new_ time stamp.
@@ -118,7 +117,7 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
         root['blob'] = Blob()
         transaction.commit()
 
-        stream = StringIO()
+        stream = BytesIO()
         p = Pickler(stream, 1)
         p.dump(root['blob'])
         u = Unpickler(stream)
@@ -756,13 +755,15 @@ def test_suite():
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
         optionflags=doctest.ELLIPSIS,
+        checker=ZODB.tests.util.checker,
         ))
     suite.addTest(doctest.DocFileSuite(
         "blob_layout.txt",
         optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
-        checker = zope.testing.renormalizing.RENormalizing([
+        checker = ZODB.tests.util.checker + \
+            zope.testing.renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),

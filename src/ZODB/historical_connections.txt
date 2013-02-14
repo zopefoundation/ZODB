@@ -64,7 +64,7 @@ historical state.
     >>> conn.root()['first']['count']
     1
 
-    >>> historical_conn.root().keys()
+    >>> sorted(historical_conn.root().keys())
     ['first']
     >>> historical_conn.root()['first']['count']
     0
@@ -96,7 +96,7 @@ commit.
 
     >>> historical_conn = db.open(transaction_manager=transaction1,
     ...                           at=historical_serial)
-    >>> historical_conn.root().keys()
+    >>> sorted(historical_conn.root().keys())
     ['first']
     >>> historical_conn.root()['first']['count']
     0
@@ -110,7 +110,7 @@ root.
     >>> serial = conn.root()._p_serial
     >>> historical_conn = db.open(
     ...     transaction_manager=transaction1, before=serial)
-    >>> historical_conn.root().keys()
+    >>> sorted(historical_conn.root().keys())
     ['first']
     >>> historical_conn.root()['first']['count']
     0
@@ -120,7 +120,7 @@ underlying mechanism is a storage's loadBefore method.  When you look at a
 connection's ``before`` attribute, it is normalized into a ``before`` serial,
 no matter what you pass into ``db.open``.
 
-    >>> print conn.before
+    >>> print(conn.before)
     None
     >>> historical_conn.before == serial
     True

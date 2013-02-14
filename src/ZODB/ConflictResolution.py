@@ -13,30 +13,31 @@
 ##############################################################################
 
 import logging
+import sys
 from pickle import PicklingError
 
+import six
 import zope.interface
-
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
-from ZODB.serialize import _protocol
+from ZODB.serialize import _protocol, _Unpickler
 
 try:
-    from cStringIO import StringIO
+    from cStringIO import StringIO as BytesIO
 except ImportError:
     # Py3
-    from io import StringIO
+    from io import BytesIO
 
 try:
-    from cPickle import Unpickler, Pickler
+    from cPickle import Pickler
 except ImportError:
     # Py3
-    from pickle import Unpickler, Pickler
+    from pickle import Pickler
 
 
 logger = logging.getLogger('ZODB.ConflictResolution')
 
-ResolvedSerial = 'rs'
+ResolvedSerial = b'rs'
 
 class BadClassName(Exception):
     pass
@@ -69,8 +70,8 @@ def find_global(*args):
     if cls == 1:
         # Not importable
         if (isinstance(args, tuple) and len(args) == 2 and
-            isinstance(args[0], basestring) and
-            isinstance(args[1], basestring)
+            isinstance(args[0], six.string_types) and
+            isinstance(args[1], six.string_types)
             ):
             return BadClass(*args)
         else:
@@ -80,8 +81,8 @@ def find_global(*args):
 def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
     p = self._crs_untransform_record_data(p)
-    file = StringIO(p)
-    unpickler = Unpickler(file)
+    file = BytesIO(p)
+    unpickler = _Unpickler(file)
     unpickler.find_global = find_global
     unpickler.persistent_load = prfactory.persistent_load
     unpickler.load() # skip the class tuple
@@ -221,13 +222,13 @@ def persistent_id(object):
 
 _unresolvable = {}
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
-                         committedData=''):
+                         committedData=b''):
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
     try:
         prfactory = PersistentReferenceFactory()
         newpickle = self._crs_untransform_record_data(newpickle)
-        file = StringIO(newpickle)
-        unpickler = Unpickler(file)
+        file = BytesIO(newpickle)
+        unpickler = _Unpickler(file)
         unpickler.find_global = find_global
         unpickler.persistent_load = prfactory.persistent_load
         meta = unpickler.load()
@@ -269,7 +270,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
 
         resolved = resolve(old, committed, newstate)
 
-        file = StringIO()
+        file = BytesIO()
         pickler = Pickler(file, _protocol)
         if sys.version_info[0] < 3:
             pickler.inst_persistent_id = persistent_id
@@ -277,7 +278,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
             pickler.persistent_id = persistent_id
         pickler.dump(meta)
         pickler.dump(resolved)
-        return self._crs_transform_record_data(file.getvalue(1))
+        return self._crs_transform_record_data(file.getvalue())
     except (ConflictError, BadClassName):
         pass
     except:

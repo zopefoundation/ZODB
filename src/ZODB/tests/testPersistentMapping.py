@@ -40,6 +40,7 @@ except ImportError:
     # Py3
     import io as cStringIO
 
+PY2 = sys.version_info[0] == 2
 
 # This pickle contains a persistent mapping pickle created from the
 # old code.
@@ -124,31 +125,26 @@ class PMTests(unittest.TestCase):
         self.assertEqual(m.get('fred'), None)
         self.assertEqual(m.get('fred', 42), 42)
 
-        keys = m.keys()
-        keys.sort()
+        keys = sorted(m.keys())
         self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
-        values = m.values()
-        values.sort()
-        self.assertEqual(values, [1, 2, 3, 'bob'])
+        values = set(m.values())
+        self.assertEqual(values, set([1, 2, 3, 'bob']))
 
-        items = m.items()
-        items.sort()
+        items = sorted(m.items())
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
-        keys = list(m.iterkeys())
-        keys.sort()
-        self.assertEqual(keys, ['a', 'b', 'name', 'x'])
+        if PY2:
+            keys = sorted(m.iterkeys())
+            self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
-        values = list(m.itervalues())
-        values.sort()
-        self.assertEqual(values, [1, 2, 3, 'bob'])
+            values = sorted(m.itervalues())
+            self.assertEqual(values, [1, 2, 3, 'bob'])
 
-        items = list(m.iteritems())
-        items.sort()
-        self.assertEqual(items,
-                         [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
+            items = sorted(m.iteritems())
+            self.assertEqual(
+                items, [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
     # PersistentMapping didn't have an __iter__ method before ZODB 3.4.2.
     # Check that it plays well now with the Python iteration protocol.

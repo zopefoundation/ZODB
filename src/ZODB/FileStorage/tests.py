@@ -82,7 +82,7 @@ directory for blobs is kept.)
     >>> conn = db.open()
     >>> conn.root()[1] = ZODB.blob.Blob()
     >>> with conn.root()[1].open('w') as file:
-    ...     file.write(b'some data')
+    ...     _ = file.write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
     >>> with conn.root()[2].open('w') as file:
     ...     _ = file.write(b'some data')

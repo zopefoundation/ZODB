@@ -27,10 +27,10 @@ except ImportError:
     import pickle
 
 try:
-    from cStringIO import StringIO
+    from cStringIO import StringIO as BytesIO
 except ImportError:
     # Py3
-    from io import StringIO
+    from io import BytesIO
 
 
 from persistent.TimeStamp import TimeStamp
@@ -177,7 +177,7 @@ def repr_to_oid(repr):
     if repr.startswith("0x"):
         repr = repr[2:]
     as_bin = unhexlify(repr)
-    as_bin = "\x00"*(8-len(as_bin)) + as_bin
+    as_bin = b"\x00"*(8-len(as_bin)) + as_bin
     return as_bin
 
 serial_repr = oid_repr
@@ -219,12 +219,14 @@ def positive_id(obj):
 # for what serialize.py calls formats 5 and 6.
 
 def get_pickle_metadata(data):
+    # Returns a 2-tuple of strings.
+
     # ZODB's data records contain two pickles.  The first is the class
     # of the object, the second is the object.  We're only trying to
     # pick apart the first here, to extract the module and class names.
-    if data.startswith('(c'):   # pickle MARK GLOBAL opcode sequence
+    if data.startswith(b'(c'):   # pickle MARK GLOBAL opcode sequence
         global_prefix = 2
-    elif data.startswith('c'):  # pickle GLOBAL opcode
+    elif data.startswith(b'c'):  # pickle GLOBAL opcode
         global_prefix = 1
     else:
         global_prefix = 0
@@ -235,12 +237,12 @@ def get_pickle_metadata(data):
         # load the class.  Just break open the pickle and get the
         # module and class from it.  The module and class names are given by
         # newline-terminated strings following the GLOBAL opcode.
-        modname, classname, rest = data.split('\n', 2)
+        modname, classname, rest = data.split(b'\n', 2)
         modname = modname[global_prefix:]   # strip GLOBAL opcode
-        return modname, classname
+        return modname.decode(), classname.decode()
 
     # Else there are a bunch of other possible formats.
-    f = StringIO(data)
+    f = BytesIO(data)
     u = pickle.Unpickler(f)
     try:
         class_info = u.load()

@@ -22,8 +22,7 @@ def class_with_circular_ref_to_self():
     """
 It should be possible for a class to reger to itself.
 
-    >>> class C:
-    ...     __metaclass__ = ZODB.persistentclass.PersistentMetaClass
+    >>> C = ZODB.persistentclass.PersistentMetaClass('C', (object,), {})
 
     >>> C.me = C
     >>> db = ZODB.tests.util.DB()
@@ -38,6 +37,34 @@ It should be possible for a class to reger to itself.
     'C'
 
 """
+
+def test_new_ghost_w_persistent_class():
+    """
+    Peristent meta classes work with PickleCache.new_ghost:
+
+    >>> import ZODB.persistentclass
+
+    >>> PC = ZODB.persistentclass.PersistentMetaClass('PC', (object,), {})
+
+    >>> PC._p_oid
+    >>> PC._p_jar
+    >>> PC._p_serial
+    >>> PC._p_changed
+    False
+
+    >>> import persistent
+    >>> jar = object()
+    >>> cache = persistent.PickleCache(jar, 10, 100)
+    >>> cache.new_ghost('1', PC)
+
+    >>> PC._p_oid
+    '1'
+    >>> PC._p_jar is jar
+    True
+    >>> PC._p_serial
+    >>> PC._p_changed
+    False
+    """
 
 # XXX need to update files to get newer testing package
 class FakeModule:
@@ -59,8 +86,10 @@ def tearDown(test):
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite("../persistentclass.txt",
-                             setUp=setUp, tearDown=tearDown),
+        doctest.DocFileSuite(
+                "../persistentclass.txt",
+                setUp=setUp, tearDown=tearDown,
+                checker=ZODB.tests.util.checker),
         doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
         ))
 

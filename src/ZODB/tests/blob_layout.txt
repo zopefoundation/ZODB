@@ -24,9 +24,9 @@ entries per directory level:
 
 >>> from ZODB.blob import BushyLayout
 >>> bushy = BushyLayout()
->>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x00')
+>>> bushy.oid_to_path(b'\x00\x00\x00\x00\x00\x00\x00\x00')
 '0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x00'
->>> bushy.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
+>>> bushy.oid_to_path(b'\x00\x00\x00\x00\x00\x00\x00\x01')
 '0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x01'
 
 >>> import os
@@ -54,9 +54,9 @@ of blobs at the same time (e.g. 32k on ext3).
 
 >>> from ZODB.blob import LawnLayout
 >>> lawn = LawnLayout()
->>> lawn.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x00')
+>>> lawn.oid_to_path(b'\x00\x00\x00\x00\x00\x00\x00\x00')
 '0x00'
->>> lawn.oid_to_path('\x00\x00\x00\x00\x00\x00\x00\x01')
+>>> lawn.oid_to_path(b'\x00\x00\x00\x00\x00\x00\x00\x01')
 '0x01'
 
 >>> lawn.path_to_oid('0x01')
@@ -98,10 +98,12 @@ already been used to create a lawn structure.
 
 >>> from ZODB.blob import LAYOUT_MARKER
 >>> import os.path
->>> open(os.path.join('blobs', LAYOUT_MARKER), 'wb').write('bushy')
+>>> with open(os.path.join('blobs', LAYOUT_MARKER), 'wb') as file:
+...     _ = file.write(b'bushy')
 >>> auto_layout_select('blobs')
 'bushy'
->>> open(os.path.join('blobs', LAYOUT_MARKER), 'wb').write('lawn')
+>>> with open(os.path.join('blobs', LAYOUT_MARKER), 'wb') as file:
+...     _ = file.write(b'lawn')
 >>> auto_layout_select('blobs')
 'lawn'
 >>> shutil.rmtree('blobs')
@@ -111,7 +113,8 @@ not hidden, we assume that it was created with an earlier version of
 the blob implementation and uses our `lawn` layout:
 
 >>> os.mkdir('blobs')
->>> open(os.path.join('blobs', '0x0101'), 'wb').write('foo')
+>>> with open(os.path.join('blobs', '0x0101'), 'wb') as file:
+...     _ = file.write(b'foo')
 >>> auto_layout_select('blobs')
 'lawn'
 >>> shutil.rmtree('blobs')
@@ -119,7 +122,8 @@ the blob implementation and uses our `lawn` layout:
 5. If the directory contains only hidden files, use the bushy layout:
 
 >>> os.mkdir('blobs')
->>> open(os.path.join('blobs', '.svn'), 'wb').write('blah')
+>>> with open(os.path.join('blobs', '.svn'), 'wb') as file:
+...     _ = file.write(b'blah')
 >>> auto_layout_select('blobs')
 'bushy'
 >>> shutil.rmtree('blobs')
@@ -162,7 +166,8 @@ the marker will be used in the future:
 >>> base_storage = ZODB.FileStorage.FileStorage(datafs)
 
 >>> os.mkdir(blobs)
->>> open(os.path.join(blobs, 'foo'), 'wb').write('foo')
+>>> with open(os.path.join(blobs, 'foo'), 'wb') as file:
+...     _ = file.write(b'foo')
 >>> blob_storage = BlobStorage(blobs, base_storage)
 >>> blob_storage.fshelper.layout_name
 'lawn'
@@ -202,12 +207,18 @@ Create a `lawn` directory structure and migrate it to the new `bushy` one:
 >>> blob1 = old_fsh.getPathForOID(7039, create=True)
 >>> blob2 = old_fsh.getPathForOID(10, create=True)
 >>> blob3 = old_fsh.getPathForOID(7034, create=True)
->>> open(os.path.join(blob1, 'foo'), 'wb').write('foo')
->>> open(os.path.join(blob1, 'foo2'), 'wb').write('bar')
->>> open(os.path.join(blob2, 'foo3'), 'wb').write('baz')
->>> open(os.path.join(blob2, 'foo4'), 'wb').write('qux')
->>> open(os.path.join(blob3, 'foo5'), 'wb').write('quux')
->>> open(os.path.join(blob3, 'foo6'), 'wb').write('corge')
+>>> with open(os.path.join(blob1, 'foo'), 'wb') as file:
+...     _ = file.write(b'foo')
+>>> with open(os.path.join(blob1, 'foo2'), 'wb') as file:
+...     _ = file.write(b'bar')
+>>> with open(os.path.join(blob2, 'foo3'), 'wb') as file:
+...     _ = file.write(b'baz')
+>>> with open(os.path.join(blob2, 'foo4'), 'wb') as file:
+...     _ = file.write(b'qux')
+>>> with open(os.path.join(blob3, 'foo5'), 'wb') as file:
+...     _ = file.write(b'quux')
+>>> with open(os.path.join(blob3, 'foo6'), 'wb') as file:
+...     _ = file.write(b'corge')
 
 Committed blobs have their permissions set to 000
 
@@ -237,16 +248,17 @@ with the same sizes and permissions:
 >>> len(lawn_files) == len(bushy_files)
 True
 
+>>> import six
 >>> for file_name, lawn_path in sorted(lawn_files.items()):
 ...     if file_name == '.layout':
 ...         continue
 ...     lawn_stat = os.stat(lawn_path)
 ...     bushy_path = bushy_files[file_name]
 ...     bushy_stat = os.stat(bushy_path)
-...     print lawn_path, '-->', bushy_path
+...     six.print_(lawn_path, '-->', bushy_path)
 ...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
 ...         (bushy_stat.st_mode, bushy_stat.st_size)):
-...         print 'oops'
+...         print('oops')
 old/0x1b7f/foo --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo
 old/0x1b7f/foo2 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2
 old/0x0a/foo3 --> bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3
@@ -277,10 +289,10 @@ True
 ...     lawn_stat = os.stat(lawn_path)
 ...     bushy_path = bushy_files[file_name]
 ...     bushy_stat = os.stat(bushy_path)
-...     print bushy_path, '-->', lawn_path
+...     six.print_(bushy_path, '-->', lawn_path)
 ...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
 ...         (bushy_stat.st_mode, bushy_stat.st_size)):
-...         print 'oops'
+...         print('oops')
 bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo --> lawn/0x1b7f/foo
 bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x1b/0x7f/foo2 --> lawn/0x1b7f/foo2
 bushy/0x00/0x00/0x00/0x00/0x00/0x00/0x00/0x0a/foo3 --> lawn/0x0a/foo3

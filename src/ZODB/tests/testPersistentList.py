@@ -13,9 +13,11 @@
 ##############################################################################
 """Test the list interface to PersistentList
 """
-
+import sys
 import unittest
 from persistent.list import PersistentList
+
+PY2 = sys.version_info[0] == 2
 
 l0 = []
 l1 = [0]
@@ -54,17 +56,19 @@ class TestPList(unittest.TestCase):
 
         # Test __cmp__ and __len__
 
-        def mycmp(a, b):
-            r = cmp(a, b)
-            if r < 0: return -1
-            if r > 0: return 1
-            return r
+        # Py3: No cmp() or __cmp__ anymore.
+        if PY2:
+            def mycmp(a, b):
+                r = cmp(a, b)
+                if r < 0: return -1
+                if r > 0: return 1
+                return r
 
-        all = [l0, l1, l2, u, u0, u1, u2, uu, uu0, uu1, uu2]
-        for a in all:
-            for b in all:
-                eq(mycmp(a, b), mycmp(len(a), len(b)),
-                      "mycmp(a, b) == mycmp(len(a), len(b))")
+            all = [l0, l1, l2, u, u0, u1, u2, uu, uu0, uu1, uu2]
+            for a in all:
+                for b in all:
+                    eq(mycmp(a, b), mycmp(len(a), len(b)),
+                          "mycmp(a, b) == mycmp(len(a), len(b))")
 
         # Test __getitem__
 

@@ -38,11 +38,6 @@ import ZODB.tests.util
 import ZODB.utils
 from zope.testing import renormalizing
 
-checker = renormalizing.RENormalizing([
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
-    ])
-
 
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
@@ -251,11 +246,14 @@ def load_before_base_storage_current():
 def test_suite():
     suite = unittest.TestSuite((
         doctest.DocTestSuite(
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown, checker=checker
+            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
+            checker=ZODB.tests.util.checker
             ),
         doctest.DocFileSuite(
             '../DemoStorage.test',
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
+            setUp=setUp,
+            tearDown=ZODB.tests.util.tearDown,
+            checker=ZODB.tests.util.checker,
             ),
         ))
     suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))

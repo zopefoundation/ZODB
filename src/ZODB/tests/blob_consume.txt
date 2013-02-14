@@ -7,7 +7,7 @@ an O(1) operation we call `consume`::
 Let's create a file::
 
     >>> to_import = open('to_import', 'wb')
-    >>> to_import.write("I'm a Blob and I feel fine.")
+    >>> _ = to_import.write(b"I'm a Blob and I feel fine.")
 
 The file *must* be closed before giving it to consumeFile:
 
@@ -32,13 +32,14 @@ We now can call open on the blob and read and write the data::
     "I'm a Blob and I feel fine."
     >>> blob_read.close()
     >>> blob_write = blob.open('w')
-    >>> blob_write.write('I was changed.')
+    >>> _ = blob_write.write(b'I was changed.')
     >>> blob_write.close()
 
 We can not consume a file when there is a reader or writer around for a blob
 already::
 
-    >>> open('to_import', 'wb').write('I am another blob.')
+    >>> with open('to_import', 'wb') as file:
+    ...     _ = file.write(b'I am another blob.')
     >>> blob_read = blob.open('r')
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
@@ -68,12 +69,12 @@ fails. We simulate this in different states:
 Case 1: We don't have uncommitted data, but the link operation fails. We fall
 back to try a copy/remove operation that is successfull::
 
-    >>> open('to_import', 'wb').write('Some data.')
+    >>> with open('to_import', 'wb') as file:
+    ...     _ = file.write(b'Some data.')
 
     >>> def failing_rename(f1, f2):
-    ...   import exceptions
     ...   if f1 == 'to_import':
-    ...       raise exceptions.OSError("I can't link.")
+    ...       raise OSError("I can't link.")
     ...   os_rename(f1, f2)
 
     >>> blob = Blob()
@@ -95,11 +96,11 @@ exist::
     >>> utils_cp = ZODB.utils.cp
 
     >>> def failing_copy(f1, f2):
-    ...     import exceptions
-    ...     raise exceptions.OSError("I can't copy.")
+    ...     raise OSError("I can't copy.")
 
     >>> ZODB.utils.cp = failing_copy
-    >>> open('to_import', 'wb').write('Some data.')
+    >>> with open('to_import', 'wb') as file:
+    ...     _ = file.write(b'Some data.')
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
     OSError: I can't copy.
@@ -115,7 +116,7 @@ previous uncomitted data::
 
     >>> blob = Blob()
     >>> blob_writing = blob.open('w')
-    >>> blob_writing.write('Uncommitted data')
+    >>> _ = blob_writing.write(b'Uncommitted data')
     >>> blob_writing.close()
 
     >>> blob.consumeFile('to_import')

@@ -26,7 +26,7 @@ from ZODB.FileStorage.fspack import FileStoragePacker
 from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from ZODB.utils import p64, u64, z64, as_bytes, as_text, bytes
+from ZODB.utils import p64, u64, z64, as_bytes, as_text
 
 import binascii
 import contextlib
@@ -48,10 +48,10 @@ except ImportError:
     from pickle import Pickler, loads
 
 try:
-    from base64 import decodestring as decodebytes, encodestring as decodebytes
-except ImportError:
     # Py3
     from base64 import decodebytes, encodebytes
+except ImportError:
+    from base64 import decodestring as decodebytes, encodestring as encodebytes
 
 
 # Not all platforms have fsync
@@ -1901,7 +1901,7 @@ class TransactionRecordIterator(FileStorageFormatter):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         pos = self._pos
         while pos < self._tend:
             # Read the data records for this transaction
@@ -1933,6 +1933,8 @@ class TransactionRecordIterator(FileStorageFormatter):
             return Record(h.oid, h.tid, data, prev_txn, pos)
 
         raise StopIteration()
+
+    next = __next__
 
 
 class Record(BaseStorage.DataRecord):

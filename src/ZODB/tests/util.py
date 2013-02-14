@@ -18,6 +18,7 @@ from ZODB.MappingStorage import DB
 import atexit
 import os
 import persistent
+import re
 import sys
 import tempfile
 import time
@@ -26,6 +27,36 @@ import unittest
 import warnings
 import ZODB.utils
 import zope.testing.setupstack
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    (re.compile("<(.*?) object at 0x[0-9a-f]*?>"),
+     r"<\1 object at 0x000000000000>"),
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"),
+     r"\1"),
+    (re.compile('b(".*?")'),
+     r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.interfaces.BlobError"),
+     r"BlobError"),
+    (re.compile("ZODB.blob.BlobStorageError"),
+     r"BlobStorageError"),
+    (re.compile("ZODB.broken.BrokenModified"),
+     r"BrokenModified"),
+    (re.compile("ZODB.POSException.POSKeyError"),
+     r"POSKeyError"),
+    (re.compile("ZODB.POSException.ConflictError"),
+     r"ConflictError"),
+    (re.compile("ZODB.POSException.ReadConflictError"),
+     r"ReadConflictError"),
+    (re.compile("ZODB.POSException.InvalidObjectReference"),
+     r"InvalidObjectReference"),
+    (re.compile("ZODB.POSException.ReadOnlyHistoryError"),
+     r"ReadOnlyHistoryError"),
+    (re.compile("ZConfig.ConfigurationSyntaxError"),
+     r"ConfigurationSyntaxError"),
+    ])
 
 def setUp(test, name='test'):
     transaction.abort()
@@ -125,9 +156,9 @@ def wait(func=None, timeout=30):
     raise AssertionError
 
 def store(storage, oid, value='x', serial=ZODB.utils.z64):
-    if not isinstance(oid, str):
+    if not isinstance(oid, bytes):
         oid = ZODB.utils.p64(oid)
-    if not isinstance(serial, str):
+    if not isinstance(serial, bytes):
         serial = ZODB.utils.p64(serial)
     t = transaction.get()
     storage.tpc_begin(t)

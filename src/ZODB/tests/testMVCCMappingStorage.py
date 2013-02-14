@@ -160,13 +160,13 @@ class MVCCMappingStorageTests(
         # Add a fake transaction
         transactions = self._storage._transactions
         self.assertEqual(1, len(transactions))
-        fake_timestamp = 'zzzzzzzy'  # the year 5735 ;-)
+        fake_timestamp = b'zzzzzzzy'  # the year 5735 ;-)
         transactions[fake_timestamp] = transactions.values()[0]
 
         # Verify the next transaction comes after the fake transaction
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
-        self.assertEqual(self._storage._tid, 'zzzzzzzz')
+        self.assertEqual(self._storage._tid, b'zzzzzzzz')
 
 def create_blob_storage(name, blob_dir):
     s = MVCCMappingStorage(name)

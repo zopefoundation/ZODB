@@ -26,12 +26,13 @@ Let's look at an example:
     ...     return self.name, self.kind
 
     >>> import ZODB.persistentclass
-    >>> class C:
-    ...     __metaclass__ = ZODB.persistentclass.PersistentMetaClass
-    ...     __init__ = __init__
-    ...     __module__ = '__zodb__'
-    ...     foo = foo
-    ...     kind = 'sample'
+    >>> C = ZODB.persistentclass.PersistentMetaClass(
+    ...     'C', (object, ), dict(
+    ...     __init__ = __init__,
+    ...     __module__ = '__zodb__',
+    ...     foo = foo,
+    ...     kind = 'sample',
+    ...     ))
 
 This example is obviously a bit contrived. In particular, we defined
 the methods outside of the class. Why?  Because all of the items in a
@@ -65,8 +66,9 @@ We can create and use instances of the class:
 We can modify the class and none of the persistent attributes will
 change because the object hasn't been saved.
 
+    >>> import six
     >>> def bar(self):
-    ...     print 'bar', self.name
+    ...     six.print_('bar', self.name)
     >>> C.bar = bar
     >>> c.bar()
     bar first
@@ -102,7 +104,7 @@ values:
 Now, if we modify the class:
 
     >>> def baz(self):
-    ...     print 'baz', self.name
+    ...     six.print_('baz', self.name)
     >>> C.baz = baz
     >>> c.baz()
     baz first

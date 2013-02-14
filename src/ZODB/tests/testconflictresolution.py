@@ -113,7 +113,6 @@ Of course, none of this applies if content doesn't support conflict resolution.
 class Resolveable(persistent.Persistent):
 
     def _p_resolveConflict(self, old, committed, new):
-
         resolved = {}
         for k in old:
             if k not in committed:
@@ -296,13 +295,14 @@ And load the pickle:
 def test_suite():
     return unittest.TestSuite([
         manuel.testing.TestSuite(
-            manuel.doctest.Manuel()
+            manuel.doctest.Manuel(checker=ZODB.tests.util.checker)
             + manuel.footnote.Manuel()
             + manuel.capture.Manuel(),
             '../ConflictResolution.txt',
-            setUp=setUp, tearDown=tearDown,
+            setUp=setUp, tearDown=tearDown
             ),
         doctest.DocTestSuite(
-            setUp=setUp, tearDown=tearDown),
+            setUp=setUp, tearDown=tearDown,
+            checker=ZODB.tests.util.checker),
         ])
 
