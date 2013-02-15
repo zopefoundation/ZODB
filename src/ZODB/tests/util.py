@@ -54,6 +54,8 @@ checker = renormalizing.RENormalizing([
      r"InvalidObjectReference"),
     (re.compile("ZODB.POSException.ReadOnlyHistoryError"),
      r"ReadOnlyHistoryError"),
+    (re.compile("ZODB.POSException.Unsupported"),
+     r"Unsupported"),
     (re.compile("ZConfig.ConfigurationSyntaxError"),
      r"ConfigurationSyntaxError"),
     ])

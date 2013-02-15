@@ -187,10 +187,10 @@ class FileStorageTests(
         # of the largest oid in use.
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
-        giant_oid = '\xee' * 8
+        giant_oid = b'\xee' * 8
         # Store an object.
         # oid, serial, data, version, transaction
-        r1 = self._storage.store(giant_oid, '\0'*8, 'data', '', t)
+        r1 = self._storage.store(giant_oid, b'\0'*8, b'data', b'', t)
         # Finish the transaction.
         r2 = self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -204,10 +204,10 @@ class FileStorageTests(
         # ZRS recovery, use the .restore() method, this is plain critical.
         t = transaction.Transaction()
         self._storage.tpc_begin(t)
-        giant_oid = '\xee' * 8
+        giant_oid = b'\xee' * 8
         # Store an object.
         # oid, serial, data, version, prev_txn, transaction
-        r1 = self._storage.restore(giant_oid, '\0'*8, 'data', '', None, t)
+        r1 = self._storage.restore(giant_oid, b'\0'*8, b'data', b'', None, t)
         # Finish the transaction.
         r2 = self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -286,7 +286,7 @@ class FileStorageTests(
             expected_data, expected_tid = self._storage.load(oid, '')
             self.assertEqual(expected_data, data)
             self.assertEqual(expected_tid, tid)
-            if x == '\002':
+            if x == b'\002':
                 self.assertEqual(next_oid, None)
             else:
                 self.assertNotEqual(next_oid, None)
@@ -374,13 +374,13 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
 
     def checkanalyze(self):
-        import new, sys, pickle
+        import types, sys, pickle
         from BTrees.OOBTree import OOBTree
         from ZODB.scripts import analyze
 
         # Set up a module to act as a broken import
         module_name = 'brokenmodule'
-        module = new.module(module_name)
+        module = types.ModuleType(module_name)
         sys.modules[module_name] = module
 
         class Broken(MinPO):
@@ -426,8 +426,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
             analyze.analyze_trans(rep, txn)
 
         # from ZODB.scripts.analyze.report
-        typemap = rep.TYPEMAP.keys()
-        typemap.sort()
+        typemap = sorted(rep.TYPEMAP.keys())
         cumpct = 0.0
         for t in typemap:
             pct = rep.TYPESIZE[t] * 100.0 / rep.DBYTES
@@ -605,19 +604,19 @@ def deal_with_finish_failures():
     >>> import zope.testing.loggingsupport
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...     'ZODB.FileStorage')
-    >>> transaction.commit()
+    >>> transaction.commit() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: <lambda>() takes no arguments (1 given)
+    TypeError: <lambda>() takes ...
 
 
-    >>> print handler
+    >>> print(handler)
     ZODB.FileStorage CRITICAL
       Failure in _finish. Closing.
 
     >>> handler.uninstall()
 
-    >>> fs.load('\0'*8, '') # doctest: +ELLIPSIS
+    >>> fs.load(b'\0'*8, b'') # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     ValueError: ...
@@ -645,7 +644,7 @@ def pack_with_open_blob_files():
     >>> conn1.root()[1] = ZODB.blob.Blob()
     >>> conn1.add(conn1.root()[1])
     >>> with conn1.root()[1].open('w') as file:
-    ...     file.write('some data')
+    ...     _ = file.write(b'some data')
     >>> tm1.commit()
 
     >>> tm2 = transaction.TransactionManager()
@@ -654,7 +653,7 @@ def pack_with_open_blob_files():
     >>> conn1.root()[2] = ZODB.blob.Blob()
     >>> conn1.add(conn1.root()[2])
     >>> with conn1.root()[2].open('w') as file:
-    ...     file.write('some more data')
+    ...     _ = file.write(b'some more data')
 
     >>> db.pack()
     >>> f.read()
@@ -682,7 +681,8 @@ def test_suite():
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown))
+        tearDown=zope.testing.setupstack.tearDown,
+        checker=ZODB.tests.util.checker))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'BlobFileStorage',
         lambda name, blob_dir:

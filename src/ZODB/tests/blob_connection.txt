@@ -9,7 +9,7 @@ with some data:
     >>> import transaction
     >>> blob = Blob()
     >>> data = blob.open("w")
-    >>> data.write("I'm a happy Blob.")
+    >>> _ = data.write(b"I'm a happy Blob.")
     >>> data.close()
 
 We also need a database with a blob supporting storage.  (We're going to use
@@ -52,7 +52,7 @@ MVCC also works.
     >>> transaction3 = transaction.TransactionManager()
     >>> connection3 = database.open(transaction_manager=transaction3)
     >>> f = connection.root()['myblob'].open('w')
-    >>> f.write('I am an ecstatic Blob.')
+    >>> _ = f.write(b'I am an ecstatic Blob.')
     >>> f.close()
     >>> transaction.commit()
     >>> connection3.root()['myblob'].open('r').read()

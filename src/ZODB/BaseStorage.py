@@ -39,6 +39,13 @@ except ImportError:
     # Py3
     import pickle
 
+# Py3: Python 3's `hasattr()` only swallows AttributeError.
+def py2_hasattr(obj, name):
+    try:
+        getattr(obj, name)
+    except:
+        return False
+    return True
 
 log = logging.getLogger("ZODB.BaseStorage")
 
@@ -373,7 +380,7 @@ def copy(source, dest, verbose=0):
     # using store().  However, if we use store, then
     # copyTransactionsFrom() may fail with VersionLockError or
     # ConflictError.
-    restoring = hasattr(dest, 'restore')
+    restoring = py2_hasattr(dest, 'restore')
     fiter = source.iterator()
     for transaction in fiter:
         tid = transaction.tid

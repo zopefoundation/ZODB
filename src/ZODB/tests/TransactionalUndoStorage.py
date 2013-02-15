@@ -44,12 +44,11 @@ def snooze():
         time.sleep(0.1)
 
 def listeq(L1, L2):
-    """Return True if L1.sort() == L2.sort()"""
-    c1 = L1[:]
-    c2 = L2[:]
-    c1.sort()
-    c2.sort()
-    return c1 == c2
+    """Return True if L1.sort() == L2.sort()
+
+    Also support iterators.
+    """
+    return sorted(L1) == sorted(L2)
 
 class TransactionalUndoStorage:
 
@@ -59,7 +58,7 @@ class TransactionalUndoStorage:
     def _transaction_store(self, oid, rev, data, vers, trans):
         r = self._storage.store(oid, rev, data, vers, trans)
         if r:
-            if type(r) == str:
+            if isinstance(r, bytes):
                 self.__serials[oid] = r
             else:
                 for oid, serial in r:
@@ -432,7 +431,7 @@ class TransactionalUndoStorage:
         # record by packing.
 
         # Add a few object revisions
-        oid = '\0'*8
+        oid = b'\0'*8
         revid0 = self._dostore(oid, data=MinPO(50))
         revid1 = self._dostore(oid, revid=revid0, data=MinPO(51))
         snooze()
@@ -492,14 +491,14 @@ class TransactionalUndoStorage:
 
         log = self._storage.undoLog()
         eq(len(log), 4)
-        for entry in zip(log, ('o1 -> o3', 'o1 -> o2 -> o3',
-                               'o1 -> o2', 'initial database creation')):
+        for entry in zip(log, (b'o1 -> o3', b'o1 -> o2 -> o3',
+                               b'o1 -> o2', b'initial database creation')):
             eq(entry[0]['description'], entry[1])
 
         self._storage.pack(packtime, referencesf)
 
         log = self._storage.undoLog()
-        for entry in zip(log, ('o1 -> o3', 'o1 -> o2 -> o3')):
+        for entry in zip(log, (b'o1 -> o3', b'o1 -> o2 -> o3')):
             eq(entry[0]['description'], entry[1])
 
         tid = log[0]['id']
@@ -511,7 +510,7 @@ class TransactionalUndoStorage:
         conn.sync()
 
         log = self._storage.undoLog()
-        for entry in zip(log, ('undo', 'o1 -> o3', 'o1 -> o2 -> o3')):
+        for entry in zip(log, (b'undo', b'o1 -> o3', b'o1 -> o2 -> o3')):
             eq(entry[0]['description'], entry[1])
 
         eq(o1.obj, o2)
@@ -703,13 +702,13 @@ class TransactionalUndoStorage:
             L2.sort()
             eq(L1, L2)
 
-        self.assertRaises(StopIteration, transactions.next)
+        self.assertRaises(StopIteration, next, transactions)
 
     def checkUndoLogMetadata(self):
         # test that the metadata is correct in the undo log
         t = transaction.get()
         t.note('t1')
-        t.setExtendedInfo('k2','this is transaction metadata')
+        t.setExtendedInfo('k2', 'this is transaction metadata')
         t.setUser('u3',path='p3')
         db = DB(self._storage)
         conn = db.open()
@@ -721,9 +720,9 @@ class TransactionalUndoStorage:
         l = self._storage.undoLog()
         self.assertEqual(len(l),2)
         d = l[0]
-        self.assertEqual(d['description'],'t1')
-        self.assertEqual(d['k2'],'this is transaction metadata')
-        self.assertEqual(d['user_name'],'p3 u3')
+        self.assertEqual(d['description'], b't1')
+        self.assertEqual(d['k2'], 'this is transaction metadata')
+        self.assertEqual(d['user_name'], b'p3 u3')
 
     # A common test body for index tests on undoInfo and undoLog.  Before
     # ZODB 3.4, they always returned a wrong number of results (one too

@@ -783,4 +783,5 @@ def IExternalGC_suite(factory):
 
     return doctest.DocFileSuite(
         'IExternalGC.test',
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown)
+        setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+        checker=ZODB.tests.util.checker)

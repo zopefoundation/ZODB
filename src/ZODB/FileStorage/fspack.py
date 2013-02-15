@@ -563,7 +563,7 @@ class FileStoragePacker(FileStorageFormatter):
         # Update the header to reflect current information, then write
         # it to the output file.
         if data is None:
-            data = ""
+            data = b''
         h.prev = 0
         h.back = 0
         h.plen = len(data)

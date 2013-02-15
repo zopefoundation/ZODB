@@ -890,8 +890,8 @@ class MonteCarloTests(unittest.TestCase):
         self._callRepozoMain(argv)
 
         # check restored file content is equal to file that was backed up
-        f = file(correctpath, 'rb')
-        g = file(restoredfile, 'rb')
+        f = open(correctpath, 'rb')
+        g = open(restoredfile, 'rb')
         fguts = f.read()
         gguts = g.read()
         f.close()

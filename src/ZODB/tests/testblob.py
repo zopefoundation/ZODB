@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
 from pickle import Pickler, Unpickler
 from ZODB.blob import Blob
 from ZODB.DB import DB
@@ -46,6 +45,13 @@ try:
 except ImportError:
     # Py3
     from io import BytesIO
+
+try:
+    file_type = file
+except NameError:
+    # Py3: Python 3 does not have a file type.
+    import io
+    file_type = io.BufferedReader
 
 def new_time():
     """Create a _new_ time stamp.
@@ -163,20 +169,20 @@ class BlobUndoTests(BlobTestBase):
         transaction.begin()
         blob = Blob()
         with blob.open('w') as file:
-            file.write('this is state 1')
+            file.write(b'this is state 1')
         root['blob'] = blob
         transaction.commit()
 
         transaction.begin()
         blob = root['blob']
         with blob.open('w') as file:
-            file.write('this is state 2')
+            file.write(b'this is state 2')
         transaction.commit()
 
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        self.assertEqual(blob.open('r').read(), b'this is state 1')
 
         database.close()
 
@@ -185,8 +191,8 @@ class BlobUndoTests(BlobTestBase):
         connection = database.open()
         root = connection.root()
         transaction.begin()
-        with open('consume1', 'w') as file:
-            file.write('this is state 1')
+        with open('consume1', 'wb') as file:
+            file.write(b'this is state 1')
         blob = Blob()
         blob.consumeFile('consume1')
         root['blob'] = blob
@@ -194,15 +200,15 @@ class BlobUndoTests(BlobTestBase):
 
         transaction.begin()
         blob = root['blob']
-        with open('consume2', 'w') as file:
-            file.write('this is state 2')
+        with open('consume2', 'wb') as file:
+            file.write(b'this is state 2')
         blob.consumeFile('consume2')
         transaction.commit()
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        self.assertEqual(blob.open('r').read(), b'this is state 1')
 
         database.close()
 
@@ -214,25 +220,25 @@ class BlobUndoTests(BlobTestBase):
 
         transaction.begin()
         with blob.open('w') as file:
-            file.write('this is state 1')
+            file.write(b'this is state 1')
         root['blob'] = blob
         transaction.commit()
 
         transaction.begin()
         blob = root['blob']
         with blob.open('w') as file:
-            file.write('this is state 2')
+            file.write(b'this is state 2')
         transaction.commit()
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        self.assertEqual(blob.open('r').read(), b'this is state 1')
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 2')
+        self.assertEqual(blob.open('r').read(), b'this is state 2')
 
         database.close()
 
@@ -244,7 +250,7 @@ class BlobUndoTests(BlobTestBase):
 
         transaction.begin()
         with blob.open('w') as file:
-            file.write('this is state 1')
+            file.write(b'this is state 1')
         root['blob'] = blob
         transaction.commit()
 
@@ -256,7 +262,7 @@ class BlobUndoTests(BlobTestBase):
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        self.assertEqual(blob.open('r').read(), b'this is state 1')
 
         database.close()
 
@@ -283,19 +289,19 @@ class RecoveryBlobStorage(BlobTestBase,
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
         with conn.root()[2].open('w') as file:
-            file.write('some data')
+            file.write(b'some data')
         transaction.commit()
         conn.root()[3] = ZODB.blob.Blob()
         with conn.root()[3].open('w') as file:
             file.write(
-                (''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
+                (b''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
                          for i in range(random.randint(10000,20000)))
                  )[:-random.randint(1,4)]
                 )
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
         with conn.root()[2].open('w') as file:
-            file.write('some other data')
+            file.write(b'some other data')
         transaction.commit()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
@@ -305,7 +311,7 @@ def gc_blob_removes_uncommitted_data():
     """
     >>> blob = Blob()
     >>> with blob.open('w') as file:
-    ...     file.write('x')
+    ...     _ = file.write(b'x')
     >>> fname = blob._p_blob_uncommitted
     >>> os.path.exists(fname)
     True
@@ -341,7 +347,7 @@ def commit_from_wrong_partition():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> with root['blob'].open('w') as file:
-    ...     file.write('test')
+    ...     _ = file.write(b'test')
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
 
@@ -352,7 +358,7 @@ Works with savepoints too:
 
     >>> root['blob2'] = Blob()
     >>> with root['blob2'].open('w') as file:
-    ...     file.write('test2')
+    ...     _ = file.write(b'test2')
     >>> _ = transaction.savepoint() # doctest: +ELLIPSIS
     Copied blob file ...
 
@@ -392,7 +398,7 @@ def packing_with_uncommitted_data_non_undoing():
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
     >>> with root['blob'].open('w') as file:
-    ...     file.write('test')
+    ...     _ = file.write(b'test')
 
     >>> blob_storage.pack(new_time(), referencesf)
 
@@ -420,7 +426,7 @@ def packing_with_uncommitted_data_undoing():
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
     >>> with root['blob'].open('w') as file:
-    ...     file.write('test')
+    ...     _ = file.write(b'test')
 
     >>> blob_storage.pack(new_time(), referencesf)
 
@@ -447,10 +453,10 @@ def secure_blob_directory():
 
     They are only accessible by the owner:
 
-    >>> oct(os.stat('blobs').st_mode)
-    '040700'
-    >>> oct(os.stat(tmp_dir).st_mode)
-    '040700'
+    >>> oct(os.stat('blobs').st_mode)[-5:]
+    '40700'
+    >>> oct(os.stat(tmp_dir).st_mode)[-5:]
+    '40700'
 
     These settings are recognized as secure:
 
@@ -462,7 +468,7 @@ def secure_blob_directory():
     After making the permissions of tmp_dir more liberal, the directory is
     recognized as insecure:
 
-    >>> os.chmod(tmp_dir, 040711)
+    >>> os.chmod(tmp_dir, 0o40711)
     >>> blob_storage.fshelper.isSecure(tmp_dir)
     False
 
@@ -493,7 +499,7 @@ def loadblob_tmpstore():
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
     >>> with root['blob'].open('w') as file:
-    ...     file.write('test')
+    ...     _ = file.write(b'test')
     >>> import transaction
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
@@ -531,11 +537,11 @@ def is_blob_record():
 
     An invalid pickle yields a false value:
 
-    >>> ZODB.blob.is_blob_record("Hello world!")
+    >>> ZODB.blob.is_blob_record(b"Hello world!")
     False
-    >>> ZODB.blob.is_blob_record('c__main__\nC\nq\x01.')
+    >>> ZODB.blob.is_blob_record(b'c__main__\nC\nq\x01.')
     False
-    >>> ZODB.blob.is_blob_record('cWaaaa\nC\nq\x01.')
+    >>> ZODB.blob.is_blob_record(b'cWaaaa\nC\nq\x01.')
     False
 
     As does None, which may occur in delete records:
@@ -556,7 +562,7 @@ def do_not_depend_on_cwd():
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
     >>> with conn.root()['blob'].open('w') as file:
-    ...     file.write('data')
+    ...     _ = file.write(b'data')
     >>> transaction.commit()
     >>> os.chdir(here)
     >>> conn.root()['blob'].open().read()
@@ -571,15 +577,15 @@ def savepoint_isolation():
     >>> bs = create_storage()
     >>> db = DB(bs)
     >>> conn = db.open()
-    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> conn.root.b = ZODB.blob.Blob(b'initial')
     >>> transaction.commit()
     >>> with conn.root.b.open('w') as file:
-    ...     file.write('1')
+    ...     _ = file.write(b'1')
     >>> _ = transaction.savepoint()
     >>> tm = transaction.TransactionManager()
     >>> conn2 = db.open(transaction_manager=tm)
     >>> with conn2.root.b.open('w') as file:
-    ...     file.write('2')
+    ...     _ = file.write(b'2')
     >>> _ = tm.savepoint()
     >>> conn.root.b.open().read()
     '1'
@@ -601,16 +607,16 @@ def savepoint_commits_without_invalidations_out_of_order():
     >>> db = DB(bs)
     >>> tm1 = transaction.TransactionManager()
     >>> conn1 = db.open(transaction_manager=tm1)
-    >>> conn1.root.b = ZODB.blob.Blob('initial')
+    >>> conn1.root.b = ZODB.blob.Blob(b'initial')
     >>> tm1.commit()
     >>> with conn1.root.b.open('w') as file:
-    ...     file.write('1')
+    ...     _ = file.write(b'1')
     >>> _ = tm1.savepoint()
 
     >>> tm2 = transaction.TransactionManager()
     >>> conn2 = db.open(transaction_manager=tm2)
     >>> with conn2.root.b.open('w') as file:
-    ...     file.write('2')
+    ...     _ = file.write(b'2')
     >>> _ = tm1.savepoint()
     >>> conn1.root.b.open().read()
     '1'
@@ -635,17 +641,17 @@ def savepoint_cleanup():
 
     >>> db = DB(bs)
     >>> conn = db.open()
-    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> conn.root.b = ZODB.blob.Blob(b'initial')
     >>> _ = transaction.savepoint()
     >>> len(os.listdir(tdir))
     1
     >>> transaction.abort()
     >>> os.listdir(tdir)
     []
-    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> conn.root.b = ZODB.blob.Blob(b'initial')
     >>> transaction.commit()
     >>> with conn.root.b.open('w') as file:
-    ...     file.write('1')
+    ...     _ = file.write(b'1')
     >>> _ = transaction.savepoint()
     >>> transaction.abort()
     >>> os.listdir(tdir)
@@ -656,7 +662,7 @@ def savepoint_cleanup():
 def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     r"""
     >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
-    >>> blob = ZODB.blob.Blob('blah')
+    >>> blob = ZODB.blob.Blob(b'blah')
     >>> conn.add(blob)
     >>> transaction.commit()
     >>> old_serial = blob._p_serial
@@ -703,13 +709,14 @@ def storage_reusable_suite(prefix, factory,
             return factory(name, blob_dir)
 
         test.globs['create_storage'] = create_storage
+        test.globs['file_type'] = file_type
 
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocFileSuite(
         "blob_connection.txt", "blob_importexport.txt",
         "blob_transaction.txt",
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
-        optionflags=doctest.ELLIPSIS,
+        optionflags=doctest.ELLIPSIS, checker=ZODB.tests.util.checker
         ))
     if test_packing:
         suite.addTest(doctest.DocFileSuite(
@@ -718,10 +725,11 @@ def storage_reusable_suite(prefix, factory,
             ))
     suite.addTest(doctest.DocTestSuite(
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
-        checker = zope.testing.renormalizing.RENormalizing([
-            (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
-            (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
-            ]),
+        checker = ZODB.tests.util.checker + \
+            zope.testing.renormalizing.RENormalizing([
+              (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
+              (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
+              ]),
         ))
 
     def create_storage(self, name='data', blob_dir=None):

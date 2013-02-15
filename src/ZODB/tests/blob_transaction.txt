@@ -1,17 +1,3 @@
-##############################################################################
-#
-# Copyright (c) 2005-2007 Zope Foundation and Contributors.
-# All Rights Reserved.
-#
-# This software is subject to the provisions of the Zope Public License,
-# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
-# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
-# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
-# FOR A PARTICULAR PURPOSE.
-#
-##############################################################################
-
 Transaction support for Blobs
 =============================
 
@@ -27,7 +13,8 @@ We need a database with a blob supporting storage::
 Putting a Blob into a Connection works like any other Persistent object::
 
     >>> blob1 = ZODB.blob.Blob()
-    >>> blob1.open('w').write('this is blob 1')
+    >>> with blob1.open('w') as file:
+    ...     _ = file.write(b'this is blob 1')
     >>> root1['blob1'] = blob1
     >>> 'blob1' in root1
     True
@@ -62,7 +49,8 @@ state:
     False
     >>> blob1._p_blob_uncommitted
 
-    >>> blob1.open('w').write('this is new blob 1')
+    >>> with blob1.open('w') as file:
+    ...     _ = file.write(b'this is new blob 1')
     >>> blob1.open().read()
     'this is new blob 1'
     >>> fname = blob1._p_blob_uncommitted
@@ -120,14 +108,15 @@ when we start)::
     >>> blob1afh3 = blob1a.open('a')
     >>> bool(blob1a._p_changed)
     True
-    >>> blob1afh3.write('woot!')
+    >>> _ = blob1afh3.write(b'woot!')
     >>> blob1afh3.close()
 
 We can open more than one blob object during the course of a single
 transaction::
 
     >>> blob2 = ZODB.blob.Blob()
-    >>> blob2.open('w').write('this is blob 3')
+    >>> with blob2.open('w') as file:
+    ...     _ = file.write(b'this is blob 3')
     >>> root2['blob2'] = blob2
     >>> transaction.commit()
 
@@ -150,8 +139,8 @@ moment)::
     >>> root1['wontwork'] = blob1.open('r')
     >>> transaction.commit()
     Traceback (most recent call last):
-        ...
-    TypeError: coercing to Unicode: need string or buffer, BlobFile found
+    ...
+    TypeError: ...
 
 Abort for good measure::
 
@@ -166,8 +155,8 @@ connections should result in a write conflict error::
     >>> root4 = database.open(transaction_manager=tm2).root()
     >>> blob1c3 = root3['blob1']
     >>> blob1c4 = root4['blob1']
-    >>> blob1c3fh1 = blob1c3.open('a').write('this is from connection 3')
-    >>> blob1c4fh1 = blob1c4.open('a').write('this is from connection 4')
+    >>> blob1c3fh1 = blob1c3.open('a').write(b'this is from connection 3')
+    >>> blob1c4fh1 = blob1c4.open('a').write(b'this is from connection 4')
     >>> tm1.commit()
     >>> root3['blob1'].open('r').read()
     'this is blob 1woot!this is from connection 3'
@@ -215,14 +204,14 @@ We do support optimistic savepoints:
     >>> root5 = connection5.root()
     >>> blob = ZODB.blob.Blob()
     >>> blob_fh = blob.open("w")
-    >>> blob_fh.write("I'm a happy blob.")
+    >>> _ = blob_fh.write(b"I'm a happy blob.")
     >>> blob_fh.close()
     >>> root5['blob'] = blob
     >>> transaction.commit()
     >>> root5['blob'].open("r").read()
     "I'm a happy blob."
     >>> blob_fh = root5['blob'].open("a")
-    >>> blob_fh.write(" And I'm singing.")
+    >>> _ = blob_fh.write(b" And I'm singing.")
     >>> blob_fh.close()
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing."
@@ -248,7 +237,8 @@ the committed location again:
 
 We support non-optimistic savepoints too:
 
-    >>> root5['blob'].open("a").write(" And I'm dancing.")
+    >>> with root5['blob'].open("a") as file:
+    ...     _ = file.write(b" And I'm dancing.")
     >>> root5['blob'].open("r").read()
     "I'm a happy blob. And I'm singing. And I'm dancing."
     >>> savepoint = transaction.savepoint()
@@ -259,7 +249,8 @@ Again, the savepoint creates a new savepoints directory:
     ...      if name.startswith('savepoint')])
     1
 
-    >>> root5['blob'].open("w").write(" And the weather is beautiful.")
+    >>> with root5['blob'].open("w") as file:
+    ...     _ = file.write(b" And the weather is beautiful.")
     >>> savepoint.rollback()
 
     >>> root5['blob'].open("r").read()
@@ -283,7 +274,7 @@ file that can be opened.
     >>> root6 = connection6.root()
     >>> blob = ZODB.blob.Blob()
     >>> blob_fh = blob.open("w")
-    >>> blob_fh.write("I'm a happy blob.")
+    >>> _ = blob_fh.write(b"I'm a happy blob.")
     >>> blob_fh.close()
     >>> root6['blob'] = blob
     >>> transaction.commit()
@@ -296,12 +287,13 @@ We can also read committed data by calling open with a 'c' flag:
 
 This just returns a regular file object:
 
-    >>> type(f)
-    <type 'file'>
+    >>> type(f) == file_type
+    True
 
 and doesn't prevent us from opening the blob for writing:
 
-    >>> blob.open('w').write('x')
+    >>> with blob.open('w') as file:
+    ...     _ = file.write(b'x')
     >>> blob.open().read()
     'x'
 
@@ -325,7 +317,8 @@ uncommitted changes:
     ...
     BlobError: Uncommitted changes
 
-    >>> blob.open('w').write("I'm a happy blob.")
+    >>> with blob.open('w') as file:
+    ...     _ = file.write(b"I'm a happy blob.")
     >>> root6['blob6'] = blob
     >>> blob.committed()
     Traceback (most recent call last):
@@ -354,10 +347,12 @@ uncommitted changes:
 
 You can't open a committed blob file for writing:
 
-    >>> open(blob.committed(), 'w') # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    IOError: ...
+    >>> try:
+    ...     open(blob.committed(), 'w') # doctest: +ELLIPSIS
+    ... except:
+    ...     # Produces IOError in Py2 and PermissionError in Py3
+    ...     print('Error raised.')
+    Error raised.
 
 tpc_abort
 ---------
@@ -368,11 +363,13 @@ stored are discarded.
     >>> olddata, oldserial = blob_storage.load(blob._p_oid, '')
     >>> t = transaction.get()
     >>> blob_storage.tpc_begin(t)
-    >>> open('blobfile', 'w').write('This data should go away')
+    >>> with open('blobfile', 'wb') as file:
+    ...     _ = file.write(b'This data should go away')
     >>> s1 = blob_storage.storeBlob(blob._p_oid, oldserial, olddata, 'blobfile',
     ...                             '', t)
     >>> new_oid = blob_storage.new_oid()
-    >>> open('blobfile2', 'w').write('This data should go away too')
+    >>> with open('blobfile2', 'wb') as file:
+    ...     _ = file.write(b'This data should go away too')
     >>> s2 = blob_storage.storeBlob(new_oid, '\0'*8, olddata, 'blobfile2',
     ...                             '', t)
 

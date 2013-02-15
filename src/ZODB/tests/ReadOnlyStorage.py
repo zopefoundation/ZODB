@@ -50,7 +50,7 @@ class ReadOnlyStorage:
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
 
         self.assertRaises(ReadOnlyError, self._storage.store,
-                          '\000' * 8, None, '', '', t)
+                          b'\000' * 8, None, b'', '', t)
 
         self.assertRaises(ReadOnlyError, self._storage.undo,
-                          '\000' * 8, t)
+                          b'\000' * 8, t)

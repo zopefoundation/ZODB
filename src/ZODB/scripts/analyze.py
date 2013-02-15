@@ -5,7 +5,12 @@ from __future__ import print_function
 import pickle
 import sys
 from ZODB.FileStorage import FileStorage
-from cStringIO import StringIO
+
+try:
+    from cStringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
 
 class FakeError(Exception):
     def __init__(self, module, name):
@@ -96,7 +101,7 @@ def analyze_trans(report, txn):
 
 def get_type(record):
     try:
-        unpickled = FakeUnpickler(StringIO(record.data)).load()
+        unpickled = FakeUnpickler(BytesIO(record.data)).load()
     except FakeError as err:
         return "%s.%s" % (err.module, err.name)
     except:

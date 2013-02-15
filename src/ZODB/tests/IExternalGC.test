@@ -5,14 +5,14 @@ A storage that provides IExternalGC supports external garbage
 collectors by providing a deleteObject method that transactionally
 deletes an object.
 
-A create_storage function is provided that creates a storage. 
+A create_storage function is provided that creates a storage.
 
     >>> storage = create_storage()
     >>> import ZODB.blob, transaction
     >>> db = ZODB.DB(storage)
     >>> conn = db.open()
     >>> conn.root()[0] = conn.root().__class__()
-    >>> conn.root()[1] = ZODB.blob.Blob('some data')
+    >>> conn.root()[1] = ZODB.blob.Blob(b'some data')
     >>> transaction.commit()
     >>> oid0 = conn.root()[0]._p_oid
     >>> oid1 = conn.root()[1]._p_oid

@@ -264,7 +264,7 @@ class ObjectWriter:
           ...
         InvalidObjectReference:
         ('Attempt to store an object from a foreign database connection',
-        <ZODB.serialize.DummyJar instance at ...>, P(bob))
+        <ZODB.serialize.DummyJar ...>, P(bob))
 
         Constructor arguments used by __new__(), as returned by
         __getnewargs__(), can affect memory allocation, but may also

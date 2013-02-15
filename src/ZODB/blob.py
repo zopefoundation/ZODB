@@ -187,7 +187,7 @@ class Blob(persistent.Persistent):
                     self._create_uncommitted_file()
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
                     if self._p_blob_committed:
-                        utils.cp(open(self._p_blob_committed), result)
+                        utils.cp(open(self._p_blob_committed, 'rb'), result)
                         if mode == 'r+':
                             result.seek(0)
                 else:
@@ -863,7 +863,7 @@ class BlobStorage(BlobStorageMixin):
                     data, serial_before, serial_after = load_result
                     orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
                     new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
-                orig = open(orig_fn, "r")
+                orig = open(orig_fn, "rb")
                 new = open(new_fn, "wb")
                 utils.cp(orig, new)
                 orig.close()

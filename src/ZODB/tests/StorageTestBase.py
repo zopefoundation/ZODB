@@ -226,7 +226,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         vote_result = self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         if expected_oids is not None:
-            oids = undo_result and undo_result[1] or []
+            oids = list(undo_result[1]) if undo_result else []
             oids.extend(oid for (oid, _) in vote_result or ())
             self.assertEqual(len(oids), len(expected_oids), repr(oids))
             for oid in expected_oids:

@@ -996,7 +996,7 @@ class FileStorage(
                 raise UndoError("non-undoable transaction")
 
         if failures:
-            raise MultipleUndoErrors(failures.items())
+            raise MultipleUndoErrors(list(failures.items()))
 
         return tindex
 
