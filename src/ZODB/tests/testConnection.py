@@ -54,12 +54,12 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
     def check_add(self):
         from ZODB.POSException import InvalidObjectReference
         obj = StubObject()
-        self.assert_(obj._p_oid is None)
-        self.assert_(obj._p_jar is None)
+        self.assertTrue(obj._p_oid is None)
+        self.assertTrue(obj._p_jar is None)
         self.datamgr.add(obj)
-        self.assert_(obj._p_oid is not None)
-        self.assert_(obj._p_jar is self.datamgr)
-        self.assert_(self.datamgr.get(obj._p_oid) is obj)
+        self.assertTrue(obj._p_oid is not None)
+        self.assertTrue(obj._p_jar is self.datamgr)
+        self.assertTrue(self.datamgr.get(obj._p_oid) is obj)
 
         # Only first-class persistent objects may be added.
         self.assertRaises(TypeError, self.datamgr.add, object())
@@ -82,8 +82,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.add(obj)
         oid = obj._p_oid
         self.datamgr.abort(self.transaction)
-        self.assert_(obj._p_oid is None)
-        self.assert_(obj._p_jar is None)
+        self.assertTrue(obj._p_oid is None)
+        self.assertTrue(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
     def checkResetOnTpcAbort(self):
@@ -97,8 +97,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         # Let's pretend something bad happens here.
         # Call tpc_abort, clearing everything.
         self.datamgr.tpc_abort(self.transaction)
-        self.assert_(obj._p_oid is None)
-        self.assert_(obj._p_jar is None)
+        self.assertTrue(obj._p_oid is None)
+        self.assertTrue(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
     def checkTpcAbortAfterCommit(self):
@@ -109,8 +109,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.commit(self.transaction)
         # Let's pretend something bad happened here.
         self.datamgr.tpc_abort(self.transaction)
-        self.assert_(obj._p_oid is None)
-        self.assert_(obj._p_jar is None)
+        self.assertTrue(obj._p_oid is None)
+        self.assertTrue(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
         self.assertEquals(self.db.storage._stored, [oid])
 
@@ -121,11 +121,11 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.commit(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
-        self.assert_(obj._p_oid is oid)
-        self.assert_(obj._p_jar is self.datamgr)
+        self.assertTrue(obj._p_oid is oid)
+        self.assertTrue(obj._p_jar is self.datamgr)
 
-        # This next assert_ is covered by an assert in tpc_finish.
-        ##self.assert_(not self.datamgr._added)
+        # This next assertTrue is covered by an assert in tpc_finish.
+        ##self.assertTrue(not self.datamgr._added)
 
         self.assertEquals(self.db.storage._stored, [oid])
         self.assertEquals(self.db.storage._finished, [oid])
@@ -140,11 +140,12 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.commit(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
         storage = self.db.storage
-        self.assert_(obj._p_oid in storage._stored, "object was not stored")
-        self.assert_(subobj._p_oid in storage._stored,
+        self.assertTrue(obj._p_oid in storage._stored, "object was not stored")
+        self.assertTrue(subobj._p_oid in storage._stored,
                 "subobject was not stored")
-        self.assert_(member._p_oid in storage._stored, "member was not stored")
-        self.assert_(self.datamgr._added_during_commit is None)
+        self.assertTrue(member._p_oid in storage._stored,
+                        "member was not stored")
+        self.assertTrue(self.datamgr._added_during_commit is None)
 
     def checkUnusedAddWorks(self):
         # When an object is added, but not committed, it shouldn't be stored,
@@ -153,7 +154,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.add(obj)
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
-        self.assert_(obj._p_oid not in self.datamgr._storage._stored)
+        self.assertTrue(obj._p_oid not in self.datamgr._storage._stored)
 
     def check__resetCacheResetsReader(self):
         # https://bugs.launchpad.net/zodb/+bug/142667
@@ -1043,13 +1044,13 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         obj, cache = self.obj, self.conn._cache
         # we have just written "obj". Its size should not be zero
         size, cache_size = obj._p_estimated_size, cache.total_estimated_size
-        self.assert_(size > 0)
-        self.assert_(cache_size > size)
+        self.assertTrue(size > 0)
+        self.assertTrue(cache_size > size)
         # increase the size, write again and check that the size changed
         obj.setValueWithSize(1000)
         transaction.commit()
         new_size = obj._p_estimated_size
-        self.assert_(new_size > size)
+        self.assertTrue(new_size > size)
         self.assertEqual(cache.total_estimated_size,
                          cache_size + new_size - size)
 
@@ -1061,7 +1062,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         obj.setValueWithSize(1000)
         transaction.savepoint()
         new_size = obj._p_estimated_size
-        self.assert_(new_size > size)
+        self.assertTrue(new_size > size)
         self.assertEqual(cache.total_estimated_size,
                          cache_size + new_size - size)
 
@@ -1074,7 +1075,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         cache_size = cache.total_estimated_size
         obj.value
         size = obj._p_estimated_size
-        self.assert_(size > 0)
+        self.assertTrue(size > 0)
         self.assertEqual(cache.total_estimated_size, cache_size + size)
         # we test here as well that the deactivation works reduced the cache
         # size
@@ -1124,11 +1125,11 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # verify the change worked as expected
         self.assertEqual(cache.cache_size_bytes, 1)
         # verify our entrance assumption is fullfilled
-        self.assert_(cache.total_estimated_size > 1)
+        self.assertTrue(cache.total_estimated_size > 1)
         conn.cacheGC()
-        self.assert_(cache.total_estimated_size <= 1)
+        self.assertTrue(cache.total_estimated_size <= 1)
         # sanity check
-        self.assert_(cache.total_estimated_size >= 0)
+        self.assertTrue(cache.total_estimated_size >= 0)
 
     def test_cache_garbage_collection_shrinking_object(self):
         db = self.db
@@ -1138,18 +1139,18 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # verify the change worked as expected
         self.assertEqual(cache.cache_size_bytes, 1000)
         # verify our entrance assumption is fullfilled
-        self.assert_(cache.total_estimated_size > 1)
+        self.assertTrue(cache.total_estimated_size > 1)
         # give the objects some size
         obj.setValueWithSize(500)
         transaction.savepoint()
-        self.assert_(cache.total_estimated_size > 500)
+        self.assertTrue(cache.total_estimated_size > 500)
         # make the object smaller
         obj.setValueWithSize(100)
         transaction.savepoint()
         # make sure there was no overflow
-        self.assert_(cache.total_estimated_size != 0)
+        self.assertTrue(cache.total_estimated_size != 0)
         # the size is not larger than the allowed maximum
-        self.assert_(cache.total_estimated_size <= 1000)
+        self.assertTrue(cache.total_estimated_size <= 1000)
 
 # ---- stubs
 

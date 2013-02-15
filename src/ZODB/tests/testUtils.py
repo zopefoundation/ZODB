@@ -88,7 +88,7 @@ class TestUtils(unittest.TestCase):
 
         # The pickle contains a GLOBAL ('c') opcode resolving to MinPO's
         # module and class.
-        self.assert_(b'cZODB.tests.MinPO\nMinPO\n' in data)
+        self.assertTrue(b'cZODB.tests.MinPO\nMinPO\n' in data)
 
         # Fiddle the pickle so it points to something "impossible" instead.
         data = data.replace(b'cZODB.tests.MinPO\nMinPO\n',

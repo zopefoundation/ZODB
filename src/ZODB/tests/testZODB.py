@@ -108,7 +108,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         l1 = list(map(lambda k_v: (k_v[0], k_v[1][0]), l1))
         l2 = list(map(lambda k_v1: (k_v1[0], k_v1[1][0]), l2))
         self.assertEqual(l1, l2)
-        self.assert_(ob._p_oid != ob2._p_oid)
+        self.assertTrue(ob._p_oid != ob2._p_oid)
         self.assertEqual(ob._p_jar, ob2._p_jar)
         oids = {}
         for v in ob.values():
@@ -129,7 +129,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         self.populate()
         conn = self._db.open()
         conn.root()
-        self.assert_(len(conn._cache) > 0)  # Precondition
+        self.assertTrue(len(conn._cache) > 0)  # Precondition
         conn._resetCache()
         self.assertEqual(len(conn._cache), 0)
 
@@ -139,10 +139,10 @@ class ZODBTests(ZODB.tests.util.TestCase):
         self.populate()
         conn = self._db.open()
         conn.root()
-        self.assert_(len(conn._cache) > 0)  # Precondition
+        self.assertTrue(len(conn._cache) > 0)  # Precondition
         ZODB.Connection.resetCaches()
         conn.close()
-        self.assert_(len(conn._cache) > 0)  # Still not flushed
+        self.assertTrue(len(conn._cache) > 0)  # Still not flushed
         conn.open()  # simulate the connection being reopened
         self.assertEqual(len(conn._cache), 0)
 
@@ -517,12 +517,12 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
             self.fail("No conflict occurred")
 
         # real_data2 still ready to commit
-        self.assert_(real_data2._p_changed)
+        self.assertTrue(real_data2._p_changed)
 
         # index2 values not ready to commit
-        self.assert_(not index2._p_changed)
-        self.assert_(not index2[0]._p_changed)
-        self.assert_(not index2[1]._p_changed)
+        self.assertTrue(not index2._p_changed)
+        self.assertTrue(not index2[0]._p_changed)
+        self.assertTrue(not index2[1]._p_changed)
 
         self.assertRaises(ReadConflictError, tm.get().commit)
         self.assertRaises(TransactionFailedError, tm.get().commit)

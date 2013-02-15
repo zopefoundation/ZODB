@@ -113,13 +113,13 @@ class FileStorageTests(
 
         # Convert it to a dict.
         old_index = self.convert_index_to_dict()
-        self.assert_(isinstance(old_index, fsIndex))
+        self.assertTrue(isinstance(old_index, fsIndex))
         new_index = self.convert_index_to_dict()
-        self.assert_(isinstance(new_index, dict))
+        self.assertTrue(isinstance(new_index, dict))
 
         # Verify it's converted to fsIndex in memory upon open.
         self.open(read_only=read_only)
-        self.assert_(isinstance(self._storage._index, fsIndex))
+        self.assertTrue(isinstance(self._storage._index, fsIndex))
 
         # Verify it has the right content.
         newindex_as_dict = dict(self._storage._index)
@@ -129,9 +129,9 @@ class FileStorageTests(
         self._storage.close()
         current_index = self.convert_index_to_dict()
         if read_only:
-            self.assert_(isinstance(current_index, dict))
+            self.assertTrue(isinstance(current_index, dict))
         else:
-            self.assert_(isinstance(current_index, fsIndex))
+            self.assertTrue(isinstance(current_index, fsIndex))
 
     def check_conversion_to_fsIndex_readonly(self):
         # Same thing, but the disk .index should continue to hold a
@@ -161,8 +161,8 @@ class FileStorageTests(
 
         # Verify it's converted to fsIndex in memory upon open.
         self.open()
-        self.assert_(isinstance(self._storage._index, fsIndex))
-        self.assert_(isinstance(self._storage._index._data, OOBTree))
+        self.assertTrue(isinstance(self._storage._index, fsIndex))
+        self.assertTrue(isinstance(self._storage._index._data, OOBTree))
 
         # Verify it has the right content.
         new_data_dict = dict(self._storage._index._data)
@@ -259,7 +259,7 @@ class FileStorageTests(
         try:
             self._storage.pack(time.time(), referencesf)
         except CorruptedError as detail:
-            self.assert_("redundant transaction length does not match "
+            self.assertTrue("redundant transaction length does not match "
                          "initial transaction length" in str(detail))
         else:
             self.fail("expected CorruptedError")

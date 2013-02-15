@@ -73,7 +73,7 @@ class DBTests(ZODB.tests.util.TestCase):
         #       have tests of referencesf.
 
         import ZODB.serialize
-        self.assert_(self.db.references is ZODB.serialize.referencesf)
+        self.assertTrue(self.db.references is ZODB.serialize.referencesf)
 
 
 def test_invalidateCache():

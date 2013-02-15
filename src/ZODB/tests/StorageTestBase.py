@@ -230,5 +230,5 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             oids.extend(oid for (oid, _) in vote_result or ())
             self.assertEqual(len(oids), len(expected_oids), repr(oids))
             for oid in expected_oids:
-                self.assert_(oid in oids)
+                self.assertTrue(oid in oids)
         return self._storage.lastTransaction()

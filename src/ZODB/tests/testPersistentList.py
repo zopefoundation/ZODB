@@ -216,7 +216,7 @@ class TestPList(unittest.TestCase):
     def checkBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from ZODB.PersistentList import PersistentList as oldPath
-        self.assert_(oldPath is PersistentList)
+        self.assertTrue(oldPath is PersistentList)
 
 def test_suite():
     return unittest.makeSuite(TestPList, 'check')

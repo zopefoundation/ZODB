@@ -62,7 +62,7 @@ class RevisionStorage:
             assert prev < middle < cur  # else the snooze() trick failed
             prev = cur
             t = self._storage.loadBefore(oid, p64(middle))
-            self.assert_(t is not None)
+            self.assertTrue(t is not None)
             data, start, end = t
             self.assertEqual(revs[i-1][0], data)
             self.assertEqual(tid, end)
@@ -131,7 +131,7 @@ class RevisionStorage:
             self.assertEqual(data, t[0])
             self.assertEqual(tid, t[1])
             if prev_tid:
-                self.assert_(prev_tid < t[1])
+                self.assertTrue(prev_tid < t[1])
             prev_tid = t[1]
             if i < 3:
                 self.assertEqual(revs[i+1][1], t[2])

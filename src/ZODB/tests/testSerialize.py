@@ -95,14 +95,14 @@ class SerializerTestCase(unittest.TestCase):
 
         r = TestObjectReader(factory=test_factory)
         g = r.getGhost(self.old_style_with_newargs)
-        self.assert_(isinstance(g, ClassWithNewargs))
+        self.assertTrue(isinstance(g, ClassWithNewargs))
         self.assertEqual(g, 1)
         g = r.getGhost(self.old_style_without_newargs)
-        self.assert_(isinstance(g, ClassWithoutNewargs))
+        self.assertTrue(isinstance(g, ClassWithoutNewargs))
         g = r.getGhost(self.new_style_with_newargs)
-        self.assert_(isinstance(g, ClassWithNewargs))
+        self.assertTrue(isinstance(g, ClassWithNewargs))
         g = r.getGhost(self.new_style_without_newargs)
-        self.assert_(isinstance(g, ClassWithoutNewargs))
+        self.assertTrue(isinstance(g, ClassWithoutNewargs))
 
     def test_myhasattr(self):
 
@@ -124,14 +124,15 @@ class SerializerTestCase(unittest.TestCase):
                           serialize.myhasattr, OldStyle(), "error")
         self.assertRaises(ValueError,
                           serialize.myhasattr, NewStyle(), "error")
-        self.assert_(serialize.myhasattr(OldStyle(), "bar"))
-        self.assert_(serialize.myhasattr(NewStyle(), "bar"))
-        self.assert_(not serialize.myhasattr(OldStyle(), "rat"))
-        self.assert_(not serialize.myhasattr(NewStyle(), "rat"))
+        self.assertTrue(serialize.myhasattr(OldStyle(), "bar"))
+        self.assertTrue(serialize.myhasattr(NewStyle(), "bar"))
+        self.assertTrue(not serialize.myhasattr(OldStyle(), "rat"))
+        self.assertTrue(not serialize.myhasattr(NewStyle(), "rat"))
 
 
 def test_suite():
     suite = unittest.makeSuite(SerializerTestCase)
     suite.addTest(
-        doctest.DocTestSuite("ZODB.serialize", checker=ZODB.tests.util.checker))
+        doctest.DocTestSuite("ZODB.serialize",
+                             checker=ZODB.tests.util.checker))
     return suite

@@ -69,8 +69,8 @@ class PMTests(unittest.TestCase):
         # If the root can be loaded successfully, we should be okay.
         r = db.open().root()
         # But make sure it looks like a new mapping
-        self.assert_(hasattr(r, 'data'))
-        self.assert_(not hasattr(r, '_container'))
+        self.assertTrue(hasattr(r, 'data'))
+        self.assertTrue(not hasattr(r, '_container'))
 
     # TODO:  This test fails in ZODB 3.3a1.  It's making some assumption(s)
     # about pickles that aren't true.  Hard to say when it stopped working,
@@ -97,15 +97,15 @@ class PMTests(unittest.TestCase):
         state = u.load()
         inst.__setstate__(state)
 
-        self.assert_(hasattr(inst, '_container'))
-        self.assert_(not hasattr(inst, 'data'))
+        self.assertTrue(hasattr(inst, '_container'))
+        self.assertTrue(not hasattr(inst, 'data'))
 
     def checkBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from persistent.mapping import PersistentMapping as newPath
         from ZODB.PersistentMapping import PersistentMapping as oldPath
 
-        self.assert_(oldPath is newPath)
+        self.assertTrue(oldPath is newPath)
 
     def checkBasicOps(self):
         from persistent.mapping import PersistentMapping
@@ -113,7 +113,7 @@ class PMTests(unittest.TestCase):
         m['name'] = 'bob'
         self.assertEqual(m['name'], "bob")
         self.assertEqual(m.get('name', 42), "bob")
-        self.assert_('name' in m)
+        self.assertTrue('name' in m)
 
         try:
             m['fred']
@@ -121,7 +121,7 @@ class PMTests(unittest.TestCase):
             pass
         else:
             self.fail("expected KeyError")
-        self.assert_('fred' not in m)
+        self.assertTrue('fred' not in m)
         self.assertEqual(m.get('fred'), None)
         self.assertEqual(m.get('fred', 42), 42)
 

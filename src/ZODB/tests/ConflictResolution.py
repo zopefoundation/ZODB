@@ -92,7 +92,7 @@ class ConflictResolvingStorage:
         try:
             self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         except ConflictError as err:
-            self.assert_("PCounter2" in str(err))
+            self.assertTrue("PCounter2" in str(err))
         else:
             self.fail("Expected ConflictError")
 

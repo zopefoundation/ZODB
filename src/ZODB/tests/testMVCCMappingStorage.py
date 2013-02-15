@@ -44,14 +44,14 @@ class MVCCTests:
             r1['myobj'] = 'yes'
             c2 = db.open(transaction.TransactionManager())
             r2 = c2.root()
-            self.assert_('myobj' not in r2)
+            self.assertTrue('myobj' not in r2)
 
             c1.transaction_manager.commit()
-            self.assert_('myobj' not in r2)
+            self.assertTrue('myobj' not in r2)
 
             c2.sync()
-            self.assert_('myobj' in r2)
-            self.assert_(r2['myobj'] == 'yes')
+            self.assertTrue('myobj' in r2)
+            self.assertTrue(r2['myobj'] == 'yes')
         finally:
             db.close()
 
@@ -82,18 +82,18 @@ class MVCCTests:
 
             # The second connection will now load root['alpha'], but due to
             # MVCC, it should continue to see the old state.
-            self.assert_(r2['alpha']._p_changed is None)  # A ghost
-            self.assert_(not r2['alpha'])
-            self.assert_(r2['alpha']._p_changed == 0)
+            self.assertTrue(r2['alpha']._p_changed is None)  # A ghost
+            self.assertTrue(not r2['alpha'])
+            self.assertTrue(r2['alpha']._p_changed == 0)
 
             # make root['alpha'] visible to the second connection
             c2.sync()
 
             # Now it should be in sync
-            self.assert_(r2['alpha']._p_changed is None)  # A ghost
-            self.assert_(r2['alpha'])
-            self.assert_(r2['alpha']._p_changed == 0)
-            self.assert_(r2['alpha']['beta'] == 'yes')
+            self.assertTrue(r2['alpha']._p_changed is None)  # A ghost
+            self.assertTrue(r2['alpha'])
+            self.assertTrue(r2['alpha']._p_changed == 0)
+            self.assertTrue(r2['alpha']['beta'] == 'yes')
 
             # Repeat the test with root['gamma']
             r1['gamma']['delta'] = 'yes'
@@ -108,18 +108,18 @@ class MVCCTests:
 
             # The second connection will now load root[3], but due to MVCC,
             # it should continue to see the old state.
-            self.assert_(r2['gamma']._p_changed is None)  # A ghost
-            self.assert_(not r2['gamma'])
-            self.assert_(r2['gamma']._p_changed == 0)
+            self.assertTrue(r2['gamma']._p_changed is None)  # A ghost
+            self.assertTrue(not r2['gamma'])
+            self.assertTrue(r2['gamma']._p_changed == 0)
 
             # make root[3] visible to the second connection
             c2.sync()
 
             # Now it should be in sync
-            self.assert_(r2['gamma']._p_changed is None)  # A ghost
-            self.assert_(r2['gamma'])
-            self.assert_(r2['gamma']._p_changed == 0)
-            self.assert_(r2['gamma']['delta'] == 'yes')
+            self.assertTrue(r2['gamma']._p_changed is None)  # A ghost
+            self.assertTrue(r2['gamma'])
+            self.assertTrue(r2['gamma']._p_changed == 0)
+            self.assertTrue(r2['gamma']['delta'] == 'yes')
         finally:
             db.close()
     

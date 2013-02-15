@@ -102,8 +102,8 @@ class RecoverTest(ZODB.tests.util.TestCase):
     # fact not damaged.
     def testNoDamage(self):
         output = self.recover()
-        self.assert_('error' not in output, output)
-        self.assert_('\n0 bytes removed during recovery' in output, output)
+        self.assertTrue('error' not in output, output)
+        self.assertTrue('\n0 bytes removed during recovery' in output, output)
 
         # Verify that the recovered database is identical to the original.
         before = open(self.path, 'rb')
@@ -121,7 +121,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
         for i in range(self.ITERATIONS):
             self.damage(1, 1024)
             output = self.recover()
-            self.assert_('error' in output, output)
+            self.assertTrue('error' in output, output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -131,7 +131,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
         for i in range(self.ITERATIONS):
             self.damage(4, 512)
             output = self.recover()
-            self.assert_('error' in output, output)
+            self.assertTrue('error' in output, output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)
@@ -141,7 +141,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
         for i in range(self.ITERATIONS):
             self.damage(1, 32 * 1024)
             output = self.recover()
-            self.assert_('error' in output, output)
+            self.assertTrue('error' in output, output)
             self.recovered = FileStorage(self.dest)
             self.recovered.close()
             os.remove(self.path)

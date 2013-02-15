@@ -105,7 +105,7 @@ class DBMethods(CacheTestBase):
         expected = ['conn_no', 'id', 'oid', 'rc', 'klass', 'state']
         for dict in self.db.cacheExtremeDetail():
             for k, v in dict.items():
-                self.assert_(k in expected)
+                self.assertTrue(k in expected)
 
     # TODO:  not really sure how to do a black box test of the cache.
     # Should the full sweep and minimize calls always remove things?
@@ -114,13 +114,13 @@ class DBMethods(CacheTestBase):
         old_size = self.db.cacheSize()
         self.db.cacheFullSweep()
         new_size = self.db.cacheSize()
-        self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
+        self.assertTrue(new_size < old_size, "%s < %s" % (old_size, new_size))
 
     def testMinimize(self):
         old_size = self.db.cacheSize()
         self.db.cacheMinimize()
         new_size = self.db.cacheSize()
-        self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
+        self.assertTrue(new_size < old_size, "%s < %s" % (old_size, new_size))
 
     def testMinimizeTerminates(self):
         # This is tricky.  cPickleCache had a case where it could get into
@@ -295,11 +295,11 @@ class LRUCacheTests(CacheTestBase):
             if details['klass'].endswith('PersistentMapping'):
                 self.assertEqual(details['state'], None)
             else:
-                self.assert_(details['klass'].endswith('MinPO'))
+                self.assertTrue(details['klass'].endswith('MinPO'))
                 self.assertEqual(details['state'], 0)
             # The cache should never hold an unreferenced ghost.
             if details['state'] is None:    # i.e., it's a ghost
-                self.assert_(details['rc'] > 0)
+                self.assertTrue(details['rc'] > 0)
 
 class StubDataManager:
     def setklassstate(self, object):

@@ -233,7 +233,7 @@ class IteratorDeepCompare:
                             storage2.loadBlob, rec1.oid, rec1.tid)
                     else:
                         fn2 = storage2.loadBlob(rec1.oid, rec1.tid)
-                        self.assert_(fn1 != fn2)
+                        self.assertTrue(fn1 != fn2)
                         eq(open(fn1, 'rb').read(), open(fn2, 'rb').read())
 
             # Make sure there are no more records left in rec1 and rec2,

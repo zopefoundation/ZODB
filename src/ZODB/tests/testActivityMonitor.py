@@ -60,7 +60,7 @@ class Tests(unittest.TestCase):
         time.sleep(0.2)
         c._transferred(3, 7)
         am.closedConnection(c)
-        self.assert_(len(am.log) <= 1)
+        self.assertTrue(len(am.log) <= 1)
 
     def testSetHistoryLength(self):
         am = ActivityMonitor(history_length=3600)
@@ -73,7 +73,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(len(am.log), 2)
         am.setHistoryLength(0.1)
         self.assertEqual(am.getHistoryLength(), 0.1)
-        self.assert_(len(am.log) <= 1)
+        self.assertTrue(len(am.log) <= 1)
 
     def testActivityAnalysis(self):
         am = ActivityMonitor(history_length=3600)
@@ -88,16 +88,16 @@ class Tests(unittest.TestCase):
             div = res[n]
             self.assertEqual(div['stores'], 0)
             self.assertEqual(div['loads'], 0)
-            self.assert_(div['start'] > 0)
-            self.assert_(div['start'] >= lastend)
-            self.assert_(div['start'] < div['end'])
+            self.assertTrue(div['start'] > 0)
+            self.assertTrue(div['start'] >= lastend)
+            self.assertTrue(div['start'] < div['end'])
             lastend = div['end']
         div = res[9]
         self.assertEqual(div['stores'], 9)
         self.assertEqual(div['loads'], 4)
-        self.assert_(div['start'] > 0)
-        self.assert_(div['start'] >= lastend)
-        self.assert_(div['start'] < div['end'])
+        self.assertTrue(div['start'] > 0)
+        self.assertTrue(div['start'] >= lastend)
+        self.assertTrue(div['start'] < div['end'])
 
 
 def test_suite():

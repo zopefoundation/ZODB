@@ -160,8 +160,8 @@ class RecoveryStorage(IteratorDeepCompare):
             # transaction.  Without the patch, the second assert failed
             # (it claimed it couldn't find a data record for obj2) on my
             # box, but other failure modes were possible.
-            self.assert_(self._storage._data_find(pos, obj1_oid, '') > 0)
-            self.assert_(self._storage._data_find(pos, obj2_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj1_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj2_oid, '') > 0)
 
             # The offset of the next ("redo") transaction.
             pos = self._storage.getSize()
@@ -182,8 +182,8 @@ class RecoveryStorage(IteratorDeepCompare):
         if is_filestorage:
             # Again _data_find should find both objects in this txn, and
             # again the second assert failed on my box.
-            self.assert_(self._storage._data_find(pos, obj1_oid, '') > 0)
-            self.assert_(self._storage._data_find(pos, obj2_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj1_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj2_oid, '') > 0)
 
         # Indirectly provoke .restore().  .restore in turn indirectly
         # provokes _data_find too, but not usefully for the purposes of

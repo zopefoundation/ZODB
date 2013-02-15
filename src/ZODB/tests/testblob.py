@@ -280,7 +280,7 @@ class RecoveryBlobStorage(BlobTestBase,
 
     # Requires a setUp() that creates a self._dst destination storage
     def testSimpleBlobRecovery(self):
-        self.assert_(
+        self.assertTrue(
             ZODB.interfaces.IBlobStorageRestoreable.providedBy(self._storage)
             )
         db = DB(self._storage)
@@ -514,7 +514,7 @@ def loadblob_tmpstore():
 
     We can access the blob correctly:
 
-    >>> tmpstore.loadBlob(blob_oid, tid) == blob_storage.loadBlob(blob_oid, tid)
+    >>> tmpstore.loadBlob(blob_oid,tid) == blob_storage.loadBlob(blob_oid,tid)
     True
 
     Clean up:

@@ -36,21 +36,21 @@ class Test(unittest.TestCase):
 
     def test__del__(self):
         index = self.index
-        self.assert_(p64(1000) in index)
-        self.assert_(p64(100*1000) in index)
+        self.assertTrue(p64(1000) in index)
+        self.assertTrue(p64(100*1000) in index)
 
         del self.index[p64(1000)]
         del self.index[p64(100*1000)]
 
-        self.assert_(p64(1000) not in index)
-        self.assert_(p64(100*1000) not in index)
+        self.assertTrue(p64(1000) not in index)
+        self.assertTrue(p64(100*1000) not in index)
 
         for key in list(self.index):
             del index[key]
-        self.assert_(not index)
+        self.assertTrue(not index)
 
         # Whitebox. Make sure empty buckets are removed
-        self.assert_(not index._data)
+        self.assertTrue(not index._data)
 
     def testInserts(self):
         index = self.index

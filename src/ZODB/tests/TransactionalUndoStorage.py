@@ -376,7 +376,8 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
-        self.assertRaises(POSException.UndoError, self._begin_undos_vote, t, tid)
+        self.assertRaises(POSException.UndoError,
+                          self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
         # Now have more fun: object1 and object2 are in the same transaction,
         # which we'll try to undo to, but one of them has since modified in
@@ -412,7 +413,8 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
-        self.assertRaises(POSException.UndoError, self._begin_undos_vote, t, tid)
+        self.assertRaises(POSException.UndoError,
+                          self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
         self._iterate()
 
@@ -545,7 +547,7 @@ class TransactionalUndoStorage:
 
         root._p_deactivate()
         cn.sync()
-        self.assert_(listeq(root.keys(), ["key0", "key2"]))
+        self.assertTrue(listeq(root.keys(), ["key0", "key2"]))
 
         L = db.undoInfo()
         db.undo(L[0]["id"])
@@ -557,14 +559,14 @@ class TransactionalUndoStorage:
 
         root._p_deactivate()
         cn.sync()
-        self.assert_(listeq(root.keys(), ["key0", "key1", "key2"]))
+        self.assertTrue(listeq(root.keys(), ["key0", "key1", "key2"]))
 
         for t in pack_times:
             self._storage.pack(t, referencesf)
 
             root._p_deactivate()
             cn.sync()
-            self.assert_(listeq(root.keys(), ["key0", "key1", "key2"]))
+            self.assertTrue(listeq(root.keys(), ["key0", "key1", "key2"]))
             for i in range(3):
                 obj = root["key%d" % i]
                 self.assertEqual(obj.value, i)

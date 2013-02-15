@@ -169,7 +169,7 @@ class BasicStorage:
         # of this number
         self._dostore(data=MinPO(22))
         self._dostore(data=MinPO(23))
-        self.assert_(len(self._storage) in [0,2])
+        self.assertTrue(len(self._storage) in [0,2])
 
     def checkGetSize(self):
         self._dostore(data=MinPO(25))
@@ -233,10 +233,10 @@ class BasicStorage:
             self._storage.checkCurrentSerialInTransaction(oid, tid, t)
             self._storage.tpc_vote(t)
         except POSException.ReadConflictError as v:
-            self.assert_(v.oid) == oid
-            self.assert_(v.serials == (tid2, tid))
+            self.assertTrue(v.oid) == oid
+            self.assertTrue(v.serials == (tid2, tid))
         else:
-            if 0: self.assert_(False, "No conflict error")
+            if 0: self.assertTrue(False, "No conflict error")
 
         self._storage.tpc_abort(t)
 
@@ -269,7 +269,7 @@ class BasicStorage:
         thread.join(33)
 
         tid3 = self._storage.load(oid)[1]
-        self.assert_(tid3 > self._storage.load(b'\0\0\0\0\0\0\0\xf3')[1])
+        self.assertTrue(tid3 > self._storage.load(b'\0\0\0\0\0\0\0\xf3')[1])
 
         #----------------------------------------------------------------------
         # non-stale competing trans after checkCurrentSerialInTransaction
@@ -295,7 +295,8 @@ class BasicStorage:
             self._storage.tpc_finish(t)
             thread.join()
             tid4 = self._storage.load(oid)[1]
-            self.assert_(tid4 > self._storage.load(b'\0\0\0\0\0\0\0\xf4')[1])
+            self.assertTrue(tid4 >
+                                self._storage.load(b'\0\0\0\0\0\0\0\xf4')[1])
 
 
     def check_tid_ordering_w_commit(self):
