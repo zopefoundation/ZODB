@@ -45,5 +45,5 @@ class PersistentStorage:
         # keep copies of all the objects
         for oid, ver, p, s in objects:
             _p, _s = self._storage.load(oid, ver)
-            self.assertEquals(p, _p)
-            self.assertEquals(s, _s)
+            self.assertEqual(p, _p)
+            self.assertEqual(s, _s)

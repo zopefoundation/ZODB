@@ -131,8 +131,8 @@ class RecoveryStorage(IteratorDeepCompare):
         transaction.commit()
 
         r = db.open().root()
-        self.assertEquals(r["obj1"].x, 'x1')
-        self.assertEquals(r["obj2"].x, 'x2')
+        self.assertEqual(r["obj1"].x, 'x1')
+        self.assertEqual(r["obj2"].x, 'x2')
 
         # Dirty tricks.
         if is_filestorage:
@@ -176,8 +176,8 @@ class RecoveryStorage(IteratorDeepCompare):
         self._storage.tpc_finish(t)
 
         r = db.open().root()
-        self.assertEquals(r["obj1"].x, 'x1')
-        self.assertEquals(r["obj2"].x, 'x2')
+        self.assertEqual(r["obj1"].x, 'x1')
+        self.assertEqual(r["obj2"].x, 'x2')
 
         if is_filestorage:
             # Again _data_find should find both objects in this txn, and

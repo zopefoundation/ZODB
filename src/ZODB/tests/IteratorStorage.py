@@ -138,22 +138,22 @@ class IteratorStorage(IteratorCompare):
     def checkIterateRepeatedly(self):
         self._dostore()
         transactions = self._storage.iterator()
-        self.assertEquals(1, len(list(transactions)))
+        self.assertEqual(1, len(list(transactions)))
         # The iterator can only be consumed once:
-        self.assertEquals(0, len(list(transactions)))
+        self.assertEqual(0, len(list(transactions)))
 
     def checkIterateRecordsRepeatedly(self):
         self._dostore()
         tinfo = next(self._storage.iterator())
-        self.assertEquals(1, len(list(tinfo)))
-        self.assertEquals(1, len(list(tinfo)))
+        self.assertEqual(1, len(list(tinfo)))
+        self.assertEqual(1, len(list(tinfo)))
 
     def checkIterateWhileWriting(self):
         self._dostore()
         iterator = self._storage.iterator()
         # We have one transaction with 1 modified object.
         txn_1 = next(iterator)
-        self.assertEquals(1, len(list(txn_1)))
+        self.assertEqual(1, len(list(txn_1)))
 
         # We store another transaction with 1 object, the already running
         # iterator does not pick this up.

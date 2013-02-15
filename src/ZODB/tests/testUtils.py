@@ -48,17 +48,17 @@ class TestUtils(unittest.TestCase):
         for num in self.all:
             s = p64(num)
             n = U64(s)
-            self.assertEquals(num, n, "U64() failed")
+            self.assertEqual(num, n, "U64() failed")
             n2 = u64(s)
-            self.assertEquals(num, n2, "u64() failed")
+            self.assertEqual(num, n2, "u64() failed")
 
     def checkKnownConstants(self):
-        self.assertEquals(b"\000\000\000\000\000\000\000\001", p64(1))
-        self.assertEquals(b"\000\000\000\001\000\000\000\000", p64(1<<32))
-        self.assertEquals(u64(b"\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(U64(b"\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(u64(b"\000\000\000\001\000\000\000\000"), 1<<32)
-        self.assertEquals(U64(b"\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEqual(b"\000\000\000\000\000\000\000\001", p64(1))
+        self.assertEqual(b"\000\000\000\001\000\000\000\000", p64(1<<32))
+        self.assertEqual(u64(b"\000\000\000\000\000\000\000\001"), 1)
+        self.assertEqual(U64(b"\000\000\000\000\000\000\000\001"), 1)
+        self.assertEqual(u64(b"\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEqual(U64(b"\000\000\000\001\000\000\000\000"), 1<<32)
 
     def checkPersistentIdHandlesDescriptor(self):
         from ZODB.serialize import ObjectWriter

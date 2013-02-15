@@ -112,7 +112,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertTrue(obj._p_oid is None)
         self.assertTrue(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
-        self.assertEquals(self.db.storage._stored, [oid])
+        self.assertEqual(self.db.storage._stored, [oid])
 
     def checkCommit(self):
         obj = StubObject()
@@ -127,8 +127,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         # This next assertTrue is covered by an assert in tpc_finish.
         ##self.assertTrue(not self.datamgr._added)
 
-        self.assertEquals(self.db.storage._stored, [oid])
-        self.assertEquals(self.db.storage._finished, [oid])
+        self.assertEqual(self.db.storage._stored, [oid])
+        self.assertEqual(self.db.storage._finished, [oid])
 
     def checkModifyOnGetstate(self):
         member = StubObject()

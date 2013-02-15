@@ -240,18 +240,18 @@ class LRUCacheTests(CacheTestBase):
         for i in range(CONNS):
             self.noodle_new_connection()
 
-        self.assertEquals(self.db.cacheSize(), CACHE_SIZE * CONNS)
+        self.assertEqual(self.db.cacheSize(), CACHE_SIZE * CONNS)
         details = self.db.cacheDetailSize()
-        self.assertEquals(len(details), CONNS)
+        self.assertEqual(len(details), CONNS)
         for d in details:
-            self.assertEquals(d['ngsize'], CACHE_SIZE)
+            self.assertEqual(d['ngsize'], CACHE_SIZE)
 
             # The assertion below is non-sensical
             # The (poorly named) cache size is a target for non-ghosts.
             # The cache *usually* contains non-ghosts, so that the
             # size normally exceeds the target size.
 
-            #self.assertEquals(d['size'], CACHE_SIZE)
+            #self.assertEqual(d['size'], CACHE_SIZE)
 
     def testDetail(self):
         CACHE_SIZE = 10

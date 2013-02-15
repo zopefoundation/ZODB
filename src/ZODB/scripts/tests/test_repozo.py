@@ -898,7 +898,7 @@ class MonteCarloTests(unittest.TestCase):
         g.close()
         msg = ("guts don't match\ncorrectpath=%r when=%r\n cmd=%r" %
             (correctpath, when, ' '.join(argv)))
-        self.assertEquals(fguts, gguts, msg)
+        self.assertEqual(fguts, gguts, msg)
 
 
 def test_suite():
