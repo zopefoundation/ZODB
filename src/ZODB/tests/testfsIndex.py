@@ -68,7 +68,7 @@ class Test(unittest.TestCase):
         self.assertEqual(index.get(key), None)
         self.assertEqual(index.get(key, ''), '')
 
-        # self.failUnless(len(index._data) > 1)
+        # self.assertTrue(len(index._data) > 1)
 
     def testUpdate(self):
         index = self.index

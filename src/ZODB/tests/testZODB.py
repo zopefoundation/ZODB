@@ -100,7 +100,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             else:
                 raise
         else:
-            self.failUnless(not abort_it, 'Did not abort duplication')
+            self.assertTrue(not abort_it, 'Did not abort duplication')
         l1 = list(ob.items())
         l1.sort()
         l2 = list(ob2.items())
@@ -560,8 +560,8 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
         # but 3.2.3 had a bug wherein it did.
         data_conflicts = data._p_jar._conflicts
         data2_conflicts = data2._p_jar._conflicts
-        self.failIf(data_conflicts)
-        self.failIf(data2_conflicts)  # this used to fail
+        self.assertFalse(data_conflicts)
+        self.assertFalse(data2_conflicts)  # this used to fail
 
         # And because of that, we still couldn't commit a change to data2['d']
         # in the new transaction.

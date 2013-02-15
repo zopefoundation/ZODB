@@ -161,8 +161,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         old_cache = self.datamgr._cache
         self.datamgr._resetCache()
         new_cache = self.datamgr._cache
-        self.failIf(new_cache is old_cache)
-        self.failUnless(self.datamgr._reader._cache is new_cache)
+        self.assertFalse(new_cache is old_cache)
+        self.assertTrue(self.datamgr._reader._cache is new_cache)
 
 class UserMethodTests(unittest.TestCase):
 

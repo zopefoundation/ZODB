@@ -44,7 +44,7 @@ class FileStorageCorruptTests(StorageTestBase):
         self._close()
 
         # truncation the index file
-        self.failUnless(os.path.exists('Data.fs.index'))
+        self.assertTrue(os.path.exists('Data.fs.index'))
         f = open('Data.fs.index', 'rb+')
         f.seek(0, 2)
         size = f.tell()
@@ -60,7 +60,7 @@ class FileStorageCorruptTests(StorageTestBase):
         self._close()
 
         # truncation the index file
-        self.failUnless(os.path.exists('Data.fs.index'))
+        self.assertTrue(os.path.exists('Data.fs.index'))
         size = os.stat('Data.fs.index')[stat.ST_SIZE]
         f = open('Data.fs.index', 'rb+')
         while f.tell() < size:

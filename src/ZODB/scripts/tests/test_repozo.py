@@ -268,7 +268,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         ofp = Faux()
         bytes, sum = self._callFUT(files, ofp)
         self.assertEqual(ofp._written, [x.encode() for x in 'ABC'])
-        self.failUnless(ofp._closed)
+        self.assertTrue(ofp._closed)
 
 _marker = object()
 class Test_gen_filename(OptionsTestBase, unittest.TestCase):
@@ -460,7 +460,7 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(FILENAMES))
         for name in FILENAMES:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
     def test_doesnt_remove_current_repozo_files(self):
         FILENAMES = ['2009-12-20-10-08-03.fs',
@@ -472,7 +472,7 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(FILENAMES))
         for name in FILENAMES:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
     def test_removes_older_repozo_files(self):
         OLDER_FULL = ['2009-12-20-00-01-03.fs',
@@ -494,13 +494,13 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(CURRENT_FULL))
         for name in OLDER_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in DELTAS:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in CURRENT_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
     def test_removes_older_repozo_files_zipped(self):
         OLDER_FULL = ['2009-12-20-00-01-03.fsz',
@@ -522,13 +522,13 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(CURRENT_FULL))
         for name in OLDER_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in DELTAS:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in CURRENT_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
 
 class Test_do_full_backup(OptionsTestBase, unittest.TestCase):

@@ -220,7 +220,8 @@ class MTStorage:
         for t in threads:
             t.join(60)
         for t in threads:
-            self.failIf(t.isAlive(), "thread failed to finish in 60 seconds")
+            self.assertFalse(t.isAlive(),
+                             "thread failed to finish in 60 seconds")
 
     def check2ZODBThreads(self):
         db = ZODB.DB(self._storage)

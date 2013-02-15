@@ -124,9 +124,9 @@ class TestPList(unittest.TestCase):
 
         # Test __contains__
         for i in u2:
-            self.failUnless(i in u2, "i in u2")
+            self.assertTrue(i in u2, "i in u2")
         for i in min(u2)-1, max(u2)+1:
-            self.failUnless(i not in u2, "i not in u2")
+            self.assertTrue(i not in u2, "i not in u2")
 
         # Test __delslice__
 
@@ -142,12 +142,12 @@ class TestPList(unittest.TestCase):
 
         # Test __add__, __radd__, __mul__ and __rmul__
 
-        #self.failUnless(u1 + [] == [] + u1 == u1, "u1 + [] == [] + u1 == u1")
-        self.failUnless(u1 + [1] == u2, "u1 + [1] == u2")
-        #self.failUnless([-1] + u1 == [-1, 0], "[-1] + u1 == [-1, 0]")
-        self.failUnless(u2 == u2*1 == 1*u2, "u2 == u2*1 == 1*u2")
-        self.failUnless(u2+u2 == u2*2 == 2*u2, "u2+u2 == u2*2 == 2*u2")
-        self.failUnless(u2+u2+u2 == u2*3 == 3*u2, "u2+u2+u2 == u2*3 == 3*u2")
+        #self.assertTrue(u1 + [] == [] + u1 == u1, "u1 + [] == [] + u1 == u1")
+        self.assertTrue(u1 + [1] == u2, "u1 + [1] == u2")
+        #self.assertTrue([-1] + u1 == [-1, 0], "[-1] + u1 == [-1, 0]")
+        self.assertTrue(u2 == u2*1 == 1*u2, "u2 == u2*1 == 1*u2")
+        self.assertTrue(u2+u2 == u2*2 == 2*u2, "u2+u2 == u2*2 == 2*u2")
+        self.assertTrue(u2+u2+u2 == u2*3 == 3*u2, "u2+u2+u2 == u2*3 == 3*u2")
 
         # Test append
 

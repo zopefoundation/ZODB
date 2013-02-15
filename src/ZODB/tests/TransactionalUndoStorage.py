@@ -249,7 +249,7 @@ class TransactionalUndoStorage:
     def checkTwoObjectUndoAtOnce(self):
         # Convenience
         eq = self.assertEqual
-        unless = self.failUnless
+        unless = self.assertTrue
         p30, p31, p32, p50, p51, p52 = map(zodb_pickle,
                                            map(MinPO,
                                                (30, 31, 32, 50, 51, 52)))
@@ -357,8 +357,8 @@ class TransactionalUndoStorage:
         oids = self._begin_undos_vote(t, tid)
         self._storage.tpc_finish(t)
         eq(len(oids), 1)
-        self.failUnless(oid1 in oids)
-        self.failUnless(not oid2 in oids)
+        self.assertTrue(oid1 in oids)
+        self.assertTrue(not oid2 in oids)
         data, revid1 = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(33))
         data, revid2 = self._storage.load(oid2, '')
