@@ -315,7 +315,7 @@ def gc_blob_removes_uncommitted_data():
     >>> fname = blob._p_blob_uncommitted
     >>> os.path.exists(fname)
     True
-    >>> blob = None
+    >>> file = blob = None
     >>> os.path.exists(fname)
     False
     """
