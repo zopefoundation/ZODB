@@ -44,10 +44,10 @@ class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
 
 class Status:
-    checkpoint = 'c'
-    undone = 'u'
+    checkpoint = b'c'
+    undone = b'u'
 
-packed_version = 'FS21'
+packed_version = b'FS21'
 
 TREC_HDR_LEN = 23
 DREC_HDR_LEN = 42
@@ -55,7 +55,7 @@ DREC_HDR_LEN = 42
 VERBOSE = 0
 
 def hexify(s):
-    """Format an 8-bite string as hex"""
+    """Format an 8-bit string as hex"""
     l = []
     for c in s:
         h = hex(ord(c))
@@ -64,7 +64,7 @@ def hexify(s):
         if len(h) == 1:
             l.append("0")
         l.append(h)
-    return "0x" + string.join(l, '')
+    return "0x" + ''.join(l)
 
 def chatter(msg, level=1):
     if VERBOSE >= level:
@@ -130,7 +130,7 @@ def check_trec(path, file, pos, ltid, file_size):
     if status == Status.checkpoint:
         raise FormatError("%s checkpoint flag was not cleared at %s"
                           % (path, pos))
-    if status not in ' up':
+    if status not in b' up':
         raise FormatError("%s has invalid status '%s' at %s" %
                           (path, status, pos))
 
@@ -199,8 +199,7 @@ def check_drec(path, file, pos, tpos, tid):
     return pos, oid
 
 def usage():
-    print(__doc__)
-    sys.exit(-1)
+    sys.exit(__doc__)
 
 def main(args=None):
     if args is None:
@@ -221,8 +220,7 @@ def main(args=None):
     try:
         check(args[0])
     except FormatError as msg:
-        print(msg)
-        sys.exit(-1)
+        sys.exit(msg)
 
     chatter("no errors detected")
 
