@@ -51,6 +51,7 @@ setup an initial database state.
 >>> from ZODB.tests.MinPO import MinPO
 >>> r = cn1.root()
 >>> r["a"] = MinPO(1)
+>>> tm1.get().commit() # make sure the OIDs get allocated sequentially
 >>> r["b"] = MinPO(1)
 >>> tm1.get().commit()
 
@@ -340,6 +341,7 @@ non-current revision to load.
 >>> cn1 = db.open(transaction_manager=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
+>>> tm1.get().commit() # make sure the OIDs get allocated sequentially
 >>> r1["b"] = MinPO(0)
 >>> tm1.get().commit()
 >>> r1["b"].value = 1
@@ -377,6 +379,7 @@ activate "b" will result in a ReadConflictError.
 >>> cn1 = db.open(transaction_manager=tm1)
 >>> r1 = cn1.root()
 >>> r1["a"] = MinPO(0)
+>>> tm1.get().commit() # make sure the OIDs get allocated sequentially
 >>> r1["b"] = MinPO(0)
 >>> tm1.get().commit()
 >>> cn1.cacheMinimize()  # makes everything in cache a ghost
