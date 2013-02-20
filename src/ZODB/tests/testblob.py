@@ -770,11 +770,12 @@ def test_suite():
         optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,
-        checker = ZODB.tests.util.checker + \
+        checker=ZODB.tests.util.checker +
             zope.testing.renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
+            (re.compile(r"u('[^']*')"), r"\1"),
             ]),
         ))
     suite.addTest(storage_reusable_suite(
