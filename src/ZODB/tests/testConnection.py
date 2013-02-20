@@ -169,7 +169,7 @@ class UserMethodTests(unittest.TestCase):
     # add isn't tested here, because there are a bunch of traditional
     # unit tests for it.
 
-    def test_root(self):
+    def doctest_root(self):
         r"""doctest of root() method
 
         The root() method is simple, and the tests are pretty minimal.
@@ -188,7 +188,7 @@ class UserMethodTests(unittest.TestCase):
         >>> db.close()
         """
 
-    def test_get(self):
+    def doctest_get(self):
         r"""doctest of get() method
 
         The get() method return the persistent object corresponding to
@@ -241,7 +241,7 @@ class UserMethodTests(unittest.TestCase):
         POSKeyError: 0x01
         """
 
-    def test_close(self):
+    def doctest_close(self):
         r"""doctest of close() method
 
         This is a minimal test, because most of the interesting
@@ -269,7 +269,7 @@ class UserMethodTests(unittest.TestCase):
         ConnectionStateError: The database connection is closed
         """
 
-    def test_close_with_pending_changes(self):
+    def doctest_close_with_pending_changes(self):
         r"""doctest to ensure close() w/ pending changes complains
 
         >>> import transaction
@@ -310,7 +310,7 @@ class UserMethodTests(unittest.TestCase):
         >>> db.close()
         """
 
-    def test_onCloseCallbacks(self):
+    def doctest_onCloseCallbacks(self):
         r"""doctest of onCloseCallback() method
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
@@ -342,7 +342,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn._Connection__onCloseCallbacks
         """
 
-    def test_close_dispatches_to_activity_monitors(self):
+    def doctest_close_dispatches_to_activity_monitors(self):
         r"""doctest that connection close updates activity monitors
 
         Set up a multi-database:
@@ -375,7 +375,7 @@ class UserMethodTests(unittest.TestCase):
             1
         """
 
-    def test_db(self):
+    def doctest_db(self):
         r"""doctest of db() method
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
@@ -387,7 +387,7 @@ class UserMethodTests(unittest.TestCase):
         True
         """
 
-    def test_isReadOnly(self):
+    def doctest_isReadOnly(self):
         r"""doctest of isReadOnly() method
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
@@ -408,7 +408,7 @@ class UserMethodTests(unittest.TestCase):
         True
         """
 
-    def test_cache(self):
+    def doctest_cache(self):
         r"""doctest of cacheMinimize().
 
         Thus test us minimal, just verifying that the method can be called
@@ -430,7 +430,7 @@ class UserMethodTests(unittest.TestCase):
         -1
         """
 
-def test_transaction_retry_convenience():
+def doctest_transaction_retry_convenience():
     """
     Simple test to verify integration with the transaction retry
     helper my verifying that we can raise ConflictError and have it
@@ -467,7 +467,7 @@ class InvalidationTests(unittest.TestCase):
     # on the various concurrent updates and NZODBThreads tests to
     # handle these.
 
-    def test_invalidate(self):
+    def doctest_invalidate(self):
         r"""
 
         This test initializes the database with several persistent
@@ -527,7 +527,7 @@ class InvalidationTests(unittest.TestCase):
 
         """
 
-def test_invalidateCache():
+def doctest_invalidateCache():
     """The invalidateCache method invalidates a connection's cache.  It also
     prevents reads until the end of a transaction::
 
@@ -599,7 +599,7 @@ def test_invalidateCache():
         >>> db.close()
     """
 
-def connection_root_convenience():
+def doctest_connection_root_convenience():
     """Connection root attributes can now be used as objects with attributes
 
     >>> db = ZODB.tests.util.DB()
@@ -640,7 +640,7 @@ class proper_ghost_initialization_with_empty__p_deactivate_class(Persistent):
     def _p_deactivate(self):
         pass
 
-def proper_ghost_initialization_with_empty__p_deactivate():
+def doctest_proper_ghost_initialization_with_empty__p_deactivate():
     """
     See https://bugs.launchpad.net/zodb/+bug/185066
 
@@ -659,7 +659,7 @@ def proper_ghost_initialization_with_empty__p_deactivate():
 
     """
 
-def readCurrent():
+def doctest_readCurrent():
     r"""
     The connection's readCurrent method is called to provide a higher
     level of consistency in cases where an object if read to compute an
@@ -807,7 +807,7 @@ def readCurrent():
 
     """
 
-def cache_management_of_subconnections():
+def doctest_cache_management_of_subconnections():
     """Make that cache management works for subconnections.
 
     When we use multi-databases, we open a connection in one database and
@@ -882,7 +882,7 @@ class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
         Persistent._p_invalidate(self)
         print(self.settings)   # POSKeyError here
 
-def abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
+def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
     r"""
     Before, the following would fail with a POSKeyError, which was
     somewhat surprizing, in a very edgy sort of way. :)
@@ -914,7 +914,7 @@ class Clp9460655(Persistent):
         self.id = id
         self._word = word
 
-def lp9460655():
+def doctest_lp9460655():
     r"""
     >>> conn = ZODB.connection(None)
     >>> root = conn.root()
@@ -940,7 +940,7 @@ def lp9460655():
 
     """
 
-def lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
+def doctest_lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
     r"""
 
     As the following"DocTest" demonstrates, "abort" forgets to
@@ -967,7 +967,7 @@ class Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores(Persistent):
         self.got = 1
         return self.__dict__.copy()
 
-def lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
+def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     r"""
     >>> C = Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores
     >>> conn = ZODB.connection(None)
