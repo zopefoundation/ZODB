@@ -642,7 +642,7 @@ class proper_ghost_initialization_with_empty__p_deactivate_class(Persistent):
 
 def proper_ghost_initialization_with_empty__p_deactivate():
     """
-See https://bugs.launchpad.net/zodb/+bug/185066
+    See https://bugs.launchpad.net/zodb/+bug/185066
 
     >>> db = ZODB.tests.util.DB()
     >>> conn = db.open()
@@ -661,14 +661,14 @@ See https://bugs.launchpad.net/zodb/+bug/185066
 
 def readCurrent():
     r"""
-The connection's readCurrent method is called to provide a higher
-level of consistency in cases where an object if read to compute an
-update to a separate object.  When this is used, the
-checkCurrentSerialInTransaction method on the storage is called in
-2-phase commit.
+    The connection's readCurrent method is called to provide a higher
+    level of consistency in cases where an object if read to compute an
+    update to a separate object.  When this is used, the
+    checkCurrentSerialInTransaction method on the storage is called in
+    2-phase commit.
 
-To demonstrate this, we'll create a storage and give it a test
-implementation of checkCurrentSerialInTransaction.
+    To demonstrate this, we'll create a storage and give it a test
+    implementation of checkCurrentSerialInTransaction.
 
     >>> import ZODB.MappingStorage
     >>> store = ZODB.MappingStorage.MappingStorage()
@@ -683,8 +683,8 @@ implementation of checkCurrentSerialInTransaction.
 
     >>> store.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
 
-Now, we'll use the storage as usual.  checkCurrentSerialInTransaction
-won't normally be called:
+    Now, we'll use the storage as usual.  checkCurrentSerialInTransaction
+    won't normally be called:
 
     >>> db = ZODB.DB(store)
     >>> conn = db.open()
@@ -692,17 +692,17 @@ won't normally be called:
     >>> conn.root.b = ZODB.tests.util.P('b')
     >>> transaction.commit()
 
-If we call readCurrent for an object and we modify another object,
-then checkCurrentSerialInTransaction will be called for the object
-readCurrent was called on.
+    If we call readCurrent for an object and we modify another object,
+    then checkCurrentSerialInTransaction will be called for the object
+    readCurrent was called on.
 
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x = 0
     >>> transaction.commit()
     checkCurrentSerialInTransaction '\x00\x00\x00\x00\x00\x00\x00\x01'
 
-It doesn't matter how often we call readCurrent,
-checkCurrentSerialInTransaction will be called only once:
+    It doesn't matter how often we call readCurrent,
+    checkCurrentSerialInTransaction will be called only once:
 
     >>> conn.readCurrent(conn.root.a)
     >>> conn.readCurrent(conn.root.a)
@@ -712,21 +712,21 @@ checkCurrentSerialInTransaction will be called only once:
     >>> transaction.commit()
     checkCurrentSerialInTransaction '\x00\x00\x00\x00\x00\x00\x00\x01'
 
-checkCurrentSerialInTransaction won't be called if another object
-isn't modified:
+    checkCurrentSerialInTransaction won't be called if another object
+    isn't modified:
 
 
     >>> conn.readCurrent(conn.root.a)
     >>> transaction.commit()
 
-Or if the object it was called on is modified:
+    Or if the object it was called on is modified:
 
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.a.x = 0
     >>> conn.root.b.x += 1
     >>> transaction.commit()
 
-If the storage raises a conflict error, it'll be propigated:
+    If the storage raises a conflict error, it'll be propigated:
 
     >>> _ = str(conn.root.a) # do read
     >>> bad.add(conn.root.a._p_oid)
@@ -739,11 +739,11 @@ If the storage raises a conflict error, it'll be propigated:
 
     >>> transaction.abort()
 
-The conflict error will cause the affected object to be invalidated:
+    The conflict error will cause the affected object to be invalidated:
 
     >>> conn.root.a._p_changed
 
-The storage may raise it later:
+    The storage may raise it later:
 
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     if not trans == transaction.get(): print('oops')
@@ -760,7 +760,7 @@ The storage may raise it later:
     >>> store.badness = None
     >>> store.tpc_vote = tpc_vote
 
-It will still be propigated:
+    It will still be propigated:
 
     >>> _ = str(conn.root.a) # do read
     >>> conn.readCurrent(conn.root.a)
@@ -772,18 +772,18 @@ It will still be propigated:
 
     >>> transaction.abort()
 
-The conflict error will cause the affected object to be invalidated:
+    The conflict error will cause the affected object to be invalidated:
 
     >>> conn.root.a._p_changed
 
-Read checks don't leak accross transactions:
+    Read checks don't leak accross transactions:
 
     >>> conn.readCurrent(conn.root.a)
     >>> transaction.commit()
     >>> conn.root.b.x = +1
     >>> transaction.commit()
 
-Read checks to work accross savepoints.
+    Read checks to work accross savepoints.
 
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x = +1
@@ -810,11 +810,11 @@ Read checks to work accross savepoints.
 def cache_management_of_subconnections():
     """Make that cache management works for subconnections.
 
-When we use multi-databases, we open a connection in one database and
-access connections to other databases through it.  This test verifies
-thatcache management is applied to all of the connections.
+    When we use multi-databases, we open a connection in one database and
+    access connections to other databases through it.  This test verifies
+    thatcache management is applied to all of the connections.
 
-Set up a multi-database:
+    Set up a multi-database:
 
     >>> db1 = ZODB.DB(None)
     >>> db2 = ZODB.DB(None, databases=db1.databases, database_name='2',
@@ -822,45 +822,45 @@ Set up a multi-database:
     >>> conn1 = db1.open()
     >>> conn2 = conn1.get_connection('2')
 
-Populate it with some data, more than will fit in the cache:
+    Populate it with some data, more than will fit in the cache:
 
     >>> for i in range(100):
     ...     conn2.root()[i] = conn2.root().__class__()
 
-Upon commit, the cache is reduced to the cache size:
+    Upon commit, the cache is reduced to the cache size:
 
     >>> transaction.commit()
     >>> conn2._cache.cache_non_ghost_count
     10
 
-Fill it back up:
+    Fill it back up:
 
     >>> for i in range(100):
     ...     _ = str(conn2.root()[i])
     >>> conn2._cache.cache_non_ghost_count
     101
 
-Doing cache GC on the primary also does it on the secondary:
+    Doing cache GC on the primary also does it on the secondary:
 
     >>> conn1.cacheGC()
     >>> conn2._cache.cache_non_ghost_count
     10
 
-Ditto for cache minimize:
+    Ditto for cache minimize:
 
     >>> conn1.cacheMinimize()
     >>> conn2._cache.cache_non_ghost_count
     0
 
 
-Fill it back up:
+    Fill it back up:
 
     >>> for i in range(100):
     ...     _ = str(conn2.root()[i])
     >>> conn2._cache.cache_non_ghost_count
     101
 
-GC is done on reopen:
+    GC is done on reopen:
 
     >>> conn1.close()
     >>> db1.open() is conn1
@@ -901,7 +901,7 @@ def abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
 
     >>> transaction.abort()
 
-After the abort, the oid and jar are None:
+    After the abort, the oid and jar are None:
 
     >>> x._p_oid
     >>> x._p_jar
@@ -943,22 +943,22 @@ def lp9460655():
 def lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
     r"""
 
-As the following"DocTest" demonstrates, "abort" forgets to
-reset "_p_changed" for new (i.e. "added") objects.
+    As the following"DocTest" demonstrates, "abort" forgets to
+    reset "_p_changed" for new (i.e. "added") objects.
 
->>> class P(Persistent): pass
-...
->>> c = ZODB.connection(None)
->>> obj = P()
->>> c.add(obj)
->>> obj.x = 1
->>> obj._p_changed
-True
->>> transaction.abort()
->>> obj._p_changed
-False
+    >>> class P(Persistent): pass
+    ...
+    >>> c = ZODB.connection(None)
+    >>> obj = P()
+    >>> c.add(obj)
+    >>> obj.x = 1
+    >>> obj._p_changed
+    True
+    >>> transaction.abort()
+    >>> obj._p_changed
+    False
 
->>> c.close()
+    >>> c.close()
     """
 
 class Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores(Persistent):
@@ -977,7 +977,7 @@ def lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     ...     return oldstore(oid, *args)
     >>> conn._storage.store = store
 
-When we commit a change, we only get a single store call
+    When we commit a change, we only get a single store call
 
     >>> conn.root.x = C()
     >>> transaction.commit()
@@ -988,17 +988,17 @@ When we commit a change, we only get a single store call
     >>> transaction.commit()
     storing '\x00\x00\x00\x00\x00\x00\x00\x02'
 
-We still see updates:
+    We still see updates:
 
     >>> conn.root.x.y = 1
     >>> transaction.commit()
     storing '\x00\x00\x00\x00\x00\x00\x00\x01'
 
-Not not non-updates:
+    Not not non-updates:
 
     >>> transaction.commit()
 
-Let's try some combinations with savepoints:
+    Let's try some combinations with savepoints:
 
     >>> conn.root.n = 0
     >>> _ = transaction.savepoint()
