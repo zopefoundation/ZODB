@@ -662,7 +662,7 @@ def doctest_proper_ghost_initialization_with_empty__p_deactivate():
 def doctest_readCurrent():
     r"""
     The connection's readCurrent method is called to provide a higher
-    level of consistency in cases where an object if read to compute an
+    level of consistency in cases where an object is read to compute an
     update to a separate object.  When this is used, the
     checkCurrentSerialInTransaction method on the storage is called in
     2-phase commit.
@@ -726,7 +726,7 @@ def doctest_readCurrent():
     >>> conn.root.b.x += 1
     >>> transaction.commit()
 
-    If the storage raises a conflict error, it'll be propigated:
+    If the storage raises a conflict error, it'll be propagated:
 
     >>> _ = str(conn.root.a) # do read
     >>> bad.add(conn.root.a._p_oid)
@@ -760,7 +760,7 @@ def doctest_readCurrent():
     >>> store.badness = None
     >>> store.tpc_vote = tpc_vote
 
-    It will still be propigated:
+    It will still be propagated:
 
     >>> _ = str(conn.root.a) # do read
     >>> conn.readCurrent(conn.root.a)
@@ -776,14 +776,14 @@ def doctest_readCurrent():
 
     >>> conn.root.a._p_changed
 
-    Read checks don't leak accross transactions:
+    Read checks don't leak across transactions:
 
     >>> conn.readCurrent(conn.root.a)
     >>> transaction.commit()
     >>> conn.root.b.x = +1
     >>> transaction.commit()
 
-    Read checks to work accross savepoints.
+    Read checks to work across savepoints.
 
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x = +1
@@ -812,7 +812,7 @@ def doctest_cache_management_of_subconnections():
 
     When we use multi-databases, we open a connection in one database and
     access connections to other databases through it.  This test verifies
-    thatcache management is applied to all of the connections.
+    that cache management is applied to all of the connections.
 
     Set up a multi-database:
 
@@ -885,10 +885,10 @@ class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
 def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
     r"""
     Before, the following would fail with a POSKeyError, which was
-    somewhat surprizing, in a very edgy sort of way. :)
+    somewhat surprising, in a very edgy sort of way. :)
 
     Really, when an object add is aborted, the object should be "removed" from
-    the db and its invalidatuon method shouldm't even be called:
+    the db and its invalidation method shouldn't even be called:
 
     >>> conn = ZODB.connection(None)
     >>> conn.root.x = x = C_invalidations_of_new_objects_work_after_savepoint()
@@ -943,7 +943,7 @@ def doctest_lp9460655():
 def doctest_lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
     r"""
 
-    As the following"DocTest" demonstrates, "abort" forgets to
+    As the following doctest demonstrates, "abort" forgets to
     reset "_p_changed" for new (i.e. "added") objects.
 
     >>> class P(Persistent): pass
@@ -1124,7 +1124,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         cache = conn._cache
         # verify the change worked as expected
         self.assertEqual(cache.cache_size_bytes, 1)
-        # verify our entrance assumption is fullfilled
+        # verify our entrance assumption is fulfilled
         self.assertTrue(cache.total_estimated_size > 1)
         conn.cacheGC()
         self.assertTrue(cache.total_estimated_size <= 1)
@@ -1138,7 +1138,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         obj, conn, cache = self.obj, self.conn, self.conn._cache
         # verify the change worked as expected
         self.assertEqual(cache.cache_size_bytes, 1000)
-        # verify our entrance assumption is fullfilled
+        # verify our entrance assumption is fulfilled
         self.assertTrue(cache.total_estimated_size > 1)
         # give the objects some size
         obj.setValueWithSize(500)
@@ -1259,7 +1259,7 @@ class StubStorage:
         self._stored.append(oid)
         self._transstored.append(oid)
         self._transdata[oid] = (p, serial)
-        # Explicitly returing None, as we're not pretending to be a ZEO
+        # Explicitly returning None, as we're not pretending to be a ZEO
         # storage
         return None
 
