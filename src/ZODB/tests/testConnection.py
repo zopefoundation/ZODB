@@ -689,8 +689,14 @@ def doctest_readCurrent():
     >>> db = ZODB.DB(store)
     >>> conn = db.open()
     >>> conn.root.a = ZODB.tests.util.P('a')
+    >>> transaction.commit()
     >>> conn.root.b = ZODB.tests.util.P('b')
     >>> transaction.commit()
+
+    >>> conn.root.a._p_oid
+    b'\x00\x00\x00\x00\x00\x00\x00\x01'
+    >>> conn.root.b._p_oid
+    b'\x00\x00\x00\x00\x00\x00\x00\x02'
 
     If we call readCurrent for an object and we modify another object,
     then checkCurrentSerialInTransaction will be called for the object
