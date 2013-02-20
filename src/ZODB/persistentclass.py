@@ -191,7 +191,10 @@ class PersistentMetaClass(type):
     __getstate__ = _p_MethodDescr(__getstate__)
 
     def __setstate__(self, state):
-        self.__bases__, cdict = state
+        bases, cdict = state
+        if self.__bases__ != bases:
+            # __getnewargs__ should've taken care of that
+            raise AssertionError(self.__bases__, '!=', bases)
         cdict = dict([(k, v) for (k, v) in cdict.items()
                       if not k.startswith('_p_')])
 
