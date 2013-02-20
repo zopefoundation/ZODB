@@ -430,52 +430,78 @@ def test_basic_cache_size_estimation():
     >>> db = ZODB.MappingStorage.DB()
     >>> conn = db.open()
 
+    >>> def check_cache_size(cache, expected):
+    ...     actual = cache.total_estimated_size
+    ...     if actual != expected:
+    ...         print("expected %d, got %d" % (expected, actual))
+    ...         print("objects in cache:")
+    ...         for oid, obj in sorted(cache.items()):
+    ...             print(repr(oid), " - ", obj._p_estimated_size, "bytes")
+
+
 The cache is empty initially:
 
-    >>> conn._cache.total_estimated_size
-    0
+    >>> check_cache_size(conn._cache, 0)
 
 We force the root to be loaded and the cache grows:
 
-    Py3: XXX: This needs more investigation in Connection.
-
     >>> getattr(conn.root, 'z', None)
-    >>> conn._cache.total_estimated_size == (64 if PY2 else 128)
+    >>> root_size = conn.root._root._p_estimated_size
+    >>> check_cache_size(conn._cache, root_size)
+
+We need to unwrap the RootConvenience to get to the actual persistent
+mapping that is our root object and see its estimated size
+
+    >>> root_size in (64, 128)
     True
+
+.. note::
+
+    The actual size is 60 (Python 2.6 using cPickle; would be 62 if we
+    used pickle) or 65 bytes (Python 3.3) due to slight differences in
+    pickle bytecode that is used.  You can play with ::
+
+        pickletools.dis(conn._storage.load(conn.root._root._p_oid)[0]))
+
+    to see the differences.
 
 We add some data and the cache grows:
 
     >>> conn.root.z = ZODB.tests.util.P('x'*100)
     >>> import transaction
     >>> transaction.commit()
-    >>> conn._cache.total_estimated_size == (320 if PY2 else 320+64)
+    >>> root_size = conn.root._root._p_estimated_size
+    >>> z_size = conn.root.z._p_estimated_size
+    >>> check_cache_size(conn._cache, root_size + z_size)
+
+Note that the size of the root object increased also, so we need to take
+a new measurement
+
+    >>> root_size in (128, 192)
     True
+    >>> z_size
+    192
 
 Loading the objects in another connection gets the same sizes:
 
     >>> conn2 = db.open()
-    >>> conn2._cache.total_estimated_size
-    0
+    >>> check_cache_size(conn2._cache, 0)
     >>> getattr(conn2.root, 'x', None)
-    >>> conn._cache.total_estimated_size == (64 if PY2 else 128)
-    True
+    >>> check_cache_size(conn2._cache, root_size)
     >>> _ = conn2.root.z.name
-    >>> conn._cache.total_estimated_size == (320 if PY2 else 320+64)
-    True
+    >>> check_cache_size(conn2._cache, root_size + z_size)
 
 If we deactivate, the size goes down:
 
     >>> conn2.root.z._p_deactivate()
-    >>> conn2._cache.total_estimated_size
-    128
+    >>> check_cache_size(conn2._cache, root_size)
 
 Loading data directly, rather than through traversal updates the cache
 size correctly:
 
     >>> conn3 = db.open()
     >>> _ = conn3.get(conn2.root.z._p_oid).name
-    >>> conn3._cache.total_estimated_size
-    192
+    >>> check_cache_size(conn3._cache, z_size)
 
     """
 
