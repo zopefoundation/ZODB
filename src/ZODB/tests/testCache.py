@@ -463,7 +463,17 @@ mapping that is our root object and see its estimated size
 
         pickletools.dis(conn._storage.load(conn.root._root._p_oid)[0]))
 
-    to see the differences.
+    to see the differences in the first pickle (encoding the object class).
+    and
+
+        pickletools.dis(conn._storage.load(conn.root._root._p_oid)[0][N:]))
+
+    to see the differences in the second pickle (encoding the object state,
+    here N is the length of the first pickle).
+
+    These sizes are then rounded up to a multiple of 64, to fit in a
+    24-bit field for obscure reasons having to do with C structure size
+    BBB due to evil packages shipping their own copies of cPersistence.h.
 
 We add some data and the cache grows:
 
