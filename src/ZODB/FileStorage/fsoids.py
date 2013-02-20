@@ -193,6 +193,8 @@ class Tracer(object):
                                 ref2name[ref] = klass = get_class(r.data)
                     elif isinstance(klass, tuple):
                         ref2name[ref] = klass = "%s.%s" % klass
+                    else:
+                        klass = "%s.%s" % (klass.__module__, klass.__name__)
 
                     self._msg(oid, tid, "references", oid_repr(ref), klass,
                               "at", pos)
