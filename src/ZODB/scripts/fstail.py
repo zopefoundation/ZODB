@@ -35,7 +35,7 @@ def main(path, ntxn):
         l = len(str(th.get_timestamp())) + 1
         th.read_meta()
         print("%s: hash=%s" % (th.get_timestamp(),
-                               binascii.hexlify(hash)))
+                               binascii.hexlify(hash).decode()))
         print(("user=%r description=%r length=%d offset=%d"
                % (th.user, th.descr, th.length, th.get_data_offset())))
         print()
