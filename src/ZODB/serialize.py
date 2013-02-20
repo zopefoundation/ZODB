@@ -707,7 +707,7 @@ def get_refs(a_pickle):
         u.load()
         u.load()
 
-    # Now we have a list of referencs.  Need to convert to list of
+    # Now we have a list of references.  Need to convert to list of
     # oids and class info:
 
     result = []

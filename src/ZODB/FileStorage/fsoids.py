@@ -16,8 +16,6 @@ import ZODB.FileStorage
 from ZODB.utils import get_pickle_metadata, p64, oid_repr, tid_repr
 from ZODB.serialize import get_refs
 from ZODB.TimeStamp import TimeStamp
-from six.moves import map
-from six.moves import zip
 
 # Extract module.class string from pickle.
 def get_class(pickle):
@@ -82,8 +80,7 @@ class Tracer(object):
             self.oids[oid] = 0  # 0 revisions seen so far
 
     def _msg(self, oid, tid, *args):
-        args = map(str, args)
-        self.msgs.append( (oid, tid, ' '.join(args)) )
+        self.msgs.append( (oid, tid, ' '.join(map(str, args))) )
         self._produced_msg = True
 
     def report(self):
