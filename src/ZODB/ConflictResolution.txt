@@ -66,9 +66,11 @@ use:
             class PCounter(Persistent):
                 '`value` is readonly; increment it with `inc`.'
 
+                # Fool BTree checks for sane comparison :/
                 def __cmp__(self, other):
-                    'Fool BTree checks for sane comparison :/'
                     return object.__cmp__(self, other)
+                def __lt__(self, other):
+                    return object.__lt__(self, other)
 
                 _val = 0
                 def inc(self):

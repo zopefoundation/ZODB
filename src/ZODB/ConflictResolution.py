@@ -183,12 +183,31 @@ class PersistentReference(object):
                 "can't reliably compare against different "
                 "PersistentReferences")
 
+    # Python 3 dropped __cmp__
+
+    def __eq__(self, other):
+        return self.__cmp__(other) == 0
+
+    def __ne__(self, other):
+        return self.__cmp__(other) != 0
+
+    def __lt__(self, other):
+        return self.__cmp__(other) < 0
+
+    def __gt__(self, other):
+        return self.__cmp__(other) > 0
+
+    def __le__(self, other):
+        return self.__cmp__(other) <= 0
+
+    def __ge__(self, other):
+        return self.__cmp__(other) >= 0
+
     def __repr__(self):
         return "PR(%s %s)" % (id(self), self.data)
 
     def __getstate__(self):
         raise PicklingError("Can't pickle PersistentReference")
-
 
     @property
     def klass(self):
