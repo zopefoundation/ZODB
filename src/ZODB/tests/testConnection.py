@@ -51,7 +51,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.open()
         self.transaction = StubTransaction()
 
-    def check_add(self):
+    def test_add(self):
         from ZODB.POSException import InvalidObjectReference
         obj = StubObject()
         self.assertTrue(obj._p_oid is None)
@@ -75,7 +75,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         obj2._p_jar = object()
         self.assertRaises(InvalidObjectReference, self.datamgr.add, obj2)
 
-    def checkResetOnAbort(self):
+    def testResetOnAbort(self):
         # Check that _p_oid and _p_jar are reset when a transaction is
         # aborted.
         obj = StubObject()
@@ -86,7 +86,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertTrue(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
-    def checkResetOnTpcAbort(self):
+    def testResetOnTpcAbort(self):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -101,7 +101,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertTrue(obj._p_jar is None)
         self.assertRaises(KeyError, self.datamgr.get, oid)
 
-    def checkTpcAbortAfterCommit(self):
+    def testTpcAbortAfterCommit(self):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -114,7 +114,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertRaises(KeyError, self.datamgr.get, oid)
         self.assertEqual(self.db.storage._stored, [oid])
 
-    def checkCommit(self):
+    def testCommit(self):
         obj = StubObject()
         self.datamgr.add(obj)
         oid = obj._p_oid
@@ -130,7 +130,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertEqual(self.db.storage._stored, [oid])
         self.assertEqual(self.db.storage._finished, [oid])
 
-    def checkModifyOnGetstate(self):
+    def testModifyOnGetstate(self):
         member = StubObject()
         subobj = StubObject()
         subobj.member = member
@@ -147,7 +147,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
                         "member was not stored")
         self.assertTrue(self.datamgr._added_during_commit is None)
 
-    def checkUnusedAddWorks(self):
+    def testUnusedAddWorks(self):
         # When an object is added, but not committed, it shouldn't be stored,
         # but also it should be an error.
         obj = StubObject()
@@ -156,7 +156,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.tpc_finish(self.transaction)
         self.assertTrue(obj._p_oid not in self.datamgr._storage._stored)
 
-    def check__resetCacheResetsReader(self):
+    def test__resetCacheResetsReader(self):
         # https://bugs.launchpad.net/zodb/+bug/142667
         old_cache = self.datamgr._cache
         self.datamgr._resetCache()
@@ -1289,7 +1289,7 @@ class StubDatabase:
     large_record_size = 1<<30
 
 def test_suite():
-    s = unittest.makeSuite(ConnectionDotAdd, 'check')
+    s = unittest.makeSuite(ConnectionDotAdd)
     s.addTest(doctest.DocTestSuite(checker=checker))
     s.addTest(unittest.makeSuite(TestConnectionInterface))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
