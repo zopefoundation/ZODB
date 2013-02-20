@@ -273,7 +273,7 @@ If we copy an instance via export/import, the copy and the original
 share the same class:
 
     >>> file = connection.exportFile(p._p_oid)
-    >>> file.seek(0)
+    >>> _ = file.seek(0)
     >>> cp = connection.importFile(file)
     >>> file.close()
     >>> cp.color

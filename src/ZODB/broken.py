@@ -12,8 +12,6 @@
 #
 ##############################################################################
 """Broken object support
-
-$Id$
 """
 
 import sys
@@ -22,6 +20,13 @@ import persistent
 import zope.interface
 
 import ZODB.interfaces
+
+try:
+    # Python 3
+    import _compat_pickle
+except ImportError:
+    # Python 2
+    _compat_pickle = None
 
 broken_cache = {}
 
@@ -34,7 +39,7 @@ class Broken(object):
 
        Broken objects don't really do much of anything, except hold their
        state.   The Broken class is used as a base class for creating
-       classes in leu of missing classes::
+       classes in lieu of missing classes::
 
          >>> Atall = type('Atall', (Broken, ), {'__module__': 'not.there'})
 
@@ -145,6 +150,9 @@ def find_global(modulename, globalname,
          >>> find_global('sys', 'path') is sys.path
          True
 
+         >>> find_global('__builtin__', 'object') is object
+         True
+
        If an object can't be found, a broken class is returned::
 
          >>> broken = find_global('ZODB.not.there', 'atall')
@@ -187,6 +195,13 @@ def find_global(modulename, globalname,
 
          >>> broken_cache.clear()
        """
+
+    if _compat_pickle is not None:
+        if (modulename, globalname) in _compat_pickle.NAME_MAPPING:
+            modulename, globalname = _compat_pickle.NAME_MAPPING[
+                                            (modulename, globalname)]
+        if modulename in _compat_pickle.IMPORT_MAPPING:
+            modulename = _compat_pickle.IMPORT_MAPPING[modulename]
 
     # short circuit common case:
     try:
