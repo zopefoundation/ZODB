@@ -39,7 +39,7 @@ the methods outside of the class. Why?  Because all of the items in a
 persistent class must be picklable.  We defined the methods as global
 functions to make them picklable.
 
-Also note that we explictly set the module.  Persistent classes don't
+Also note that we explicitly set the module.  Persistent classes don't
 live in normal Python modules. Rather, they live in the database.  We
 use information in ``__module__`` to record where in the database.  When
 we want to use a database, we will need to supply a custom class
@@ -138,7 +138,7 @@ We can open another connection and access the class there.
     >>> c2.bar()
     bar other
 
-If we make changes without commiting them:
+If we make changes without committing them:
 
     >>> C.bar = baz
     >>> c.bar()
@@ -225,7 +225,7 @@ able to access the root object and it must be loaded first.  If the
 instance was in the root object, we'd be unable to create it while
 loading the root object.
 
-Now, if we try to load it, we get a broken oject:
+Now, if we try to load it, we get a broken object:
 
     >>> connection2.sync()
     >>> connection2.root()['obs']['p']
@@ -286,6 +286,6 @@ share the same class:
     True
 
     >>> tm.abort()
-    
+
 
 XXX test abort of import

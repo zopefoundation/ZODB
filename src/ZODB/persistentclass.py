@@ -22,9 +22,9 @@ $Id$
 # Persistent classes are non-ghostable.  This has some interesting
 # ramifications:
 #
-# - When an object is invalidated, it must reload it's state
+# - When an object is invalidated, it must reload its state
 #
-# - When an object is loaded from the database, it's state must be
+# - When an object is loaded from the database, its state must be
 #   loaded.  Unfortunately, there isn't a clear signal when an object is
 #   loaded from the database.  This should probably be fixed.
 #
@@ -65,7 +65,7 @@ class _p_DataDescr(object):
 
 class _p_oid_or_jar_Descr(_p_DataDescr):
     # Special descr for _p_oid and _p_jar that loads
-    # state when set if both are set and and _p_changed is None
+    # state when set if both are set and _p_changed is None
     #
     # See notes above
 
@@ -84,7 +84,7 @@ class _p_oid_or_jar_Descr(_p_DataDescr):
             jar.setstate(inst)
 
 class _p_ChangedDescr(object):
-    # descriptor to handle special weird emantics of _p_changed
+    # descriptor to handle special weird semantics of _p_changed
 
     def __get__(self, inst, cls):
         if inst is None:
