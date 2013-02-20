@@ -30,6 +30,8 @@ if sys.version_info < (2, 6):
     print("This version of ZODB requires Python 2.6 or higher")
     sys.exit(0)
 
+PY3 = sys.version_info >= (3,)
+
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
 # Development Status :: 4 - Beta
@@ -124,7 +126,7 @@ setup(name="ZODB",
         'BTrees',
         'ZConfig',
         'persistent',
-        'transaction',
+        'transaction >= 1.4.1' if PY3 else 'transaction',
         'six',
         'zc.lockfile',
         'zdaemon >= 4.0.0a1',
