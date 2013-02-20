@@ -21,6 +21,9 @@ class MinPO(Persistent):
     def __cmp__(self, aMinPO):
         return cmp(self.value, aMinPO.value)
 
+    def __hash__(self):
+        return hash(self.value)
+
     # Py3: Python 3 does not support cmp() anymore. This is insane!!
 
     def __eq__(self, aMinPO):
