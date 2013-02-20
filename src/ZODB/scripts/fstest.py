@@ -36,7 +36,7 @@ from __future__ import print_function
 # ZODB.FileStorage.  If anything about the FileStorage layout changes,
 # this file will need to be udpated.
 
-import string
+import binascii
 import struct
 import sys
 
@@ -55,16 +55,13 @@ DREC_HDR_LEN = 42
 VERBOSE = 0
 
 def hexify(s):
-    """Format an 8-bit string as hex"""
-    l = []
-    for c in s:
-        h = hex(ord(c))
-        if h[:2] == '0x':
-            h = h[2:]
-        if len(h) == 1:
-            l.append("0")
-        l.append(h)
-    return "0x" + ''.join(l)
+    r"""Format an 8-bit string as hex
+
+        >>> hexify(b'\x00\xff\xaa\xcc')
+        '0x00ffaacc'
+
+    """
+    return '0x' + binascii.hexlify(s).decode()
 
 def chatter(msg, level=1):
     if VERBOSE >= level:
