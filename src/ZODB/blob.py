@@ -961,8 +961,9 @@ def copyTransactionsFromTo(source, destination):
                 fd, name = tempfile.mkstemp(
                     suffix='.tmp', dir=destination.fshelper.temp_dir)
                 os.close(fd)
-                with open(blobfilename, 'rb') as sf, open(name, 'wb') as df:
-                    utils.cp(sf, df)
+                with open(blobfilename, 'rb') as sf:
+                    with open(name, 'wb') as df:
+                        utils.cp(sf, df)
                 destination.restoreBlob(record.oid, record.tid, record.data,
                                  name, record.data_txn, trans)
             else:
