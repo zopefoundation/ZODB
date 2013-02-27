@@ -91,7 +91,8 @@ class FileStorageTests(
         newindex = dict(index)
         data['index'] = newindex
 
-        dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
+        with open('FileStorageTests.fs.index', 'wb') as fp:
+            dump(data, fp, 1)
         return index
 
     def check_conversion_to_fsIndex(self, read_only=False):

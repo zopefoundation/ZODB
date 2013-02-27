@@ -387,6 +387,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
         ofs.pack(pack, referencesf)
 
     ofs.close()
+    f.close()
 
 if __name__ == "__main__":
     main()

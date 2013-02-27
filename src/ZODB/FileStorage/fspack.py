@@ -347,6 +347,7 @@ class FileStoragePacker(FileStorageFormatter):
                 os.path.join(storage.blob_dir, '.removed'), 'wb')
         else:
             self.pack_blobs = False
+            self.blob_removed = None
 
         path = storage._file.name
         self._name = path
@@ -412,6 +413,8 @@ class FileStoragePacker(FileStorageFormatter):
             self._tfile.close()
             self._file.close()
             os.remove(self._name + ".pack")
+            if self.blob_removed is not None:
+                self.blob_removed.close()
             return None
         self._commit_lock_acquire()
         self.locked = True
@@ -446,6 +449,8 @@ class FileStoragePacker(FileStorageFormatter):
             self._tfile.flush()
             self._tfile.close()
             self._file.close()
+            if self.blob_removed is not None:
+                self.blob_removed.close()
 
             return pos
         except:

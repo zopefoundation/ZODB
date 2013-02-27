@@ -178,7 +178,8 @@ class Blob(persistent.Persistent):
                     self._create_uncommitted_file()
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
                     if self._p_blob_committed:
-                        utils.cp(open(self._p_blob_committed, 'rb'), result)
+                        with open(self._p_blob_committed, 'rb') as fp:
+                            utils.cp(fp, result)
                         if mode == 'r+':
                             result.seek(0)
                 else:
@@ -356,7 +357,7 @@ class FilesystemHelper:
                 layout_marker.write(self.layout_name)
         else:
             with open(layout_marker_path, 'r') as layout_marker:
-                layout = open(layout_marker_path, 'r').read().strip()
+                layout = layout_marker.read().strip()
             if layout != self.layout_name:
                 raise ValueError(
                     "Directory layout `%s` selected for blob directory %s, but "
@@ -508,8 +509,8 @@ def auto_layout_select(path):
     # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
     if os.path.exists(layout_marker):
-        layout = open(layout_marker, 'r').read()
-        layout = layout.strip()
+        with open(layout_marker, 'r') as fp:
+            layout = fp.read().strip()
         log('Blob directory `%s` has layout marker set. '
             'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
     elif not os.path.exists(path):
@@ -960,7 +961,8 @@ def copyTransactionsFromTo(source, destination):
                 fd, name = tempfile.mkstemp(
                     suffix='.tmp', dir=destination.fshelper.temp_dir)
                 os.close(fd)
-                utils.cp(open(blobfilename, 'rb'), open(name, 'wb'))
+                with open(blobfilename, 'rb') as sf, open(name, 'wb') as df:
+                    utils.cp(sf, df)
                 destination.restoreBlob(record.oid, record.tid, record.data,
                                  name, record.data_txn, trans)
             else:

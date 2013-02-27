@@ -962,9 +962,10 @@ class FileStorage(
                             # We're undoing a blob modification operation.
                             # We have to copy the blob data
                             tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
-                            ZODB.utils.cp(
-                                self.openCommittedBlobFile(h.oid, userial),
-                                open(tmp, 'wb'))
+                            with open(tmp, 'wb') as fp:
+                                ZODB.utils.cp(
+                                    self.openCommittedBlobFile(h.oid, userial),
+                                    fp)
                             self._blob_storeblob(h.oid, self._tid, tmp)
 
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
@@ -1180,7 +1181,8 @@ class FileStorage(
             handle_dir = ZODB.blob.remove_committed_dir
 
         # Fist step: move or remove oids or revisions
-        for line in open(os.path.join(self.blob_dir, '.removed'), 'rb'):
+        fp = open(os.path.join(self.blob_dir, '.removed'), 'rb')
+        for line in fp:
             line = binascii.unhexlify(line.strip())
 
             if len(line) == 8:
@@ -1194,6 +1196,7 @@ class FileStorage(
                 continue
 
             if len(line) != 16:
+                fp.close()
                 raise ValueError("Bad record in ", self.blob_dir, '.removed')
 
             oid, tid = line[:8], line[8:]
@@ -1205,6 +1208,7 @@ class FileStorage(
             assert not os.path.exists(path)
             maybe_remove_empty_dir_containing(path)
 
+        fp.close()
         os.remove(os.path.join(self.blob_dir, '.removed'))
 
         if not self.pack_keep_old:
