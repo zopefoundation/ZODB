@@ -44,7 +44,7 @@ from BTrees._fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
 import six
 
-from ZODB._compat import pickle
+from ZODB._compat import Pickler, Unpickler
 
 
 # convert between numbers and six-byte strings
@@ -97,7 +97,7 @@ class fsIndex(object):
 
     def save(self, pos, fname):
         with open(fname, 'wb') as f:
-            pickler = pickle.Pickler(f, 1)
+            pickler = Pickler(f, 1)
             pickler.fast = True
             pickler.dump(pos)
             for k, v in six.iteritems(self._data):
@@ -107,7 +107,7 @@ class fsIndex(object):
     @classmethod
     def load(class_, fname):
         with open(fname, 'rb') as f:
-            unpickler = pickle.Unpickler(f)
+            unpickler = Unpickler(f)
             pos = unpickler.load()
             if not isinstance(pos, int):
                 return pos                  # Old format

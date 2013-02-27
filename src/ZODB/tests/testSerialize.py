@@ -17,7 +17,7 @@ import unittest
 
 import ZODB.tests.util
 from ZODB import serialize
-from ZODB._compat import pickle, BytesIO
+from ZODB._compat import Pickler, BytesIO
 
 
 class ClassWithNewargs(int):
@@ -33,7 +33,7 @@ class ClassWithoutNewargs(object):
 
 def make_pickle(ob):
     sio = BytesIO()
-    p = pickle.Pickler(sio, 1)
+    p = Pickler(sio, 1)
     p.dump(ob)
     return sio.getvalue()
 

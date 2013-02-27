@@ -131,7 +131,7 @@ setup(name="ZODB",
         'zc.lockfile',
         'zdaemon >= 4.0.0a1',
         'zope.interface',
-        ],
+        ] + ['zodbpickle'] if PY3 else [],
       zip_safe = False,
       entry_points = """
       [console_scripts]

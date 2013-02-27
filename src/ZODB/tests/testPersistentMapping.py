@@ -28,7 +28,7 @@ from transaction import Transaction
 
 import ZODB
 from ZODB.MappingStorage import MappingStorage
-from ZODB._compat import pickle
+from ZODB._compat import Unpickler
 
 try:
     import cStringIO
@@ -87,7 +87,7 @@ class PMTests(unittest.TestCase):
 
         # XXX not BytesIO really?
         f = cStringIO.StringIO(root_pickle)
-        u = pickle.Unpickler(f)
+        u = Unpickler(f)
         klass_info = u.load()
         klass = find_global(*klass_info[0])
         inst = klass.__new__(klass)

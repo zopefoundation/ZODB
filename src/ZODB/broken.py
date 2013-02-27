@@ -20,7 +20,7 @@ import persistent
 import zope.interface
 
 import ZODB.interfaces
-from ZODB._compat import pickle, IMPORT_MAPPING, NAME_MAPPING
+from ZODB._compat import loads, dumps, IMPORT_MAPPING, NAME_MAPPING
 
 
 broken_cache = {}
@@ -82,7 +82,7 @@ class Broken(object):
          >>> r[2]
          {'x': 1}
 
-         >>> a2 = pickle.loads(pickle.dumps(a, 1))
+         >>> a2 = loads(dumps(a, 1))
          >>> a2
          <broken not.there.Atall instance>
          >>> a2.__Broken_newargs__

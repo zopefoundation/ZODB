@@ -6,11 +6,8 @@ from __future__ import print_function
 import sys
 
 from ZODB.FileStorage import FileStorage
-from ZODB._compat import BytesIO
+from ZODB._compat import Unpickler, BytesIO
 
-# We must not use cPickle on Python 2: cPickle.Unpickler cannot be
-# subclassed.
-import pickle
 
 
 class FakeError(Exception):
@@ -19,9 +16,16 @@ class FakeError(Exception):
         self.module = module
         self.name = name
 
-class FakeUnpickler(pickle.Unpickler):
-    def find_class(self, module, name):
-        raise FakeError(module, name)
+
+def fake_find_class(module, name):
+    raise FakeError(module, name)
+
+
+def FakeUnpickler(f):
+    unpickler = Unpickler(f)
+    unpickler.find_global = fake_find_class
+    return unpickler
+
 
 class Report:
     def __init__(self):
@@ -105,8 +109,6 @@ def get_type(record):
         unpickled = FakeUnpickler(BytesIO(record.data)).load()
     except FakeError as err:
         return "%s.%s" % (err.module, err.name)
-    except:
-        raise
     classinfo = unpickled[0]
     if isinstance(classinfo, tuple):
         mod, klass = classinfo

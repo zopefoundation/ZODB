@@ -83,7 +83,7 @@ except ImportError:
 import ZODB.FileStorage
 from ZODB.utils import u64, as_text
 from ZODB.FileStorage import TransactionRecord
-from ZODB._compat import pickle
+from ZODB._compat import loads
 
 from persistent.TimeStamp import TimeStamp
 
@@ -144,7 +144,7 @@ def read_txn_header(f, pos, file_size, outp, ltid):
     user = f.read(ul)
     description = f.read(dl)
     if el:
-        try: e = pickle.loads(f.read(el))
+        try: e = loads(f.read(el))
         except: e = {}
     else: e = {}
 

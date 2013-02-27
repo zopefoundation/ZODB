@@ -22,7 +22,7 @@ from tempfile import mkstemp
 
 from persistent.TimeStamp import TimeStamp
 
-from ZODB._compat import pickle, BytesIO
+from ZODB._compat import Unpickler, BytesIO
 
 
 __all__ = ['z64',
@@ -233,7 +233,7 @@ def get_pickle_metadata(data):
 
     # Else there are a bunch of other possible formats.
     f = BytesIO(data)
-    u = pickle.Unpickler(f)
+    u = Unpickler(f)
     try:
         class_info = u.load()
     except Exception as err:

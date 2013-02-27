@@ -20,7 +20,7 @@ from persistent import Persistent
 
 from zope.testing import renormalizing
 from ZODB.utils import U64, p64, u64
-from ZODB._compat import pickle, long
+from ZODB._compat import loads, long
 
 
 NUM = 100
@@ -85,7 +85,7 @@ class TestUtils(unittest.TestCase):
         data = data.replace(b'cZODB.tests.MinPO\nMinPO\n',
                             b'cpath.that.does.not.exist\nlikewise.the.class\n')
         # Pickle can't resolve that GLOBAL opcode -- gets ImportError.
-        self.assertRaises(ImportError, pickle.loads, data)
+        self.assertRaises(ImportError, loads, data)
 
         # Verify that building ConflictError doesn't get ImportError.
         try:

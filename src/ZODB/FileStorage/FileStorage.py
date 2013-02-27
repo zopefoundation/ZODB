@@ -41,7 +41,7 @@ from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.utils import p64, u64, z64, as_bytes, as_text
-from ZODB._compat import pickle, decodebytes, encodebytes
+from ZODB._compat import Pickler, loads, decodebytes, encodebytes
 
 
 # Not all platforms have fsync
@@ -369,7 +369,7 @@ class FileStorage(
             if not self._is_read_only:
                 # Save the converted index.
                 f = open(index_name, 'wb')
-                p = pickle.Pickler(f, 1)
+                p = Pickler(f, 1)
                 info['index'] = index
                 p.dump(info)
                 f.close()
@@ -1001,7 +1001,7 @@ class FileStorage(
 
                 th = self._read_txn_header(h.tloc)
                 if th.ext:
-                    d = pickle.loads(th.ext)
+                    d = loads(th.ext)
                 else:
                     d = {}
 
@@ -1842,7 +1842,7 @@ class FileIterator(FileStorageFormatter):
                 e = {}
                 if h.elen:
                     try:
-                        e = pickle.loads(h.ext)
+                        e = loads(h.ext)
                     except:
                         pass
 
@@ -1984,7 +1984,7 @@ class UndoSearch:
         e = {}
         if el:
             try:
-                e = pickle.loads(self.file.read(el))
+                e = loads(self.file.read(el))
             except:
                 pass
         d = {'id': encodebytes(tid).rstrip(),

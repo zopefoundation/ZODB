@@ -14,15 +14,32 @@
 
 try:
     # Python 2.x
-    import cPickle as pickle
+    from cPickle import Pickler, Unpickler, dump, dumps, loads
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
 except ImportError:
     # Python 3.x: can't use stdlib's pickle because
     # http://bugs.python.org/issue6784
-    ## import zodbpickle as pickle
-    import pickle
+    from zodbpickle.pickle import Pickler, dump, dumps
+    from zodbpickle.pickle import Unpickler as _Unpickler, loads as _loads
     from _compat_pickle import IMPORT_MAPPING, NAME_MAPPING
+
+    class Unpickler(_Unpickler):
+        def __init__(self, f):
+            super(Unpickler, self).__init__(f, encoding='ASCII', errors='bytes')
+
+        # Py3: Python 3 doesn't allow assignments to find_global,
+        # instead, find_class can be overridden
+
+        find_global = None
+
+        def find_class(self, modulename, name):
+            if self.find_global is None:
+                return super(Unpickler, self).find_class(modulename, name)
+            return self.find_global(modulename, name)
+
+    def loads(s):
+        return _loads(s, encoding='ASCII', errors='bytes')
 
 
 # XXX: overridable Unpickler.find_global as used in serialize.py?

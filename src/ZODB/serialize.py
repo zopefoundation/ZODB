@@ -140,19 +140,8 @@ from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.POSException import InvalidObjectReference
-from ZODB._compat import pickle, BytesIO
+from ZODB._compat import Pickler, Unpickler, BytesIO
 
-if sys.version_info[0] < 3:
-    _Unpickler = pickle.Unpickler
-else:
-    # Py3: Python 3 doesn't allow assignments to find_global,
-    # instead, find_class can be overridden
-    class _Unpickler(pickle.Unpickler):
-        find_global = None
-        def find_class(self, modulename, name):
-            if self.find_global is None:
-                return super(_Unpickler, self).find_class(modulename, name)
-            return self.find_global(modulename, name)
 
 _oidtypes = bytes, type(None)
 
@@ -186,7 +175,7 @@ class ObjectWriter:
 
     def __init__(self, obj=None):
         self._file = BytesIO()
-        self._p = pickle.Pickler(self._file, _protocol)
+        self._p = Pickler(self._file, _protocol)
         if sys.version_info[0] < 3:
             self._p.inst_persistent_id = self.persistent_id
         else:
@@ -483,7 +472,7 @@ class ObjectReader:
 
     def _get_unpickler(self, pickle):
         file = BytesIO(pickle)
-        unpickler = _Unpickler(file)
+        unpickler = Unpickler(file)
         unpickler.persistent_load = self._persistent_load
         factory = self._factory
         conn = self._conn
@@ -642,7 +631,7 @@ def referencesf(p, oids=None):
     """
 
     refs = []
-    u = pickle.Unpickler(BytesIO(p))
+    u = Unpickler(BytesIO(p))
     if sys.version_info[0] < 3:
         u.persistent_load = refs
         u.noload()
@@ -685,7 +674,7 @@ def get_refs(a_pickle):
     """
 
     refs = []
-    u = pickle.Unpickler(BytesIO(a_pickle))
+    u = Unpickler(BytesIO(a_pickle))
     if sys.version_info[0] < 3:
         u.persistent_load = refs
         u.noload()

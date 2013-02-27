@@ -23,7 +23,7 @@ import warnings
 from ZODB.broken import find_global
 from ZODB.utils import z64
 from ZODB.Connection import Connection
-from ZODB._compat import pickle, BytesIO
+from ZODB._compat import Pickler, BytesIO
 import ZODB.serialize
 
 import transaction.weakset
@@ -448,7 +448,7 @@ class DB(object):
                 # Manually create a pickle for the root to put in the storage.
                 # The pickle must be in the special ZODB format.
                 file = BytesIO()
-                p = pickle.Pickler(file, ZODB.serialize._protocol)
+                p = Pickler(file, ZODB.serialize._protocol)
                 p.dump((root.__class__, None))
                 p.dump(root.__getstate__())
                 t = transaction.Transaction()

@@ -30,9 +30,9 @@ import persistent
 
 import ZODB.interfaces
 from ZODB.interfaces import BlobError
-from ZODB import utils, serialize
+from ZODB import utils
 from ZODB.POSException import POSKeyError
-from ZODB._compat import BytesIO
+from ZODB._compat import BytesIO, Unpickler
 
 
 if sys.version_info[0] >= 3:
@@ -934,7 +934,7 @@ def is_blob_record(record):
 
     """
     if record and (b'ZODB.blob' in record):
-        unpickler = serialize._Unpickler(BytesIO(record))
+        unpickler = Unpickler(BytesIO(record))
         unpickler.find_global = find_global_Blob
 
         try:
