@@ -26,6 +26,12 @@ checker = zope.testing.renormalizing.RENormalizing([
     # Python 3 bytes add a "b".
     (re.compile("b('.*?')"), r"\1"),
     (re.compile('b(".*?")'), r"\1"),
+    # Python 3 produces larger pickles, even when we use zodbpickle :(
+    # this changes all the offsets and sizes in fstail.txt
+    (re.compile("user='' description='' length=138 offset=190"),
+     "user='' description='' length=132 offset=185"),
+    (re.compile("user='' description='initial database creation' length=155 offset=52"),
+     "user='' description='initial database creation' length=150 offset=52"),
 ])
 
 def test_suite():

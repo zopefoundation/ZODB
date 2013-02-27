@@ -29,7 +29,11 @@ checker = renormalizing.RENormalizing([
     (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
     (re.compile("ZODB.FileStorage.FileStorage.FileStorageQuotaError"),
      r"FileStorageQuotaError"),
-    ])
+    # Python 3 produces larger pickles, even when we use zodbpickle :(
+    # this changes all the offsets in iterator.test
+    (re.compile('data.fs:207766'), 'data.fs:117080'),
+    (re.compile('data.fs:57991'), 'data.fs:35936'),
+])
 
 def pack_keep_old():
     """Should a copy of the database be kept?

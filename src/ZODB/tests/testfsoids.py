@@ -167,8 +167,24 @@ Clean up.
 >>> st.cleanup() # remove .fs, .index, etc
 """
 
+import re
 import doctest
 import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Normalizing this makes diffs easier to read
+    (re.compile(r'\btid 0x[0-9a-f]+\b'), 'tid 0x...'),
+    (re.compile(r'\b\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\.\d+\b'), '...'),
+    # Python 3 produces larger pickles, even when we use zodbpickle :(
+    # this changes all the offsets and sizes
+    (re.compile(r'\boffset=167\b'), 'offset=162'),
+    (re.compile(r'\boffset=483\b'), 'offset=429'),
+    (re.compile(r'(PersistentMapping|OOBTree) at 206\b'), r'\1 at 201'),
+    (re.compile(r'(OOBTree) at 404\b'), r'\1 at 350'),
+    (re.compile(r'(PersistentMapping|OOBTree) at 531\b'), r'\1 at 477'),
+])
+
 
 def test_suite():
-    return doctest.DocTestSuite(checker=ZODB.tests.util.checker)
+    return doctest.DocTestSuite(checker=ZODB.tests.util.checker + checker)

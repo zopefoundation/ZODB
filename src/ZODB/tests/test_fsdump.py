@@ -67,12 +67,26 @@ Clean up.
 >>> st.close()
 """
 
+import re
 import doctest
 import zope.testing.setupstack
 import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Normalizing this makes diffs easier to read
+    (re.compile(r'\btid=[0-9a-f]+\b'), 'tid=...'),
+    (re.compile(r'\b\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\.\d+\b'), '...'),
+    # Python 3 produces larger pickles, even when we use zodbpickle :(
+    # this changes all the offsets and sizes
+    (re.compile(r'\bsize=65\b'), 'size=60'),
+    (re.compile(r'\offset=206\b'), 'offset=201'),
+    (re.compile(r'\bsize=156\b'), 'size=107'),
+])
+
 
 def test_suite():
     return doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
         tearDown=zope.testing.setupstack.tearDown,
-        checker=ZODB.tests.util.checker)
+        checker=ZODB.tests.util.checker + checker)
