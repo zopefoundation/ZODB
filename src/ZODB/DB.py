@@ -23,6 +23,7 @@ import warnings
 from ZODB.broken import find_global
 from ZODB.utils import z64
 from ZODB.Connection import Connection
+from ZODB._compat import pickle, BytesIO
 import ZODB.serialize
 
 import transaction.weakset
@@ -36,17 +37,6 @@ import transaction
 from persistent.TimeStamp import TimeStamp
 import six
 
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
 
 logger = logging.getLogger('ZODB.DB')
 

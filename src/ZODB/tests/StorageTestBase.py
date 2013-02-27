@@ -25,19 +25,8 @@ import transaction
 
 from ZODB.utils import u64
 from ZODB.tests.MinPO import MinPO
+from ZODB._compat import pickle, BytesIO
 import ZODB.tests.util
-
-try:
-    from cPickle import Pickler, Unpickler
-except ImportError:
-    # Py3
-    from pickle import Pickler, Unpickler
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
 
 
 ZERO = b'\0'*8
@@ -61,7 +50,7 @@ def _persistent_id(obj):
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
     f = BytesIO()
-    p = Pickler(f, 1)
+    p = pickle.Pickler(f, 1)
     if sys.version_info[0] < 3:
         p.inst_persistent_id = _persistent_id
     else:
@@ -87,7 +76,7 @@ def persistent_load(pid):
 def zodb_unpickle(data):
     """Unpickle an object stored using the format expected by ZODB."""
     f = BytesIO(data)
-    u = Unpickler(f)
+    u = pickle.Unpickler(f)
     u.persistent_load = persistent_load
     klass_info = u.load()
     if isinstance(klass_info, tuple):

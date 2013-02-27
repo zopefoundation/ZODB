@@ -17,18 +17,7 @@ import unittest
 
 import ZODB.tests.util
 from ZODB import serialize
-
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
+from ZODB._compat import pickle, BytesIO
 
 
 class ClassWithNewargs(int):

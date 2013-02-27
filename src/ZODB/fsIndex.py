@@ -44,11 +44,7 @@ from BTrees._fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
 import six
 
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
+from ZODB._compat import pickle
 
 
 # convert between numbers and six-byte strings

@@ -20,12 +20,8 @@ from persistent import Persistent
 
 from zope.testing import renormalizing
 from ZODB.utils import U64, p64, u64
+from ZODB._compat import pickle, long
 
-try:
-    long
-except NameError:
-    # Py3
-    long = int
 
 NUM = 100
 
@@ -77,11 +73,6 @@ class TestUtils(unittest.TestCase):
         from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
         from ZODB.tests.MinPO import MinPO
-        try:
-            import cPickle as pickle
-        except ImportError:
-            # Py3
-            import pickle
 
         obj = MinPO()
         data = ObjectWriter().serialize(obj)

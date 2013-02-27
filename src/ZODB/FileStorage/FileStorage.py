@@ -15,9 +15,23 @@
 """
 from __future__ import print_function
 
-from persistent.TimeStamp import TimeStamp
+import binascii
+import contextlib
+import errno
+import logging
+import os
+import threading
+import time
 from struct import pack, unpack
+
+import six
+import zope.interface
+from persistent.TimeStamp import TimeStamp
 from zc.lockfile import LockFile
+
+import ZODB.blob
+import ZODB.interfaces
+import ZODB.utils
 from ZODB.FileStorage.format import CorruptedError, CorruptedDataError
 from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
 from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
@@ -27,31 +41,7 @@ from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.utils import p64, u64, z64, as_bytes, as_text
-
-import binascii
-import contextlib
-import errno
-import logging
-import os
-import six
-import threading
-import time
-import ZODB.blob
-import ZODB.interfaces
-import zope.interface
-import ZODB.utils
-
-try:
-    from cPickle import Pickler, loads
-except ImportError:
-    # Py3
-    from pickle import Pickler, loads
-
-try:
-    # Py3
-    from base64 import decodebytes, encodebytes
-except ImportError:
-    from base64 import decodestring as decodebytes, encodestring as encodebytes
+from ZODB._compat import pickle, decodebytes, encodebytes
 
 
 # Not all platforms have fsync
@@ -379,7 +369,7 @@ class FileStorage(
             if not self._is_read_only:
                 # Save the converted index.
                 f = open(index_name, 'wb')
-                p = Pickler(f, 1)
+                p = pickle.Pickler(f, 1)
                 info['index'] = index
                 p.dump(info)
                 f.close()
@@ -1011,7 +1001,7 @@ class FileStorage(
 
                 th = self._read_txn_header(h.tloc)
                 if th.ext:
-                    d = loads(th.ext)
+                    d = pickle.loads(th.ext)
                 else:
                     d = {}
 
@@ -1852,7 +1842,7 @@ class FileIterator(FileStorageFormatter):
                 e = {}
                 if h.elen:
                     try:
-                        e = loads(h.ext)
+                        e = pickle.loads(h.ext)
                     except:
                         pass
 
@@ -1994,7 +1984,7 @@ class UndoSearch:
         e = {}
         if el:
             try:
-                e = loads(self.file.read(el))
+                e = pickle.loads(self.file.read(el))
             except:
                 pass
         d = {'id': encodebytes(tid).rstrip(),

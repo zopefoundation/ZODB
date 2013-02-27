@@ -140,18 +140,7 @@ from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.POSException import InvalidObjectReference
-
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
+from ZODB._compat import pickle, BytesIO
 
 if sys.version_info[0] < 3:
     _Unpickler = pickle.Unpickler

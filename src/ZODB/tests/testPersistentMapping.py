@@ -21,18 +21,14 @@ old code, developers will have a hard time testing the new code.
 """
 
 import unittest
+import sys
 
 import transaction
 from transaction import Transaction
+
 import ZODB
 from ZODB.MappingStorage import MappingStorage
-import sys
-
-try:
-    import cPickle
-except ImportError:
-    # Py3
-    import pickle as cPickle
+from ZODB._compat import pickle
 
 try:
     import cStringIO
@@ -89,8 +85,9 @@ class PMTests(unittest.TestCase):
         # MappingStorage stores serialno + pickle in its _index.
         root_pickle = s._index['\000' * 8][8:]
 
+        # XXX not BytesIO really?
         f = cStringIO.StringIO(root_pickle)
-        u = cPickle.Unpickler(f)
+        u = pickle.Unpickler(f)
         klass_info = u.load()
         klass = find_global(*klass_info[0])
         inst = klass.__new__(klass)

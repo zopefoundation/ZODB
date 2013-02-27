@@ -15,18 +15,13 @@
 """
 
 import sys
-import persistent
 
+import persistent
 import zope.interface
 
 import ZODB.interfaces
+from ZODB._compat import pickle, IMPORT_MAPPING, NAME_MAPPING
 
-try:
-    # Python 3
-    import _compat_pickle
-except ImportError:
-    # Python 2
-    _compat_pickle = None
 
 broken_cache = {}
 
@@ -87,12 +82,7 @@ class Broken(object):
          >>> r[2]
          {'x': 1}
 
-         >>> try:
-         ...     import cPickle
-         ... except ImportError:
-         ...     # Py3
-         ...     import pickle as cPickle
-         >>> a2 = cPickle.loads(cPickle.dumps(a, 1))
+         >>> a2 = pickle.loads(pickle.dumps(a, 1))
          >>> a2
          <broken not.there.Atall instance>
          >>> a2.__Broken_newargs__
@@ -196,12 +186,10 @@ def find_global(modulename, globalname,
          >>> broken_cache.clear()
        """
 
-    if _compat_pickle is not None:
-        if (modulename, globalname) in _compat_pickle.NAME_MAPPING:
-            modulename, globalname = _compat_pickle.NAME_MAPPING[
-                                            (modulename, globalname)]
-        if modulename in _compat_pickle.IMPORT_MAPPING:
-            modulename = _compat_pickle.IMPORT_MAPPING[modulename]
+    if (modulename, globalname) in NAME_MAPPING:
+        modulename, globalname = NAME_MAPPING[(modulename, globalname)]
+    if modulename in IMPORT_MAPPING:
+        modulename = IMPORT_MAPPING[modulename]
 
     # short circuit common case:
     try:

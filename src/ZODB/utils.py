@@ -11,29 +11,19 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import os
+import struct
 import sys
 import time
-import struct
-from struct import pack, unpack
-from binascii import hexlify, unhexlify
 import warnings
+from binascii import hexlify, unhexlify
+from struct import pack, unpack
 from tempfile import mkstemp
-import os
-
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
-
 
 from persistent.TimeStamp import TimeStamp
+
+from ZODB._compat import pickle, BytesIO
+
 
 __all__ = ['z64',
            'p64',

@@ -220,12 +220,8 @@ Note that we pass a file position, which gets saved with the index data.
 
 If we save the data in the old format, we can still read it:
 
-    >>> try:
-    ...     import cPickle
-    ... except ImportError:
-    ...     # Py3
-    ...     import pickle as cPickle
-    >>> cPickle.dump(dict(pos=42, index=index), open('old', 'wb'), 1)
+    >>> from ZODB._compat import pickle
+    >>> pickle.dump(dict(pos=42, index=index), open('old', 'wb'), 1)
     >>> info = fsIndex.load('old')
     >>> info['pos']
     42

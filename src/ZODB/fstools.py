@@ -23,13 +23,8 @@ import struct
 from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN
 from ZODB.FileStorage.format import DATA_HDR_LEN
 from ZODB.utils import u64
+from ZODB._compat import pickle
 from persistent.TimeStamp import TimeStamp
-
-try:
-    import cPickle
-except ImportError:
-    # Py3
-    import pickle as cPickle
 
 
 class TxnHeader:
@@ -70,7 +65,7 @@ class TxnHeader:
             self.descr = self._file.read(self.descr_len)
         if self.ext_len:
             self._ext = self._file.read(self.ext_len)
-            self.ext = cPickle.loads(self._ext)
+            self.ext = pickle.loads(self._ext)
 
     def get_data_offset(self):
         return (self._pos + TRANS_HDR_LEN + self.user_len + self.descr_len

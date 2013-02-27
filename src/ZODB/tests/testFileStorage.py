@@ -32,13 +32,7 @@ from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
 from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
 from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
-
-
-try:
-    import cPickle
-except ImportError:
-    # Py3
-    import pickle as cPickle
+from ZODB._compat import pickle
 
 
 class FileStorageTests(
@@ -97,7 +91,7 @@ class FileStorageTests(
         newindex = dict(index)
         data['index'] = newindex
 
-        cPickle.dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
+        pickle.dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
         return index
 
     def check_conversion_to_fsIndex(self, read_only=False):

@@ -72,12 +72,6 @@ import time
 from struct import unpack
 
 try:
-    from cPickle import loads
-except ImportError:
-    # Py3
-    from pickle import loads
-
-try:
     import ZODB
 except ImportError:
     if os.path.exists('ZODB'):
@@ -89,6 +83,7 @@ except ImportError:
 import ZODB.FileStorage
 from ZODB.utils import u64, as_text
 from ZODB.FileStorage import TransactionRecord
+from ZODB._compat import pickle
 
 from persistent.TimeStamp import TimeStamp
 
@@ -149,9 +144,9 @@ def read_txn_header(f, pos, file_size, outp, ltid):
     user = f.read(ul)
     description = f.read(dl)
     if el:
-        try: e=loads(f.read(el))
-        except: e={}
-    else: e={}
+        try: e = pickle.loads(f.read(el))
+        except: e = {}
+    else: e = {}
 
     result = TransactionRecord(tid, status, user, description, e, pos, tend,
                                f, tpos)

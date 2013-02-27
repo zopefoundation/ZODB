@@ -12,30 +12,21 @@
 #
 ##############################################################################
 """Support for database export and import."""
-import os
 
-from tempfile import TemporaryFile
 import logging
-import six
+import os
 import sys
+from tempfile import TemporaryFile
+
+import six
 
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError
 from ZODB.serialize import referencesf, _protocol
 from ZODB.utils import p64, u64, cp, mktemp
+from ZODB._compat import pickle, BytesIO
 
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
-
-try:
-    from cPickle import Unpickler, Pickler
-except ImportError:
-    # Py3
-    from pickle import Unpickler, Pickler
 
 logger = logging.getLogger('ZODB.ExportImport')
 
@@ -176,11 +167,11 @@ class ExportImport:
                 blob_filename = None
 
             pfile = BytesIO(data)
-            unpickler = Unpickler(pfile)
+            unpickler = pickle.Unpickler(pfile)
             unpickler.persistent_load = persistent_load
 
             newp = BytesIO()
-            pickler = Pickler(newp, _protocol)
+            pickler = pickle.Pickler(newp, _protocol)
             if sys.version_info[0] < 3:
                 pickler.inst_persistent_id = persistent_id
             else:

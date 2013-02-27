@@ -14,25 +14,18 @@
 
 import logging
 import sys
-from pickle import PicklingError
 
 import six
 import zope.interface
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
 from ZODB.serialize import _protocol, _Unpickler
+from ZODB._compat import BytesIO, pickle
 
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
-
-try:
-    from cPickle import Pickler
-except ImportError:
-    # Py3
-    from pickle import Pickler
+# Subtle: Python 2.x has pickle.PicklingError and cPickle.PicklingError,
+# and these are unrelated classes!  So we shouldn't use pickle.PicklingError,
+# since on Python 2, ZODB._compat.pickle is cPickle.
+from pickle import PicklingError
 
 
 logger = logging.getLogger('ZODB.ConflictResolution')
@@ -290,7 +283,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         resolved = resolve(old, committed, newstate)
 
         file = BytesIO()
-        pickler = Pickler(file, _protocol)
+        pickler = pickle.Pickler(file, _protocol)
         if sys.version_info[0] < 3:
             pickler.inst_persistent_id = persistent_id
         else:

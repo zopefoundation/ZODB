@@ -26,27 +26,18 @@ import tempfile
 import weakref
 
 import zope.interface
+import persistent
 
 import ZODB.interfaces
 from ZODB.interfaces import BlobError
 from ZODB import utils, serialize
 from ZODB.POSException import POSKeyError
-import persistent
+from ZODB._compat import BytesIO
 
-try:
-    import cPickle
-except ImportError:
-    # Py3
-    import pickle as cPickle
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
 
 if sys.version_info[0] >= 3:
     from io import FileIO as file
+
 
 logger = logging.getLogger('ZODB.blob')
 

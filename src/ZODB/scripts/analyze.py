@@ -2,15 +2,16 @@
 
 # Based on a transaction analyzer by Matt Kromer.
 from __future__ import print_function
-import pickle
-import sys
-from ZODB.FileStorage import FileStorage
 
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
+import sys
+
+from ZODB.FileStorage import FileStorage
+from ZODB._compat import BytesIO
+
+# We must not use cPickle on Python 2: cPickle.Unpickler cannot be
+# subclassed.
+import pickle
+
 
 class FakeError(Exception):
     def __init__(self, module, name):

@@ -25,27 +25,13 @@ import sys
 from struct import pack as _structpack, unpack as _structunpack
 
 import zope.interface
-
 from persistent.TimeStamp import TimeStamp
 
 import ZODB.interfaces
 from ZODB import POSException
 from ZODB.utils import z64, oid_repr, byte_ord, byte_chr
 from ZODB.UndoLogCompatible import UndoLogCompatible
-
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
-
-# Py3: Python 3's `hasattr()` only swallows AttributeError.
-def py2_hasattr(obj, name):
-    try:
-        getattr(obj, name)
-    except:
-        return False
-    return True
+from ZODB._compat import pickle, py2_hasattr
 
 log = logging.getLogger("ZODB.BaseStorage")
 

@@ -14,6 +14,10 @@
 """Run some tests relevant for storages that support pack()."""
 from __future__ import print_function
 
+import doctest
+import sys
+import time
+
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB import DB
@@ -22,25 +26,12 @@ from ZODB.serialize import referencesf, _Unpickler, _protocol
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-import doctest
-import sys
-import time
+from ZODB._compat import pickle, BytesIO
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util
 import zope.testing.setupstack
 
-try:
-    import cPickle as pickle
-except ImportError:
-    # Py3
-    import pickle
-
-try:
-    from cStringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
 
 ZERO = b'\0'*8
 
