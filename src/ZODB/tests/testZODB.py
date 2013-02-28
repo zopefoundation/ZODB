@@ -71,14 +71,13 @@ class ZODBTests(ZODB.tests.util.TestCase):
         assert len(ob) > 10, 'Insufficient test data'
         try:
             import tempfile
-            f = tempfile.TemporaryFile()
-            ob._p_jar.exportFile(ob._p_oid, f)
-            assert f.tell() > 0, 'Did not export correctly'
-            f.seek(0)
-            new_ob = ob._p_jar.importFile(f)
-            self.assertEqual(new_ob, ob)
-            root['dup'] = new_ob
-            f.close()
+            with tempfile.TemporaryFile(prefix="DUP") as f:
+                ob._p_jar.exportFile(ob._p_oid, f)
+                assert f.tell() > 0, 'Did not export correctly'
+                f.seek(0)
+                new_ob = ob._p_jar.importFile(f)
+                self.assertEqual(new_ob, ob)
+                root['dup'] = new_ob
             if abort_it:
                 transaction.abort()
             else:

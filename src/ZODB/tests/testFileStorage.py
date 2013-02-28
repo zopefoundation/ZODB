@@ -234,20 +234,19 @@ class FileStorageTests(
         self.open()
 
         # Open .fs directly, and damage content.
-        f = open('FileStorageTests.fs', 'r+b')
-        f.seek(0, 2)
-        pos2 = f.tell() - 8
-        f.seek(pos2)
-        tlen2 = U64(f.read(8))  # length-8 of the last transaction
-        pos1 = pos2 - tlen2 + 8 # skip over the tid at the start
-        f.seek(pos1)
-        tlen1 = U64(f.read(8))  # should be redundant length-8
-        self.assertEqual(tlen1, tlen2)  # verify that it is redundant
+        with open('FileStorageTests.fs', 'r+b') as f:
+            f.seek(0, 2)
+            pos2 = f.tell() - 8
+            f.seek(pos2)
+            tlen2 = U64(f.read(8))  # length-8 of the last transaction
+            pos1 = pos2 - tlen2 + 8 # skip over the tid at the start
+            f.seek(pos1)
+            tlen1 = U64(f.read(8))  # should be redundant length-8
+            self.assertEqual(tlen1, tlen2)  # verify that it is redundant
 
-        # Now damage the second copy.
-        f.seek(pos2)
-        f.write(p64(tlen2 - 1))
-        f.close()
+            # Now damage the second copy.
+            f.seek(pos2)
+            f.write(p64(tlen2 - 1))
 
         # Try to pack.  This used to yield
         #     NameError: global name 's' is not defined
