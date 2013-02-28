@@ -76,26 +76,25 @@ def U64(v):
         return l
 
 def check(path):
-    file = open(path, 'rb')
+    with open(path, 'rb') as file:
+        file.seek(0, 2)
+        file_size = file.tell()
+        if file_size == 0:
+            raise FormatError("empty file")
+        file.seek(0)
+        if file.read(4) != packed_version:
+            raise FormatError("invalid file header")
 
-    file.seek(0, 2)
-    file_size = file.tell()
-    if file_size == 0:
-        raise FormatError("empty file")
-    file.seek(0)
-    if file.read(4) != packed_version:
-        raise FormatError("invalid file header")
-
-    pos = 4
-    tid = b'\000' * 8 # lowest possible tid to start
-    i = 0
-    while pos:
-        _pos = pos
-        pos, tid = check_trec(path, file, pos, tid, file_size)
-        if tid is not None:
-            chatter("%10d: transaction tid %s #%d \n" %
-                    (_pos, hexify(tid), i))
-            i = i + 1
+        pos = 4
+        tid = b'\000' * 8 # lowest possible tid to start
+        i = 0
+        while pos:
+            _pos = pos
+            pos, tid = check_trec(path, file, pos, tid, file_size)
+            if tid is not None:
+                chatter("%10d: transaction tid %s #%d \n" %
+                        (_pos, hexify(tid), i))
+                i = i + 1
 
 
 def check_trec(path, file, pos, ltid, file_size):

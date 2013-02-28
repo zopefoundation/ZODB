@@ -141,7 +141,7 @@ it will leave a marker with the choosen layout if no marker exists yet:
 >>> fsh.layout_name
 'bushy'
 >>> fsh.create()
->>> open(os.path.join(blobs, LAYOUT_MARKER), 'rb').read()
+>>> with open(os.path.join(blobs, LAYOUT_MARKER), 'rb') as fp: fp.read()
 'bushy'
 
 If the FSH finds a marker, then it verifies whether its content matches the
@@ -171,7 +171,7 @@ the marker will be used in the future:
 >>> blob_storage = BlobStorage(blobs, base_storage)
 >>> blob_storage.fshelper.layout_name
 'lawn'
->>> open(os.path.join(blobs, LAYOUT_MARKER), 'rb').read()
+>>> with open(os.path.join(blobs, LAYOUT_MARKER), 'rb') as fp: fp.read()
 'lawn'
 >>> blob_storage = BlobStorage('blobs', base_storage, layout='bushy')
 ... # doctest: +ELLIPSIS
