@@ -68,7 +68,7 @@ We can still get the data if we load before the time we deleted.
     True
     >>> storage.loadBefore(oid1, conn.root()._p_serial) == (p1, s1, tid)
     True
-    >>> open(storage.loadBlob(oid1, s1)).read()
+    >>> with open(storage.loadBlob(oid1, s1)) as fp: fp.read()
     'some data'
 
 If we pack, however, the old data will be removed and the data will be

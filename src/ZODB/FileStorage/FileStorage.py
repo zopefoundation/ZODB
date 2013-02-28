@@ -962,10 +962,9 @@ class FileStorage(
                             # We're undoing a blob modification operation.
                             # We have to copy the blob data
                             tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
-                            with open(tmp, 'wb') as fp:
-                                ZODB.utils.cp(
-                                    self.openCommittedBlobFile(h.oid, userial),
-                                    fp)
+                            with self.openCommittedBlobFile(h.oid, userial) as sfp:
+                                with open(tmp, 'wb') as dfp:
+                                    ZODB.utils.cp(sfp, dfp)
                             self._blob_storeblob(h.oid, self._tid, tmp)
 
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
