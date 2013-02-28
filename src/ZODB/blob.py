@@ -273,7 +273,7 @@ class Blob(persistent.Persistent):
             tempdir = self._p_jar.db()._storage.temporaryDirectory()
         else:
             tempdir = tempfile.gettempdir()
-        filename = utils.mktemp(dir=tempdir)
+        filename = utils.mktemp(dir=tempdir, prefix="BUC")
         self._p_blob_uncommitted = filename
 
         def cleanup(ref):
@@ -952,6 +952,7 @@ def copyTransactionsFromTo(source, destination):
                     pass
             if blobfilename is not None:
                 fd, name = tempfile.mkstemp(
+                    prefix='CTFT',
                     suffix='.tmp', dir=destination.fshelper.temp_dir)
                 os.close(fd)
                 with open(blobfilename, 'rb') as sf:
