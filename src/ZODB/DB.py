@@ -145,7 +145,7 @@ class ConnectionPool(AbstractConnectionPool):
         n = len(self.all)
         limit = self.size
         if n > limit:
-            reporter = logger.warn
+            reporter = logger.warning
             if n > 2 * limit:
                 reporter = logger.critical
             reporter("DB.open() has %s open connections with a pool_size "
