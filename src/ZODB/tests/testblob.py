@@ -133,7 +133,7 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
 
         # it should also be possible to open the cloned blob
         # (even though it won't contain the original data)
-        clone.open()
+        clone.open().close()
 
         # tearDown
         database.close()
