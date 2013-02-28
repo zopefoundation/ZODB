@@ -14,7 +14,6 @@
 """Blobs
 """
 
-import base64
 import binascii
 import logging
 import os
@@ -32,7 +31,7 @@ import ZODB.interfaces
 from ZODB.interfaces import BlobError
 from ZODB import utils
 from ZODB.POSException import POSKeyError
-from ZODB._compat import BytesIO, Unpickler
+from ZODB._compat import BytesIO, Unpickler, decodebytes
 
 
 if sys.version_info[0] >= 3:
@@ -824,7 +823,7 @@ class BlobStorage(BlobStorageMixin):
 
         # The serial_id is assumed to be given to us base-64 encoded
         # (belying the web UI legacy of the ZODB code :-()
-        serial_id = base64.decodestring(serial_id + b'\n')
+        serial_id = decodebytes(serial_id + b'\n')
 
         self._lock_acquire()
 
