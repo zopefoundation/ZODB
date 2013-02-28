@@ -37,7 +37,7 @@ Export our blobs from a database1 connection:
     >>> conn = root1['blobdata']._p_jar
     >>> oid = root1['blobdata']._p_oid
     >>> exportfile = 'export'
-    >>> nothing = connection1.exportFile(oid, exportfile)
+    >>> connection1.exportFile(oid, exportfile).close()
 
 Import our exported data into database2:
 
