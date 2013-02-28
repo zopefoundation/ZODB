@@ -25,9 +25,7 @@ from ZODB.utils import U64, p64
 from transaction import Transaction
 
 import sys
-import itertools
 import ZODB.blob
-import six
 
 try:
     from itertools import izip as zip
@@ -234,7 +232,9 @@ class IteratorDeepCompare:
                     else:
                         fn2 = storage2.loadBlob(rec1.oid, rec1.tid)
                         self.assertTrue(fn1 != fn2)
-                        eq(open(fn1, 'rb').read(), open(fn2, 'rb').read())
+                        with open(fn1, 'rb') as fp1:
+                            with open(fn2, 'rb') as fp2:
+                                eq(fp1.read(), fp2.read())
 
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.

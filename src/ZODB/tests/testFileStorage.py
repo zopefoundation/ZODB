@@ -657,7 +657,7 @@ def pack_with_open_blob_files():
 
     >>> tm1.commit()
     >>> conn2.sync()
-    >>> conn2.root()[2].open().read()
+    >>> with conn2.root()[2].open() as fp: fp.read()
     'some more data'
 
     >>> db.close()

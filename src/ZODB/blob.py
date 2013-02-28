@@ -855,11 +855,9 @@ class BlobStorage(BlobStorageMixin):
                     data, serial_before, serial_after = load_result
                     orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
                     new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
-                orig = open(orig_fn, "rb")
-                new = open(new_fn, "wb")
-                utils.cp(orig, new)
-                orig.close()
-                new.close()
+                with open(orig_fn, "rb") as orig:
+                    with open(new_fn, "wb") as new:
+                        utils.cp(orig, new)
                 self.dirty_oids.append((oid, undo_serial))
 
         finally:
@@ -890,13 +888,9 @@ def rename_or_copy_blob(f1, f2, chmod=True):
         os.rename(f1, f2)
     except OSError:
         copied("Copied blob file %r to %r.", f1, f2)
-        file1 = open(f1, 'rb')
-        file2 = open(f2, 'wb')
-        try:
-            utils.cp(file1, file2)
-        finally:
-            file1.close()
-            file2.close()
+        with open(f1, 'rb') as file1:
+            with open(f2, 'wb') as file2:
+                utils.cp(file1, file2)
         remove_committed(f1)
     if chmod:
         os.chmod(f2, stat.S_IREAD)

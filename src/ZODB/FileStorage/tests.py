@@ -139,7 +139,7 @@ def pack_with_repeated_blob_records():
     >>> db.pack()
 
     >>> conn.sync()
-    >>> conn.root()[1].open().read()
+    >>> with conn.root()[1].open() as fp: fp.read()
     'some data'
 
     >>> db.close()

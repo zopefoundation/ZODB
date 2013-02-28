@@ -220,11 +220,12 @@ def mailfolder(app, mboxname, number):
 def VmSize():
 
     try:
-        f = open('/proc/%s/status' % os.getpid())
+        with open('/proc/%s/status' % os.getpid()) as f:
+            lines = f.readlines()
     except:
         return 0
     else:
-        l = list(filter(lambda l: l[:7] == 'VmSize:', f.readlines()))
+        l = list(filter(lambda l: l[:7] == 'VmSize:', lines))
         if l:
             l = l[0][7:].strip().split()[0]
             return int(l)
@@ -699,7 +700,8 @@ def collect_options(args, jobs, options):
             if name == 'options':
                 fname = args.pop(0)
                 d = {}
-                exec(compile(open(fname).read(), fname, 'exec'), d)
+                with open(fname) as fp:
+                    exec(compile(fp.read(), fname, 'exec'), d)
                 collect_options(list(d['options']), jobs, options)
             elif name in options:
                 v = args.pop(0)

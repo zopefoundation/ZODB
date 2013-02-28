@@ -182,7 +182,8 @@ class BlobUndoTests(BlobTestBase):
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
-        self.assertEqual(blob.open('r').read(), b'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.close()
 
@@ -208,7 +209,8 @@ class BlobUndoTests(BlobTestBase):
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), b'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.close()
 
@@ -233,12 +235,14 @@ class BlobUndoTests(BlobTestBase):
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), b'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), b'this is state 2')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 2')
 
         database.close()
 
@@ -262,7 +266,8 @@ class BlobUndoTests(BlobTestBase):
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), b'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.close()
 
@@ -351,7 +356,7 @@ def commit_from_wrong_partition():
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
 
-    >>> root['blob'].open().read()
+    >>> with root['blob'].open() as fp: fp.read()
     'test'
 
 Works with savepoints too:
@@ -365,7 +370,7 @@ Works with savepoints too:
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
 
-    >>> root['blob2'].open().read()
+    >>> with root['blob2'].open() as fp: fp.read()
     'test2'
 
     >>> os.rename = os_rename
@@ -565,7 +570,7 @@ def do_not_depend_on_cwd():
     ...     _ = file.write(b'data')
     >>> transaction.commit()
     >>> os.chdir(here)
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'data'
 
     >>> bs.close()
@@ -587,14 +592,14 @@ def savepoint_isolation():
     >>> with conn2.root.b.open('w') as file:
     ...     _ = file.write(b'2')
     >>> _ = tm.savepoint()
-    >>> conn.root.b.open().read()
+    >>> with conn.root.b.open() as fp: fp.read()
     '1'
-    >>> conn2.root.b.open().read()
+    >>> with conn2.root.b.open() as fp: fp.read()
     '2'
     >>> transaction.abort()
     >>> tm.commit()
     >>> conn.sync()
-    >>> conn.root.b.open().read()
+    >>> with conn.root.b.open() as fp: fp.read()
     '2'
     >>> db.close()
     """
@@ -618,9 +623,9 @@ def savepoint_commits_without_invalidations_out_of_order():
     >>> with conn2.root.b.open('w') as file:
     ...     _ = file.write(b'2')
     >>> _ = tm1.savepoint()
-    >>> conn1.root.b.open().read()
+    >>> with conn1.root.b.open() as fp: fp.read()
     '1'
-    >>> conn2.root.b.open().read()
+    >>> with conn2.root.b.open() as fp: fp.read()
     '2'
     >>> tm2.commit()
     >>> tm1.commit()  # doctest: +IGNORE_EXCEPTION_DETAIL
@@ -668,7 +673,7 @@ def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     >>> old_serial = blob._p_serial
     >>> blob._p_changed = True
     >>> transaction.commit()
-    >>> blob.open().read()
+    >>> with blob.open() as fp: fp.read()
     'blah'
     >>> old_serial == blob._p_serial
     True

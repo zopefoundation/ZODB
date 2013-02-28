@@ -84,7 +84,7 @@ back to try a copy/remove operation that is successfull::
 
 The blob did not have data before, so it shouldn't have data now::
 
-    >>> blob.open('r').read()
+    >>> with blob.open('r') as fp: fp.read()
     'Some data.'
 
 Case 2: We don't have uncommitted data and both the link operation and the
@@ -107,7 +107,7 @@ exist::
 
 The blob did not have data before, so it shouldn't have data now::
 
-    >>> blob.open('r').read()
+    >>> with blob.open('r') as fp: fp.read()
     ''
 
 Case 3: We have uncommitted data, but the link and the copy operations fail.
@@ -115,9 +115,8 @@ The exception will be re-raised and the target file will exist with the
 previous uncomitted data::
 
     >>> blob = Blob()
-    >>> blob_writing = blob.open('w')
-    >>> _ = blob_writing.write(b'Uncommitted data')
-    >>> blob_writing.close()
+    >>> with blob.open('w') as blob_writing:
+    ...     _ = blob_writing.write(b'Uncommitted data')
 
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
@@ -126,7 +125,7 @@ previous uncomitted data::
 The blob did existed before and had uncommitted data, this shouldn't have
 changed::
 
-    >>> blob.open('r').read()
+    >>> with blob.open('r') as fp: fp.read()
     'Uncommitted data'
 
     >>> os.rename = os_rename

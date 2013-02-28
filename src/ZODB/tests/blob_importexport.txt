@@ -54,9 +54,13 @@ Make sure our data exists:
     >>> items2 = root2['blobdata']
     >>> bool(items1.keys() == items2.keys())
     True
-    >>> items1['blob1'].open().read() == items2['blob1'].open().read()
+    >>> with items1['blob1'].open() as fp1:
+    ...     with items2['blob1'].open() as fp2:
+    ...         fp1.read() == fp2.read()
     True
-    >>> items1['blob2'].open().read() == items2['blob2'].open().read()
+    >>> with items1['blob2'].open() as fp1:
+    ...     with items2['blob2'].open() as fp2:
+    ...         fp1.read() == fp2.read()
     True
     >>> transaction.get().abort()
 

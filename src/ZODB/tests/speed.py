@@ -76,7 +76,8 @@ def main(args):
     else:
         s=ZODB.FileStorage.FileStorage('zeo_speed.fs', create=1)
 
-    data=open(data).read()
+    with open(data) as fp:
+        data = fp.read()
     db=ZODB.DB(s,
                # disable cache deactivation
                cache_size=4000,

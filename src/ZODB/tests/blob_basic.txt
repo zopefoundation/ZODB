@@ -28,7 +28,7 @@ A blob implements the IBlob interface::
 
 We can open a new blob file for reading, but it won't have any data::
 
-    >>> myblob.open("r").read()
+    >>> with myblob.open("r") as fp: fp.read()
     ''
 
 But we can write data to a new Blob by opening it for writing::
@@ -105,7 +105,7 @@ to it via a name.  If the first line in the following test kept a reference
 around via a name, the second call to open it in a writable mode would fail
 with a BlobError, but it doesn't::
 
-    >>> myblob.open("r+").read()
+    >>> with myblob.open("r+") as fp: fp.read()
     'Hi, Blob!\nBlob is fine.'
     >>> f4b = myblob.open("a")
     >>> f4b.close()
@@ -194,5 +194,5 @@ If you have a small amount of data, you can pass it to the blob
 constructor.  (This is a convenience, mostly for writing tests.)
 
     >>> myblob = Blob(b'some data')
-    >>> myblob.open().read()
+    >>> with myblob.open() as fp: fp.read()
     'some data'

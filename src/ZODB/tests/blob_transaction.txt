@@ -27,7 +27,7 @@ Aborting a blob add leaves the blob unchanged:
 
     >>> blob1._p_oid
     >>> blob1._p_jar
-    >>> blob1.open().read()
+    >>> with blob1.open() as fp: fp.read()
     'this is blob 1'
 
 It doesn't clear the file because there is no previously committed version: 
@@ -51,7 +51,7 @@ state:
 
     >>> with blob1.open('w') as file:
     ...     _ = file.write(b'this is new blob 1')
-    >>> blob1.open().read()
+    >>> with blob1.open() as fp: fp.read()
     'this is new blob 1'
     >>> fname = blob1._p_blob_uncommitted
     >>> os.path.exists(fname)
@@ -62,7 +62,7 @@ state:
     False
     >>> blob1._p_blob_uncommitted
 
-    >>> blob1.open().read()
+    >>> with blob1.open() as fp: fp.read()
     'this is blob 1'
 
 Opening a blob gives us a filehandle.  Getting data out of the
@@ -103,7 +103,7 @@ when we start)::
 
     >>> bool(blob1a._p_changed)
     False
-    >>> blob1a.open('r').read()
+    >>> with blob1a.open('r') as fp: fp.read()
     'this is blob 1'
     >>> blob1afh3 = blob1a.open('a')
     >>> bool(blob1a._p_changed)
@@ -124,11 +124,11 @@ Since we committed the current transaction above, the aggregate
 changes we've made to blob, blob1a (these refer to the same object) and
 blob2 (a different object) should be evident::
 
-    >>> blob1.open('r').read()
+    >>> with blob1.open('r') as fp: fp.read()
     'this is blob 1woot!'
-    >>> blob1a.open('r').read()
+    >>> with blob1a.open('r') as fp: fp.read()
     'this is blob 1woot!'
-    >>> blob2.open('r').read()
+    >>> with blob2.open('r') as fp: fp.read()
     'this is blob 3'
 
 We shouldn't be able to persist a blob filehandle at commit time
@@ -158,7 +158,7 @@ connections should result in a write conflict error::
     >>> blob1c3fh1 = blob1c3.open('a').write(b'this is from connection 3')
     >>> blob1c4fh1 = blob1c4.open('a').write(b'this is from connection 4')
     >>> tm1.commit()
-    >>> root3['blob1'].open('r').read()
+    >>> with root3['blob1'].open('r') as fp: fp.read()
     'this is blob 1woot!this is from connection 3'
     >>> tm2.commit()
     Traceback (most recent call last):
@@ -168,10 +168,10 @@ connections should result in a write conflict error::
 After the conflict, the winning transaction's result is visible on both
 connections::
 
-    >>> root3['blob1'].open('r').read()
+    >>> with root3['blob1'].open('r') as fp: fp.read()
     'this is blob 1woot!this is from connection 3'
     >>> tm2.abort()
-    >>> root4['blob1'].open('r').read()
+    >>> with root4['blob1'].open('r') as fp: fp.read()
     'this is blob 1woot!this is from connection 3'
 
 You can't commit a transaction while blob files are open:
@@ -208,16 +208,16 @@ We do support optimistic savepoints:
     >>> blob_fh.close()
     >>> root5['blob'] = blob
     >>> transaction.commit()
-    >>> root5['blob'].open("r").read()
+    >>> with root5['blob'].open("r") as fp: fp.read()
     "I'm a happy blob."
     >>> blob_fh = root5['blob'].open("a")
     >>> _ = blob_fh.write(b" And I'm singing.")
     >>> blob_fh.close()
-    >>> root5['blob'].open("r").read()
+    >>> with root5['blob'].open("r") as fp: fp.read()
     "I'm a happy blob. And I'm singing."
     >>> savepoint = transaction.savepoint(optimistic=True)
 
-    >>> root5['blob'].open("r").read()
+    >>> with root5['blob'].open("r") as fp: fp.read()
     "I'm a happy blob. And I'm singing."
 
 Savepoints store the blobs in temporary directories in the temporary
@@ -239,7 +239,7 @@ We support non-optimistic savepoints too:
 
     >>> with root5['blob'].open("a") as file:
     ...     _ = file.write(b" And I'm dancing.")
-    >>> root5['blob'].open("r").read()
+    >>> with root5['blob'].open("r") as fp: fp.read()
     "I'm a happy blob. And I'm singing. And I'm dancing."
     >>> savepoint = transaction.savepoint()
 
@@ -253,7 +253,7 @@ Again, the savepoint creates a new savepoints directory:
     ...     _ = file.write(b" And the weather is beautiful.")
     >>> savepoint.rollback()
 
-    >>> root5['blob'].open("r").read()
+    >>> with root5['blob'].open("r") as fp: fp.read()
     "I'm a happy blob. And I'm singing. And I'm dancing."
     >>> transaction.abort()
 
@@ -278,7 +278,7 @@ file that can be opened.
     >>> blob_fh.close()
     >>> root6['blob'] = blob
     >>> transaction.commit()
-    >>> open(blob.committed()).read()
+    >>> with open(blob.committed()) as fp: fp.read()
     "I'm a happy blob."
 
 We can also read committed data by calling open with a 'c' flag:
@@ -294,7 +294,7 @@ and doesn't prevent us from opening the blob for writing:
 
     >>> with blob.open('w') as file:
     ...     _ = file.write(b'x')
-    >>> blob.open().read()
+    >>> with blob.open() as fp: fp.read()
     'x'
 
     >>> f.read()
@@ -342,7 +342,7 @@ uncommitted changes:
     BlobError: Uncommitted changes
 
     >>> transaction.commit()
-    >>> open(blob.committed()).read()
+    >>> with open(blob.committed()) as fp: fp.read()
     "I'm a happy blob."
 
 You can't open a committed blob file for writing:
@@ -395,7 +395,7 @@ And we shouldn't be able to read the data that we saved:
 
 Of course the old data should be unaffected:
 
-    >>> open(blob_storage.loadBlob(blob._p_oid, oldserial)).read()
+    >>> with open(blob_storage.loadBlob(blob._p_oid, oldserial)) as fp: fp.read()
     "I'm a happy blob."
 
 Similarly, the new object wasn't added to the storage:

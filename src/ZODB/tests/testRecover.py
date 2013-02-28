@@ -71,10 +71,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
         # Drop size null bytes into num random spots.
         for i in range(num):
             offset = random.randint(0, self.storage._pos - size)
-            f = open(self.path, "a+b")
-            f.seek(offset)
-            f.write(b"\0" * size)
-            f.close()
+            with open(self.path, "a+b") as f:
+                f.seek(offset)
+                f.write(b"\0" * size)
 
     ITERATIONS = 5
 
@@ -106,13 +105,11 @@ class RecoverTest(ZODB.tests.util.TestCase):
         self.assertTrue('\n0 bytes removed during recovery' in output, output)
 
         # Verify that the recovered database is identical to the original.
-        before = open(self.path, 'rb')
-        before_guts = before.read()
-        before.close()
+        with open(self.path, 'rb') as before:
+            before_guts = before.read()
 
-        after = open(self.dest, 'rb')
-        after_guts = after.read()
-        after.close()
+        with open(self.dest, 'rb') as after:
+            after_guts = after.read()
 
         self.assertEqual(before_guts, after_guts,
                          "recovery changed a non-damaged .fs file")
@@ -162,10 +159,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
         self.storage.close()
 
         # Overwrite the entire header.
-        f = open(self.path, "a+b")
-        f.seek(pos1 - 50)
-        f.write(b"\0" * 100)
-        f.close()
+        with open(self.path, "a+b") as f:
+            f.seek(pos1 - 50)
+            f.write(b"\0" * 100)
         output = self.recover()
         self.assertTrue('error' in output, output)
         self.recovered = FileStorage(self.dest)
@@ -174,10 +170,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
         os.rename(self.dest, self.path)
 
         # Overwrite part of the header.
-        f = open(self.path, "a+b")
-        f.seek(pos2 + 10)
-        f.write(b"\0" * 100)
-        f.close()
+        with open(self.path, "a+b") as f:
+            f.seek(pos2 + 10)
+            f.write(b"\0" * 100)
         output = self.recover()
         self.assertTrue('error' in output, output)
         self.recovered = FileStorage(self.dest)
@@ -194,13 +189,12 @@ class RecoverTest(ZODB.tests.util.TestCase):
         pos = self.storage._txn_find(tid, 0)
 
         # Overwrite its status with 'c'.
-        f = open(self.path, "r+b")
-        f.seek(pos + 16)
-        current_status = f.read(1)
-        self.assertEqual(current_status, b' ')
-        f.seek(pos + 16)
-        f.write(b'c')
-        f.close()
+        with open(self.path, "r+b") as f:
+            f.seek(pos + 16)
+            current_status = f.read(1)
+            self.assertEqual(current_status, b' ')
+            f.seek(pos + 16)
+            f.write(b'c')
 
         # Try to recover.  The original bug was that this never completed --
         # infinite loop in fsrecover.py.  Also, in the ZODB 3.2 line,

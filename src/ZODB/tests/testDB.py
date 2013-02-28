@@ -213,7 +213,7 @@ def open_convenience():
 
     >>> db = ZODB.DB('data.fs', blob_dir='blobs')
     >>> conn = db.open()
-    >>> conn.root()['b'].open().read()
+    >>> with conn.root()['b'].open() as fp: fp.read()
     'test'
     >>> db.close()
 
