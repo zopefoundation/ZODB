@@ -75,7 +75,9 @@ class ExportImport:
         # This is tricky, because we need to work in a transaction!
 
         if isinstance(f, six.string_types):
-            f = open(f, 'rb')
+            with open(f, 'rb') as fp:
+                return self.importFile(fp, clue=clue,
+                                       customImporters=customImporters)
 
         magic = f.read(4)
         if magic != b'ZEXP':
