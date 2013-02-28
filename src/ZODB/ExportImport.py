@@ -34,7 +34,7 @@ class ExportImport:
 
     def exportFile(self, oid, f=None):
         if f is None:
-            f = TemporaryFile()
+            f = TemporaryFile(prefix="EXP")
         elif isinstance(f, six.string_types):
             f = open(f,'w+b')
         f.write(b'ZEXP')

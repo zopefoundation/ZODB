@@ -251,9 +251,9 @@ def get_pickle_metadata(data):
         classname = ''
     return modname, classname
 
-def mktemp(dir=None):
+def mktemp(dir=None, prefix='tmp'):
     """Create a temp file, known by name, in a semi-secure manner."""
-    handle, filename = mkstemp(dir=dir)
+    handle, filename = mkstemp(dir=dir, prefix=prefix)
     os.close(handle)
     return filename
 

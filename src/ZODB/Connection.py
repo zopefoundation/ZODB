@@ -1247,7 +1247,7 @@ class TmpStore:
             ):
             setattr(self, method, getattr(storage, method))
 
-        self._file = tempfile.TemporaryFile()
+        self._file = tempfile.TemporaryFile(prefix='TmpStore')
         # position: current file position
         # _tpos: file position at last commit point
         self.position = 0
