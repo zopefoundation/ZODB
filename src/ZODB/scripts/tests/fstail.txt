@@ -11,7 +11,7 @@ We have to prepare a FileStorage first:
   >>> from ZODB.DB import DB
   >>> import transaction
   >>> from tempfile import mktemp
-  >>> storagefile = mktemp()
+  >>> storagefile = mktemp(suffix='.fs')
   >>> base_storage = FileStorage(storagefile)
   >>> database = DB(base_storage)
   >>> connection1 = database.open()
@@ -33,6 +33,7 @@ Now lets have a look at the last transactions of this FileStorage:
 Now clean up the storage again:
 
   >>> import os
+  >>> connection1.close()
   >>> base_storage.close()
   >>> os.unlink(storagefile)
   >>> os.unlink(storagefile+'.index')
