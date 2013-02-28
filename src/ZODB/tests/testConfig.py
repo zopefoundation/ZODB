@@ -61,28 +61,28 @@ class ZODBConfigTest(ConfigTestBase):
             """)
 
     def test_file_config1(self):
-        path = tempfile.mktemp()
-        self._test(
-            """
-            <zodb>
-              <filestorage>
-                path %s
-              </filestorage>
-            </zodb>
-            """ % path)
+        with tempfile.NamedTemporaryFile(prefix='Cfg') as f:
+            self._test(
+                """
+                <zodb>
+                <filestorage>
+                    path %s
+                </filestorage>
+                </zodb>
+                """ % f.name)
 
     def test_file_config2(self):
-        path = tempfile.mktemp()
-        cfg = """
-        <zodb>
-          <filestorage>
-            path %s
-            create false
-            read-only true
-          </filestorage>
-        </zodb>
-        """ % path
-        self.assertRaises(ReadOnlyError, self._test, cfg)
+        with tempfile.NamedTemporaryFile(prefix='Cfg') as f:
+            cfg = """
+            <zodb>
+            <filestorage>
+                path %s
+                create false
+                read-only true
+            </filestorage>
+            </zodb>
+            """ % f.name
+            self.assertRaises(ReadOnlyError, self._test, cfg)
 
     def test_demo_config(self):
         cfg = """
