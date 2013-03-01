@@ -1034,10 +1034,13 @@ class FileStorage(
         # want to invest much in the old packer, at least for now.
         assert referencesf is not None
         p = FileStoragePacker(storage, referencesf, stop, gc)
-        opos = p.pack()
-        if opos is None:
-            return None
-        return opos, p.index
+        try:
+            opos = p.pack()
+            if opos is None:
+                return None
+            return opos, p.index
+        finally:
+            p.close()
 
     def pack(self, t, referencesf, gc=None):
         """Copy data from the current database file to a packed file

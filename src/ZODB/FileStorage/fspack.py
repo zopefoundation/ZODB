@@ -382,6 +382,15 @@ class FileStoragePacker(FileStorageFormatter):
         self.toid2tid = {}
         self.toid2tid_delete = {}
 
+        self._tfile = None
+
+    def close(self):
+        self._file.close()
+        if self._tfile is not None:
+            self._tfile.close()
+        if self.blob_removed is not None:
+            self.blob_removed.close()
+
     def pack(self):
         # Pack copies all data reachable at the pack time or later.
         #
