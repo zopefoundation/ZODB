@@ -1183,34 +1183,32 @@ class FileStorage(
             handle_dir = ZODB.blob.remove_committed_dir
 
         # Fist step: move or remove oids or revisions
-        fp = open(os.path.join(self.blob_dir, '.removed'), 'rb')
-        for line in fp:
-            line = binascii.unhexlify(line.strip())
+        with open(os.path.join(self.blob_dir, '.removed'), 'rb') as fp:
+            for line in fp:
+                line = binascii.unhexlify(line.strip())
 
-            if len(line) == 8:
-                # oid is garbage, re/move dir
-                path = fshelper.getPathForOID(line)
+                if len(line) == 8:
+                    # oid is garbage, re/move dir
+                    path = fshelper.getPathForOID(line)
+                    if not os.path.exists(path):
+                        # Hm, already gone. Odd.
+                        continue
+                    handle_dir(path)
+                    maybe_remove_empty_dir_containing(path, 1)
+                    continue
+
+                if len(line) != 16:
+                    raise ValueError("Bad record in ", self.blob_dir, '.removed')
+
+                oid, tid = line[:8], line[8:]
+                path = fshelper.getBlobFilename(oid, tid)
                 if not os.path.exists(path):
                     # Hm, already gone. Odd.
                     continue
-                handle_dir(path)
-                maybe_remove_empty_dir_containing(path, 1)
-                continue
+                handle_file(path)
+                assert not os.path.exists(path)
+                maybe_remove_empty_dir_containing(path)
 
-            if len(line) != 16:
-                fp.close()
-                raise ValueError("Bad record in ", self.blob_dir, '.removed')
-
-            oid, tid = line[:8], line[8:]
-            path = fshelper.getBlobFilename(oid, tid)
-            if not os.path.exists(path):
-                # Hm, already gone. Odd.
-                continue
-            handle_file(path)
-            assert not os.path.exists(path)
-            maybe_remove_empty_dir_containing(path)
-
-        fp.close()
         os.remove(os.path.join(self.blob_dir, '.removed'))
 
         if not self.pack_keep_old:
