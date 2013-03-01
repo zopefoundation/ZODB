@@ -142,9 +142,11 @@ class IteratorStorage(IteratorCompare):
 
     def checkIterateRecordsRepeatedly(self):
         self._dostore()
-        tinfo = next(self._storage.iterator())
+        it = self._storage.iterator()
+        tinfo = next(it)
         self.assertEqual(1, len(list(tinfo)))
         self.assertEqual(1, len(list(tinfo)))
+        it.close()
 
     def checkIterateWhileWriting(self):
         self._dostore()
