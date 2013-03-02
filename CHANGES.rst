@@ -309,7 +309,7 @@ Bugs fixed
   their subconnections weren't cleaned up properly.
 
 - ZEO didn't work with IPv6 addrsses.
-  Added IPv6 support contributed by Martin v. Löwis.
+  Added IPv6 support contributed by Martin v. Loewis.
 
 - A file storage bug could cause ZEO clients to have incorrect
   information about current object revisions after reconnecting to a

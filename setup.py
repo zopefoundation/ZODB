@@ -41,8 +41,12 @@ classifiers = """\
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
+Programming Language :: Python :: 2
 Programming Language :: Python :: 2.6
 Programming Language :: Python :: 2.7
+Programming Language :: Python :: 3
+Programming Language :: Python :: 3.2
+Programming Language :: Python :: 3.3
 Topic :: Database
 Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
@@ -101,9 +105,7 @@ long_description = str(
     ("\n".join(doclines[2:]) + "\n\n" +
      ".. contents::\n\n" +
      read_file("README.rst").decode('latin-1')  + "\n\n" +
-     read_file("CHANGES.rst").decode('latin-1')
-    ).replace(u'L\xf6wis', '|Lowis|')
-    )+ '''\n\n.. |Lowis| unicode:: L \\xf6 wis\n'''
+     read_file("CHANGES.rst").decode('latin-1')))
 
 tests_require = ['zope.testing', 'manuel']
 
