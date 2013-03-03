@@ -22,7 +22,9 @@ from tempfile import mkstemp
 
 from persistent.TimeStamp import TimeStamp
 
-from ZODB._compat import Unpickler, BytesIO
+from ZODB._compat import Unpickler
+from ZODB._compat import BytesIO
+from ZODB._compat import ascii_bytes
 
 
 __all__ = ['z64',
@@ -164,8 +166,7 @@ def oid_repr(oid):
         return repr(oid)
 
 def repr_to_oid(repr):
-    if not isinstance(repr, bytes):
-        repr = bytes(repr, 'ascii')
+    repr = ascii_bytes(repr)
     if repr.startswith(b"0x"):
         repr = repr[2:]
     as_bin = unhexlify(repr)

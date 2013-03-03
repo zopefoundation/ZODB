@@ -31,7 +31,10 @@ import ZODB.interfaces
 from ZODB.interfaces import BlobError
 from ZODB import utils
 from ZODB.POSException import POSKeyError
-from ZODB._compat import BytesIO, Unpickler, decodebytes
+from ZODB._compat import BytesIO
+from ZODB._compat import Unpickler
+from ZODB._compat import decodebytes
+from ZODB._compat import ascii_bytes
 
 
 if sys.version_info[0] >= 3:
@@ -557,7 +560,7 @@ class BushyLayout(object):
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
             raise ValueError("Not a valid OID path: `%s`" % path)
-        path = [bytes(x, 'ascii') for x in path.split(os.path.sep)]
+        path = [ascii_bytes(x) for x in path.split(os.path.sep)]
         # Each path segment stores a byte in hex representation. Turn it into
         # an int and then get the character for our byte string.
         oid = b''.join(binascii.unhexlify(byte[2:]) for byte in path)

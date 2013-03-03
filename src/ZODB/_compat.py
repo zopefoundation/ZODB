@@ -80,3 +80,13 @@ except NameError:
     # Py3
     long = int
 
+
+try:
+    TEXT = unicode
+except NameError: #pragma NO COVER Py3k
+    TEXT = str
+
+def ascii_bytes(x):
+    if isinstance(x, TEXT):
+        x = x.encode('ascii')
+    return x
