@@ -557,7 +557,7 @@ class BushyLayout(object):
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
             raise ValueError("Not a valid OID path: `%s`" % path)
-        path = path.split(os.path.sep)
+        path = [bytes(x, 'ascii') for x in path.split(os.path.sep)]
         # Each path segment stores a byte in hex representation. Turn it into
         # an int and then get the character for our byte string.
         oid = b''.join(binascii.unhexlify(byte[2:]) for byte in path)

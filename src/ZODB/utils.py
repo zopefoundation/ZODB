@@ -164,7 +164,9 @@ def oid_repr(oid):
         return repr(oid)
 
 def repr_to_oid(repr):
-    if repr.startswith("0x"):
+    if not isinstance(repr, bytes):
+        repr = bytes(repr, 'ascii')
+    if repr.startswith(b"0x"):
         repr = repr[2:]
     as_bin = unhexlify(repr)
     as_bin = b"\x00"*(8-len(as_bin)) + as_bin
