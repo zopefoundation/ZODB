@@ -136,7 +136,7 @@ class PersistentReference(object):
                 # it.  Fortunately, a class reference in a persistent
                 # reference is allowed to be a module+name tuple.
                 self.data = self.oid, klass.args
-        elif isinstance(data, bytes):
+        elif isinstance(data, (bytes, str)):
             self.oid = data
         else: # a list
             reference_type = data[0]
@@ -162,6 +162,10 @@ class PersistentReference(object):
                 assert len(data) == 1, 'unknown reference format'
                 self.oid = data[0]
                 self.weak = True
+        if not isinstance(self.oid, (bytes, type(None))):
+            assert isinstance(self.oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            self.oid = self.oid.encode('ascii')
 
     def __cmp__(self, other):
         if self is other or (

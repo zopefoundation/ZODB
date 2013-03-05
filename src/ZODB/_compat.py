@@ -20,11 +20,17 @@ try:
 except ImportError:
     # Python 3.x: can't use stdlib's pickle because
     # http://bugs.python.org/issue6784
-    from zodbpickle.pickle import Pickler, dump, dumps
-    from zodbpickle.pickle import Unpickler as _Unpickler, loads as _loads
+    import zodbpickle.pickle
     from _compat_pickle import IMPORT_MAPPING, NAME_MAPPING
 
-    class Unpickler(_Unpickler):
+    class Pickler(zodbpickle.pickle.Pickler):
+        def __init__(self, f, protocol=None):
+            if protocol:
+                # we want to be backwards-compatible with Python 2
+                assert 0 <= protocol < 3
+            super(Pickler, self).__init__(f, protocol, bytes_as_strings=True)
+
+    class Unpickler(zodbpickle.pickle.Unpickler):
         def __init__(self, f):
             super(Unpickler, self).__init__(f, encoding='ASCII', errors='bytes')
 
@@ -38,11 +44,22 @@ except ImportError:
                 return super(Unpickler, self).find_class(modulename, name)
             return self.find_global(modulename, name)
 
+    def dump(o, f, protocol=None):
+        if protocol:
+            # we want to be backwards-compatible with Python 2
+            assert 0 <= protocol < 3
+        return zodbpickle.pickle.dump(o, f, protocol, bytes_as_strings=True)
+
+    def dumps(o, protocol=None):
+        if protocol:
+            # we want to be backwards-compatible with Python 2
+            assert 0 <= protocol < 3
+        return zodbpickle.pickle.dumps(o, protocol, bytes_as_strings=True)
+
     def loads(s):
-        return _loads(s, encoding='ASCII', errors='bytes')
+        return zodbpickle.pickle.loads(s, encoding='ASCII', errors='bytes')
 
 
-# XXX: overridable Unpickler.find_global as used in serialize.py?
 # XXX: consistent spelling of inst_persistent_id/persistent_id?
 #      e.g. StorageTestBase and probably elsewhere
 

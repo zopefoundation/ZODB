@@ -33,6 +33,9 @@ checker = renormalizing.RENormalizing([
     # this changes all the offsets in iterator.test
     (re.compile('data.fs:207766'), 'data.fs:117080'),
     (re.compile('data.fs:57991'), 'data.fs:35936'),
+    # even with Pickler(bytes_as_strings=True) some of our pickles are larger
+    (re.compile('data.fs:117679'), 'data.fs:117080'),
+    (re.compile('data.fs:36241'), 'data.fs:35936'),
 ])
 
 def pack_keep_old():

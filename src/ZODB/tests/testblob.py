@@ -11,11 +11,11 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from pickle import Pickler, Unpickler
 from ZODB.blob import Blob
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
+from ZODB._compat import Pickler, Unpickler
 
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):

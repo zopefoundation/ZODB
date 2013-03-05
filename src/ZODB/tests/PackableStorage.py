@@ -58,6 +58,13 @@ class Object(object):
     def getoid(self):
         return self._oid
 
+    def __setstate__(self, state):
+        self.__dict__.clear()
+        self.__dict__.update(state)
+        if not isinstance(self._oid, bytes):
+            # Python 3
+            self._oid = self._oid.encode('ascii')
+
 
 class C(Persistent):
     pass
@@ -89,7 +96,7 @@ def dumps(obj):
 
 def pdumps(obj):
     s = BytesIO()
-    p = Pickler(s)
+    p = Pickler(s, _protocol)
     p.dump(obj)
     p.dump(None)
     return s.getvalue()

@@ -120,6 +120,11 @@ class ExportImport:
             if isinstance(ooid, tuple):
                 ooid, klass = ooid
 
+            if not isinstance(ooid, bytes):
+                assert isinstance(ooid, str)
+                # this happens on Python 3 when all bytes in the oid are < 0x80
+                ooid = ooid.encode('ascii')
+
             if ooid in oids:
                 oid = oids[ooid]
             else:

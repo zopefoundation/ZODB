@@ -183,8 +183,13 @@ checker = renormalizing.RENormalizing([
     (re.compile(r'(PersistentMapping|OOBTree) at 206\b'), r'\1 at 201'),
     (re.compile(r'(OOBTree) at 404\b'), r'\1 at 350'),
     (re.compile(r'(PersistentMapping|OOBTree) at 531\b'), r'\1 at 477'),
+    # even with Pickler(bytes_as_strings=True) some of our pickles are larger
+    (re.compile(r'(OOBTree) at 361\b'), r'\1 at 350'),
+    (re.compile(r'\boffset=440\b'), 'offset=429'),
+    (re.compile(r'(PersistentMapping|OOBTree) at 488\b'), r'\1 at 477'),
 ])
 
 
 def test_suite():
-    return doctest.DocTestSuite(checker=ZODB.tests.util.checker + checker)
+    return doctest.DocTestSuite(checker=ZODB.tests.util.checker + checker,
+                                optionflags=doctest.REPORT_NDIFF)

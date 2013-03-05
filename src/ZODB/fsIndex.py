@@ -63,6 +63,11 @@ def prefix_minus_one(s):
     num = str2num(s)
     return num2str(num - 1)
 
+def ensure_bytes(s):
+    # on Python 3 we might pickle bytes and unpickle unicode strings
+    return s.encode('ascii') if not isinstance(s, bytes) else s
+
+
 class fsIndex(object):
 
     def __init__(self, data=None):
@@ -85,14 +90,19 @@ class fsIndex(object):
     def _setstate_0(self, state):
         self.__dict__.clear()
         self.__dict__.update(state)
+        self._data = OOBTree([
+            (ensure_bytes(k), v)
+            for (k, v) in self._data.items()
+            ])
 
     def _setstate_1(self, state):
-        self._data =  OOBTree([
-            (k, fsBucket().fromString(v))
+        self._data = OOBTree([
+            (ensure_bytes(k), fsBucket().fromString(ensure_bytes(v)))
             for (k, v) in state['_data']
             ])
 
     def __getitem__(self, key):
+        assert isinstance(key, bytes)
         return str2num(self._data[key[:6]][key[6:]])
 
     def save(self, pos, fname):
@@ -110,6 +120,10 @@ class fsIndex(object):
             unpickler = Unpickler(f)
             pos = unpickler.load()
             if not isinstance(pos, int):
+                # NB: this might contain OIDs that got unpickled
+                # into Unicode strings on Python 3; hope the caller
+                # will pipe the result to fsIndex().update() to normalize
+                # the keys
                 return pos                  # Old format
             index = class_()
             data = index._data
@@ -118,10 +132,11 @@ class fsIndex(object):
                 if not v:
                     break
                 k, v = v
-                data[k] = fsBucket().fromString(v)
+                data[ensure_bytes(k)] = fsBucket().fromString(ensure_bytes(v))
             return dict(pos=pos, index=index)
 
     def get(self, key, default=None):
+        assert isinstance(key, bytes)
         tree = self._data.get(key[:6], default)
         if tree is default:
             return default
@@ -131,6 +146,7 @@ class fsIndex(object):
         return str2num(v)
 
     def __setitem__(self, key, value):
+        assert isinstance(key, bytes)
         value = num2str(value)
         treekey = key[:6]
         tree = self._data.get(treekey)
@@ -140,6 +156,7 @@ class fsIndex(object):
         tree[key[6:]] = value
 
     def __delitem__(self, key):
+        assert isinstance(key, bytes)
         treekey = key[:6]
         tree = self._data.get(treekey)
         if tree is None:
@@ -156,13 +173,14 @@ class fsIndex(object):
 
     def update(self, mapping):
         for k, v in mapping.items():
-            self[k] = v
+            self[ensure_bytes(k)] = v
 
     def has_key(self, key):
         v = self.get(key, self)
         return v is not self
 
     def __contains__(self, key):
+        assert isinstance(key, bytes)
         tree = self._data.get(key[:6])
         if tree is None:
             return False

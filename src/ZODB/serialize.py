@@ -489,7 +489,7 @@ class ObjectReader:
     def _persistent_load(self, reference):
         if isinstance(reference, tuple):
             return self.load_persistent(*reference)
-        elif isinstance(reference, bytes):
+        elif isinstance(reference, (bytes, str)):
             return self.load_oid(reference)
         else:
             try:
@@ -503,6 +503,11 @@ class ObjectReader:
     def load_persistent(self, oid, klass):
         # Quick instance reference.  We know all we need to know
         # to create the instance w/o hitting the db, so go for it!
+
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
 
         obj = self._cache.get(oid, None)
         if obj is not None:
@@ -538,6 +543,10 @@ class ObjectReader:
 
 
     def load_persistent_weakref(self, oid, database_name=None):
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
         obj = WeakRef.__new__(WeakRef)
         obj.oid = oid
         if database_name is None:
@@ -556,6 +565,10 @@ class ObjectReader:
     loaders['w'] = load_persistent_weakref
 
     def load_oid(self, oid):
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
@@ -632,15 +645,9 @@ def referencesf(p, oids=None):
 
     refs = []
     u = Unpickler(BytesIO(p))
-    if sys.version_info[0] < 3:
-        u.persistent_load = refs
-        u.noload()
-        u.noload()
-    else:
-        # Py3: There is no `noload()` in Python 3.
-        u.persistent_load = refs.append
-        u.load()
-        u.load()
+    u.persistent_load = refs.append
+    u.noload()
+    u.noload()
 
     # Now we have a list of referencs.  Need to convert to list of
     # oids:
@@ -651,11 +658,16 @@ def referencesf(p, oids=None):
     for reference in refs:
         if isinstance(reference, tuple):
             oid = reference[0]
-        elif isinstance(reference, bytes):
+        elif isinstance(reference, (bytes, str)):
             oid = reference
         else:
             assert isinstance(reference, list)
             continue
+
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
 
         oids.append(oid)
 
@@ -675,15 +687,9 @@ def get_refs(a_pickle):
 
     refs = []
     u = Unpickler(BytesIO(a_pickle))
-    if sys.version_info[0] < 3:
-        u.persistent_load = refs
-        u.noload()
-        u.noload()
-    else:
-        # Py3: There is no `noload()` in Python 3.
-        u.persistent_load = refs.append
-        u.load()
-        u.load()
+    u.persistent_load = refs.append
+    u.noload()
+    u.noload()
 
     # Now we have a list of references.  Need to convert to list of
     # oids and class info:
@@ -692,13 +698,18 @@ def get_refs(a_pickle):
 
     for reference in refs:
         if isinstance(reference, tuple):
-            data = reference
-        elif isinstance(reference, bytes):
-            data = reference, None
+            oid, klass = reference
+        elif isinstance(reference, (bytes, str)):
+            data, klass = reference, None
         else:
             assert isinstance(reference, list)
             continue
 
-        result.append(data)
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
+
+        result.append((oid, klass))
 
     return result

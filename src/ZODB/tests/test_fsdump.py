@@ -82,6 +82,8 @@ checker = renormalizing.RENormalizing([
     (re.compile(r'\bsize=65\b'), 'size=60'),
     (re.compile(r'\offset=206\b'), 'offset=201'),
     (re.compile(r'\bsize=156\b'), 'size=107'),
+    # even with Pickler(bytes_as_strings=True) some of our pickles are larger
+    (re.compile(r'\bsize=113\b'), 'size=107'),
 ])
 
 
@@ -89,4 +91,5 @@ def test_suite():
     return doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
         tearDown=zope.testing.setupstack.tearDown,
+        optionflags=doctest.REPORT_NDIFF,
         checker=ZODB.tests.util.checker + checker)
