@@ -87,7 +87,8 @@ class HexStorage(object):
             for t in it:
                 yield Transaction(self, t)
         finally:
-            it.close()
+            if hasattr(it, 'close'):
+                it.close()
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):

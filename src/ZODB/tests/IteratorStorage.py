@@ -146,7 +146,8 @@ class IteratorStorage(IteratorCompare):
         tinfo = next(it)
         self.assertEqual(1, len(list(tinfo)))
         self.assertEqual(1, len(list(tinfo)))
-        it.close()
+        if hasattr(it, 'close'):
+            it.close()
 
     def checkIterateWhileWriting(self):
         self._dostore()
