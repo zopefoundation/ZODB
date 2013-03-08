@@ -347,7 +347,7 @@ class Connection(ExportImport, object):
         try:
             if self._txn_time is None:
                 self._txn_time = tid
-            elif (tid < self._txn_time) and (tid is not None):
+            elif (tid is not None) and (tid < self._txn_time):
                 raise AssertionError("invalidations out of order, %r < %r"
                                      % (tid, self._txn_time))
 
