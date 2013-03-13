@@ -243,7 +243,7 @@ class GC(FileStorageFormatter):
         try:
             th = self._read_txn_header(pos)
         except CorruptedDataError as err:
-            if err.buf != "":
+            if err.buf != b"":
                 raise
         if th.status == 'p':
             # Delayed import to cope with circular imports.
