@@ -394,7 +394,7 @@ And we shouldn't be able to read the data that we saved:
     >>> blob_storage.loadBlob(blob._p_oid, s1)
     Traceback (most recent call last):
     ...
-    POSKeyError: 'No blob file at /var/blobs/0x00/0x039bfdeeb0364777.blob'
+    POSKeyError: 'No blob file at <BLOB STORAGE PATH>'
 
 Of course the old data should be unaffected:
 
