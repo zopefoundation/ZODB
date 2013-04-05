@@ -411,7 +411,7 @@ Similarly, the new object wasn't added to the storage:
     >>> blob_storage.loadBlob(blob._p_oid, s2)
     Traceback (most recent call last):
     ...
-    POSKeyError: 'No blob file at /var/blobs/0x00/0x039bfdeeb0364777.blob'
+    POSKeyError: 'No blob file at <BLOB STORAGE PATH>'
 
 .. clean up
 
