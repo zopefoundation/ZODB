@@ -1980,7 +1980,7 @@ class UndoSearch:
             return None
         if status != ' ':
             return None
-        d = u = ''
+        d = u = b''
         if ul:
             u = self.file.read(ul)
         if dl:
