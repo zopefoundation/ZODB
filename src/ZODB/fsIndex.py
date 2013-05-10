@@ -44,7 +44,9 @@ from BTrees.fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
 import six
 
-from ZODB._compat import Pickler, Unpickler
+from ZODB._compat import INT_TYPES
+from ZODB._compat import Pickler
+from ZODB._compat import Unpickler
 
 
 # convert between numbers and six-byte strings
@@ -119,7 +121,7 @@ class fsIndex(object):
         with open(fname, 'rb') as f:
             unpickler = Unpickler(f)
             pos = unpickler.load()
-            if not isinstance(pos, int):
+            if not isinstance(pos, INT_TYPES):
                 # NB: this might contain OIDs that got unpickled
                 # into Unicode strings on Python 3; hope the caller
                 # will pipe the result to fsIndex().update() to normalize

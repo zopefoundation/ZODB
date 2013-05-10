@@ -96,6 +96,9 @@ try:
 except NameError:
     # Py3
     long = int
+    INT_TYPES = (int,)
+else:
+    INT_TYPES = (int, long)
 
 
 try:
