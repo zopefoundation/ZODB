@@ -722,7 +722,10 @@ def storage_reusable_suite(prefix, factory,
         "blob_transaction.txt",
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
         checker=zope.testing.renormalizing.RENormalizing([
-            (re.compile(r'([a-zA-Z]:)?\%(sep)s.*\%(sep)sblobs\%(sep)s.*\.blob'
+            (re.compile("POSKeyError: u'No blob file"),
+                        "POSKeyError: 'No blob file"),
+            (re.compile(
+                r'([a-zA-Z]:)?\%(sep)s.*\%(sep)sblobs\%(sep)s.*\.blob'
                         % dict(sep=os.path.sep)), '<BLOB STORAGE PATH>')
             ]),
         optionflags=doctest.ELLIPSIS,
