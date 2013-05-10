@@ -14,3 +14,4 @@ nosetests.xml
 coverage.xml
 *.egg-info
 *.egg
+dist
