@@ -393,7 +393,7 @@ And we shouldn't be able to read the data that we saved:
     >>> blob_storage.loadBlob(blob._p_oid, s1)
     Traceback (most recent call last):
     ...
-    POSKeyError: 'No blob file'
+    POSKeyError: 'No blob file at <BLOB STORAGE PATH>'
 
 Of course the old data should be unaffected:
 
@@ -410,7 +410,7 @@ Similarly, the new object wasn't added to the storage:
     >>> blob_storage.loadBlob(blob._p_oid, s2)
     Traceback (most recent call last):
     ...
-    POSKeyError: 'No blob file'
+    POSKeyError: 'No blob file at <BLOB STORAGE PATH>'
 
 .. clean up
 

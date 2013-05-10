@@ -2,15 +2,18 @@
  Change History
 ================
 
-4.0.0a5 (unreleased)
+4.0.0b1 (unreleased)
 =====================
 
 - Added support for Python 3.2 / 3.3.
 
+- Include the filename in the exception message to support debugging in case 
+  ``loadBlob`` does not find the file.
+
 4.0.0a4 (2012-12-17)
 =====================
 
-- Enforced usage of bytes for '_p_serial' of persistent objects (fixes
+- Enforced usage of bytes for ``_p_serial`` of persistent objects (fixes
   compatibility with recent persistent releases).
 
 4.0.0a3 (2012-12-01)

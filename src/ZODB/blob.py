@@ -651,7 +651,7 @@ class BlobStorageMixin(object):
         """
         filename = self.fshelper.getBlobFilename(oid, serial)
         if not os.path.exists(filename):
-            raise POSKeyError("No blob file", oid, serial)
+            raise POSKeyError("No blob file at %s" % filename, oid, serial)
         return filename
 
     def openCommittedBlobFile(self, oid, serial, blob=None):
