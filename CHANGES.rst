@@ -5,6 +5,9 @@
 4.0.0b1 (unreleased)
 =====================
 
+- Skip non-unit tests in ``setup.py test``.  Use the buildout to run these
+  tests.
+
 - Added support for Python 3.2 / 3.3.
 
 - Include the filename in the exception message to support debugging in case 

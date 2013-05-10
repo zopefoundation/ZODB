@@ -60,6 +60,23 @@ def _modname(path, base, name=''):
     dirname, basename = os.path.split(path)
     return _modname(dirname, base, basename + '.' + name)
 
+def _flatten(suite, predicate=lambda *x: True):
+    from unittest import TestCase
+    for suite_or_case in suite:
+        if predicate(suite_or_case):
+            if isinstance(suite_or_case, TestCase):
+                yield suite_or_case
+            else:
+                for x in _flatten(suite_or_case):
+                    yield x
+
+def _no_layer(suite_or_case):
+    return getattr(suite_or_case, 'layer', None) is None
+
+def _unittests_only(suite, mod_suite):
+    for case in _flatten(mod_suite, _no_layer):
+        suite.addTest(case)
+
 def alltests():
     import logging
     import pkg_resources
@@ -87,10 +104,10 @@ def alltests():
                     mod = __import__(
                         _modname(dirpath, base, os.path.splitext(filename)[0]),
                         {}, {}, ['*'])
-                    suite.addTest(mod.test_suite())
+                    _unittests_only(suite, mod.test_suite())
         elif 'tests.py' in filenames:
             mod = __import__(_modname(dirpath, base, 'tests'), {}, {}, ['*'])
-            suite.addTest(mod.test_suite())
+            _unittests_only(suite, mod.test_suite())
     return suite
 
 doclines = __doc__.split("\n")
