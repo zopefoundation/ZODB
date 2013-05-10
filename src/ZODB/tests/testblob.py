@@ -722,8 +722,18 @@ def storage_reusable_suite(prefix, factory,
         "blob_transaction.txt",
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
         checker=zope.testing.renormalizing.RENormalizing([
-            (re.compile("POSKeyError: u'No blob file"),
+            # Py3k renders bytes where Python2 used native strings...
+            (re.compile(r"^b'"), "'"),
+            (re.compile(r'^b"'), '"'),
+            # ...and native strings where Python2 used unicode.
+            (re.compile("^POSKeyError: u'No blob file"),
                         "POSKeyError: 'No blob file"),
+            # Py3k repr's exceptions with dotted names
+            (re.compile("^ZODB.interfaces.BlobError:"), "BlobError:"),
+            (re.compile("^ZODB.POSException.ConflictError:"), "ConflictError:"),
+            (re.compile("^ZODB.POSException.POSKeyError:"), "POSKeyError:"),
+            (re.compile("^ZODB.POSException.Unsupported:"), "Unsupported:"),
+            # Normalize out blobfile paths for sake of Windows
             (re.compile(
                 r'([a-zA-Z]:)?\%(sep)s.*\%(sep)sblobs\%(sep)s.*\.blob'
                         % dict(sep=os.path.sep)), '<BLOB STORAGE PATH>')
