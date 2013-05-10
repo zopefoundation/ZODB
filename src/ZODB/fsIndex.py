@@ -40,7 +40,7 @@
 # integers.
 import struct
 
-from BTrees._fsBTree import fsBucket
+from BTrees.fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
 import six
 
