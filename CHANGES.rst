@@ -5,13 +5,26 @@
 4.0.0b1 (unreleased)
 =====================
 
-- Skip non-unit tests in ``setup.py test``.  Use the buildout to run these
-  tests.
-
-- Added support for Python 3.2 / 3.3.
+- Skip non-unit tests in ``setup.py test``.  Use the buildout to run tests
+  requiring "layer" support.
 
 - Include the filename in the exception message to support debugging in case 
   ``loadBlob`` does not find the file.
+
+- Added support for Python 3.2 / 3.3.
+
+.. note::
+
+   ZODB 4.0.x is supported on Python 3.x for *new* applications only.
+   The Python3 support does **not** provide forward- or backward-compatibility
+   at the data level with Python2, due to changes in the standard library's
+   pickle support.
+
+   Applications which need migrate data from Python2 to Python3 should
+   plan to script this migration using separte databases, e.g. via a
+   "dump-and-reload" approach, or by providing explicit fix-ups of the
+   pickled values as transactions are copied between storages.
+
 
 4.0.0a4 (2012-12-17)
 =====================
