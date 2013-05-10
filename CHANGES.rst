@@ -16,9 +16,10 @@
 .. note::
 
    ZODB 4.0.x is supported on Python 3.x for *new* applications only.
-   The Python3 support does **not** provide forward- or backward-compatibility
-   at the data level with Python2, due to changes in the standard library's
-   pickle support.
+   Due to changes in the standard library's pickle support, the Python3
+   support does **not** provide forward- or backward-compatibility
+   at the data level with Python2.  A future version of ZODB may add
+   such support.
 
    Applications which need migrate data from Python2 to Python3 should
    plan to script this migration using separte databases, e.g. via a
