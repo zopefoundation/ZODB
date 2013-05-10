@@ -30,6 +30,10 @@ if sys.version_info < (2, 6):
     print("This version of ZODB requires Python 2.6 or higher")
     sys.exit(0)
 
+if (3,) < sys.version_info < (3, 2):
+    print("This version of ZODB requires Python 3.2 or higher")
+    sys.exit(0)
+
 PY3 = sys.version_info >= (3,)
 
 # The (non-obvious!) choices for the Trove Development Status line:
@@ -38,6 +42,7 @@ PY3 = sys.version_info >= (3,)
 # Development Status :: 3 - Alpha
 
 classifiers = """\
+Development Status :: 4 - Beta
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python

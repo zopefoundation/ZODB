@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.0.0b1 (unreleased)
+4.0.0b1 (2013-05-10)
 =====================
 
 - Skip non-unit tests in ``setup.py test``.  Use the buildout to run tests
