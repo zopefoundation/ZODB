@@ -27,9 +27,10 @@ NUM = 100
 
 
 checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"),
-     r"\1"),
+        # Python 3 bytes add a "b".
+        (re.compile("b('.*?')"), r"\1"),
+        # Windows shows result from 'u64' as long?
+        (re.compile(r"(\d+)L"), r"\1"),
     ])
 
 class TestUtils(unittest.TestCase):
