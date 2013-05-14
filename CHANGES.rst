@@ -2,10 +2,10 @@
  Change History
 ================
 
-Unreleased
-==========
+4.0.0b2 (2013-05-14)
+====================
 
-- Extended the filename renormalizer uwed for blob doctests to support
+- Extended the filename renormalizer used for blob doctests to support
   the filenames used by ZEO in non-shared mode.
 
 - Added ``url`` parameter to ``setup()`` (PyPI says it is required).
@@ -13,10 +13,10 @@ Unreleased
 4.0.0b1 (2013-05-10)
 =====================
 
-- Skip non-unit tests in ``setup.py test``.  Use the buildout to run tests
+- Skipped non-unit tests in ``setup.py test``.  Use the buildout to run tests
   requiring "layer" support.
 
-- Include the filename in the exception message to support debugging in case 
+- Included the filename in the exception message to support debugging in case 
   ``loadBlob`` does not find the file.
 
 - Added support for Python 3.2 / 3.3.
