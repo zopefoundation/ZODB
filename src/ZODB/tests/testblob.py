@@ -735,7 +735,7 @@ def storage_reusable_suite(prefix, factory,
             (re.compile("^ZODB.POSException.Unsupported:"), "Unsupported:"),
             # Normalize out blobfile paths for sake of Windows
             (re.compile(
-                r'([a-zA-Z]:)?\%(sep)s.*\%(sep)sblobs\%(sep)s.*\.blob'
+                r'([a-zA-Z]:)?\%(sep)s.*\%(sep)s(server-)blobs\%(sep)s.*\.blob'
                         % dict(sep=os.path.sep)), '<BLOB STORAGE PATH>')
             ]),
         optionflags=doctest.ELLIPSIS,

@@ -5,6 +5,9 @@
 Unreleased
 ==========
 
+- Extended the filename renormalizer uwed for blob doctests to support
+  the filenames used by ZEO in non-shared mode.
+
 - Added ``url`` parameter to ``setup()`` (PyPI says it is required).
 
 4.0.0b1 (2013-05-10)
