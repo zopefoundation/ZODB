@@ -35,6 +35,7 @@ from ZODB._compat import BytesIO
 from ZODB._compat import Unpickler
 from ZODB._compat import decodebytes
 from ZODB._compat import ascii_bytes
+from ZODB._compat import INT_TYPES
 
 
 if sys.version_info[0] >= 3:
@@ -552,9 +553,14 @@ class BushyLayout(object):
         directories = []
         # Create the bushy directory structure with the least significant byte
         # first
-        for byte in oid.decode():
-            directories.append(
-                '0x%s' % binascii.hexlify(byte.encode()).decode())
+        for byte in ascii_bytes(oid):
+            if isinstance(byte,INT_TYPES): # Py3k iterates byte strings as ints
+                hex_segment_bytes = b'0x' + binascii.hexlify(bytes([byte]))
+                hex_segment_string = hex_segment_bytes.decode('ascii')
+            else:
+                hex_segment_string = '0x%s' % binascii.hexlify(byte)
+            directories.append(hex_segment_string)
+
         return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
