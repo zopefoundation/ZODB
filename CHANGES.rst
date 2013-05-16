@@ -2,6 +2,12 @@
  Change History
 ================
 
+Unreleased
+==========
+
+- Fixed: A ``UnicodeDecodeError`` could happen for non-ASCII OIDs
+  when using bushy blob layout.
+
 4.0.0b2 (2013-05-14)
 ====================
 
@@ -16,7 +22,7 @@
 - Skipped non-unit tests in ``setup.py test``.  Use the buildout to run tests
   requiring "layer" support.
 
-- Included the filename in the exception message to support debugging in case 
+- Included the filename in the exception message to support debugging in case
   ``loadBlob`` does not find the file.
 
 - Added support for Python 3.2 / 3.3.
