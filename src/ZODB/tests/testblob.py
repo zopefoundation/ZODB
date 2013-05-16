@@ -12,6 +12,7 @@
 #
 ##############################################################################
 from ZODB.blob import Blob
+from ZODB.blob import BushyLayout
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
@@ -137,6 +138,28 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
 
         # tearDown
         database.close()
+
+
+class BushyLayoutTests(ZODB.tests.util.TestCase):
+
+    def testBushyLayoutOIDToPathUnicode(self):
+        "OID-to-path should produce valid results given non-ASCII byte strings"
+        non_ascii_oid = b'>\xf1<0\xe9Q\x99\xf0'
+        # The argument should already be bytes;
+        # os.path.sep is native string type under both 2 and 3
+        # binascii.hexlify takes bytes and produces bytes under both py2 and py3
+        # the result should be the native string type
+        oid_as_path = BushyLayout().oid_to_path(non_ascii_oid)
+        self.assertEqual(
+            oid_as_path,
+            '0x3e/0xf1/0x3c/0x30/0xe9/0x51/0x99/0xf0')
+
+        # the reverse holds true as well
+        path_as_oid = BushyLayout().path_to_oid(oid_as_path)
+        self.assertEqual(
+            path_as_oid,
+            non_ascii_oid )
+
 
 class BlobTestBase(ZODB.tests.StorageTestBase.StorageTestBase):
 
@@ -779,6 +802,7 @@ def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
     suite.addTest(unittest.makeSuite(BlobCloneTests))
+    suite.addTest(unittest.makeSuite(BushyLayoutTests))
     suite.addTest(doctest.DocFileSuite(
         "blob_basic.txt", "blob_consume.txt", "blob_tempdir.txt",
         "blobstorage_packing.txt",
