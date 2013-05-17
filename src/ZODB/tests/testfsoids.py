@@ -167,10 +167,14 @@ Clean up.
 >>> st.cleanup() # remove .fs, .index, etc
 """
 
-import re
 import doctest
-import ZODB.tests.util
+import re
+
 from zope.testing import renormalizing
+
+from .util import checker as util_checker
+from .util import setUp
+from .util import tearDown
 
 checker = renormalizing.RENormalizing([
     # Normalizing this makes diffs easier to read
@@ -191,5 +195,7 @@ checker = renormalizing.RENormalizing([
 
 
 def test_suite():
-    return doctest.DocTestSuite(checker=ZODB.tests.util.checker + checker,
+    return doctest.DocTestSuite(setUp=setUp,
+                                tearDown=tearDown,
+                                checker=util_checker + checker,
                                 optionflags=doctest.REPORT_NDIFF)
