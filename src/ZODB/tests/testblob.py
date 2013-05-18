@@ -152,7 +152,8 @@ class BushyLayoutTests(ZODB.tests.util.TestCase):
         oid_as_path = BushyLayout().oid_to_path(non_ascii_oid)
         self.assertEqual(
             oid_as_path,
-            '0x3e/0xf1/0x3c/0x30/0xe9/0x51/0x99/0xf0')
+            os.path.sep.join(
+            '0x3e/0xf1/0x3c/0x30/0xe9/0x51/0x99/0xf0'.split('/')))
 
         # the reverse holds true as well
         path_as_oid = BushyLayout().path_to_oid(oid_as_path)
