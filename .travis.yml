@@ -9,6 +9,6 @@ install:
     - travis_retry pip install -e .
 script:
     - zope-testrunner -u --test-path=src --auto-color --auto-progress
-    - zope-testrunner -f -j99 --test-path=src --auto-color --auto-progress
+    - zope-testrunner -f --test-path=src --auto-color --auto-progress
 notifications:
     email: false
