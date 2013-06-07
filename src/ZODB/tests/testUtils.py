@@ -41,7 +41,7 @@ class TestUtils(unittest.TestCase):
              for i in range(NUM)]
     all = small + large
 
-    def checkLongToStringToLong(self):
+    def test_LongToStringToLong(self):
         for num in self.all:
             s = p64(num)
             n = U64(s)
@@ -49,7 +49,7 @@ class TestUtils(unittest.TestCase):
             n2 = u64(s)
             self.assertEqual(num, n2, "u64() failed")
 
-    def checkKnownConstants(self):
+    def test_KnownConstants(self):
         self.assertEqual(b"\000\000\000\000\000\000\000\001", p64(1))
         self.assertEqual(b"\000\000\000\001\000\000\000\000", p64(1<<32))
         self.assertEqual(u64(b"\000\000\000\000\000\000\000\001"), 1)
@@ -57,7 +57,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(u64(b"\000\000\000\001\000\000\000\000"), 1<<32)
         self.assertEqual(U64(b"\000\000\000\001\000\000\000\000"), 1<<32)
 
-    def checkPersistentIdHandlesDescriptor(self):
+    def test_PersistentIdHandlesDescriptor(self):
         from ZODB.serialize import ObjectWriter
         class P(Persistent):
             pass
@@ -70,7 +70,7 @@ class TestUtils(unittest.TestCase):
     # deduce the class path from a pickle, instead of actually loading
     # the pickle (and so also trying to import application module and
     # class objects, which isn't a good idea on a ZEO server when avoidable).
-    def checkConflictErrorDoesntImport(self):
+    def test_ConflictErrorDoesntImport(self):
         from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
         from ZODB.tests.MinPO import MinPO
@@ -98,9 +98,40 @@ class TestUtils(unittest.TestCase):
         else:
             self.fail("expected ConflictError, but no exception raised")
 
+    def test_get_pickle_metadata_w_protocol_0_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=0)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+    def test_get_pickle_metadata_w_protocol_1_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=1)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+    def test_get_pickle_metadata_w_protocol_2_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=2)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+    def test_get_pickle_metadata_w_protocol_3_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=3)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+
+class ExampleClass(object):
+    pass
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(TestUtils, 'check'))
-    suite.addTest(doctest.DocFileSuite('../utils.txt', checker=checker))
-    return suite
+    return unittest.TestSuite((
+        unittest.makeSuite(TestUtils),
+        doctest.DocFileSuite('../utils.txt', checker=checker),
+    ))
