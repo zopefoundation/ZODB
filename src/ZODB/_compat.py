@@ -25,10 +25,7 @@ except ImportError:
 
     class Pickler(zodbpickle.pickle.Pickler):
         def __init__(self, f, protocol=None):
-            if protocol:
-                # we want to be backwards-compatible with Python 2
-                assert 0 <= protocol < 3
-            super(Pickler, self).__init__(f, protocol, bytes_as_strings=True)
+            super(Pickler, self).__init__(f, protocol)
 
     class Unpickler(zodbpickle.pickle.Unpickler):
         def __init__(self, f):
@@ -45,16 +42,10 @@ except ImportError:
             return self.find_global(modulename, name)
 
     def dump(o, f, protocol=None):
-        if protocol:
-            # we want to be backwards-compatible with Python 2
-            assert 0 <= protocol < 3
-        return zodbpickle.pickle.dump(o, f, protocol, bytes_as_strings=True)
+        return zodbpickle.pickle.dump(o, f, protocol)
 
     def dumps(o, protocol=None):
-        if protocol:
-            # we want to be backwards-compatible with Python 2
-            assert 0 <= protocol < 3
-        return zodbpickle.pickle.dumps(o, protocol, bytes_as_strings=True)
+        return zodbpickle.pickle.dumps(o, protocol)
 
     def loads(s):
         return zodbpickle.pickle.loads(s, encoding='ASCII', errors='bytes')

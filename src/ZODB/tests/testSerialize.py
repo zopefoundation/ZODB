@@ -38,7 +38,7 @@ def make_pickle(ob):
     return sio.getvalue()
 
 
-def test_factory(conn, module_name, name):
+def _factory(conn, module_name, name):
     return globals()[name]
 
 class SerializerTestCase(unittest.TestCase):
@@ -60,7 +60,7 @@ class SerializerTestCase(unittest.TestCase):
         (ClassWithNewargs, (1,)))
 
     def test_getClassName(self):
-        r = serialize.ObjectReader(factory=test_factory)
+        r = serialize.ObjectReader(factory=_factory)
         eq = self.assertEqual
         eq(r.getClassName(self.old_style_with_newargs),
            __name__ + ".ClassWithNewargs")
@@ -82,7 +82,7 @@ class SerializerTestCase(unittest.TestCase):
                 __import__(module)
                 return getattr(sys.modules[module], name)
 
-        r = TestObjectReader(factory=test_factory)
+        r = TestObjectReader(factory=_factory)
         g = r.getGhost(self.old_style_with_newargs)
         self.assertTrue(isinstance(g, ClassWithNewargs))
         self.assertEqual(g, 1)
@@ -119,9 +119,76 @@ class SerializerTestCase(unittest.TestCase):
         self.assertTrue(not serialize.myhasattr(NewStyle(), "rat"))
 
 
+class SerializerFunctestCase(unittest.TestCase):
+
+    def setUp(self):
+        import tempfile
+        self._tempdir = tempfile.mkdtemp(suffix='serializerfunc')
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self._tempdir)
+
+    def test_funky_datetime_serialization(self):
+        import os
+        import subprocess
+        fqn = os.path.join(self._tempdir, 'Data.fs')
+        prep_args = [sys.executable, '-c',
+                     'from ZODB.tests.testSerialize import _functest_prep; '
+                     '_functest_prep("%s")' % fqn]
+        subprocess.check_call(prep_args)
+        load_args = [sys.executable, '-c',
+                     'from ZODB.tests.testSerialize import _functest_load; '
+                     '_functest_load("%s")' % fqn]
+        subprocess.call(load_args)
+
+def _working_failing_datetimes():
+    import datetime
+    WORKING = datetime.datetime(5375, 12, 31, 23, 59, 59)
+    # Any date after 5375 A.D. appears to trigger this bug.
+    FAILING = datetime.datetime(5376, 12, 31, 23, 59, 59)
+    return WORKING, FAILING
+
+def _functest_prep(fqn):
+    # Prepare the database with a BTree which won't deserialize
+    # if the bug is present.
+    # run in separate process)
+    import transaction
+    from BTrees.OOBTree import OOBTree
+    from ZODB import DB
+    WORKING, FAILING = _working_failing_datetimes()
+    db = DB(fqn)
+    conn = db.open()
+    try:
+        root = conn.root()
+        tree = root['tree'] = OOBTree()
+        tree[WORKING] = 'working'
+        tree[FAILING] = 'failing'
+        transaction.commit()
+    finally: # Windoze
+        conn.close()
+        db.close()
+
+def _functest_load(fqn):
+    # Open the database and attempt to deserialize the tree
+    # (run in separate process)
+    from ZODB import DB
+    WORKING, FAILING = _working_failing_datetimes()
+    db = DB(fqn)
+    conn = db.open()
+    try:
+        root = conn.root()
+        tree = root['tree']
+        assert tree[WORKING] == 'working'
+        assert tree[FAILING] == 'failing'
+    finally: # Windoze
+        conn.close()
+        db.close()
+
 def test_suite():
-    suite = unittest.makeSuite(SerializerTestCase)
-    suite.addTest(
+    return unittest.TestSuite((
+        unittest.makeSuite(SerializerTestCase),
+        unittest.makeSuite(SerializerFunctestCase),
         doctest.DocTestSuite("ZODB.serialize",
-                             checker=ZODB.tests.util.checker))
-    return suite
+                             checker=ZODB.tests.util.checker),
+    ))
