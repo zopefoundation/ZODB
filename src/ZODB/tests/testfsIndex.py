@@ -221,8 +221,9 @@ Note that we pass a file position, which gets saved with the index data.
 If we save the data in the old format, we can still read it:
 
     >>> from ZODB._compat import dump
+    >>> from ZODB._compat import _protocol
     >>> with open('old', 'wb') as fp:
-    ...     dump(dict(pos=42, index=index), fp, 1)
+    ...     dump(dict(pos=42, index=index), fp, _protocol)
     >>> info = fsIndex.load('old')
     >>> info['pos']
     42

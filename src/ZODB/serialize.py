@@ -140,14 +140,11 @@ from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.POSException import InvalidObjectReference
-from ZODB._compat import Pickler, Unpickler, BytesIO
+from ZODB._compat import Pickler, Unpickler, BytesIO, _protocol
 
 
 _oidtypes = bytes, type(None)
 
-# Py3: Python 3 uses protocol 3 by default, which is not loadable by Python
-# 2. If we want this, we can add a condition here for Python 3.
-_protocol = 1
 
 # Might to update or redo coptimizations to reflect weakrefs:
 # from ZODB.coptimizations import new_persistent_id

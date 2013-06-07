@@ -32,7 +32,7 @@ from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
 from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
 from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
-from ZODB._compat import dump, dumps
+from ZODB._compat import dump, dumps, _protocol
 
 
 class FileStorageTests(
@@ -92,7 +92,7 @@ class FileStorageTests(
         data['index'] = newindex
 
         with open('FileStorageTests.fs.index', 'wb') as fp:
-            dump(data, fp, 1)
+            dump(data, fp, _protocol)
         return index
 
     def check_conversion_to_fsIndex(self, read_only=False):
@@ -390,14 +390,14 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
             j = 0
             oid, revid = oids[j]
             serial = self._storage.store(
-                oid, revid, dumps(OOBTree, 1), "", t)
+                oid, revid, dumps(OOBTree, _protocol), "", t)
             oids[j][1] = serial
 
             # and it could be from a broken module
             j = 1
             oid, revid = oids[j]
             serial = self._storage.store(
-                oid, revid, dumps(Broken, 1), "", t)
+                oid, revid, dumps(Broken, _protocol), "", t)
             oids[j][1] = serial
 
             # but mostly it looks like this

@@ -41,7 +41,7 @@ from ZODB.fsIndex import fsIndex
 from ZODB import BaseStorage, ConflictResolution, POSException
 from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
 from ZODB.utils import p64, u64, z64, as_bytes, as_text
-from ZODB._compat import Pickler, loads, decodebytes, encodebytes
+from ZODB._compat import Pickler, loads, decodebytes, encodebytes, _protocol
 
 
 # Not all platforms have fsync
@@ -369,7 +369,7 @@ class FileStorage(
             if not self._is_read_only:
                 # Save the converted index.
                 f = open(index_name, 'wb')
-                p = Pickler(f, 1)
+                p = Pickler(f, _protocol)
                 info['index'] = index
                 p.dump(info)
                 f.close()
