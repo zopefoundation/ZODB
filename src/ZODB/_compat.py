@@ -29,7 +29,7 @@ except ImportError:
 
     class Unpickler(zodbpickle.pickle.Unpickler):
         def __init__(self, f):
-            super(Unpickler, self).__init__(f, encoding='ASCII', errors='bytes')
+            super(Unpickler, self).__init__(f)
 
         # Py3: Python 3 doesn't allow assignments to find_global,
         # instead, find_class can be overridden
