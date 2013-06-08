@@ -23,6 +23,7 @@ try:
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
     _protocol = 1
+    FILESTORAGE_MAGIC = b"FS21"
 except ImportError:
     # Python 3.x: can't use stdlib's pickle because
     # http://bugs.python.org/issue6784
@@ -57,6 +58,7 @@ except ImportError:
     def loads(s):
         return zodbpickle.pickle.loads(s, encoding='ASCII', errors='bytes')
     _protocol = 3
+    FILESTORAGE_MAGIC = b"FS30"
 
 
 # XXX: consistent spelling of inst_persistent_id/persistent_id?

@@ -78,12 +78,13 @@ from ZODB._compat import loads
 from ZODB._compat import decodebytes
 from ZODB._compat import encodebytes
 from ZODB._compat import _protocol
+from ZODB._compat import FILESTORAGE_MAGIC
 
 
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
 
-packed_version = b"FS21"
+packed_version = FILESTORAGE_MAGIC
 
 logger = logging.getLogger('ZODB.FileStorage')
 
