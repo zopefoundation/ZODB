@@ -39,9 +39,9 @@ Create a root object and try again:
 
 >>> db = ZODB.DB(st) # yes, that creates a root object!
 >>> fsdump(path) #doctest: +ELLIPSIS
-Trans #00000 tid=... time=... offset=52
+Trans #00000 tid=... time=... offset=<OFFSET>
     status=' ' user='' description='initial database creation'
-  data #00000 oid=0000000000000000 size=60 class=persistent.mapping.PersistentMapping
+  data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
 
 Now we see first transaction with root object.
 
@@ -52,13 +52,13 @@ Let's add a BTree:
 >>> txn.get().note('added an OOBTree')
 >>> txn.get().commit()
 >>> fsdump(path) #doctest: +ELLIPSIS
-Trans #00000 tid=... time=... offset=52
+Trans #00000 tid=... time=... offset=<OFFSET>
     status=' ' user='' description='initial database creation'
-  data #00000 oid=0000000000000000 size=60 class=persistent.mapping.PersistentMapping
-Trans #00001 tid=... time=... offset=201
+  data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
+Trans #00001 tid=... time=... offset=<OFFSET>
     status=' ' user='' description='added an OOBTree'
-  data #00000 oid=0000000000000000 size=107 class=persistent.mapping.PersistentMapping
-  data #00001 oid=0000000000000001 size=29 class=BTrees.OOBTree.OOBTree
+  data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
+  data #00001 oid=0000000000000001 size=<SIZE> class=BTrees.OOBTree.OOBTree
 
 Now we see two transactions and two changed objects.
 
@@ -79,11 +79,8 @@ checker = renormalizing.RENormalizing([
     (re.compile(r'\b\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\.\d+\b'), '...'),
     # Python 3 produces larger pickles, even when we use zodbpickle :(
     # this changes all the offsets and sizes
-    (re.compile(r'\bsize=65\b'), 'size=60'),
-    (re.compile(r'\offset=206\b'), 'offset=201'),
-    (re.compile(r'\bsize=156\b'), 'size=107'),
-    # even with Pickler(bytes_as_strings=True) some of our pickles are larger
-    (re.compile(r'\bsize=113\b'), 'size=107'),
+    (re.compile(r'\bsize=[0-9]+\b'), 'size=<SIZE>'),
+    (re.compile(r'\offset=[0-9]+\b'), 'offset=<OFFSET>'),
 ])
 
 

@@ -39,6 +39,7 @@ from __future__ import print_function
 import binascii
 import struct
 import sys
+from ZODB._compat import FILESTORAGE_MAGIC
 
 class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
@@ -47,7 +48,7 @@ class Status:
     checkpoint = b'c'
     undone = b'u'
 
-packed_version = b'FS21'
+packed_version = FILESTORAGE_MAGIC
 
 TREC_HDR_LEN = 23
 DREC_HDR_LEN = 42

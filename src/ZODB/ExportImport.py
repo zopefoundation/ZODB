@@ -23,9 +23,9 @@ import six
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError
-from ZODB.serialize import referencesf, _protocol
+from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, cp, mktemp
-from ZODB._compat import Pickler, Unpickler, BytesIO
+from ZODB._compat import Pickler, Unpickler, BytesIO, _protocol
 
 
 logger = logging.getLogger('ZODB.ExportImport')

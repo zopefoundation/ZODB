@@ -16,7 +16,7 @@ from ZODB.blob import BushyLayout
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
-from ZODB._compat import Pickler, Unpickler
+from ZODB._compat import Pickler, Unpickler, _protocol
 
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
@@ -125,7 +125,7 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
         transaction.commit()
 
         stream = BytesIO()
-        p = Pickler(stream, 1)
+        p = Pickler(stream, _protocol)
         p.dump(root['blob'])
         u = Unpickler(stream)
         stream.seek(0)
@@ -742,7 +742,8 @@ def storage_reusable_suite(prefix, factory,
 
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocFileSuite(
-        "blob_connection.txt", "blob_importexport.txt",
+        "blob_connection.txt",
+        "blob_importexport.txt",
         "blob_transaction.txt",
         setUp=setup, tearDown=zope.testing.setupstack.tearDown,
         checker=zope.testing.renormalizing.RENormalizing([
@@ -805,7 +806,9 @@ def test_suite():
     suite.addTest(unittest.makeSuite(BlobCloneTests))
     suite.addTest(unittest.makeSuite(BushyLayoutTests))
     suite.addTest(doctest.DocFileSuite(
-        "blob_basic.txt", "blob_consume.txt", "blob_tempdir.txt",
+        "blob_basic.txt",
+        "blob_consume.txt",
+        "blob_tempdir.txt",
         "blobstorage_packing.txt",
         setUp=setUp,
         tearDown=zope.testing.setupstack.tearDown,

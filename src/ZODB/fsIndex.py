@@ -47,6 +47,7 @@ import six
 from ZODB._compat import INT_TYPES
 from ZODB._compat import Pickler
 from ZODB._compat import Unpickler
+from ZODB._compat import _protocol
 
 
 # convert between numbers and six-byte strings
@@ -109,7 +110,7 @@ class fsIndex(object):
 
     def save(self, pos, fname):
         with open(fname, 'wb') as f:
-            pickler = Pickler(f, 1)
+            pickler = Pickler(f, _protocol)
             pickler.fast = True
             pickler.dump(pos)
             for k, v in six.iteritems(self._data):

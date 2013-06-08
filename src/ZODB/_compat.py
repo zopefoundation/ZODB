@@ -14,25 +14,30 @@
 
 try:
     # Python 2.x
-    from cPickle import Pickler, Unpickler, dump, dumps, loads
+    from cPickle import Pickler
+    from cPickle import Unpickler
+    from cPickle import dump
+    from cPickle import dumps
+    from cPickle import loads
+    from cPickle import HIGHEST_PROTOCOL
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
+    _protocol = 1
+    FILESTORAGE_MAGIC = b"FS21"
 except ImportError:
     # Python 3.x: can't use stdlib's pickle because
     # http://bugs.python.org/issue6784
     import zodbpickle.pickle
+    HIGHEST_PROTOCOL = 3
     from _compat_pickle import IMPORT_MAPPING, NAME_MAPPING
 
     class Pickler(zodbpickle.pickle.Pickler):
         def __init__(self, f, protocol=None):
-            if protocol:
-                # we want to be backwards-compatible with Python 2
-                assert 0 <= protocol < 3
-            super(Pickler, self).__init__(f, protocol, bytes_as_strings=True)
+            super(Pickler, self).__init__(f, protocol)
 
     class Unpickler(zodbpickle.pickle.Unpickler):
         def __init__(self, f):
-            super(Unpickler, self).__init__(f, encoding='ASCII', errors='bytes')
+            super(Unpickler, self).__init__(f)
 
         # Py3: Python 3 doesn't allow assignments to find_global,
         # instead, find_class can be overridden
@@ -45,19 +50,15 @@ except ImportError:
             return self.find_global(modulename, name)
 
     def dump(o, f, protocol=None):
-        if protocol:
-            # we want to be backwards-compatible with Python 2
-            assert 0 <= protocol < 3
-        return zodbpickle.pickle.dump(o, f, protocol, bytes_as_strings=True)
+        return zodbpickle.pickle.dump(o, f, protocol)
 
     def dumps(o, protocol=None):
-        if protocol:
-            # we want to be backwards-compatible with Python 2
-            assert 0 <= protocol < 3
-        return zodbpickle.pickle.dumps(o, protocol, bytes_as_strings=True)
+        return zodbpickle.pickle.dumps(o, protocol)
 
     def loads(s):
         return zodbpickle.pickle.loads(s, encoding='ASCII', errors='bytes')
+    _protocol = 3
+    FILESTORAGE_MAGIC = b"FS30"
 
 
 # XXX: consistent spelling of inst_persistent_id/persistent_id?

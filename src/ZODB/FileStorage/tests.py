@@ -28,14 +28,8 @@ checker = renormalizing.RENormalizing([
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
     (re.compile("ZODB.FileStorage.FileStorage.FileStorageQuotaError"),
-     r"FileStorageQuotaError"),
-    # Python 3 produces larger pickles, even when we use zodbpickle :(
-    # this changes all the offsets in iterator.test
-    (re.compile('data.fs:207766'), 'data.fs:117080'),
-    (re.compile('data.fs:57991'), 'data.fs:35936'),
-    # even with Pickler(bytes_as_strings=True) some of our pickles are larger
-    (re.compile('data.fs:117679'), 'data.fs:117080'),
-    (re.compile('data.fs:36241'), 'data.fs:35936'),
+                "FileStorageQuotaError"),
+    (re.compile('data.fs:[0-9]+'), 'data.fs:<OFFSET>'),
 ])
 
 def pack_keep_old():
@@ -195,11 +189,14 @@ cleanup
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-            'zconfig.txt', 'iterator.test',
-            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            'zconfig.txt',
+            'iterator.test',
+            setUp=ZODB.tests.util.setUp,
+            tearDown=ZODB.tests.util.tearDown,
             checker=checker),
         doctest.DocTestSuite(
-            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
+            setUp=ZODB.tests.util.setUp,
+            tearDown=ZODB.tests.util.tearDown,
             checker=checker),
         ))
 

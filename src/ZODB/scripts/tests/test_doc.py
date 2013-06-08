@@ -28,16 +28,21 @@ checker = zope.testing.renormalizing.RENormalizing([
     (re.compile('b(".*?")'), r"\1"),
     # Python 3 produces larger pickles, even when we use zodbpickle :(
     # this changes all the offsets and sizes in fstail.txt
-    (re.compile("user='' description='' length=138 offset=190"),
-     "user='' description='' length=132 offset=185"),
-    (re.compile("user='' description='initial database creation' length=155 offset=52"),
-     "user='' description='initial database creation' length=150 offset=52"),
+    (re.compile("user='' description='' "
+                    "length=[0-9]+ offset=[0-9]+"),
+                "user='' description='' "
+                    "length=<LENGTH> offset=<OFFSET>"),
+    (re.compile("user='' description='initial database creation' "
+                    "length=[0-9]+ offset=[0-9]+"),
+                "user='' description='initial database creation' "
+                    "length=<<LENGTH> offset=<OFFSET>"),
 ])
 
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-            'referrers.txt', 'fstail.txt',
+            'referrers.txt',
+            'fstail.txt',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
             checker=checker),
         ))

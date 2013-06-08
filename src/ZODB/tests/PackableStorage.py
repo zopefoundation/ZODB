@@ -22,11 +22,11 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB import DB
 from ZODB.POSException import ConflictError, StorageError
-from ZODB.serialize import referencesf, _protocol
+from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-from ZODB._compat import loads, Pickler, Unpickler, BytesIO
+from ZODB._compat import loads, Pickler, Unpickler, BytesIO, _protocol
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util

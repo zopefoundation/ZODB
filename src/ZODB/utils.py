@@ -217,6 +217,10 @@ def get_pickle_metadata(data):
     # ZODB's data records contain two pickles.  The first is the class
     # of the object, the second is the object.  We're only trying to
     # pick apart the first here, to extract the module and class names.
+    if data[0] in (0x80,    # Py3k indexes bytes -> int
+                   b'\x80'  # Python2 indexes bytes -> bytes
+                  ): # protocol marker, protocol > 1
+        data = data[2:]
     if data.startswith(b'(c'):   # pickle MARK GLOBAL opcode sequence
         global_prefix = 2
     elif data.startswith(b'c'):  # pickle GLOBAL opcode
