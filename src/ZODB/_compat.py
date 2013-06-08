@@ -14,7 +14,12 @@
 
 try:
     # Python 2.x
-    from cPickle import Pickler, Unpickler, dump, dumps, loads
+    from cPickle import Pickler
+    from cPickle import Unpickler
+    from cPickle import dump
+    from cPickle import dumps
+    from cPickle import loads
+    from cPickle import HIGHEST_PROTOCOL
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
     _protocol = 1
@@ -22,6 +27,7 @@ except ImportError:
     # Python 3.x: can't use stdlib's pickle because
     # http://bugs.python.org/issue6784
     import zodbpickle.pickle
+    HIGHEST_PROTOCOL = 3
     from _compat_pickle import IMPORT_MAPPING, NAME_MAPPING
 
     class Pickler(zodbpickle.pickle.Pickler):

@@ -122,9 +122,11 @@ class TestUtils(unittest.TestCase):
     def test_get_pickle_metadata_w_protocol_3_class_pickle(self):
         from ZODB.utils import get_pickle_metadata
         from ZODB._compat import dumps
-        pickle = dumps(ExampleClass, protocol=3)
-        self.assertEqual(get_pickle_metadata(pickle),
-                         (__name__, ExampleClass.__name__))
+        from ZODB._compat import HIGHEST_PROTOCOL
+        if HIGHEST_PROTOCOL >= 3:
+            pickle = dumps(ExampleClass, protocol=3)
+            self.assertEqual(get_pickle_metadata(pickle),
+                            (__name__, ExampleClass.__name__))
 
 
 class ExampleClass(object):
