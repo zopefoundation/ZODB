@@ -2,8 +2,8 @@
  Change History
 ================
 
-Unreleased
-==========
+4.0.0b3 (2013-06-11)
+====================
 
 - Switch to using non-backward-compatible pickles (protocol 3, without
   storing bytes as strings) under Python 3.  Updated the magic number
