@@ -6,7 +6,8 @@ Unreleased
 ==========
 
 - Switch to using non-backward-compatible pickles (protocol 3, without
-  storing bytes as strings) under Python 3.
+  storing bytes as strings) under Python 3.  Updated the magic number
+  for file-storage files under Python3 to indicate the incompatibility.
 
 - Fixed: A ``UnicodeDecodeError`` could happen for non-ASCII OIDs
   when using bushy blob layout.
