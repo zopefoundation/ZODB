@@ -75,8 +75,8 @@ class Blob(persistent.Persistent):
             raise TypeError('Blobs do not support subclassing.')
         self.__setstate__()
         if data is not None:
-            with self.open('w') as file:
-                file.write(data)
+            with self.open('w') as f:
+                f.write(data)
 
     def __setstate__(self, state=None):
         # we use lists here because it will allow us to add and remove
@@ -315,7 +315,7 @@ class BlobFile(file):
 
     def close(self):
         self.blob.closed(self)
-        file.close(self)
+        super(BlobFile, self).close()
 
 _pid = str(os.getpid())
 
@@ -786,8 +786,8 @@ class BlobStorage(BlobStorageMixin):
                 files.sort()
                 latest = files[-1] # depends on ever-increasing tids
                 files.remove(latest)
-                for file in files:
-                    remove_committed(os.path.join(oid_path, file))
+                for f in files:
+                    remove_committed(os.path.join(oid_path, f))
             else:
                 remove_committed_dir(oid_path)
                 continue
