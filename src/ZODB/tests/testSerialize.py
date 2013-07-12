@@ -139,7 +139,7 @@ class SerializerFunctestCase(unittest.TestCase):
         # buildout doesn't arrange for the sys.path to be exported,
         # so force it ourselves
         environ = os.environ.copy()
-        environ['PYTHONPATH'] = ':'.join(sys.path)
+        environ['PYTHONPATH'] = os.pathsep.join(sys.path)
         subprocess.check_call(prep_args, env=environ)
         load_args = [sys.executable, '-c',
                      'from ZODB.tests.testSerialize import _functest_load; '
