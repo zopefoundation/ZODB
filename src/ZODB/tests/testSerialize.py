@@ -135,7 +135,7 @@ class SerializerFunctestCase(unittest.TestCase):
         fqn = os.path.join(self._tempdir, 'Data.fs')
         prep_args = [sys.executable, '-c',
                      'from ZODB.tests.testSerialize import _functest_prep; '
-                     '_functest_prep("%s")' % fqn]
+                     '_functest_prep(%s)' % repr(fqn)]
         # buildout doesn't arrange for the sys.path to be exported,
         # so force it ourselves
         environ = os.environ.copy()
@@ -143,7 +143,7 @@ class SerializerFunctestCase(unittest.TestCase):
         subprocess.check_call(prep_args, env=environ)
         load_args = [sys.executable, '-c',
                      'from ZODB.tests.testSerialize import _functest_load; '
-                     '_functest_load("%s")' % fqn]
+                     '_functest_load(%s)' % repr(fqn)]
         subprocess.call(load_args, env=environ)
 
 def _working_failing_datetimes():
