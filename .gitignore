@@ -1,0 +1,6 @@
+bin
+develop-eggs
+lib
+include
+build
+*.so
