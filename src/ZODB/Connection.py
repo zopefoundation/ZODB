@@ -448,6 +448,7 @@ class Connection(ExportImport, object):
             oid = obj._p_oid
             assert oid is not None
             if oid in self._added:
+                self._readCurrent.pop(oid, None)
                 del self._added[oid]
                 if self._cache.get(oid) is not None:
                     del self._cache[oid]
