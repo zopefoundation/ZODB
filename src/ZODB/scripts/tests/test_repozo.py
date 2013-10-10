@@ -812,7 +812,7 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
         else:
             _opener = open
         with _opener(fqn, 'wb') as f:
-            f.write(text)
+            f.write(text.encode())
             f.flush()
         return fqn
 
