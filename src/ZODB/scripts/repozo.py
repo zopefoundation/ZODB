@@ -287,6 +287,22 @@ def checksum(fp, n):
     return sum.hexdigest()
 
 
+def file_size(fp):
+    # Compute number of bytes that can be read from fp
+    def func(data):
+        pass
+    return dofile(func, fp, None)
+
+
+def checksum_and_size(fp):
+    # Checksum and return it with the size of the file
+    sum = md5()
+    def func(data):
+        sum.update(data)
+    size = dofile(func, fp, None)
+    return sum.hexdigest(), size
+
+
 def copyfile(options, dst, start, n):
     # Copy bytes from file src, to file dst, starting at offset start, for n
     # length of bytes.  For robustness, we first write, flush and fsync
@@ -654,22 +670,40 @@ def do_verify(options):
                                     os.path.basename(fn))
             expected_size = endpos - startpos
             log("Verifying %s", filename)
-            # XXX: if the file is gzipped, we need to unzip it
             try:
-                fp = open(filename, 'rb')
+                if filename.endswith('fsz'):
+                    fp = gzip.open(filename, 'rb')
+                    when_uncompressed = ' (when uncompressed)'
+                else:
+                    fp = open(filename, 'rb')
+                    when_uncompressed = ''
             except IOError:
                 error("%s is missing", filename)
+                continue
+            try:
+                fp.seek(0, 2)
+            except ValueError:
+                # can't seek in gzipped files
+                if options.quick:
+                    size = file_size(fp)
+                    actual_sum = None
+                else:
+                    actual_sum, size = checksum_and_size(fp)
             else:
-                size = os.fstat(fp.fileno()).st_size
-                if size != expected_size:
-                    error("%s is %d bytes, should be %d bytes", filename,
-                          size, expected_size)
-                elif not options.quick:
+                size = fp.tell()
+                if options.quick or size != expected_size:
+                    actual_sum = None
+                else:
+                    fp.seek(0)
                     actual_sum = checksum(fp, size)
-                    if actual_sum != sum:
-                        error("%s has checksum %s instead of %s", filename,
-                              actual_sum, sum)
-                fp.close()
+            if size != expected_size:
+                error("%s is %d bytes%s, should be %d bytes", filename,
+                      size, when_uncompressed, expected_size)
+            elif not options.quick:
+                if actual_sum != sum:
+                    error("%s has checksum %s%s instead of %s", filename,
+                          actual_sum, when_uncompressed, sum)
+            fp.close()
 
 
 def main(argv=None):
