@@ -328,49 +328,6 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
         cn.close()
 
-    def checkSavepointRollbackAndReadCurrent(self):
-        '''
-        savepoint rollback after readcurrent of new object should not raise POSKeyError
-        '''
-        cn = self._db.open()
-        rt = cn.root()
-        not_modified = P()
-        not_modified.value = 'not modified'
-        cn.add(not_modified)
-        rt['not_modified'] = not_modified
-        not_deleted = P()
-        cn.add(not_deleted)
-        rt['not_deleted'] = not_deleted
-        transaction.commit()
-        self.assertTrue('not_modified' in rt)
-        self.assertEquals(rt['not_modified'].value, 'not modified')
-        self.assertTrue('not_deleted' in rt)
-        added_before = P()
-        cn.add(added_before)
-        rt['added_before'] = added_before
-        sp = transaction.savepoint()
-        not_added = P()
-        cn.add(not_added)
-        rt['not_added'] = not_added
-        cn.readCurrent(rt['not_added'])
-        cn.readCurrent(rt['not_deleted'])
-        cn.readCurrent(rt['not_modified'])
-        rt['not_modified'].value = 'modified'
-        del rt['not_deleted']
-        self.assertTrue('not_added' in rt)
-        self.assertEquals(rt['not_modified'].value, 'modified')
-        self.assertFalse('not_deleted' in rt)
-        sp.rollback()
-        added_after = P()
-        cn.add(added_after)
-        rt['added_after'] = added_after
-        transaction.commit()
-        self.assertTrue('added_before' in rt)
-        self.assertFalse('not_added' in rt)
-        self.assertEquals(rt['not_modified'].value, 'not modified')
-        self.assertTrue('not_deleted' in rt)
-        self.assertTrue('added_after' in rt)
-
     def checkFailingSavepointSticks(self):
         cn = self._db.open()
         rt = cn.root()
