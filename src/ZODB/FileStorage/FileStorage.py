@@ -468,7 +468,7 @@ class FileStorage(
                 if h.tid == serial:
                     break
                 pos = h.prev
-                if not pos:
+                if h.tid < serial or not pos:
                     raise POSKeyError(oid)
             if h.plen:
                 return self._file.read(h.plen)
