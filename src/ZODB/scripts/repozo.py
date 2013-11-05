@@ -672,30 +672,14 @@ def do_verify(options):
             log("Verifying %s", filename)
             try:
                 if filename.endswith('fsz'):
-                    fp = gzip.open(filename, 'rb')
+                    actual_sum, size = get_checksum_and_size_of_gzipped_file(filename, options.quick)
                     when_uncompressed = ' (when uncompressed)'
                 else:
-                    fp = open(filename, 'rb')
+                    actual_sum, size = get_checksum_and_size_of_file(filename, options.quick)
                     when_uncompressed = ''
             except IOError:
                 error("%s is missing", filename)
                 continue
-            try:
-                fp.seek(0, 2)
-            except ValueError:
-                # can't seek in gzipped files
-                if options.quick:
-                    size = file_size(fp)
-                    actual_sum = None
-                else:
-                    actual_sum, size = checksum_and_size(fp)
-            else:
-                size = fp.tell()
-                if options.quick or size != expected_size:
-                    actual_sum = None
-                else:
-                    fp.seek(0)
-                    actual_sum = checksum(fp, size)
             if size != expected_size:
                 error("%s is %d bytes%s, should be %d bytes", filename,
                       size, when_uncompressed, expected_size)
@@ -703,7 +687,26 @@ def do_verify(options):
                 if actual_sum != sum:
                     error("%s has checksum %s%s instead of %s", filename,
                           actual_sum, when_uncompressed, sum)
-            fp.close()
+
+
+def get_checksum_and_size_of_gzipped_file(filename, quick):
+    with gzip.open(filename, 'rb') as fp:
+        if quick:
+            return None, file_size(fp)
+        else:
+            return checksum_and_size(fp)
+
+
+def get_checksum_and_size_of_file(filename, quick):
+    with open(filename, 'rb') as fp:
+        fp.seek(0, 2)
+        actual_size = fp.tell()
+        if quick:
+            actual_sum = None
+        else:
+            fp.seek(0)
+            actual_sum = checksum(fp, actual_size)
+    return actual_sum, actual_size
 
 
 def main(argv=None):
