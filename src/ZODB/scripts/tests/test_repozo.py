@@ -26,19 +26,6 @@ except ImportError:
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
 
-
-class _GzipCloser(object):
-
-    def __init__(self, fqn, mode):
-        import gzip
-        self._opened = gzip.open(fqn, mode)
-
-    def __enter__(self):
-        return self._opened
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._opened.close()
-
 def _write_file(name, bits, mode='wb'):
     with open(name, mode) as f:
         f.write(bits)
@@ -218,6 +205,7 @@ class Test_copyfile(OptionsTestBase, unittest.TestCase):
         self.assertEqual(_read_file(target), b'x' * 100)
 
     def test_w_gzip(self):
+        from ZODB.scripts.repozo import _GzipCloser
         options = self._makeOptions(gzip=True)
         source = options.file = os.path.join(self._repository_directory,
                                              'source.txt')
@@ -236,6 +224,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         return concat(files, ofp)
 
     def _makeFile(self, name, text, gzip_file=False):
+        from ZODB.scripts.repozo import _GzipCloser
         import tempfile
         if self._repository_directory is None:
             self._repository_directory = tempfile.mkdtemp()
@@ -802,6 +791,7 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             repozo.error = orig_error
 
     def _makeFile(self, hour, min, sec, ext, text=None):
+        from ZODB.scripts.repozo import _GzipCloser
         assert self._repository_directory, 'call _makeOptions first!'
         name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
         if text is None:

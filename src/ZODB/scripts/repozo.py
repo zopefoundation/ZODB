@@ -109,6 +109,18 @@ class NoFiles(Exception):
     pass
 
 
+class _GzipCloser(object):
+
+    def __init__(self, fqn, mode):
+        self._opened = gzip.open(fqn, mode)
+
+    def __enter__(self):
+        return self._opened
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._opened.close()
+
+
 def usage(code, msg=''):
     outfp = sys.stderr
     if code == 0:
@@ -690,7 +702,7 @@ def do_verify(options):
 
 
 def get_checksum_and_size_of_gzipped_file(filename, quick):
-    with gzip.open(filename, 'rb') as fp:
+    with _GzipCloser(filename, 'rb') as fp:
         if quick:
             return None, file_size(fp)
         else:
