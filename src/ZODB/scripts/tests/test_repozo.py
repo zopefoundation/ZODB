@@ -14,12 +14,7 @@
 from __future__ import print_function
 import unittest
 import os
-try:
-    # the hashlib package is available from Python 2.5
-    from hashlib import md5
-except ImportError:
-    # the md5 package is deprecated in Python 2.6
-    from md5 import new as md5
+from hashlib import md5
 
 import ZODB.tests.util  # layer used at class scope
 
@@ -30,19 +25,6 @@ except ImportError:
 
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
-
-
-class _GzipCloser(object):
-
-    def __init__(self, fqn, mode):
-        import gzip
-        self._opened = gzip.open(fqn, mode)
-
-    def __enter__(self):
-        return self._opened
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._opened.close()
 
 def _write_file(name, bits, mode='wb'):
     with open(name, mode) as f:
@@ -198,9 +180,10 @@ class OptionsTestBase:
 
     def _makeOptions(self, **kw):
         import tempfile
-        self._repository_directory = tempfile.mkdtemp()
+        self._repository_directory = tempfile.mkdtemp(prefix='test-repozo-')
         class Options(object):
             repository = self._repository_directory
+            date = None
             def __init__(self, **kw):
                 self.__dict__.update(kw)
         return Options(**kw)
@@ -222,6 +205,7 @@ class Test_copyfile(OptionsTestBase, unittest.TestCase):
         self.assertEqual(_read_file(target), b'x' * 100)
 
     def test_w_gzip(self):
+        from ZODB.scripts.repozo import _GzipCloser
         options = self._makeOptions(gzip=True)
         source = options.file = os.path.join(self._repository_directory,
                                              'source.txt')
@@ -240,6 +224,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         return concat(files, ofp)
 
     def _makeFile(self, name, text, gzip_file=False):
+        from ZODB.scripts.repozo import _GzipCloser
         import tempfile
         if self._repository_directory is None:
             self._repository_directory = tempfile.mkdtemp()
@@ -789,6 +774,150 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self.assertEqual(_read_file(output), b'AAABBB')
         self.assertEqual(_read_file(index), b'CCC')
 
+
+class Test_do_verify(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, options):
+        from ZODB.scripts import repozo
+        errors = []
+        orig_error = repozo.error
+        def _error(msg, *args):
+            errors.append(msg % args)
+        repozo.error = _error
+        try:
+            repozo.do_verify(options)
+            return errors
+        finally:
+            repozo.error = orig_error
+
+    def _makeFile(self, hour, min, sec, ext, text=None):
+        from ZODB.scripts.repozo import _GzipCloser
+        assert self._repository_directory, 'call _makeOptions first!'
+        name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
+        if text is None:
+            text = name
+        fqn = os.path.join(self._repository_directory, name)
+        if ext.endswith('fsz'):
+            _opener = _GzipCloser
+        else:
+            _opener = open
+        with _opener(fqn, 'wb') as f:
+            f.write(text.encode())
+            f.flush()
+        return fqn
+
+    def test_no_files(self):
+        from ZODB.scripts.repozo import NoFiles
+        options = self._makeOptions()
+        self.assertRaises(NoFiles, self._callFUT, options)
+
+    def test_all_is_fine(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options), [])
+
+    def test_all_is_fine_gzip(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options), [])
+
+    def test_missing_file(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafs is missing'])
+
+    def test_missing_file_gzip(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafsz is missing'])
+
+    def test_bad_size(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafs is 3 bytes,'
+                          ' should be 4 bytes'])
+
+    def test_bad_size_gzip(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafsz is 3 bytes (when uncompressed),'
+                          ' should be 4 bytes'])
+
+    def test_bad_checksum(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BbBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafs has checksum'
+                          ' 36486440db255f0ee6ab109d5d231406 instead of'
+                          ' f50881ced34c7d9e6bce100bf33dec60'])
+
+    def test_bad_checksum_gzip(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BbBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafsz has checksum'
+                          ' 36486440db255f0ee6ab109d5d231406 (when uncompressed) instead of'
+                          ' f50881ced34c7d9e6bce100bf33dec60'])
+
+    def test_quick_ignores_checksums(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n')
+        self.assertEqual(self._callFUT(options), [])
+
+    def test_quick_ignores_checksums_gzip(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n')
+        self.assertEqual(self._callFUT(options), [])
+
+
 class MonteCarloTests(unittest.TestCase):
 
     layer = ZODB.tests.util.MininalTestLayer('repozo')
@@ -902,6 +1031,7 @@ def test_suite():
         unittest.makeSuite(Test_do_incremental_backup),
         #unittest.makeSuite(Test_do_backup),  #TODO
         unittest.makeSuite(Test_do_recover),
+        unittest.makeSuite(Test_do_verify),
         # N.B.:  this test take forever to run (~40sec on a fast laptop),
         # *and* it is non-deterministic.
         unittest.makeSuite(MonteCarloTests),
