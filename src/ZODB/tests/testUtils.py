@@ -20,7 +20,7 @@ from persistent import Persistent
 
 from zope.testing import renormalizing
 from ZODB.utils import U64, p64, u64
-from ZODB._compat import loads, long
+from ZODB._compat import loads
 
 
 NUM = 100
@@ -35,9 +35,9 @@ checker = renormalizing.RENormalizing([
 
 class TestUtils(unittest.TestCase):
 
-    small = [random.randrange(1, 1<<32, int=long)
+    small = [random.randrange(1, 1<<32)
              for i in range(NUM)]
-    large = [random.randrange(1<<32, 1<<64, int=long)
+    large = [random.randrange(1<<32, 1<<64)
              for i in range(NUM)]
     all = small + large
 
