@@ -22,11 +22,12 @@ NUM = 100
 
 from ZODB.utils import U64, p64, u64
 
+
 class TestUtils(unittest.TestCase):
 
-    small = [random.randrange(1, 1L<<32, int=long)
+    small = [random.randrange(1, 1<<32)
              for i in range(NUM)]
-    large = [random.randrange(1L<<32, 1L<<64, int=long)
+    large = [random.randrange(1<<32, 1<<64)
              for i in range(NUM)]
     all = small + large
 
