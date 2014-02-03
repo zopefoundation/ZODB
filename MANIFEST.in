@@ -1,0 +1,14 @@
+include *.py
+include *.txt
+include COPYING
+include buildout.cfg
+include log.ini
+recursive-include doc *.pdf
+recursive-include doc *.txt
+recursive-include src *.c
+recursive-include src *.fs
+recursive-include src *.h
+recursive-include src *.py
+recursive-include src *.test
+recursive-include src *.txt
+recursive-include src *.xml
