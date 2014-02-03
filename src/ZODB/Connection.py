@@ -762,7 +762,6 @@ class Connection(ExportImport, object):
             self._creating = {}
 
         for oid in creating:
-            self._readCurrent.pop(oid, None)
             o = self._cache.get(oid)
             if o is not None:
                 del self._cache[oid]
