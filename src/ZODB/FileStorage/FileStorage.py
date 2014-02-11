@@ -683,6 +683,7 @@ class FileStorage(
                 # Hm, an error occurred writing out the data. Maybe the
                 # disk is full. We don't want any turd at the end.
                 self._file.truncate(self._pos)
+                self._files.flush()
                 raise
             self._nextpos = self._pos + (tl + 8)
 
@@ -737,6 +738,7 @@ class FileStorage(
     def _abort(self):
         if self._nextpos:
             self._file.truncate(self._pos)
+            self._files.flush()
             self._nextpos=0
             self._blob_tpc_abort()
 
@@ -2043,6 +2045,16 @@ class FilePool:
     def empty(self):
         while self._files:
             self._files.pop().close()
+
+
+    def flush(self):
+        """Empty read buffers.
+
+        This is required if they contain data of rolled back transactions.
+        """
+        with self.write_lock():
+            for f in self._files:
+                f.flush()
 
     def close(self):
         with self._cond:

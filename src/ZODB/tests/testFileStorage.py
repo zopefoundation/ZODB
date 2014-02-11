@@ -26,6 +26,7 @@ import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
 from ZODB.fsIndex import fsIndex
+from ZODB.utils import U64, p64, z64
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
@@ -215,7 +216,6 @@ class FileStorageTests(
         # global.
         import time
 
-        from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
         from ZODB.serialize import referencesf
 
@@ -283,6 +283,27 @@ class FileStorageTests(
                 self.assertEqual(next_oid, None)
             else:
                 self.assertNotEqual(next_oid, None)
+
+    def checkFlushAfterTruncate(self, fail=False):
+        r0 = self._dostore(z64)
+        storage = self._storage
+        t = transaction.Transaction()
+        storage.tpc_begin(t)
+        storage.store(z64, r0, b'foo', b'', t)
+        storage.tpc_vote(t)
+        # Read operations are done with separate 'file' objects with their
+        # own buffers: here, the buffer also includes voted data.
+        storage.load(z64)
+        # This must invalidate all read buffers.
+        storage.tpc_abort(t)
+        self._dostore(z64, r0, b'bar', 1)
+        # In the case that read buffers were not invalidated, return value
+        # is based on what was cached during the first load.
+        self.assertEqual(storage.load(z64)[0], b'foo' if fail else b'bar')
+
+    def checkFlushNeededAfterTruncate(self):
+        self._storage._files.flush = lambda: None
+        self.checkFlushAfterTruncate(True)
 
 class FileStorageHexTests(FileStorageTests):
 
