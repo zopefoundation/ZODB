@@ -175,6 +175,11 @@ class ObjectWriter:
         self._p = Pickler(self._file, _protocol)
         if sys.version_info[0] < 3:
             self._p.inst_persistent_id = self.persistent_id
+            # PyPy uses a python implementation of cPickle in both Python 2
+            # and Python 3. We can't really detect inst_persistent_id as its
+            # a magic attribute that's not readable, but it doesn't hurt to
+            # simply always assign to persistent_id also
+            self._p.persistent_id = self.persistent_id
         else:
             self._p.persistent_id = self.persistent_id
         self._stack = []
