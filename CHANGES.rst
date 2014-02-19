@@ -2,6 +2,13 @@
  Change History
 ================
 
+4.0.1 (unreleased)
+==================
+
+- Ensure that the pickler used in PyPy always has a ``persistent_id``
+  attribute (``inst_persistent_id`` is not present on the pure-Python
+  pickler). (PR #17)
+
 4.0.0 (2013-08-18)
 ==================
 
