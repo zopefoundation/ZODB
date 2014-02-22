@@ -202,7 +202,7 @@ storage is the persistent object.  When you access attributes of a
 persistent objects, it's loaded from the database automatically, if
 necessary. If too many objects are in memory, then objects used least
 recently are evicted [#eviction]_.  The maximum number of objects or
-bytes in memory is configurable,
+bytes in memory is configurable.
 
 Summary
 =======
