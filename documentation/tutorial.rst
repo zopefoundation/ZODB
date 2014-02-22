@@ -64,8 +64,8 @@ way.
 Installation
 ============
 
-Before being able to use ZODB we have to install it, using easy_install. Note
-that the actual package name is called "ZODB::
+Before being able to use ZODB we have to install it. A common way to
+do this is with pip::
 
     $ pip install ZODB
 
