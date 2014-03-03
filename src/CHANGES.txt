@@ -8,6 +8,8 @@
 Bugs Fixed
 ----------
 
+- POSKeyError during transaction.commit when after savepoint.rollback 
+
 - Ensured that the export file and index file created by ``repozo`` share
   the same timestamp.
 
