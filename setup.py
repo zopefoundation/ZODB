@@ -197,8 +197,8 @@ setup(name="ZODB3",
       classifiers = filter(None, classifiers.split("\n")),
       long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
-      tests_require = ['zope.testing', 'Acquisition', manuel_version],
-      extras_require = dict(test=['zope.testing', 'Acquisition', manuel_version]),
+      tests_require = ['zope.testing', manuel_version],
+      extras_require = dict(test=['zope.testing', manuel_version]),
       install_requires = [
         transaction_version,
         'zc.lockfile',

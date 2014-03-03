@@ -17,7 +17,6 @@ from persistent.mapping import PersistentMapping
 from ZODB.POSException import ReadConflictError
 from ZODB.POSException import TransactionFailedError
 
-import Acquisition
 from BTrees.OOBTree import OOBTree
 import transaction
 import unittest
@@ -28,14 +27,6 @@ import ZODB.tests.util
 
 
 class P(Persistent):
-    pass
-
-
-class AcqImplicitP(P, Acquisition.Implicit):
-    pass
-
-
-class AcqImplicitOOBTree(OOBTree, Acquisition.Implicit):
     pass
 
 
@@ -349,12 +340,12 @@ class ZODBTests(ZODB.tests.util.TestCase):
         try:
             transaction.begin()
             root = cn.root()
-            added_before_savepoint = AcqImplicitP()
+            added_before_savepoint = P()
             root['added_before_savepoint'] = added_before_savepoint
             sp = transaction.savepoint()
-            added_before_savepoint.btree = new_btree = AcqImplicitOOBTree()
+            added_before_savepoint.btree = new_btree = OOBTree()
             cn.add(new_btree)
-            new_btree['change_to_trigger_read_current'] = AcqImplicitP()
+            new_btree['change_to_trigger_read_current'] = P()
             sp.rollback()
             transaction.commit()
             self.assertTrue('added_before_savepoint' in root)
