@@ -45,7 +45,7 @@ Documentation
    bugs
    features
 
-* `The ZODB Book (in progress) <http://www.zodb.org/zodbbook>`_
+* `The ZODB Book (in progress) <http://zodb.readthedocs.org/en/latest/>`_ 
 
 Downloads
 =========
