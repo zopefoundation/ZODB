@@ -52,9 +52,9 @@ Downloads
 
 ZODB is distributed as Python eggs through the `Python Package Index <http://pypi.python.org/pypi/ZODB3>`_.
 
-You can install the egg using setuptools' easy_install command::
+You can install the ZODB using pip command::
 
-    $ easy_install ZODB
+    $ pip install ZODB
 
 Community and contributing
 ==========================
