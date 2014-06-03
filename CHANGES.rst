@@ -5,6 +5,9 @@
 4.0.1 (unreleased)
 ==================
 
+- Fix POSKeyError during transaction.commit when after savepoint.rollback.
+  see https://github.com/zopefoundation/ZODB/issues/16
+
 - Ensure that the pickler used in PyPy always has a ``persistent_id``
   attribute (``inst_persistent_id`` is not present on the pure-Python
   pickler). (PR #17)

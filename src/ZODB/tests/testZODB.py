@@ -17,6 +17,7 @@ from ZODB.POSException import ReadConflictError
 from ZODB.POSException import TransactionFailedError
 
 import doctest
+from BTrees.OOBTree import OOBTree
 import transaction
 import unittest
 import ZODB
@@ -26,6 +27,7 @@ import ZODB.tests.util
 
 class P(Persistent):
     pass
+
 
 class ZODBTests(ZODB.tests.util.TestCase):
 
@@ -326,6 +328,28 @@ class ZODBTests(ZODB.tests.util.TestCase):
         self.assertEqual(rt['a'], 2)
 
         cn.close()
+
+    def checkSavepointRollbackAndReadCurrent(self):
+        '''
+        savepoint rollback after readcurrent was called on a new object
+        should not raise POSKeyError
+        '''
+        cn = self._db.open()
+        try:
+            transaction.begin()
+            root = cn.root()
+            added_before_savepoint = P()
+            root['added_before_savepoint'] = added_before_savepoint
+            sp = transaction.savepoint()
+            added_before_savepoint.btree = new_btree = OOBTree()
+            cn.add(new_btree)
+            new_btree['change_to_trigger_read_current'] = P()
+            sp.rollback()
+            transaction.commit()
+            self.assertTrue('added_before_savepoint' in root)
+        finally:
+            transaction.abort()
+            cn.close()
 
     def checkFailingSavepointSticks(self):
         cn = self._db.open()

@@ -997,7 +997,8 @@ class Connection(ExportImport, object):
     def readCurrent(self, ob):
         assert ob._p_jar is self
         assert ob._p_oid is not None and ob._p_serial is not None
-        self._readCurrent[ob._p_oid] = ob._p_serial
+        if ob._p_serial != z64:
+            self._readCurrent[ob._p_oid] = ob._p_serial
 
     # persistent.interfaces.IPersistentDatamanager
     ##########################################################################
