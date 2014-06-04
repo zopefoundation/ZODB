@@ -18,6 +18,9 @@ Compatibility
 
 ZODB 4.0 requires Python 2.6, 2.7, 3.2, or 3.3.
 
+Travis: |buildstatus|_
+winbot: |winbotstatus|_
+
 Prerequisites
 =============
 
@@ -138,3 +141,10 @@ Bugs and Patches
 Bug reports and patches should be added to the Launchpad:
 
     https://launchpad.net/zodb
+
+
+.. |buildstatus| image:: https://api.travis-ci.org/zopefoundation/ZODB.png?branch=master
+.. _buildstatus: https://travis-ci.org/zopefoundation/ZODB
+
+.. |winbotstatus| image:: http://winbot.zope.org/buildstatusimage?builder=ZODB_dev%20py_270_win64&number=-1
+.. _winbotstatus: http://winbot.zope.org/builders/ZODB_dev%20py_270_win64/builds/-1
