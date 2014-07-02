@@ -94,6 +94,7 @@ def report(oid, data, serial, missing):
     print()
 
 def main(path=None):
+    global VERBOSE
     if path is None:
         import sys
         import getopt
