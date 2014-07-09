@@ -68,6 +68,12 @@ def resetCaches():
     global global_reset_counter
     global_reset_counter += 1
 
+
+def className(obj):
+    cls = type(obj)
+    return "%s.%s" % (cls.__module__, cls.__name__)
+
+
 @implementer(IConnection,
              ISavepointDataManager,
              IPersistentDataManager,
@@ -853,18 +859,23 @@ class Connection(ExportImport, object):
         oid = obj._p_oid
 
         if self.opened is None:
-            msg = ("Shouldn't load state for %s "
-                   "when the connection is closed" % oid_repr(oid))
-            self._log.error(msg)
-            raise ConnectionStateError(msg)
+            msg = ("Shouldn't load state for %s %s "
+                   "when the connection is closed"
+                   % (className(obj), oid_repr(oid)))
+            try:
+                raise ConnectionStateError(msg)
+            except:
+                self._log.exception(msg)
+                raise
 
         try:
             self._setstate(obj)
         except ConflictError:
             raise
         except:
-            self._log.error("Couldn't load state for %s", oid_repr(oid),
-                            exc_info=sys.exc_info())
+            self._log.exception("Couldn't load state for %s %s",
+                                className(obj), oid_repr(oid),
+                                exc_info=sys.exc_info())
             raise
 
     def _setstate(self, obj):
