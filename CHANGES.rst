@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.0.1 (unreleased)
+4.0.1 (2014-07-13)
 ==================
 
 - Fix POSKeyError during transaction.commit when after savepoint.rollback.
@@ -11,6 +11,9 @@
 - Ensure that the pickler used in PyPy always has a ``persistent_id``
   attribute (``inst_persistent_id`` is not present on the pure-Python
   pickler). (PR #17)
+
+- Provide better error reporting when trying to load an object on a
+  closed connection.
 
 4.0.0 (2013-08-18)
 ==================
