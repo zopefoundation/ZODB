@@ -36,7 +36,7 @@ Subclassing ``Persistent`` provides a number of features:
 - The database will automatically track object changes made by setting
   attributes [#changed]_.
 
-- Data will be saved in it's own database record.
+- Data will be saved in its own database record.
 
   You can save data that doesn't subclass ``Persistent``, but it will be
   stored in the database record of whatever persistent object
@@ -88,7 +88,7 @@ variety of storage implementations to meet different needs, from
 in-memory databases, to databases stored in local files, to databases
 on remote database servers, and specialized databases for compression,
 encryption, and so on.  In the example above, we created a database
-that stores it's data in a local file, using the ``FileStorage``
+that stores its data in a local file, using the ``FileStorage``
 class.
 
 Having a storage, we then use it to instantiate a database, which we
@@ -152,9 +152,9 @@ BTrees provide the core scalable containers and indexing facility for
 ZODB. There are different families of BTrees.  The most general are
 OOBTrees, which have object keys and values. There are specialized
 BTrees that support integer keys and values.  Integers can be stored
-more efficiently, and compared more quickly than objects and their
+more efficiently, and compared more quickly than objects and they're
 often used as application-level object identifiers.  It's critical,
-when using BTrees, to make sure that it's keys have a stable ordering.
+when using BTrees, to make sure that its keys have a stable ordering.
 
 ZODB doesn't provide a query engine.  The primary way to access
 objects in ZODB is by traversing (accessing attributes or items, or
@@ -214,7 +214,7 @@ reference documentation contains sections with more information on the
 individual topics.
 
 .. [#changed] 
-   You can manually mark an object as changed by setting it's
+   You can manually mark an object as changed by setting its
    ``_p_changed__`` attribute to ``True``. You might do this if you
    update a subobject, such as a standard Python ``list`` or ``set``,
    that doesn't subclass ``Persistent``.
@@ -226,7 +226,7 @@ individual topics.
 .. [#root]
    The root object is a fairy simple persistent object that's stored
    in a single database record.  If you stored many objects in it,
-   it's database record would become very large, causing updates to be
+   its database record would become very large, causing updates to be
    inefficient and causing memory to be used ineffeciently.
 
    Another reason not to store items directly in the root object is
