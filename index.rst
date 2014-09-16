@@ -20,7 +20,7 @@ you to work with any paradigms that can be expressed in Python. Thereby your
 code becomes simpler, more robust and easier to understand.
 
 Also, there is no gap between the database and your program: no glue code to
-write, no mappings to configure. Have a look at the tutorial to see, how easy
+write, no mappings to configure. Have a look at the tutorial to see how easy
 it is.
 
 Some of the features that ZODB brings to you:
