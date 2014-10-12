@@ -84,7 +84,7 @@ Garbage collection
 ------------------
 
 We configured the ZEO server to skip garbage collection as part of the normal
-pack in the aboce config (`pack-gc = false`). Instead we use explicit garbage
+pack in the above config (`pack-gc = false`). Instead we use explicit garbage
 collection via a different job::
 
   bin/multi-zodb-gc etc/zeo.conf
@@ -112,13 +112,13 @@ Reference analysis and POSKeyErrors
 
 If our database has any POSKeyErrors, we can find and repair those.
 
-Either we already have the oid's of lost objects or we can check the entire
+Either we already have the oids of lost objects, or we can check the entire
 database for any errors. To check everything we run the following command::
 
   $ bin/multi-zodb-check-refs etc/zeo.conf
 
 This can take about 15 to 30 minutes on moderately sized databases of up to
-10gb but depends on disk speed. We'll write down the reported errors, as we'll
+10gb, dependant on disk speed. We'll write down the reported errors, as we'll
 need them later on to analyze them.
 
 If there are any lost objects, we can create a reference database to make it
