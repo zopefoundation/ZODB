@@ -118,7 +118,7 @@ database for any errors. To check everything we run the following command::
   $ bin/multi-zodb-check-refs etc/zeo.conf
 
 This can take about 15 to 30 minutes on moderately sized databases of up to
-10gb, dependant on disk speed. We'll write down the reported errors, as we'll
+10gb, dependent on disk speed. We'll write down the reported errors, as we'll
 need them later on to analyze them.
 
 If there are any lost objects, we can create a reference database to make it
