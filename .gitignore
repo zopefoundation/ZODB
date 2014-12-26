@@ -16,3 +16,4 @@ coverage.xml
 *.egg
 dist
 testing.log
+.eggs/
