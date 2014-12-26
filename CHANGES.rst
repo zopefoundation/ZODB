@@ -2,8 +2,10 @@
  Change History
 ================
 
-4.0.1 (unreleased)
+4.1.0 (unreleased)
 ==================
+
+- Add support for Python 3.4.
 
 - Fix POSKeyError during transaction.commit when after savepoint.rollback.
   see https://github.com/zopefoundation/ZODB/issues/16
