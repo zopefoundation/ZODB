@@ -5,6 +5,12 @@
 4.1.0 (unreleased)
 ==================
 
+- Fix registration of custom logging level names ("BLATHER", "TRACE).
+
+  We have been registering them in the wrong order since 2004.  Before
+  Python 3.4, the stdlib ``logging`` module masked the error by registering
+  them in *both* directions.
+
 - Add support for Python 3.4.
 
 - Fix POSKeyError during transaction.commit when after savepoint.rollback.
