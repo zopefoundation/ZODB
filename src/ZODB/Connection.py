@@ -302,8 +302,8 @@ class Connection(ExportImport, object):
                     f()
                 except: # except what?
                     f = getattr(f, 'im_self', f)
-                    self._log.error("Close callback failed for %s", f,
-                                    exc_info=sys.exc_info())
+                    self._log.error("Close callback failed for %s %s", f,
+                                    sys.exc_info())
             self.__onCloseCallbacks = None
 
         self._debug_info = ()
@@ -873,9 +873,9 @@ class Connection(ExportImport, object):
         except ConflictError:
             raise
         except:
-            self._log.exception("Couldn't load state for %s %s",
+            self._log.exception("Couldn't load state for %s %s %s",
                                 className(obj), oid_repr(oid),
-                                exc_info=sys.exc_info())
+                                sys.exc_info())
             raise
 
     def _setstate(self, obj):
