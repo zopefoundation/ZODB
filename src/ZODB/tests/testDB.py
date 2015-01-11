@@ -141,17 +141,16 @@ def connectionDebugInfo():
     >>> c3 = db.open(before=c1.root()._p_serial)
 
     >>> info = db.connectionDebugInfo()
-    >>> import pprint
-    >>> pprint.pprint(sorted(info, key=lambda i: str(i['opened'])), width=1)
-    [{'before': None,
-      'info': 'test info (2)',
-      'opened': '2008-12-04T20:40:44Z (1.40s)'},
-     {'before': '\x03zY\xd8\xc0m9\xdd',
-      'info': ' (0)',
-      'opened': '2008-12-04T20:40:45Z (0.30s)'},
-     {'before': None,
-      'info': ' (0)',
-      'opened': None}]
+    >>> info = sorted(info, key=lambda i: str(i['opened']))
+    >>> before = [x['before'] for x in info]
+    >>> opened = [x['opened'] for x in info]
+    >>> infos = [x['info'] for x in info]
+    >>> before
+    [None, '\x03zY\xd8\xc0m9\xdd', None]
+    >>> opened
+    ['2008-12-04T20:40:44Z (1.40s)', '2008-12-04T20:40:45Z (0.30s)', None]
+    >>> infos
+    ['test info (2)', ' (0)', ' (0)']
 
     >>> time.time = real_time
 

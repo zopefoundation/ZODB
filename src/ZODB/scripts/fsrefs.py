@@ -70,8 +70,6 @@ from ZODB.utils import u64, oid_repr, get_pickle_metadata
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
 
-VERBOSE = 0
-
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
 # explaining what the problem(s) is(are).
@@ -94,6 +92,7 @@ def report(oid, data, serial, missing):
     print()
 
 def main(path=None):
+    verbose = 0
     if path is None:
         import sys
         import getopt
@@ -101,7 +100,7 @@ def main(path=None):
         opts, args = getopt.getopt(sys.argv[1:], "v")
         for k, v in opts:
             if k == "-v":
-                VERBOSE += 1
+                verbose += 1
 
         path, = args
 
@@ -127,7 +126,7 @@ def main(path=None):
         except POSKeyError:
             undone[oid] = 1
         except:
-            if VERBOSE:
+            if verbose:
                 traceback.print_exc()
             noload[oid] = 1
 

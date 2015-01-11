@@ -1,9 +1,11 @@
 language: python
+sudo: false
 python:
     - 2.6
     - 2.7
     - 3.2
     - 3.3
+    - 3.4
 install:
     - travis_retry pip install BTrees ZConfig manuel persistent six transaction zc.lockfile zdaemon zope.interface zope.testing zope.testrunner
     - travis_retry pip install -e .

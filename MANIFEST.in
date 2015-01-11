@@ -1,5 +1,10 @@
 include *.rst
 include *.txt
+include *.py
+include *.ini
+include .travis.yml
+include buildout.cfg
+include COPYING
 
 recursive-include doc *
 recursive-include src *

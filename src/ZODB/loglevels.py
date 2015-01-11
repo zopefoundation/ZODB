@@ -43,5 +43,5 @@ __all__ = ["BLATHER", "TRACE"]
 
 BLATHER = 15
 TRACE = 5
-logging.addLevelName("BLATHER", BLATHER)
-logging.addLevelName("TRACE", TRACE)
+logging.addLevelName(BLATHER, "BLATHER")
+logging.addLevelName(TRACE, "TRACE")
