@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.1.0 (unreleased)
+4.1.0 (2015-01-11)
 ==================
 
 - Fix registration of custom logging level names ("BLATHER", "TRACE).
