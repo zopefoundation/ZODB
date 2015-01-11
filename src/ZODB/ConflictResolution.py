@@ -302,7 +302,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         # the original ConflictError.  A client can recover from a
         # ConflictError, but not necessarily from other errors.  But log
         # the error so that any problems can be fixed.
-        logger.error("Unexpected error", exc_info=True)
+        logger.exception("Unexpected error")
 
     raise ConflictError(oid=oid, serials=(committedSerial, oldSerial),
                         data=newpickle)
