@@ -809,7 +809,7 @@ class DB(object):
         try:
             self.storage.pack(t, self.references)
         except:
-            logger.error("packing", exc_info=True)
+            logger.exception("packing")
             raise
 
     def setActivityMonitor(self, am):
