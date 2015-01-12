@@ -2,7 +2,26 @@
  Change History
 ================
 
-4.0.1 (unreleased)
+4.1.1 (unreleased)
+==================
+
+- Fix #21, FileStorage: an edge case when disk space runs out while packing,
+  do not leave the ``.pack`` file around. That would block any write to the
+  to-be-packed ``Data.fs``, because the disk would stay at 0 bytes free.
+
+
+4.1.0 (2015-01-11)
+==================
+
+- Fix registration of custom logging level names ("BLATHER", "TRACE).
+
+  We have been registering them in the wrong order since 2004.  Before
+  Python 3.4, the stdlib ``logging`` module masked the error by registering
+  them in *both* directions.
+
+- Add support for Python 3.4.
+
+4.0.1 (2014-07-13)
 ==================
 
 - Fix POSKeyError during transaction.commit when after savepoint.rollback.
@@ -12,10 +31,8 @@
   attribute (``inst_persistent_id`` is not present on the pure-Python
   pickler). (PR #17)
 
-- Fix #21, FileStorage: an edge case when disk space runs out while packing,
-  do not leave the ``.pack`` file around. That would block any write to the
-  to-be-packed ``Data.fs``, because the disk would stay at 0 bytes free.
-
+- Provide better error reporting when trying to load an object on a
+  closed connection.
 
 4.0.0 (2013-08-18)
 ==================

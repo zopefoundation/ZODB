@@ -429,7 +429,7 @@ class FileStorage(
             self._save_index()
         except:
             # Log the error and continue
-            logger.error("Error saving index on close()", exc_info=True)
+            logger.exception("Error saving index on close()")
 
     def getSize(self):
         return self._pos
@@ -1665,8 +1665,7 @@ def _truncate(file, name, pos):
                 o.close()
                 break
     except:
-        logger.error("couldn\'t write truncated data for %s", name,
-              exc_info=True)
+        logger.exception("couldn\'t write truncated data for %s", name)
         raise StorageSystemError("Couldn't save truncated data")
 
     file.seek(pos)

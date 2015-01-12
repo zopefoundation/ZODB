@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "4.0.1dev"
+VERSION = "4.1.0"
 
 import os
 import sys
@@ -52,6 +52,7 @@ Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3
 Programming Language :: Python :: 3.2
 Programming Language :: Python :: 3.3
+Programming Language :: Python :: 3.4
 Programming Language :: Python :: Implementation :: CPython
 Topic :: Database
 Topic :: Software Development :: Libraries :: Python Modules

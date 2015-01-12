@@ -25,7 +25,7 @@ from ZODB.config import databaseFromString
 from ZODB.utils import p64
 from persistent import Persistent
 from zope.interface.verify import verifyObject
-from zope.testing import renormalizing
+from zope.testing import loggingsupport, renormalizing
 
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".
@@ -163,6 +163,37 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         new_cache = self.datamgr._cache
         self.assertFalse(new_cache is old_cache)
         self.assertTrue(self.datamgr._reader._cache is new_cache)
+
+
+class SetstateErrorLoggingTests(ZODB.tests.util.TestCase):
+
+    def setUp(self):
+        ZODB.tests.util.TestCase.setUp(self)
+        from ZODB.Connection import Connection
+        self.db = db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        self.datamgr = self.db.open()
+        self.object = StubObject()
+        self.datamgr.add(self.object)
+        transaction.commit()
+        self.handler = loggingsupport.InstalledHandler("ZODB")
+
+    def tearDown(self):
+        self.handler.uninstall()
+
+    def test_closed_connection_wont_setstate(self):
+        oid = self.object._p_oid
+        self.object._p_deactivate()
+        self.datamgr.close()
+        self.assertRaises(
+            ZODB.POSException.ConnectionStateError,
+            self.datamgr.setstate, self.object)
+        record, = self.handler.records
+        self.assertEqual(
+            record.msg,
+            "Shouldn't load state for ZODB.tests.testConnection.StubObject"
+            " 0x01 when the connection is closed")
+        self.assert_(record.exc_info)
+
 
 class UserMethodTests(unittest.TestCase):
 
@@ -1296,6 +1327,7 @@ class StubDatabase:
 
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd)
+    s.addTest(unittest.makeSuite(SetstateErrorLoggingTests))
     s.addTest(doctest.DocTestSuite(checker=checker))
     s.addTest(unittest.makeSuite(TestConnectionInterface))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))

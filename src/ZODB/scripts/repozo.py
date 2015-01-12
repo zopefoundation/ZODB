@@ -10,7 +10,7 @@
 Usage: %(program)s [options]
 Where:
 
-    Exactly one of -B or -R must be specified:
+    Exactly one of -B, -R, or -V must be specified:
 
     -B / --backup
         Backup current ZODB file.
