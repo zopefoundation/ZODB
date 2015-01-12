@@ -364,7 +364,12 @@ class CacheErrors(unittest.TestCase):
         # same object, different keys
         self.assertRaises(ValueError, add, p64(0), o)
 
-        self.assertEqual(sys.getrefcount(None), nones)
+        if sys.gettrace() is None:
+            # 'coverage' keeps track of coverage information in a data
+            # structure that adds a new reference to None for each executed
+            # line of code, which interferes with this test.  So check it
+            # only if we're running without coverage tracing.
+            self.assertEqual(sys.getrefcount(None), nones)
 
     def testTwoCaches(self):
         jar2 = StubDataManager()
