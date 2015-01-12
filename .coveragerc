@@ -1,0 +1,11 @@
+[run]
+# source = ...
+# omit = ...
+# cover_pylib = False
+# branch = True
+
+[report]
+exclude_lines =
+    pragma: nocover
+    if __name__ == ['"]__main__['"]:
+    assert False
