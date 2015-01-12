@@ -149,7 +149,7 @@ def parseargs(argv):
         opts, args = getopt.getopt(argv, 'BRVvhr:f:FQzkD:o:',
                                    ['backup',
                                     'recover',
-                                    'verify'
+                                    'verify',
                                     'verbose',
                                     'help',
                                     'repository=',

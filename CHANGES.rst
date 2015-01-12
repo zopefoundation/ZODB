@@ -2,6 +2,12 @@
  Change History
 ================
 
+4.1.1 (unreleased)
+==================
+
+- Fix command-line parsing of --verbose and --verify arguments.
+  (The short versions -v and -V were parsed correctly.)
+
 4.1.0 (2015-01-11)
 ==================
 

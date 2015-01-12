@@ -14,14 +14,16 @@
 from __future__ import print_function
 import unittest
 import os
+import sys
 from hashlib import md5
 
 import ZODB.tests.util  # layer used at class scope
 
 try:
-    from StringIO import StringIO as BytesIO
+    from StringIO import StringIO
+    BytesIO = StringIO
 except ImportError:
-    from io import BytesIO
+    from io import BytesIO, StringIO
 
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
@@ -88,6 +90,155 @@ class OurDB:
         self.pos = self.db.storage._pos
         self.maxkey = self.db.storage._oid
         self.close()
+
+
+class Test_parseargs(unittest.TestCase):
+
+    # Python 2.6 lacks this
+    def assertIn(self, member, container, msg=None):
+        if member not in container:
+            standardMsg = '%s not found in %s' % (repr(member),
+                                                  repr(container))
+            self.fail(self._formatMessage(msg, standardMsg))
+
+    def setUp(self):
+        from ZODB.scripts import repozo
+        self._old_verbosity = repozo.VERBOSE
+        self._old_stderr = sys.stderr
+        repozo.VERBOSE = False
+        sys.stderr = StringIO()
+
+    def tearDown(self):
+        from ZODB.scripts import repozo
+        sys.stderr = self._old_stderr
+        repozo.VERBOSE = self._old_verbosity
+
+    def test_short(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-v', '-V', '-r', '/tmp/nosuchdir'])
+        self.assertTrue(repozo.VERBOSE)
+        self.assertEqual(options.mode, repozo.VERIFY)
+        self.assertEqual(options.repository, '/tmp/nosuchdir')
+
+    def test_long(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['--verbose', '--verify',
+                                    '--repository=/tmp/nosuchdir'])
+        self.assertTrue(repozo.VERBOSE)
+        self.assertEqual(options.mode, repozo.VERIFY)
+        self.assertEqual(options.repository, '/tmp/nosuchdir')
+
+    def test_help(self):
+        from ZODB.scripts import repozo
+        # Note: can't mock sys.stdout in our setUp: if a test fails,
+        # zope.testrunner will happily print the traceback and failure message
+        # into our StringIO before running our tearDown.
+        old_stdout = sys.stdout
+        sys.stdout = StringIO()
+        try:
+            self.assertRaises(SystemExit, repozo.parseargs, ['--help'])
+            self.assertIn('Usage:', sys.stdout.getvalue())
+        finally:
+            sys.stdout = old_stdout
+
+    def test_bad_option(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs,
+                          ['--crash-please'])
+        self.assertIn('option --crash-please not recognized',
+                      sys.stderr.getvalue())
+
+    def test_bad_argument(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs,
+                          ['crash', 'please'])
+        self.assertIn('Invalid arguments: crash, please',
+                      sys.stderr.getvalue())
+
+    def test_mode_selection(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir'])
+        self.assertEqual(options.mode, repozo.BACKUP)
+        options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir'])
+        self.assertEqual(options.mode, repozo.RECOVER)
+        options = repozo.parseargs(['-V', '-r', '/tmp/nosuchdir'])
+        self.assertEqual(options.mode, repozo.VERIFY)
+
+    def test_mode_selection_is_mutually_exclusive(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs, ['-B', '-R'])
+        self.assertIn('-B, -R, and -V are mutually exclusive',
+                      sys.stderr.getvalue())
+        self.assertRaises(SystemExit, repozo.parseargs, ['-R', '-V'])
+        self.assertRaises(SystemExit, repozo.parseargs, ['-V', '-B'])
+
+    def test_mode_selection_required(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs, [])
+        self.assertIn('Either --backup, --recover or --verify is required',
+                      sys.stderr.getvalue())
+
+    def test_misc_flags(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-F'])
+        self.assertTrue(options.full)
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-k'])
+        self.assertTrue(options.killold)
+
+    def test_repo_is_required(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs, ['-B'])
+        self.assertIn('--repository is required', sys.stderr.getvalue())
+
+    def test_backup_ignored_args(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-v',
+                                    '-o', '/tmp/ignored.fs',
+                                    '-D', '2011-12-13'])
+        self.assertEqual(options.date, None)
+        self.assertIn('--date option is ignored in backup mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.output, None)
+        self.assertIn('--output option is ignored in backup mode',
+                      sys.stderr.getvalue())
+
+    def test_recover_ignored_args(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir', '-v',
+                                    '-f', '/tmp/ignored.fs',
+                                    '-k'])
+        self.assertEqual(options.file, None)
+        self.assertIn('--file option is ignored in recover mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.killold, False)
+        self.assertIn('--kill-old-on-full option is ignored in recover mode',
+                      sys.stderr.getvalue())
+
+    def test_verify_ignored_args(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-V', '-r', '/tmp/nosuchdir', '-v',
+                                    '-o', '/tmp/ignored.fs',
+                                    '-D', '2011-12-13',
+                                    '-f', '/tmp/ignored.fs',
+                                    '-z', '-k', '-F'])
+        self.assertEqual(options.date, None)
+        self.assertIn('--date option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.output, None)
+        self.assertIn('--output option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.full, False)
+        self.assertIn('--full option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.gzip, False)
+        self.assertIn('--gzip option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.file, None)
+        self.assertIn('--file option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.killold, False)
+        self.assertIn('--kill-old-on-full option is ignored in verify mode',
+                      sys.stderr.getvalue())
 
 
 class FileopsBase:
@@ -1019,6 +1170,7 @@ class MonteCarloTests(unittest.TestCase):
 
 def test_suite():
     return unittest.TestSuite([
+        unittest.makeSuite(Test_parseargs),
         unittest.makeSuite(Test_dofile),
         unittest.makeSuite(Test_checksum),
         unittest.makeSuite(Test_copyfile),
