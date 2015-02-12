@@ -294,7 +294,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.dump(meta)
         pickler.dump(resolved)
         return self._crs_transform_record_data(file.getvalue())
-    except (ConflictError, BadClassName), e:
+    except (ConflictError, BadClassName) as e:
         logger.exception(str(e))
     except:
         # If anything else went wrong, catch it here and avoid passing an
