@@ -162,6 +162,8 @@ setup(name="ZODB",
       zip_safe = False,
       entry_points = """
       [console_scripts]
+      fsanalyze = ZODB.scripts.analyze:main
+      fscreate = ZODB.scripts.create:main
       fsdump = ZODB.FileStorage.fsdump:main
       fsoids = ZODB.scripts.fsoids:main
       fsrefs = ZODB.scripts.fsrefs:main
