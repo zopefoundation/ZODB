@@ -2,6 +2,7 @@ include *.rst
 include *.txt
 include *.py
 include *.ini
+include .coveragerc
 include .travis.yml
 include buildout.cfg
 include COPYING
