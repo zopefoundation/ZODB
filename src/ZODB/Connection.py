@@ -328,10 +328,10 @@ class Connection(ExportImport, object):
                 # get back here.
         else:
             self.opened = None
-            
+
         am = self._db._activity_monitor
         if am is not None:
-            am.closedConnection(self)        
+            am.closedConnection(self)
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
@@ -1020,9 +1020,10 @@ class Connection(ExportImport, object):
         items = self._cache.lru_items()
         # fine everything. some on the lru list, some not
         everything = self._cache.cache_data
-        # remove those items that are on the lru list
+        # remove those items that are on the lru list (which may not actually
+        # be in the full cache, under the Python implementation)
         for k,v in items:
-            del everything[k]
+            everything.pop(k, None)
         # return a list of [ghosts....not recently used.....recently used]
         return list(everything.items()) + items
 

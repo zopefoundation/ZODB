@@ -530,7 +530,13 @@ class DB(object):
     def cacheExtremeDetail(self):
         detail = []
         conn_no = [0]  # A mutable reference to a counter
-        def f(con, detail=detail, rc=sys.getrefcount, conn_no=conn_no):
+        try:
+            rc = sys.getrefcount
+        except AttributeError:
+            # sys.getrefcount is a CPython implementation detail
+            # not required to exist on, e.g., PyPy. Here we fake it.
+            rc = lambda o: 4
+        def f(con, detail=detail, rc=rc, conn_no=conn_no):
             conn_no[0] += 1
             cn = conn_no[0]
             for oid, ob in con._cache_items():

@@ -67,7 +67,7 @@ def test_integration():
     >>> conn3 = db.open()
     >>> a3 = conn3.root()['a']
     >>> a3  # doctest: +NORMALIZE_WHITESPACE
-    <persistent broken ZODB.not.there.Atall instance 
+    <persistent broken ZODB.not.there.Atall instance
         '\x00\x00\x00\x00\x00\x00\x00\x01'>
 
     >>> a3.__Broken_state__

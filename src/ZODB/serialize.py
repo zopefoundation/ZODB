@@ -483,6 +483,10 @@ class ObjectReader:
             return factory(conn, modulename, name)
 
         unpickler.find_global = find_global
+        try:
+            unpickler.find_class = find_global # PyPy, zodbpickle, the non-c-accelerated version
+        except AttributeError:
+            pass
 
         return unpickler
 

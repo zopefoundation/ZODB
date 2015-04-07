@@ -32,6 +32,7 @@ import unittest
 import ZODB
 import ZODB.MappingStorage
 import ZODB.tests.util
+from ZODB.tests.util import PYPY
 
 PY2 = sys.version_info[0] == 2
 
@@ -190,6 +191,7 @@ class DBMethods(CacheTestBase):
 
 class LRUCacheTests(CacheTestBase):
 
+    @unittest.skipIf(PYPY, "Implementation details of the PickleCache")
     def testLRU(self):
         # verify the LRU behavior of the cache
         dataset_size = 5
@@ -339,7 +341,10 @@ class CacheErrors(unittest.TestCase):
         def add(key, obj):
             self.cache[key] = obj
 
-        nones = sys.getrefcount(None)
+        # getrefcount is an implementation detail of CPython,
+        # not present under PyPy/Jython
+        rc = getattr(sys, 'getrefcount', lambda x: 1)
+        nones = rc(None)
 
         key = p64(2)
         # value isn't persistent
@@ -369,7 +374,7 @@ class CacheErrors(unittest.TestCase):
             # structure that adds a new reference to None for each executed
             # line of code, which interferes with this test.  So check it
             # only if we're running without coverage tracing.
-            self.assertEqual(sys.getrefcount(None), nones)
+            self.assertEqual(rc(None), nones)
 
     def testTwoCaches(self):
         jar2 = StubDataManager()
