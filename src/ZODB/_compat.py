@@ -11,15 +11,24 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+import sys
 
 try:
     # Python 2.x
-    from cPickle import Pickler
-    from cPickle import Unpickler
-    from cPickle import dump
-    from cPickle import dumps
-    from cPickle import loads
-    from cPickle import HIGHEST_PROTOCOL
+    import cPickle
+    if not hasattr(cPickle.Unpickler, 'noload') or sys.version_info >= (2,7):
+        # PyPy doesn't have noload, and noload is broken in Python 2.7.
+        # Get the fastest version we can (PyPy has no fastpickle)
+        try:
+            import zodbpickle.fastpickle as cPickle
+        except ImportError:
+            import zodbpickle.pickle as cPickle
+    Pickler = cPickle.Pickler
+    Unpickler = cPickle.Unpickler
+    dump = cPickle.dump
+    dumps = cPickle.dumps
+    loads = cPickle.loads
+    HIGHEST_PROTOCOL = cPickle.HIGHEST_PROTOCOL
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
     _protocol = 1

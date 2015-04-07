@@ -23,6 +23,7 @@ interface, rich transaction support, and undo.
 VERSION = "4.1.0"
 
 import os
+import platform
 import sys
 from setuptools import setup, find_packages
 
@@ -35,6 +36,10 @@ if (3,) < sys.version_info < (3, 2):
     sys.exit(0)
 
 PY3 = sys.version_info >= (3,)
+PY27 = sys.version_info >= (2,7)
+py_impl = getattr(platform, 'python_implementation', lambda: None)
+PYPY = py_impl() == 'PyPy'
+
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -154,14 +159,14 @@ setup(name="ZODB",
       extras_require = dict(test=tests_require),
       install_requires = [
         'persistent',
-        'BTrees',
+        'BTrees >= 4.1.2',
         'ZConfig',
         'transaction >= 1.4.1' if PY3 else 'transaction',
         'six',
         'zc.lockfile',
         'zdaemon >= 4.0.0a1',
         'zope.interface',
-        ] + (['zodbpickle >= 0.2'] if PY3 else []),
+        ] + (['zodbpickle >= 0.6.0'] if (PY3 or PY27 or PYPY) else []),
       zip_safe = False,
       entry_points = """
       [console_scripts]
