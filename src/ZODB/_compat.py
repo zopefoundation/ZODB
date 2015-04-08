@@ -16,7 +16,7 @@ import sys
 try:
     # Python 2.x
     import cPickle
-    if not hasattr(cPickle.Unpickler, 'noload') or sys.version_info >= (2,7):
+    if (hasattr(cPickle.Unpickler, 'load') and not hasattr(cPickle.Unpickler, 'noload')) or sys.version_info >= (2,7):
         # PyPy doesn't have noload, and noload is broken in Python 2.7.
         # Get the fastest version we can (PyPy has no fastpickle)
         try:
@@ -70,8 +70,45 @@ except ImportError:
     FILESTORAGE_MAGIC = b"FS30"
 
 
-# XXX: consistent spelling of inst_persistent_id/persistent_id?
-#      e.g. StorageTestBase and probably elsewhere
+def PersistentPickler(persistent_id, *args, **kwargs):
+    """
+    Returns a :class:`Pickler` that will use the given ``persistent_id``
+    to get persistent IDs. The remainder of the arguments are passed to the
+    Pickler itself.
+
+    This covers the differences between Python 2 and 3 and PyPy/zodbpickle.
+    """
+    p = Pickler(*args, **kwargs)
+    if sys.version_info[0] < 3:
+        p.inst_persistent_id = persistent_id
+        # PyPy uses a python implementation of cPickle in both Python 2
+        # and Python 3. We can't really detect inst_persistent_id as its
+        # a magic attribute that's not readable, but it doesn't hurt to
+        # simply always assign to persistent_id also
+        p.persistent_id = persistent_id
+    else:
+        p.persistent_id = persistent_id
+    return p
+
+def PersistentUnpickler(find_global, load_persistent, *args, **kwargs):
+    """
+    Returns a :class:`Unpickler` that will use the given `find_global` function
+    to locate classes, and the given `load_persistent` function to load
+    objects from a persistent id.
+
+    This covers the differences between Python 2 and 3 and PyPy/zodbpickle.
+    """
+    unpickler = Unpickler(*args, **kwargs)
+    if find_global is not None:
+        unpickler.find_global = find_global
+        try:
+            unpickler.find_class = find_global # PyPy, zodbpickle, the non-c-accelerated version
+        except AttributeError:
+            pass
+    if load_persistent is not None:
+        unpickler.persistent_load = load_persistent
+
+    return unpickler
 
 
 try:

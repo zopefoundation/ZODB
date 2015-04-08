@@ -134,13 +134,12 @@ A number of legacyforms are defined:
 
 """
 import logging
-import sys
 
 from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.POSException import InvalidObjectReference
-from ZODB._compat import Pickler, Unpickler, BytesIO, _protocol
+from ZODB._compat import PersistentPickler, PersistentUnpickler, BytesIO, _protocol
 
 
 _oidtypes = bytes, type(None)
@@ -172,16 +171,7 @@ class ObjectWriter:
 
     def __init__(self, obj=None):
         self._file = BytesIO()
-        self._p = Pickler(self._file, _protocol)
-        if sys.version_info[0] < 3:
-            self._p.inst_persistent_id = self.persistent_id
-            # PyPy uses a python implementation of cPickle in both Python 2
-            # and Python 3. We can't really detect inst_persistent_id as its
-            # a magic attribute that's not readable, but it doesn't hurt to
-            # simply always assign to persistent_id also
-            self._p.persistent_id = self.persistent_id
-        else:
-            self._p.persistent_id = self.persistent_id
+        self._p = PersistentPickler(self.persistent_id, self._file, _protocol)
         self._stack = []
         if obj is not None:
             self._stack.append(obj)
@@ -474,19 +464,13 @@ class ObjectReader:
 
     def _get_unpickler(self, pickle):
         file = BytesIO(pickle)
-        unpickler = Unpickler(file)
-        unpickler.persistent_load = self._persistent_load
+
         factory = self._factory
         conn = self._conn
 
         def find_global(modulename, name):
             return factory(conn, modulename, name)
-
-        unpickler.find_global = find_global
-        try:
-            unpickler.find_class = find_global # PyPy, zodbpickle, the non-c-accelerated version
-        except AttributeError:
-            pass
+        unpickler = PersistentUnpickler(find_global, self._persistent_load, file)
 
         return unpickler
 
@@ -650,8 +634,7 @@ def referencesf(p, oids=None):
     """
 
     refs = []
-    u = Unpickler(BytesIO(p))
-    u.persistent_load = refs.append
+    u = PersistentUnpickler(None, refs.append, BytesIO(p))
     u.noload()
     u.noload()
 
@@ -692,8 +675,7 @@ def get_refs(a_pickle):
     """
 
     refs = []
-    u = Unpickler(BytesIO(a_pickle))
-    u.persistent_load = refs.append
+    u = PersistentUnpickler(None, refs.append, BytesIO(a_pickle))
     u.noload()
     u.noload()
 

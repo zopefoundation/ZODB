@@ -32,7 +32,6 @@ import unittest
 import ZODB
 import ZODB.MappingStorage
 import ZODB.tests.util
-from ZODB.tests.util import PYPY
 
 PY2 = sys.version_info[0] == 2
 
@@ -191,7 +190,6 @@ class DBMethods(CacheTestBase):
 
 class LRUCacheTests(CacheTestBase):
 
-    @unittest.skipIf(PYPY, "Implementation details of the PickleCache")
     def testLRU(self):
         # verify the LRU behavior of the cache
         dataset_size = 5

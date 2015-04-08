@@ -32,7 +32,7 @@ from ZODB.interfaces import BlobError
 from ZODB import utils
 from ZODB.POSException import POSKeyError
 from ZODB._compat import BytesIO
-from ZODB._compat import Unpickler
+from ZODB._compat import PersistentUnpickler
 from ZODB._compat import decodebytes
 from ZODB._compat import ascii_bytes
 from ZODB._compat import INT_TYPES
@@ -937,8 +937,7 @@ def is_blob_record(record):
 
     """
     if record and (b'ZODB.blob' in record):
-        unpickler = Unpickler(BytesIO(record))
-        unpickler.find_global = find_global_Blob
+        unpickler = PersistentUnpickler(find_global_Blob, None, BytesIO(record))
 
         try:
             return unpickler.load() is Blob

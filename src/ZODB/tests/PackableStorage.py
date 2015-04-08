@@ -15,7 +15,6 @@
 from __future__ import print_function
 
 import doctest
-import sys
 import time
 
 from persistent import Persistent
@@ -26,7 +25,7 @@ from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-from ZODB._compat import loads, Pickler, Unpickler, BytesIO, _protocol
+from ZODB._compat import loads, PersistentPickler, Pickler, Unpickler, BytesIO, _protocol
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util
@@ -85,11 +84,7 @@ def dumps(obj):
             return obj.getoid()
         return None
     s = BytesIO()
-    p = Pickler(s, _protocol)
-    if sys.version_info[0] < 3:
-        p.inst_persistent_id = getpersid
-    else:
-        p.persistent_id = getpersid
+    p = PersistentPickler(getpersid, s, _protocol)
     p.dump(obj)
     p.dump(None)
     return s.getvalue()

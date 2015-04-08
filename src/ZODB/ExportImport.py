@@ -15,7 +15,6 @@
 
 import logging
 import os
-import sys
 from tempfile import TemporaryFile
 
 import six
@@ -25,7 +24,7 @@ from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError
 from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, cp, mktemp
-from ZODB._compat import Pickler, Unpickler, BytesIO, _protocol
+from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 
 
 logger = logging.getLogger('ZODB.ExportImport')
@@ -178,11 +177,7 @@ class ExportImport:
             unpickler.persistent_load = persistent_load
 
             newp = BytesIO()
-            pickler = Pickler(newp, _protocol)
-            if sys.version_info[0] < 3:
-                pickler.inst_persistent_id = persistent_id
-            else:
-                pickler.persistent_id = persistent_id
+            pickler = PersistentPickler(persistent_id, newp, _protocol)
 
             pickler.dump(unpickler.load())
             pickler.dump(unpickler.load())

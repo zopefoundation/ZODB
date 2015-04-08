@@ -58,7 +58,7 @@ Trans #00000 tid=... time=... offset=<OFFSET>
 Trans #00001 tid=... time=... offset=<OFFSET>
     status=' ' user='' description='added an OOBTree'
   data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
-  data #00001 oid=0000000000000001 size=<SIZE> class=BTrees.OOBTree.OOBTree
+  data #00001 oid=0000000000000001 size=<SIZE> class=BTrees.OOBTree.OOBTree...
 
 Now we see two transactions and two changed objects.
 

@@ -439,7 +439,6 @@ class Connection(ExportImport, object):
         # the savepoint, then they won't have _p_oid or _p_jar after
         # they've been unadded. This will make the code in _abort
         # confused.
-
         self._abort()
 
         if self._savepoint_storage is not None:
@@ -463,7 +462,6 @@ class Connection(ExportImport, object):
                 if obj._p_changed:
                     obj._p_changed = False
             else:
-
                 # Note: If we invalidate a non-ghostifiable object
                 # (i.e. a persistent class), the object will
                 # immediately reread its state.  That means that the

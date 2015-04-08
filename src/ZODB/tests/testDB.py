@@ -252,7 +252,7 @@ if sys.version_info >= (2, 6):
 
         >>> with db.transaction() as conn2:
         ...     conn2.root()['y'] = 2
-        ...     XXX
+        ...     XXX #doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
         ...
         NameError: name 'XXX' is not defined

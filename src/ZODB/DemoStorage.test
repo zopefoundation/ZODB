@@ -375,12 +375,12 @@ Now, we create a demostorage.
 
 If we ask for an oid, we'll get 1042.
 
-    >>> u64(storage.new_oid())
+    >>> print(u64(storage.new_oid()))
     1042
 
 oids are allocated seuentially:
 
-    >>> u64(storage.new_oid())
+    >>> print(u64(storage.new_oid()))
     1043
 
 Now, we'll save 1044 in changes so that it has to pick a new one randomly.
@@ -388,7 +388,7 @@ Now, we'll save 1044 in changes so that it has to pick a new one randomly.
     >>> t = transaction.get()
     >>> ZODB.tests.util.store(storage.changes, 1044)
 
-    >>> u64(storage.new_oid())
+    >>> print(u64(storage.new_oid()))
     called randint
     2042
 
@@ -400,7 +400,7 @@ to force another attempt:
     >>> oid = storage.new_oid()
     called randint
     called randint
-    >>> u64(oid)
+    >>> print(u64(oid))
     3042
 
 DemoStorage keeps up with the issued OIDs to know when not to reissue them...
@@ -426,4 +426,3 @@ DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 .. restore time
 
     >>> time.time = real_time_time
-

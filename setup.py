@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "4.1.0"
+VERSION = "4.2.0.dev0"
 
 import os
 import platform
@@ -59,6 +59,7 @@ Programming Language :: Python :: 3.2
 Programming Language :: Python :: 3.3
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: Implementation :: CPython
+Programming Language :: Python :: Implementation :: PyPy
 Topic :: Database
 Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
@@ -158,7 +159,7 @@ setup(name="ZODB",
       tests_require = tests_require,
       extras_require = dict(test=tests_require),
       install_requires = [
-        'persistent',
+        'persistent', # XXX: When new persistent release is out need to add version number for PyPy
         'BTrees >= 4.1.2',
         'ZConfig',
         'transaction >= 1.4.1' if PY3 else 'transaction',
