@@ -76,7 +76,14 @@ class Blob(persistent.Persistent):
     _p_blob_committed = None    # Filename of the committed data
     _p_blob_ref = None          # weakreference to self; also in _blob_close_refs
 
-    readers = writers = None
+    # Use volatile attributes so as not to spuriously mark as changed.
+    # The properties are aliases for BWC
+    readers = property(lambda self: getattr(self, '_v_readers', None),
+                       lambda self, nv: setattr(self, '_v_readers', nv))
+    writers = property(lambda self: getattr(self, '_v_writers', None),
+                       lambda self, nv: setattr(self, '_v_writers', nv))
+    _v_readers = None
+    _v_writers = None
 
     def __init__(self, data=None):
         # Raise exception if Blobs are getting subclassed
@@ -91,8 +98,14 @@ class Blob(persistent.Persistent):
     def __setstate__(self, state=None):
         # we use lists here because it will allow us to add and remove
         # atomically
-        self.readers = []
-        self.writers = []
+        # Directly use the volatile attributes here, not the property,
+        # because setting the property causes us to get marked as changed,
+        # which registers us with the Connection and hence the transaction;
+        # at least under the Python implementation of persistent this causes
+        # duplicate transaction errors from the storage in testblob.
+        # Plus this way is more efficient anyway :)
+        self._v_readers = []
+        self._v_writers = []
 
     def __getstate__(self):
         return None
@@ -151,8 +164,8 @@ class Blob(persistent.Persistent):
         if self.writers:
             raise BlobError("Already opened for writing.")
 
-        if self.readers is None:
-            self.readers = []
+        if self._v_readers is None:
+            self._v_readers = []
 
         if mode == 'r':
             result = None
