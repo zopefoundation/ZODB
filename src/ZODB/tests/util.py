@@ -18,7 +18,6 @@ from ZODB.MappingStorage import DB
 import atexit
 import os
 import persistent
-import platform
 import re
 import sys
 import tempfile
@@ -184,18 +183,3 @@ def mess_with_time(test=None, globs=None, now=1278864701.5):
     zope.testing.setupstack.register(test, setattr, time, 'time', time.time)
 
     time.time = faux_time
-
-
-py_impl = getattr(platform, 'python_implementation', lambda: None)
-PYPY = py_impl() == 'PyPy'
-
-if not hasattr(unittest, 'skipIf'):
-    def skipIf(condition, reason):
-        if condition:
-            def skip(f):
-                return lambda self: None
-            return skip
-
-        def run(f):
-            return f
-        return run
