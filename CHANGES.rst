@@ -8,9 +8,10 @@
 - Fix command-line parsing of --verbose and --verify arguments.
   (The short versions -v and -V were parsed correctly.)
 
-- Add support for PyPy, and fix the methods in `ZODB.serialize` that
-  find object references under Python 2.7. This requires the addition
-  of the `zodbpickle` dependency.
+- Add support for PyPy, and fix the methods in ``ZODB.serialize`` that
+  find object references under Python 2.7 (used in scripts like
+  ``referrers``, ``netspace``, and ``fsrecover`` among others). This
+  requires the addition of the ``zodbpickle`` dependency.
 
 4.1.0 (2015-01-11)
 ==================
