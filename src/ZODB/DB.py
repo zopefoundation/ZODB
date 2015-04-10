@@ -561,7 +561,7 @@ class DB(object):
                 # and we also want to pretend that doesn't exist.
                 # If we have no way to get a refcount, we return False to symbolize
                 # that. As opposed to None, this has the advantage of being usable
-                # as a number (0) in case clients depended on that
+                # as a number (0) in case clients depended on that.
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
