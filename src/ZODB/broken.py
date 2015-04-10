@@ -23,15 +23,6 @@ import ZODB.interfaces
 from ZODB._compat import IMPORT_MAPPING
 from ZODB._compat import NAME_MAPPING
 
-# Add our magic names to the Python implementation of persistence
-# so that it won't try to re-activate the broken object.
-import persistent.persistence
-persistent.persistence.SPECIAL_NAMES += ('__Broken_newargs__',
-                                         '__Broken_initargs__',
-                                         #'__Broken_state__',
-                                         '__reduce__',
-                                         '__getstate__')
-
 broken_cache = {}
 
 @zope.interface.implementer(ZODB.interfaces.IBroken)
