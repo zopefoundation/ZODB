@@ -177,7 +177,6 @@ def _functest_load(fqn):
     # Open the database and attempt to deserialize the tree
     # (run in separate process)
     from ZODB import DB
-    import transaction
     WORKING, FAILING = _working_failing_datetimes()
     db = DB(fqn)
     conn = db.open()
@@ -186,7 +185,6 @@ def _functest_load(fqn):
         tree = root['tree']
         assert tree[WORKING] == 'working'
         assert tree[FAILING] == 'failing'
-        transaction.abort()
     finally: # Windoze
         conn.close()
         db.close()

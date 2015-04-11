@@ -52,7 +52,7 @@ class RegularObject(Persistent):
 class PersistentObject(Persistent):
     pass
 
-class CacheTests(object):
+class CacheTests:
 
     def test_cache(self):
         r"""Test basic cache methods.
