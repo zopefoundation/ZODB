@@ -99,6 +99,7 @@ one traditional use for savepoints is simply to free memory space midstream
 during a long transaction.  Before ZODB 3.4.2, making a savepoint failed
 to trigger cache gc, and this test verifies that it now does.
 
+    >>> import gc
     >>> import ZODB
     >>> from ZODB.tests.MinPO import MinPO
     >>> from ZODB.MappingStorage import MappingStorage
@@ -129,6 +130,13 @@ Making a savepoint at this time used to leave the cache holding the same
 number of objects.  Make sure the cache shrinks now instead.
 
     >>> dummy = transaction.savepoint()
+
+Jython needs a GC, and needs to actually access the map to be sure the size
+is updated:
+
+    >>> _ = gc.collect()
+    >>> _ = getattr(cn._cache, 'data', {}).values()
+    >>> _ = getattr(cn._cache, 'data', {}).keys()
     >>> len(cn._cache) <= CACHESIZE + 1
     True
 

@@ -69,11 +69,27 @@ class RecoverTest(ZODB.tests.util.TestCase):
     def damage(self, num, size):
         self.storage.close()
         # Drop size null bytes into num random spots.
-        for i in range(num):
+        for i in range(num - 1):
             offset = random.randint(0, self.storage._pos - size)
-            with open(self.path, "a+b") as f:
+            # Note that we open the file as r+, not a+. Seeking a file
+            # open in append mode is effectively a no-op *depending on
+            # platform*, as the write may simply append to the file. An
+            # earlier version of this code opened the file is a+ mode,
+            # meaning on some platforms it was only writing to the end of the
+            # file, and so the test cases were always finding that bad data.
+            # For compatibility with that, we do one write outside the loop
+            # at the end.
+            with open(self.path, "r+b") as f:
                 f.seek(offset)
                 f.write(b"\0" * size)
+
+            with open(self.path, 'rb') as f:
+                f.seek(offset)
+                v = f.read(size)
+                self.assertEqual(b"\0" * size, v)
+
+        with open(self.path, 'a+b') as f:
+            f.write(b"\0" * size)
 
     ITERATIONS = 5
 

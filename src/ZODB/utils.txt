@@ -41,7 +41,12 @@ To see this work (in a predictable way), we'll first hack time.time:
 
     >>> import time
     >>> old_time = time.time
-    >>> time.time = lambda : 1224825068.12
+    >>> time_value = 1224825068.12
+    >>> faux_time = lambda: time_value
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time) # Jython
+    ... else:
+    ...     time.time = faux_time
 
 Now, if we ask for a new time stamp, we'll get one based on our faux
 time:
@@ -71,7 +76,7 @@ Here, since we called it at the same time, we got a time stamp that
 was only slightly larger than the previos one.  Of course, at a later
 time, the time stamp we get will be based on the time:
 
-    >>> time.time = lambda : 1224825069.12
+    >>> time_value = 1224825069.12
     >>> tid = ZODB.utils.newTid(tid2)
     >>> print(ZODB.TimeStamp.TimeStamp(tid))
     2008-10-24 05:11:09.120000
@@ -194,4 +199,4 @@ supports optional method preconditions [1]_.
    locked.  Combining preconditions with locking provides both
    efficiency and concise expressions.  A more general-purpose
    facility would almost certainly provide separate descriptors for
-   preconditions. 
+   preconditions.

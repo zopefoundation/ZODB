@@ -13,6 +13,8 @@
 ##############################################################################
 import sys
 
+IS_JYTHON = sys.platform.startswith('java')
+
 try:
     # Python 2.x
     import cPickle
@@ -113,8 +115,15 @@ def PersistentUnpickler(find_global, load_persistent, *args, **kwargs):
 
 try:
     # Python 2.x
-    # XXX: why not just import BytesIO from io?
-    from cStringIO import StringIO as BytesIO
+    if IS_JYTHON:
+        # Jython 2.7rc2 cStringIO.StringIO class has a bug
+        # resulting in StringIndexOutOfBoundExceptions
+        # when repeatedly writing and then seeking back to 0
+        # http://bugs.jython.org/issue2324
+        from io import BytesIO
+    else:
+        # XXX: why not just import BytesIO from io?
+        from cStringIO import StringIO as BytesIO
 except ImportError:
     # Python 3.x
     from io import BytesIO

@@ -14,7 +14,10 @@ existing, base, storage without updating the storage.
     ...     return now
     >>> import time
     >>> real_time_time = time.time
-    >>> time.time = faux_time_time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time_time) # Jython
+    ... else:
+    ...     time.time = faux_time_time
 
 To see how this works, we'll start by creating a base storage and
 puting an object (in addition to the root object) in it:
@@ -44,6 +47,13 @@ and combine the 2 in a demofilestorage:
 
     >>> from ZODB.DemoStorage import DemoStorage
     >>> storage = DemoStorage(base=base, changes=changes)
+
+The storage will assign OIDs in a pseudo-random fashion, but for test
+purposes we need to control where they start (since the random seeds
+can be different on different platforms):
+
+    >>> storage._next_oid = 3553260803050964942
+
 
 If there are no transactions, the storage reports the lastTransaction
 of the base database:

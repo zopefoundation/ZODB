@@ -125,7 +125,10 @@ def connectionDebugInfo():
     ...     now += .1
     ...     return now
     >>> real_time = time.time
-    >>> time.time = faux_time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time) # Jython
+    ... else:
+    ...     time.time = faux_time
 
     >>> from ZODB.tests.util import DB
     >>> import transaction
