@@ -61,10 +61,10 @@ valid_modes = 'r', 'w', 'r+', 'a', 'c'
 # of a weakref when the weakref object dies at the same time
 # as the object it refers to. In other words, this doesn't work:
 #    self._ref = weakref.ref(self, lambda ref: ...)
-# because the function never gets called. The Blob class used
-# to use that pattern to clean up uncommitted files; now we use this
-# module-level global (but still keep a reference in the Blob in case
-# we need premature cleanup)
+# because the function never gets called (https://bitbucket.org/pypy/pypy/issue/2030).
+# The Blob class used to use that pattern to clean up uncommitted
+# files; now we use this module-level global (but still keep a
+# reference in the Blob in case we need premature cleanup).
 _blob_close_refs = []
 
 @zope.interface.implementer(ZODB.interfaces.IBlob)
