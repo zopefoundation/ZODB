@@ -246,7 +246,7 @@ class UserMethodTests(unittest.TestCase):
         object will be returned. The cache doesn't keep unreferenced
         ghosts alive, although on some implementations like PyPy we
         need to run a garbage collection to be sure they go away. (The
-        next object returned my still have the same id, because Python
+        next object returned may still have the same id, because Python
         may re-use the same memory.)
 
         >>> del obj, obj2

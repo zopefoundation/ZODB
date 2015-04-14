@@ -74,7 +74,7 @@ class RecoverTest(ZODB.tests.util.TestCase):
             # Note that we open the file as r+, not a+. Seeking a file
             # open in append mode is effectively a no-op *depending on
             # platform*, as the write may simply append to the file. An
-            # earlier version of this code opened the file is a+ mode,
+            # earlier version of this code opened the file in a+ mode,
             # meaning on some platforms it was only writing to the end of the
             # file, and so the test cases were always finding that bad data.
             # For compatibility with that, we do one write outside the loop

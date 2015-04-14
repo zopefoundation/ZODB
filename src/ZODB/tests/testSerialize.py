@@ -140,7 +140,7 @@ class SerializerFunctestCase(unittest.TestCase):
         # so force it ourselves
         environ = os.environ.copy()
         if IS_JYTHON:
-            # Jython 2.7rc2 has a bug; if it's Lib directory is
+            # Jython 2.7rc2 has a bug; if its Lib directory is
             # specifically put on the PYTHONPATH, then it doesn't add
             # it itself, which means it fails to 'import site' because
             # it can't import '_jythonlib' and the whole process fails
