@@ -15,10 +15,15 @@ import doctest
 import sys
 import unittest
 
+from persistent import Persistent
+from persistent.wref import WeakRef
+
 import ZODB.tests.util
 from ZODB import serialize
-from ZODB._compat import Pickler, BytesIO, _protocol, IS_JYTHON
+from ZODB._compat import Pickler, PersistentUnpickler, BytesIO, _protocol, IS_JYTHON
 
+class PersistentObject(Persistent):
+    pass
 
 class ClassWithNewargs(int):
     def __new__(cls, value):
@@ -117,6 +122,26 @@ class SerializerTestCase(unittest.TestCase):
         self.assertTrue(serialize.myhasattr(NewStyle(), "bar"))
         self.assertTrue(not serialize.myhasattr(OldStyle(), "rat"))
         self.assertTrue(not serialize.myhasattr(NewStyle(), "rat"))
+
+    def test_persistent_id_noload(self):
+        # make sure we can noload weak references and other list-based
+        # references like we expect. Protect explicitly against the
+        # breakage in CPython 2.7 and zodbpickle < 0.6.0
+        o = PersistentObject()
+        o._p_oid = b'abcd'
+
+        top = PersistentObject()
+        top._p_oid = b'efgh'
+        top.ref = WeakRef(o)
+
+        pickle = serialize.ObjectWriter().serialize(top)
+
+        refs = []
+        u = PersistentUnpickler(None, refs.append, BytesIO(pickle))
+        u.noload()
+        u.noload()
+
+        self.assertEqual(refs, [['w', (b'abcd',)]])
 
 
 class SerializerFunctestCase(unittest.TestCase):
