@@ -8,7 +8,7 @@
 - Fix command-line parsing of --verbose and --verify arguments.
   (The short versions -v and -V were parsed correctly.)
 
-- Add support for PyPy and Jython 2.7.
+- Add support for PyPy.
 
 - Fix the methods in ``ZODB.serialize`` that find object references
   under Python 2.7 (used in scripts like ``referrers``, ``netspace``,
