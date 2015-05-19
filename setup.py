@@ -160,10 +160,10 @@ setup(name="ZODB",
       tests_require = tests_require,
       extras_require = dict(test=tests_require),
       install_requires = [
-        'persistent', # XXX: When new persistent release is out need to add version number for PyPy
-        'BTrees >= 4.1.2',
+        'persistent >= 4.1.0',
+        'BTrees >= 4.1.3',
         'ZConfig',
-        'transaction >= 1.4.1' if PY3 else 'transaction',
+        'transaction >= 1.4.4',
         'six',
         'zc.lockfile',
         'zdaemon >= 4.0.0a1',
