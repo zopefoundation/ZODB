@@ -18,7 +18,8 @@ IS_JYTHON = sys.platform.startswith('java')
 try:
     # Python 2.x
     import cPickle
-    if (hasattr(cPickle.Unpickler, 'load') and not hasattr(cPickle.Unpickler, 'noload')) or sys.version_info >= (2,7):
+    if ((hasattr(cPickle.Unpickler, 'load') and not hasattr(cPickle.Unpickler, 'noload')) or
+		sys.version_info >= (2,7)):
         # PyPy doesn't have noload, and noload is broken in Python 2.7.
         # Get the fastest version we can (PyPy has no fastpickle)
         try:
@@ -83,13 +84,12 @@ def PersistentPickler(persistent_id, *args, **kwargs):
     p = Pickler(*args, **kwargs)
     if sys.version_info[0] < 3:
         p.inst_persistent_id = persistent_id
-        # PyPy uses a python implementation of cPickle in both Python 2
-        # and Python 3. We can't really detect inst_persistent_id as its
-        # a magic attribute that's not readable, but it doesn't hurt to
-        # simply always assign to persistent_id also
-        p.persistent_id = persistent_id
-    else:
-        p.persistent_id = persistent_id
+
+    # PyPy uses a python implementation of cPickle/zodbpickle in both Python 2
+    # and Python 3. We can't really detect inst_persistent_id as its
+    # a magic attribute that's not readable, but it doesn't hurt to
+    # simply always assign to persistent_id also
+    p.persistent_id = persistent_id
     return p
 
 def PersistentUnpickler(find_global, load_persistent, *args, **kwargs):
@@ -114,16 +114,8 @@ def PersistentUnpickler(find_global, load_persistent, *args, **kwargs):
 
 
 try:
-    # Python 2.x
-    if IS_JYTHON:
-        # Jython 2.7rc2 cStringIO.StringIO class has a bug
-        # resulting in StringIndexOutOfBoundExceptions
-        # when repeatedly writing and then seeking back to 0
-        # http://bugs.jython.org/issue2324
-        from io import BytesIO
-    else:
-        # XXX: why not just import BytesIO from io?
-        from cStringIO import StringIO as BytesIO
+    # XXX: why not just import BytesIO from io?
+    from cStringIO import StringIO as BytesIO
 except ImportError:
     # Python 3.x
     from io import BytesIO
