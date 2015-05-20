@@ -23,7 +23,6 @@ import ZODB.interfaces
 from ZODB._compat import IMPORT_MAPPING
 from ZODB._compat import NAME_MAPPING
 
-
 broken_cache = {}
 
 @zope.interface.implementer(ZODB.interfaces.IBroken)
@@ -308,7 +307,7 @@ class PersistentBroken(Broken, persistent.Persistent):
           >>> a.__reduce__()    # doctest: +NORMALIZE_WHITESPACE
           Traceback (most recent call last):
           ...
-          BrokenModified: 
+          BrokenModified:
           <persistent broken not.there.Atall instance '\x00\x00\x00\x00****'>
 
         but you can get their state:

@@ -112,10 +112,10 @@ If we provide entries that cause an unexpected error:
     ...     ('sally', 10.0),
     ...     ('bob',   '20.0'),
     ...     ('sally', 10.0),
-    ...     ])
+    ...     ]) #doctest: +ELLIPSIS
     Updated bob
     Updated sally
-    Unexpected exception unsupported operand type(s) for +=: 'float' and 'str'
+    Unexpected exception unsupported operand type(s) for +...: 'float' and 'str'
 
 Because the apply_entries used a savepoint for the entire function, it was
 able to rollback the partial changes without rolling back changes made in the
@@ -194,4 +194,3 @@ However, using a savepoint invalidates any savepoints that come after it:
     InvalidSavepointRollbackError: invalidated by a later savepoint
 
     >>> transaction.abort()
-

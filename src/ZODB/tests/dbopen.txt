@@ -228,17 +228,18 @@ that are still alive.
     3
 
 If a connection object is abandoned (it becomes unreachable), then it
-will vanish from pool.all automatically.  However, connections are
-involved in cycles, so exactly when a connection vanishes from pool.all
-isn't predictable.  It can be forced by running gc.collect():
+will vanish from pool.all automatically. However, connections are
+involved in cycles, so exactly when a connection vanishes from
+pool.all isn't predictable. It can be forced (on most platforms but
+not Jython) by running gc.collect():
 
-    >>> import gc
+    >>> import gc, sys
     >>> dummy = gc.collect()
     >>> len(pool.all)
     3
     >>> c3 = None
     >>> dummy = gc.collect()  # removes c3 from pool.all
-    >>> len(pool.all)
+    >>> len(pool.all) if not sys.platform.startswith("java") else 2
     2
 
 Note that c3 is really gone; in particular it didn't get added back to

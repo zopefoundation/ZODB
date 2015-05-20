@@ -61,6 +61,16 @@ class POSError(Exception):
 
             return (_recon, (self.__class__, state))
 
+        def __setstate__(self, state):
+            # PyPy doesn't store the 'args' attribute in an instance's
+            # __dict__; instead, it uses what amounts to a slot. Because
+            # we customize the pickled representation to just be a dictionary,
+            # the args would then get lost, leading to unprintable exceptions
+            # and worse. Manually assign to args from the state to be sure
+            # this doesn't happen.
+            super(POSError,self).__setstate__(state)
+            self.args = state['args']
+
 class POSKeyError(POSError, KeyError):
     """Key not found in database."""
 

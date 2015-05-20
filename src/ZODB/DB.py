@@ -530,7 +530,11 @@ class DB(object):
     def cacheExtremeDetail(self):
         detail = []
         conn_no = [0]  # A mutable reference to a counter
-        def f(con, detail=detail, rc=sys.getrefcount, conn_no=conn_no):
+        # sys.getrefcount is a CPython implementation detail
+        # not required to exist on, e.g., PyPy.
+        rc = getattr(sys, 'getrefcount', None)
+
+        def f(con, detail=detail, rc=rc, conn_no=conn_no):
             conn_no[0] += 1
             cn = conn_no[0]
             for oid, ob in con._cache_items():
@@ -555,12 +559,15 @@ class DB(object):
                 # sys.getrefcount(ob) returns.  But, in addition to that,
                 # the cache holds an extra reference on non-ghost objects,
                 # and we also want to pretend that doesn't exist.
+                # If we have no way to get a refcount, we return False to symbolize
+                # that. As opposed to None, this has the advantage of being usable
+                # as a number (0) in case clients depended on that.
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
                     'klass': "%s%s" % (module, ob.__class__.__name__),
-                    'rc': rc(ob) - 3 - (ob._p_changed is not None),
+                    'rc': rc(ob) - 3 - (ob._p_changed is not None) if rc else False,
                     'state': ob._p_changed,
                     #'references': con.references(oid),
                     })

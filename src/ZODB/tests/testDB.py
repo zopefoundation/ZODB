@@ -125,7 +125,10 @@ def connectionDebugInfo():
     ...     now += .1
     ...     return now
     >>> real_time = time.time
-    >>> time.time = faux_time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time) # Jython
+    ... else:
+    ...     time.time = faux_time
 
     >>> from ZODB.tests.util import DB
     >>> import transaction
@@ -252,7 +255,7 @@ if sys.version_info >= (2, 6):
 
         >>> with db.transaction() as conn2:
         ...     conn2.root()['y'] = 2
-        ...     XXX
+        ...     XXX #doctest: +IGNORE_EXCEPTION_DETAIL
         Traceback (most recent call last):
         ...
         NameError: name 'XXX' is not defined

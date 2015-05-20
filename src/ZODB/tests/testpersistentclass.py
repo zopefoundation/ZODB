@@ -55,10 +55,10 @@ def test_new_ghost_w_persistent_class():
     >>> import persistent
     >>> jar = object()
     >>> cache = persistent.PickleCache(jar, 10, 100)
-    >>> cache.new_ghost('1', PC)
+    >>> cache.new_ghost(b'1', PC)
 
-    >>> PC._p_oid
-    '1'
+    >>> PC._p_oid == b'1'
+    True
     >>> PC._p_jar is jar
     True
     >>> PC._p_serial
@@ -95,4 +95,3 @@ def test_suite():
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')
-

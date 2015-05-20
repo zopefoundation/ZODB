@@ -182,5 +182,7 @@ def mess_with_time(test=None, globs=None, now=1278864701.5):
     import time
     zope.testing.setupstack.register(test, setattr, time, 'time', time.time)
 
-    time.time = faux_time
-
+    if isinstance(time,type):
+        time.time = staticmethod(faux_time) # jython
+    else:
+        time.time = faux_time

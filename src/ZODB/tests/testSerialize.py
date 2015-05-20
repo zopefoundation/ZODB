@@ -15,10 +15,15 @@ import doctest
 import sys
 import unittest
 
+from persistent import Persistent
+from persistent.wref import WeakRef
+
 import ZODB.tests.util
 from ZODB import serialize
-from ZODB._compat import Pickler, BytesIO, _protocol
+from ZODB._compat import Pickler, PersistentUnpickler, BytesIO, _protocol, IS_JYTHON
 
+class PersistentObject(Persistent):
+    pass
 
 class ClassWithNewargs(int):
     def __new__(cls, value):
@@ -118,6 +123,26 @@ class SerializerTestCase(unittest.TestCase):
         self.assertTrue(not serialize.myhasattr(OldStyle(), "rat"))
         self.assertTrue(not serialize.myhasattr(NewStyle(), "rat"))
 
+    def test_persistent_id_noload(self):
+        # make sure we can noload weak references and other list-based
+        # references like we expect. Protect explicitly against the
+        # breakage in CPython 2.7 and zodbpickle < 0.6.0
+        o = PersistentObject()
+        o._p_oid = b'abcd'
+
+        top = PersistentObject()
+        top._p_oid = b'efgh'
+        top.ref = WeakRef(o)
+
+        pickle = serialize.ObjectWriter().serialize(top)
+
+        refs = []
+        u = PersistentUnpickler(None, refs.append, BytesIO(pickle))
+        u.noload()
+        u.noload()
+
+        self.assertEqual(refs, [['w', (b'abcd',)]])
+
 
 class SerializerFunctestCase(unittest.TestCase):
 
@@ -139,7 +164,17 @@ class SerializerFunctestCase(unittest.TestCase):
         # buildout doesn't arrange for the sys.path to be exported,
         # so force it ourselves
         environ = os.environ.copy()
-        environ['PYTHONPATH'] = os.pathsep.join(sys.path)
+        if IS_JYTHON:
+            # Jython 2.7rc2 has a bug; if its Lib directory is
+            # specifically put on the PYTHONPATH, then it doesn't add
+            # it itself, which means it fails to 'import site' because
+            # it can't import '_jythonlib' and the whole process fails
+            # We would use multiprocessing here, but it doesn't exist on jython
+            sys_path = [x for x in sys.path
+                        if not x.endswith('Lib') and x != '__classpath__' and x!= '__pyclasspath__/']
+        else:
+            sys_path = sys.path
+        environ['PYTHONPATH'] = os.pathsep.join(sys_path)
         subprocess.check_call(prep_args, env=environ)
         load_args = [sys.executable, '-c',
                      'from ZODB.tests.testSerialize import _functest_load; '

@@ -6,7 +6,7 @@ from __future__ import print_function
 import sys
 
 from ZODB.FileStorage import FileStorage
-from ZODB._compat import Unpickler, BytesIO
+from ZODB._compat import PersistentUnpickler, BytesIO
 
 
 
@@ -22,8 +22,7 @@ def fake_find_class(module, name):
 
 
 def FakeUnpickler(f):
-    unpickler = Unpickler(f)
-    unpickler.find_global = fake_find_class
+    unpickler = PersistentUnpickler(fake_find_class, None, f)
     return unpickler
 
 

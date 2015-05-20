@@ -13,13 +13,12 @@
 ##############################################################################
 
 import logging
-import sys
 
 import six
 import zope.interface
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
-from ZODB._compat import BytesIO, Unpickler, Pickler, _protocol
+from ZODB._compat import BytesIO, PersistentUnpickler, PersistentPickler, _protocol
 
 # Subtle: Python 2.x has pickle.PicklingError and cPickle.PicklingError,
 # and these are unrelated classes!  So we shouldn't use pickle.PicklingError,
@@ -74,9 +73,7 @@ def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
     p = self._crs_untransform_record_data(p)
     file = BytesIO(p)
-    unpickler = Unpickler(file)
-    unpickler.find_global = find_global
-    unpickler.persistent_load = prfactory.persistent_load
+    unpickler = PersistentUnpickler(find_global, prfactory.persistent_load, file)
     unpickler.load() # skip the class tuple
     return unpickler.load()
 
@@ -243,9 +240,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         prfactory = PersistentReferenceFactory()
         newpickle = self._crs_untransform_record_data(newpickle)
         file = BytesIO(newpickle)
-        unpickler = Unpickler(file)
-        unpickler.find_global = find_global
-        unpickler.persistent_load = prfactory.persistent_load
+        unpickler = PersistentUnpickler(find_global, prfactory.persistent_load, file)
         meta = unpickler.load()
         if isinstance(meta, tuple):
             klass = meta[0]
@@ -286,11 +281,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         resolved = resolve(old, committed, newstate)
 
         file = BytesIO()
-        pickler = Pickler(file, _protocol)
-        if sys.version_info[0] < 3:
-            pickler.inst_persistent_id = persistent_id
-        else:
-            pickler.persistent_id = persistent_id
+        pickler = PersistentPickler(persistent_id, file, _protocol)
         pickler.dump(meta)
         pickler.dump(resolved)
         return self._crs_transform_record_data(file.getvalue())

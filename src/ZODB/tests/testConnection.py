@@ -244,10 +244,14 @@ class UserMethodTests(unittest.TestCase):
 
         If all references to the object are released, then a new
         object will be returned. The cache doesn't keep unreferenced
-        ghosts alive.  (The next object returned my still have the
-        same id, because Python may re-use the same memory.)
+        ghosts alive, although on some implementations like PyPy we
+        need to run a garbage collection to be sure they go away. (The
+        next object returned may still have the same id, because Python
+        may re-use the same memory.)
 
         >>> del obj, obj2
+        >>> import gc
+        >>> _ = gc.collect()
         >>> cn._cache.get(p64(0), None)
 
         If the object is unghosted, then it will stay in the cache
@@ -683,8 +687,8 @@ def doctest_proper_ghost_initialization_with_empty__p_deactivate():
     >>> transaction.commit()
 
     >>> conn2 = db.open()
-    >>> conn2.root.x._p_changed
-
+    >>> bool(conn2.root.x._p_changed)
+    False
     >>> conn2.root.x.y
     1
 

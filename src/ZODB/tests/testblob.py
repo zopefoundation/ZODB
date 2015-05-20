@@ -345,6 +345,18 @@ def gc_blob_removes_uncommitted_data():
     >>> os.path.exists(fname)
     True
     >>> file = blob = None
+
+    PyPy not being reference counted actually needs GC to be
+    explicitly requested. In experiments, it finds the weakref
+    on the first collection, but only does the cleanup on the second
+    collection:
+
+    >>> import gc
+    >>> _ = gc.collect()
+    >>> _ = gc.collect()
+
+    Now the file is gone on all platforms:
+
     >>> os.path.exists(fname)
     False
     """

@@ -13,7 +13,10 @@ We'll make some assertions about time, so we'll take it over:
     ...     return now
     >>> import time
     >>> time_time = time.time
-    >>> time.time = faux_time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time) # Jython
+    ... else:
+    ...     time.time = faux_time
 
 Commit a bunch of transactions:
 

@@ -32,7 +32,7 @@ from ZODB.interfaces import BlobError
 from ZODB import utils
 from ZODB.POSException import POSKeyError
 from ZODB._compat import BytesIO
-from ZODB._compat import Unpickler
+from ZODB._compat import PersistentUnpickler
 from ZODB._compat import decodebytes
 from ZODB._compat import ascii_bytes
 from ZODB._compat import INT_TYPES
@@ -57,6 +57,15 @@ valid_modes = 'r', 'w', 'r+', 'a', 'c'
 # This introduces a threading issue, since a blob file may be destroyed
 # via GC in any thread.
 
+# PyPy 2.5 doesn't properly call the cleanup function
+# of a weakref when the weakref object dies at the same time
+# as the object it refers to. In other words, this doesn't work:
+#    self._ref = weakref.ref(self, lambda ref: ...)
+# because the function never gets called (https://bitbucket.org/pypy/pypy/issue/2030).
+# The Blob class used to use that pattern to clean up uncommitted
+# files; now we use this module-level global (but still keep a
+# reference in the Blob in case we need premature cleanup).
+_blob_close_refs = []
 
 @zope.interface.implementer(ZODB.interfaces.IBlob)
 class Blob(persistent.Persistent):
@@ -65,6 +74,7 @@ class Blob(persistent.Persistent):
 
     _p_blob_uncommitted = None  # Filename of the uncommitted (dirty) data
     _p_blob_committed = None    # Filename of the committed data
+    _p_blob_ref = None          # weakreference to self; also in _blob_close_refs
 
     readers = writers = None
 
@@ -283,8 +293,13 @@ class Blob(persistent.Persistent):
         def cleanup(ref):
             if os.path.exists(filename):
                 os.remove(filename)
-
+            try:
+                _blob_close_refs.remove(ref)
+            except ValueError:
+                pass
         self._p_blob_ref = weakref.ref(self, cleanup)
+        _blob_close_refs.append(self._p_blob_ref)
+
         return filename
 
     def _uncommitted(self):
@@ -293,6 +308,10 @@ class Blob(persistent.Persistent):
         filename = self._p_blob_uncommitted
         if filename is None and self._p_blob_committed is None:
             filename = self._create_uncommitted_file()
+        try:
+            _blob_close_refs.remove(self._p_blob_ref)
+        except ValueError:
+            pass
         self._p_blob_uncommitted = self._p_blob_ref = None
         return filename
 
@@ -937,8 +956,7 @@ def is_blob_record(record):
 
     """
     if record and (b'ZODB.blob' in record):
-        unpickler = Unpickler(BytesIO(record))
-        unpickler.find_global = find_global_Blob
+        unpickler = PersistentUnpickler(find_global_Blob, None, BytesIO(record))
 
         try:
             return unpickler.load() is Blob

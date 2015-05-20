@@ -90,12 +90,12 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='added an OOBTree'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
-        references 0x01 BTrees.OOBTree.OOBTree at <OFFSET>
-oid 0x01 BTrees.OOBTree.OOBTree 1 revision
+        references 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
+oid 0x01 BTrees.OOBTree.OOBTree... 1 revision
     tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees.OOBTree.OOBTree at <OFFSET>
+        new revision BTrees.OOBTree.OOBTree... at <OFFSET>
         referenced by 0x00 persistent.mapping.PersistentMapping at <OFFSET>
 
 So there are two revisions of oid 0 now, and the second references oid 1.
@@ -118,21 +118,21 @@ oid 0x00 persistent.mapping.PersistentMapping 2 revisions
         tid user=''
         tid description='added an OOBTree'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
-        references 0x01 BTrees.OOBTree.OOBTree at <OFFSET>
+        references 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
     tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='circling back to the root'
-        referenced by 0x01 BTrees.OOBTree.OOBTree at <OFFSET>
-oid 0x01 BTrees.OOBTree.OOBTree 2 revisions
+        referenced by 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
+oid 0x01 BTrees.OOBTree.OOBTree... 2 revisions
     tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees.OOBTree.OOBTree at <OFFSET>
+        new revision BTrees.OOBTree.OOBTree... at <OFFSET>
         referenced by 0x00 persistent.mapping.PersistentMapping at <OFFSET>
     tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='circling back to the root'
-        new revision BTrees.OOBTree.OOBTree at <OFFSET>
+        new revision BTrees.OOBTree.OOBTree... at <OFFSET>
         references 0x00 persistent.mapping.PersistentMapping at <OFFSET>
 oid 0x02 <unknown> 0 revisions
     this oid was not defined (no data record for it found)

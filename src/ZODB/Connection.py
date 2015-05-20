@@ -328,10 +328,10 @@ class Connection(ExportImport, object):
                 # get back here.
         else:
             self.opened = None
-            
+
         am = self._db._activity_monitor
         if am is not None:
-            am.closedConnection(self)        
+            am.closedConnection(self)
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
@@ -439,7 +439,6 @@ class Connection(ExportImport, object):
         # the savepoint, then they won't have _p_oid or _p_jar after
         # they've been unadded. This will make the code in _abort
         # confused.
-
         self._abort()
 
         if self._savepoint_storage is not None:
@@ -463,7 +462,6 @@ class Connection(ExportImport, object):
                 if obj._p_changed:
                     obj._p_changed = False
             else:
-
                 # Note: If we invalidate a non-ghostifiable object
                 # (i.e. a persistent class), the object will
                 # immediately reread its state.  That means that the
@@ -868,7 +866,7 @@ class Connection(ExportImport, object):
                 raise
 
         try:
-            self._setstate(obj)
+            self._setstate(obj, oid)
         except ConflictError:
             raise
         except:
@@ -876,8 +874,11 @@ class Connection(ExportImport, object):
                                 className(obj), oid_repr(oid))
             raise
 
-    def _setstate(self, obj):
+    def _setstate(self, obj, oid):
         # Helper for setstate(), which provides logging of failures.
+        # We accept the oid param, which must be the same as obj._p_oid,
+        # as a performance optimization for the pure-Python persistent implementation
+        # where accessing an attribute involves __getattribute__ calls
 
         # The control flow is complicated here to avoid loading an
         # object revision that we are sure we aren't going to use.  As
@@ -892,7 +893,7 @@ class Connection(ExportImport, object):
         if self.before is not None:
             # Load data that was current before the time we have.
             before = self.before
-            t = self._storage.loadBefore(obj._p_oid, before)
+            t = self._storage.loadBefore(oid, before)
             if t is None:
                 raise POSKeyError() # historical connection!
             p, serial, end = t
@@ -905,16 +906,16 @@ class Connection(ExportImport, object):
             if self._invalidatedCache:
                 raise ReadConflictError()
 
-            if (obj._p_oid in self._invalidated):
+            if (oid in self._invalidated):
                 self._load_before_or_conflict(obj)
                 return
 
-            p, serial = self._storage.load(obj._p_oid, '')
+            p, serial = self._storage.load(oid, '')
             self._load_count += 1
 
             self._inv_lock.acquire()
             try:
-                invalid = obj._p_oid in self._invalidated
+                invalid = oid in self._invalidated
             finally:
                 self._inv_lock.release()
 
@@ -924,13 +925,13 @@ class Connection(ExportImport, object):
 
         self._reader.setGhostState(obj, p)
         obj._p_serial = serial
-        self._cache.update_object_size_estimation(obj._p_oid, len(p))
+        self._cache.update_object_size_estimation(oid, len(p))
         obj._p_estimated_size = len(p)
 
         # Blob support
         if isinstance(obj, Blob):
             obj._p_blob_uncommitted = None
-            obj._p_blob_committed = self._storage.loadBlob(obj._p_oid, serial)
+            obj._p_blob_committed = self._storage.loadBlob(oid, serial)
 
     def _load_before_or_conflict(self, obj):
         """Load non-current state for obj or raise ReadConflictError."""

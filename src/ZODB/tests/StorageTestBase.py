@@ -25,7 +25,7 @@ import transaction
 
 from ZODB.utils import u64
 from ZODB.tests.MinPO import MinPO
-from ZODB._compat import Pickler, Unpickler, BytesIO, _protocol
+from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 import ZODB.tests.util
 
 
@@ -50,11 +50,7 @@ def _persistent_id(obj):
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
     f = BytesIO()
-    p = Pickler(f, _protocol)
-    if sys.version_info[0] < 3:
-        p.inst_persistent_id = _persistent_id
-    else:
-        p.persistent_id = _persistent_id
+    p = PersistentPickler(_persistent_id, f, _protocol)
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
     args = None

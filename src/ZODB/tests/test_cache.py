@@ -14,8 +14,8 @@
 """Test behavior of Connection plus cPickleCache."""
 from persistent import Persistent
 from ZODB.config import databaseFromString
-import doctest
 import transaction
+import doctest
 
 class RecalcitrantObject(Persistent):
     """A Persistent object that will not become a ghost."""
@@ -199,12 +199,15 @@ class CacheTests:
         5
 
         >>> transaction.abort()
+        >>> len(cn._cache)
+        6
+        >>> cn._cache.cache_non_ghost_count
+        2
         >>> cn._cache.ringlen()
         2
         >>> RegularObject.deactivations
         4
         """
-
     def test_gc_on_open_connections(self):
         r"""Test that automatic GC is not applied to open connections.
 

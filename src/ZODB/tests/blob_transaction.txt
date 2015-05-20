@@ -31,7 +31,7 @@ Aborting a blob add leaves the blob unchanged:
     ...     fp.read()
     'this is blob 1'
 
-It doesn't clear the file because there is no previously committed version: 
+It doesn't clear the file because there is no previously committed version:
 
     >>> fname = blob1._p_blob_uncommitted
     >>> import os
@@ -79,7 +79,7 @@ resulting filehandle is accomplished via the filehandle's read method::
     >>> blob1afh1.read()
     'this is blob 1'
 
-Let's make another filehandle for read only to blob1a. Aach file
+Let's make another filehandle for read only to blob1a. Each file
 handle has a reference to the (same) underlying blob::
 
     >>> blob1afh2 = blob1a.open("r")

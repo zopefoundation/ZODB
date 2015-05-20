@@ -20,9 +20,10 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "4.1.0"
+VERSION = "4.2.0.dev0"
 
 import os
+import platform
 import sys
 from setuptools import setup, find_packages
 
@@ -35,6 +36,10 @@ if (3,) < sys.version_info < (3, 2):
     sys.exit(0)
 
 PY3 = sys.version_info >= (3,)
+PY27 = sys.version_info >= (2,7)
+py_impl = getattr(platform, 'python_implementation', lambda: None)
+PYPY = py_impl() == 'PyPy'
+
 
 # The (non-obvious!) choices for the Trove Development Status line:
 # Development Status :: 5 - Production/Stable
@@ -54,6 +59,7 @@ Programming Language :: Python :: 3.2
 Programming Language :: Python :: 3.3
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: Implementation :: CPython
+Programming Language :: Python :: Implementation :: PyPy
 Topic :: Database
 Topic :: Software Development :: Libraries :: Python Modules
 Operating System :: Microsoft :: Windows
@@ -153,15 +159,15 @@ setup(name="ZODB",
       tests_require = tests_require,
       extras_require = dict(test=tests_require),
       install_requires = [
-        'persistent',
-        'BTrees',
+        'persistent >= 4.1.0',
+        'BTrees >= 4.1.3',
         'ZConfig',
-        'transaction >= 1.4.1' if PY3 else 'transaction',
+        'transaction >= 1.4.4',
         'six',
         'zc.lockfile',
         'zdaemon >= 4.0.0a1',
         'zope.interface',
-        ] + (['zodbpickle >= 0.2'] if PY3 else []),
+        ] + (['zodbpickle >= 0.6.0'] if (PY3 or PY27 or PYPY) else []),
       zip_safe = False,
       entry_points = """
       [console_scripts]
