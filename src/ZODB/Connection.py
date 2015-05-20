@@ -1018,10 +1018,9 @@ class Connection(ExportImport, object):
         items = self._cache.lru_items()
         # fine everything. some on the lru list, some not
         everything = self._cache.cache_data
-        # remove those items that are on the lru list (which may not actually
-        # be in the full cache, under the Python implementation)
+        # remove those items that are on the lru list
         for k,v in items:
-            everything.pop(k, None)
+            del everything[k]
         # return a list of [ghosts....not recently used.....recently used]
         return list(everything.items()) + items
 
