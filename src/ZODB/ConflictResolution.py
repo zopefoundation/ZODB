@@ -295,7 +295,8 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.dump(resolved)
         return self._crs_transform_record_data(file.getvalue())
     except (ConflictError, BadClassName) as e:
-        logger.debug(str(e))
+        logger.debug("Conflict resolution failed with %s: %s" % (
+            e.__class__.__name__, str(e)))
     except:
         # If anything else went wrong, catch it here and avoid passing an
         # arbitrary exception back to the client.  The error here will mask
