@@ -239,6 +239,7 @@ _unresolvable = {}
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
                          committedData=b''):
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
+    klass = 'n/a'
     try:
         prfactory = PersistentReferenceFactory()
         newpickle = self._crs_untransform_record_data(newpickle)
@@ -295,15 +296,17 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         pickler.dump(resolved)
         return self._crs_transform_record_data(file.getvalue())
     except (ConflictError, BadClassName) as e:
-        logger.debug("Conflict resolution failed with %s: %s" % (
-            e.__class__.__name__, str(e)))
+        logger.debug(
+            "Conflict resolution on %s failed with %s: %s",
+            klass, e.__class__.__name__, str(e))
     except:
         # If anything else went wrong, catch it here and avoid passing an
         # arbitrary exception back to the client.  The error here will mask
         # the original ConflictError.  A client can recover from a
         # ConflictError, but not necessarily from other errors.  But log
         # the error so that any problems can be fixed.
-        logger.exception("Unexpected error")
+        logger.exception(
+            "Unexpected error while trying to resolve conflict on %s", klass)
 
     raise ConflictError(oid=oid, serials=(committedSerial, oldSerial),
                         data=newpickle)

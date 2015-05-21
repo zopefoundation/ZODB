@@ -355,11 +355,11 @@ Let's see what went into the log:
 
     >>> msg = handler.records[0]
     >>> six.print_(msg.name, msg.levelname, msg.getMessage())
-    ZODB.ConflictResolution ERROR Unexpected error
+    ZODB.ConflictResolution ERROR Unexpected error while trying to resolve conflict on <class 'ZODB.tests.testconflictresolution.FailHard'>
 
     >>> msg = handler.records[1]
     >>> six.print_(msg.name, msg.levelname, msg.getMessage())
-    ZODB.ConflictResolution DEBUG Conflict resolution failed with ConflictError: database conflict error
+    ZODB.ConflictResolution DEBUG Conflict resolution on <class 'ZODB.tests.testconflictresolution.Unresolvable'> failed with ConflictError: database conflict error
 
 Cleanup:
 
@@ -381,4 +381,3 @@ def test_suite():
             setUp=setUp, tearDown=tearDown,
             checker=ZODB.tests.util.checker),
         ])
-
