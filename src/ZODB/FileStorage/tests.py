@@ -195,7 +195,7 @@ Add some data
     >>> fs = ZODB.FileStorage.FileStorage('data.fs')
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
-    >>> conn.root()[1] = u'foobar'
+    >>> conn.root()[1] = 'foobar'
     >>> transaction.commit()
 
 patch `copyToPacktime` to fail
@@ -204,17 +204,17 @@ patch `copyToPacktime` to fail
     >>> save_copyToPacktime = fspack.FileStoragePacker.copyToPacktime
 
     >>> def failing_copyToPacktime(self):
-    ...     self._tfile.write('somejunkdata')
-    ...     raise IOError("No space left on device")
+    ...     self._tfile.write(b'somejunkdata')
+    ...     raise OSError("No space left on device")
 
     >>> fspack.FileStoragePacker.copyToPacktime = failing_copyToPacktime
 
-pack -- it still raises `IOError`
+pack -- it still raises `OSError`
 
     >>> db.pack(time.time()+1)
     Traceback (most recent call last):
     ...
-    IOError: No space left on device
+    OSError: No space left on device
 
 `data.fs.pack` must not exist
 
@@ -233,7 +233,7 @@ check the data we added
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> conn.root()[1]
-    u'foobar'
+    'foobar'
     >>> db.close()
     """
 
@@ -247,7 +247,7 @@ Add some data
     >>> fs = ZODB.FileStorage.FileStorage('data.fs')
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
-    >>> conn.root()[1] = u'foobar'
+    >>> conn.root()[1] = 'foobar'
     >>> transaction.commit()
 
 patch `copyToPacktime` to add one more transaction
@@ -258,7 +258,7 @@ patch `copyToPacktime` to add one more transaction
     >>> def patched_copyToPacktime(self):
     ...     res = save_copyToPacktime(self)
     ...     conn2 = db.open()
-    ...     conn2.root()[2] = u'another bar'
+    ...     conn2.root()[2] = 'another bar'
     ...     transaction.commit()
     ...     return res
 
@@ -269,17 +269,17 @@ patch `copyRest` to fail
     >>> save_copyRest = fspack.FileStoragePacker.copyRest
 
     >>> def failing_copyRest(self, ipos):
-    ...     self._tfile.write('somejunkdata')
-    ...     raise IOError("No space left on device")
+    ...     self._tfile.write(b'somejunkdata')
+    ...     raise OSError("No space left on device")
 
     >>> fspack.FileStoragePacker.copyRest = failing_copyRest
 
-pack -- it still raises `IOError`
+pack -- it still raises `OSError`
 
     >>> db.pack(time.time()+1)
     Traceback (most recent call last):
     ...
-    IOError: No space left on device
+    OSError: No space left on device
 
 `data.fs.pack` must not exist
 
@@ -299,9 +299,9 @@ check the data we added
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> conn.root()[1]
-    u'foobar'
+    'foobar'
     >>> conn.root()[2]
-    u'another bar'
+    'another bar'
     >>> db.close()
     """
 
