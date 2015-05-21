@@ -407,23 +407,43 @@ class FileStoragePacker(FileStorageFormatter):
 
         self.gc.findReachable()
 
+        def close_files_remove():
+            # blank except: we might be in an IOError situation/handler
+            # try our best, but don't fail
+            try:
+                self._tfile.close()
+            except:
+                pass
+            try:
+                self._file.close()
+            except:
+                pass
+            try:
+                os.remove(self._name + ".pack")
+            except:
+                pass
+            if self.blob_removed is not None:
+                self.blob_removed.close()
+
         # Setup the destination file and copy the metadata.
         # TODO:  rename from _tfile to something clearer.
         self._tfile = open(self._name + ".pack", "w+b")
-        self._file.seek(0)
-        self._tfile.write(self._file.read(self._metadata_size))
+        try:
+            self._file.seek(0)
+            self._tfile.write(self._file.read(self._metadata_size))
 
-        self._copier = PackCopier(self._tfile, self.index, self.tindex)
+            self._copier = PackCopier(self._tfile, self.index, self.tindex)
 
-        ipos, opos = self.copyToPacktime()
+            ipos, opos = self.copyToPacktime()
+        except (OSError, IOError):
+            # most probably ran out of disk space or some other IO error
+            close_files_remove()
+            raise  # don't succeed silently
+
         assert ipos == self.gc.packpos
         if ipos == opos:
             # pack didn't free any data.  there's no point in continuing.
-            self._tfile.close()
-            self._file.close()
-            os.remove(self._name + ".pack")
-            if self.blob_removed is not None:
-                self.blob_removed.close()
+            close_files_remove()
             return None
         self._commit_lock_acquire()
         self.locked = True
@@ -462,6 +482,12 @@ class FileStoragePacker(FileStorageFormatter):
                 self.blob_removed.close()
 
             return pos
+        except (OSError, IOError):
+            # most probably ran out of disk space or some other IO error
+            close_files_remove()
+            if self.locked:
+                self._commit_lock_release()
+            raise  # don't succeed silently
         except:
             if self.locked:
                 self._commit_lock_release()

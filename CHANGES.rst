@@ -15,6 +15,10 @@
   and ``fsrecover`` among others). This requires the addition of the
   ``zodbpickle`` dependency.
 
+- Fix #21, FileStorage: an edge case when disk space runs out while packing,
+  do not leave the ``.pack`` file around. That would block any write to the
+  to-be-packed ``Data.fs``, because the disk would stay at 0 bytes free.
+
 4.1.0 (2015-01-11)
 ==================
 

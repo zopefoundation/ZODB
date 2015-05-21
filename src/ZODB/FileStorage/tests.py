@@ -185,6 +185,125 @@ cleanup
 
     """
 
+def pack_disk_full_copyToPacktime():
+    """Recover from a disk full situation by removing the `.pack` file
+
+`copyToPacktime` fails
+
+Add some data
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 'foobar'
+    >>> transaction.commit()
+
+patch `copyToPacktime` to fail
+
+    >>> from ZODB.FileStorage import fspack
+    >>> save_copyToPacktime = fspack.FileStoragePacker.copyToPacktime
+
+    >>> def failing_copyToPacktime(self):
+    ...     self._tfile.write(b'somejunkdata')
+    ...     raise OSError("No space left on device")
+
+    >>> fspack.FileStoragePacker.copyToPacktime = failing_copyToPacktime
+
+pack -- it still raises `OSError`
+
+    >>> db.pack(time.time()+1)
+    Traceback (most recent call last):
+    ...
+    OSError: No space left on device
+
+`data.fs.pack` must not exist
+
+    >>> os.path.exists('data.fs.pack')
+    False
+
+undo patching
+
+    >>> fspack.FileStoragePacker.copyToPacktime = save_copyToPacktime
+
+    >>> db.close()
+
+check the data we added
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1]
+    'foobar'
+    >>> db.close()
+    """
+
+def pack_disk_full_copyRest():
+    """Recover from a disk full situation by removing the `.pack` file
+
+`copyRest` fails
+
+Add some data
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 'foobar'
+    >>> transaction.commit()
+
+patch `copyToPacktime` to add one more transaction
+
+    >>> from ZODB.FileStorage import fspack
+    >>> save_copyToPacktime = fspack.FileStoragePacker.copyToPacktime
+
+    >>> def patched_copyToPacktime(self):
+    ...     res = save_copyToPacktime(self)
+    ...     conn2 = db.open()
+    ...     conn2.root()[2] = 'another bar'
+    ...     transaction.commit()
+    ...     return res
+
+    >>> fspack.FileStoragePacker.copyToPacktime = patched_copyToPacktime
+
+patch `copyRest` to fail
+
+    >>> save_copyRest = fspack.FileStoragePacker.copyRest
+
+    >>> def failing_copyRest(self, ipos):
+    ...     self._tfile.write(b'somejunkdata')
+    ...     raise OSError("No space left on device")
+
+    >>> fspack.FileStoragePacker.copyRest = failing_copyRest
+
+pack -- it still raises `OSError`
+
+    >>> db.pack(time.time()+1)
+    Traceback (most recent call last):
+    ...
+    OSError: No space left on device
+
+`data.fs.pack` must not exist
+
+    >>> os.path.exists('data.fs.pack')
+    False
+
+undo patching
+
+    >>> fspack.FileStoragePacker.copyToPacktime = save_copyToPacktime
+    >>> fspack.FileStoragePacker.copyRest = save_copyRest
+
+    >>> db.close()
+
+check the data we added
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1]
+    'foobar'
+    >>> conn.root()[2]
+    'another bar'
+    >>> db.close()
+    """
 
 def test_suite():
     return unittest.TestSuite((
@@ -199,4 +318,3 @@ def test_suite():
             tearDown=ZODB.tests.util.tearDown,
             checker=checker),
         ))
-
