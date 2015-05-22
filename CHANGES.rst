@@ -8,8 +8,8 @@
 - Log failed conflict resolution attempts at ``DEBUG`` level.  See:
   https://github.com/zopefoundation/ZODB/pull/29.
 
-- Fix command-line parsing of --verbose and --verify arguments.
-  (The short versions -v and -V were parsed correctly.)
+- Fix command-line parsing of ``--verbose`` and ``--verify`` arguments.
+  (The short versions, ``-v`` and ``-V``, were parsed correctly.)
 
 - Add support for PyPy.
 
@@ -18,14 +18,15 @@
   and ``fsrecover`` among others). This requires the addition of the
   ``zodbpickle`` dependency.
 
-- Fix #21, FileStorage: an edge case when disk space runs out while packing,
+- FileStorage: fix an edge case when disk space runs out while packing,
   do not leave the ``.pack`` file around. That would block any write to the
   to-be-packed ``Data.fs``, because the disk would stay at 0 bytes free.
+  See https://github.com/zopefoundation/ZODB/pull/21.
 
 4.1.0 (2015-01-11)
 ==================
 
-- Fix registration of custom logging level names ("BLATHER", "TRACE).
+- Fix registration of custom logging level names ("BLATHER", "TRACE").
 
   We have been registering them in the wrong order since 2004.  Before
   Python 3.4, the stdlib ``logging`` module masked the error by registering
@@ -36,8 +37,9 @@
 4.0.1 (2014-07-13)
 ==================
 
-- Fix POSKeyError during transaction.commit when after savepoint.rollback.
-  see https://github.com/zopefoundation/ZODB/issues/16
+- Fix ``POSKeyError`` during ``transaction.commit`` when after
+  ``savepoint.rollback``.  See
+  https://github.com/zopefoundation/ZODB/issues/16
 
 - Ensure that the pickler used in PyPy always has a ``persistent_id``
   attribute (``inst_persistent_id`` is not present on the pure-Python
