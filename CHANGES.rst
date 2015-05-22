@@ -2,8 +2,8 @@
  Change History
 ================
 
-4.2.0 (unreleased)
-==================
+4.2.0b1 (2015-05-22)
+====================
 
 - Log failed conflict resolution attempts at ``DEBUG`` level.  See:
   https://github.com/zopefoundation/ZODB/pull/29.
