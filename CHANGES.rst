@@ -5,6 +5,9 @@
 4.2.0 (unreleased)
 ==================
 
+- Log failed conflict resolution attempts at ``DEBUG`` level.  See:
+  https://github.com/zopefoundation/ZODB/pull/29.
+
 - Fix command-line parsing of --verbose and --verify arguments.
   (The short versions -v and -V were parsed correctly.)
 
