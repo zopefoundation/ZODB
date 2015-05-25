@@ -159,8 +159,7 @@ setup(name="ZODB",
       tests_require = tests_require,
       extras_require = {
         'test': tests_require,
-        ':python_version >= "2.7"': 'zodbpickle >= 0.6.0',
-        ':platform_python_implementation == "PyPy': 'zodbpickle >= 0.6.0',
+        ':python_version != "2.6"': 'zodbpickle >= 0.6.0',
       },
       install_requires = [
         'persistent >= 4.1.0',
