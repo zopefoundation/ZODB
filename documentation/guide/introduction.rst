@@ -169,7 +169,8 @@ The author's ZODB project is described in a paper available here,
 `<http://www.amk.ca/python/writing/mx-architecture/>`_
 
 This document will always be a work in progress.  If you wish to suggest
-clarifications or additional topics, please send your comments to zodb-dev@zope.org.
+clarifications or additional topics, please send your comments to the
+`ZODB-dev mailing list <https://groups.google.com/forum/#!forum/zodb>`_.
 
 
 Acknowledgements
