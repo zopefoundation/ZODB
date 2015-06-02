@@ -5,7 +5,9 @@
 4.2.0 (unreleased)
 ==================
 
-- TBD
+- Declare conditional dependencies using PEP-426 environment markers
+  (fixing interation between pip 7's wheel cache and tox).  See
+  https://github.com/zopefoundation/ZODB/issues/36.
 
 4.2.0b1 (2015-05-22)
 ====================
