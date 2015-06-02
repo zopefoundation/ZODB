@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.2.0 (unreleased)
+4.2.0 (2015-06-02)
 ==================
 
 - Declare conditional dependencies using PEP-426 environment markers
