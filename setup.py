@@ -23,7 +23,6 @@ interface, rich transaction support, and undo.
 VERSION = "4.2.0.dev0"
 
 import os
-import platform
 import sys
 from setuptools import setup, find_packages
 
@@ -34,11 +33,6 @@ if sys.version_info < (2, 6):
 if (3,) < sys.version_info < (3, 2):
     print("This version of ZODB requires Python 3.2 or higher")
     sys.exit(0)
-
-PY3 = sys.version_info >= (3,)
-PY27 = sys.version_info >= (2,7)
-py_impl = getattr(platform, 'python_implementation', lambda: None)
-PYPY = py_impl() == 'PyPy'
 
 
 # The (non-obvious!) choices for the Trove Development Status line:
@@ -157,7 +151,10 @@ setup(name="ZODB",
       long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = tests_require,
-      extras_require = dict(test=tests_require),
+      extras_require = {
+        'test': tests_require,
+        ':python_version != "2.6"': 'zodbpickle >= 0.6.0',
+      },
       install_requires = [
         'persistent >= 4.1.0',
         'BTrees >= 4.1.3',
@@ -167,7 +164,7 @@ setup(name="ZODB",
         'zc.lockfile',
         'zdaemon >= 4.0.0a1',
         'zope.interface',
-        ] + (['zodbpickle >= 0.6.0'] if (PY3 or PY27 or PYPY) else []),
+      ],
       zip_safe = False,
       entry_points = """
       [console_scripts]
