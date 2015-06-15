@@ -13,7 +13,7 @@
 ##############################################################################
 """Simple script for repairing damaged FileStorage files.
 
-Usage: %s [-f] [-v level] [-p] [-P seconds] input output
+Usage: %s [-f] [-v level] [-p] [-P seconds] [-m year-month-day] input output
 
 Recover data from a FileStorage data file, skipping over damaged data.  Any
 damaged data will be lost.  This could lead to useless output if critical
@@ -46,6 +46,11 @@ Options:
 
        Pack data to t seconds in the past.  Note that if the "-p" option is
        used, then t should be 0.
+
+    -m year-month-day
+
+       Recovers only up to this date.
+       All changes later than this are *not* recovered.
 
 
 Important:  The ZODB package must be importable.  You may need to adjust
@@ -237,7 +242,7 @@ def progress(p):
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "fv:pP:")
+        opts, args = getopt.getopt(sys.argv[1:], "fv:pP:m:")
     except getopt.error as msg:
         die(str(msg), show_docstring=True)
 
@@ -248,6 +253,7 @@ def main():
     force = partial = False
     verbose = 0
     pack = None
+    max_txn_ts = None
     for opt, v in opts:
         if opt == "-v":
             verbose = int(v)
@@ -257,11 +263,17 @@ def main():
             force = True
         elif opt == "-P":
             pack = time.time() - float(v)
+        elif opt == '-m':
+            year, month, day = [int(x) for x in v.split('-')]
+            max_txn_ts = TimeStamp(year, month, day)
 
-    recover(inp, outp, verbose, partial, force, pack)
+    recover(inp, outp, verbose, partial, force, pack, max_txn_ts)
 
-def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
+def recover(inp, outp, verbose=0, partial=False, force=False, pack=None, max_txn_ts=None):
     print("Recovering", inp, "into", outp)
+
+    if max_txn_ts is not None:
+        print("Recover until: ", max_txn_ts)
 
     if os.path.exists(outp) and not force:
         die("%s exists" % outp)
@@ -322,6 +334,11 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
                 if not ok:
                     print(("Time stamps back in order %s" % (t)))
                     ok = 1
+
+        if max_txn_ts is not None and (_ts >= max_txn_ts):
+            if verbose:
+                print ("Transaction is too young: " % _ts)
+            continue
 
         ofs.tpc_begin(txn, tid, txn.status)
 
