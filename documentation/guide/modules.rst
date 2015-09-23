@@ -275,7 +275,9 @@ that are instances of a user-defined class that doesn't supply its own
 :meth:`__cmp__` method.  Python compares such instances by memory address.  This
 is fine if such instances are used as keys in temporary BTree-based structures
 used only in a single program run.  It can be disastrous if that BTree-based
-structure is stored to a database, though. ::
+structure is stored to a database, though.
+
+::
 
    >>> class C:
    ...     pass
@@ -297,7 +299,7 @@ Another problem occurs with instances of classes that do define :meth:`__cmp__`,
 but define it incorrectly.  It's possible but rare for a custom :meth:`__cmp__`
 implementation to violate one of the three required formal properties directly.
 It's more common for it to "fall back" to address-based comparison by mistake.
-For example, ::
+For example::
 
    class Mine:
        def __cmp__(self, other):
@@ -306,7 +308,7 @@ For example, ::
            else:
                return cmp(self.data, other)
 
-It's quite possible there that the :keyword:`else` clause allows a result to be
+It's quite possible there that the ``else`` clause allows a result to be
 computed based on memory address.  The bug won't show up until a BTree-based
 structure uses objects of class :class:`Mine` as keys, and also objects of other
 types as keys, and the structure is loaded from a database, and a sequence of

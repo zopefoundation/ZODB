@@ -42,15 +42,14 @@ Documentation
    documentation/tutorial
    documentation/guide/index
    documentation/articles/index
-   bugs
-   features
 
 * `The ZODB Book (in progress) <http://zodb.readthedocs.org/en/latest/>`_ 
 
 Downloads
 =========
 
-ZODB is distributed as Python eggs through the `Python Package Index <http://pypi.python.org/pypi/ZODB3>`_.
+ZODB is distributed through the `Python Package Index
+<http://pypi.python.org/pypi/ZODB>`_.
 
 You can install the ZODB using pip command::
 
@@ -59,9 +58,23 @@ You can install the ZODB using pip command::
 Community and contributing
 ==========================
 
-Discussion occurs on the `ZODB developers' mailing list <http://mail.zope.org/mailman/listinfo/zodb-dev>`_.
+Discussion occurs on the `ZODB mailing list
+<https://groups.google.com/forum/#!forum/zodb>`_. (And for the
+transaction system on the `transaction list
+<https://groups.google.com/forum/#!forum/python-transaction>`_
 
-:doc:`Bug reporting<bugs>`, :doc:`feature requests<features>`, and release planning are done on `Launchpad <http://launchpad.net/zodb>`_.
+Bug reporting and feature requests are submitted through github issue
+trackers for various ZODB components:
+
+- `ZODB <https://github.com/zopefoundation/zodb>`_
+
+- `persistent <https://github.com/zopefoundation/persistent>`_
+
+- `transactuon <https://github.com/zopefoundation/transaction>`_
+
+- `BTrees <https://github.com/zopefoundation/BTrees>`_
+
+- `ZEO (client-server framework) <https://github.com/zopefoundation/ZEO>`_
 
 If you'd like to contribute then we'll gladly accept work on documentation,
 helping out other developers and users at the mailing list, submitting bugs,
