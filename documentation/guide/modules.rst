@@ -312,7 +312,7 @@ It's quite possible there that the ``else`` clause allows a result to be
 computed based on memory address.  The bug won't show up until a BTree-based
 structure uses objects of class :class:`Mine` as keys, and also objects of other
 types as keys, and the structure is loaded from a database, and a sequence of
-comparisons happens to execute the :keyword:`else` clause in a case where the
+comparisons happens to execute the ``else`` clause in a case where the
 relative order of object memory addresses happened to change.
 
 This is as difficult to track down as it sounds, so best to stay far away from
