@@ -2,38 +2,192 @@
 ZODB - a native object database for Python
 ==========================================
 
-    Don't squeeze your objects into tables: store them in an object database.
+Because ZODB is an object database:
 
-Overview
-========
+- You don't use a separate language for database operations.
 
-Python programs are written with the object-oriented paradigm. You use objects
-that reference each other freely and can be of any form and shape: no object
-has to adhere to a specific schema and can hold arbitrary information.
+- There's very little impact on your code to make objects persistent.
 
-Storing those objects in relational databases requires you to give up on the
-freedom of reference and schema. The constraints of the relational model
-reduces your ability to write object-oriented code.
+- You don't need a database mapper that partially hides the database
+  from you.
 
-The ZODB is a native object database, that stores your objects while allowing
-you to work with any paradigms that can be expressed in Python. Thereby your
-code becomes simpler, more robust and easier to understand.
+  Using an object-relational mapping **is not** like using an object database.
 
-Also, there is no gap between the database and your program: no glue code to
-write, no mappings to configure. Have a look at the tutorial to see how easy
-it is.
+- There's almost no seam between your code and the database.
 
-Some of the features that ZODB brings to you:
+Check out the :doc:`documentation/tutorial`!
 
-* Transparent persistence for Python objects
-* Full ACID-compatible transaction support (including savepoints)
-* History/undo ability
-* Efficient support for binary large objects (BLOBs)
-* Pluggable storages
-* Scalable architecture
+Transactions
+============
 
+Transactions make programs a lot easier to reason about for three
+important reasons.
 
-Documentation
+Transactions are atomic
+  Changes made in a transaction are either saved in their entirety or
+  not at all.
+
+  This makes error handling a lot easier.  If you have an error, you
+  just abort the current transaction. You don't have to worry about
+  undoing previous database changes.
+
+Transactions provide isolation for managing concurrency
+  Transactions allow multiple logical threads (threads or processes)
+  to access databases and the database prevents the threads from
+  making conflicting changes.
+
+  This allows you to scale your application across multiple threads,
+  processes or machines without having to use low-level locking
+  primitives.
+
+  You still have to deal with concurrency on some level. For
+  timestamp-based systems like ZODB, you may have to retry conflicting
+  transactions. With locking-based systems, you have to deal with
+  possible deadlocks.
+
+Transactions effect multiple objects
+  Most NoSQL databases don't have transactions. Their notions of
+  consistency are much weaker, typically applying to single documents.
+  There can be good reasons to use NoSQL databases for their extreme
+  scalability, but otherwise, think hard about giving up the benefits
+  of transactions.
+
+ZODB transaction support:
+
+- `ACID <https://en.wikipedia.org/wiki/ACID>`_ transactions with
+  `snapshot isolation
+  <https://en.wikipedia.org/wiki/Snapshot_isolation>`_
+
+- Distributed transaction support using two-phase commit
+
+  This allows transactions to span multiple ZODB databases and to span
+  ZODB and non-ZODB databases.
+
+Other other notable ZODB features
+=================================
+
+Pluggable layered storage
+  ZODB has a pluggable storage architecture. This allows a variety of
+  storage schemes including memory-based, file-based and distributes
+  (client-server) storage.  Through storage layering, storage
+  components provide compression, encryption, replication and more.
+
+Database caching with invalidation
+  Every database connection has a cache that is a consistent partial database
+  replica. When accessing database objects, data already in the cache
+  is accessed without any database interactions.  When data are
+  modified, invalidations are sent to clients causing cached objects
+  to be invalidated. The next time invalidated objects are accessed
+  they'll be loaded from the database.
+
+  This makes caching extremely efficient, but provides some limit to
+  the number of clients.  The server has to send an invalidation
+  message to each client for each write.
+
+Testing is very easy.
+  ZODB provides in-memory storage implementations as well as
+  copy-on-write layered "demo storage" implementations that make testing
+  database-related code very easy.
+
+Time travel
+  ZODB storages typically add new records on write and removes old
+  records on "pack" operations.  This allows limited time travel, back
+  to the last pack time.  This can be very useful for forensic
+  analysis.
+
+Binary large objects, Blobs
+  Many databases have these, but so does ZODB.
+
+  In applications, Blobs are files, so they can be treated as files in
+  many ways. This can be especially useful when serving media.  If you
+  use AWS, there's a Blob implementation that stores blobs in S3 and
+  caches them on disk.
+
+When should you use ZODB?
+=========================
+
+When you want to focus on what your application does without database operations slowing you down
+  Even if find you need to incorporate or switch to another database
+  later, you can use ZODB in the early part of your project to make
+  initial discovery and learning much quicker.
+
+When your application has complex relationships and data structures
+  In relational databases you have to join tables to model complex
+  data structures and these joins can be tedious and expensive.  You
+  can mitigate this to some extent in databases like Postgres by using
+  more powerful data types like arrays and JSON columns, but when
+  relationships extend across rows, you still have to do joins.
+
+  In NoSQL databases, you can model complex data structures with
+  documents, but if you have relationships across documents, then you
+  have to do joins and join capabilities in NoSQL databases are
+  typically far less powerful and transactional semantics typically don't
+  cross documents, if they exist at all.
+
+  In ZODB, you can make objects as complex as you want and cross
+  object relationships are handled with Python object references.
+
+When the dominant access method is by accessing object attributes or by calling methods
+  If your primary object access is search, then other database
+  technologies might be a better fit.
+
+  ZODB has no query language other than Python. It's primary support
+  for search is through mapping object called BTrees.  People have
+  build higher-level search APIs on top of ZODB. These work well
+  enough to support some search.
+
+When you read data a lot more than you write it
+  ZODB caches aggressively, and if you're working set fits (or mostly
+  fits) in memory, performance is very good because it rarely has to
+  touch the database server.
+
+  If your application if very write heavy (e.g. logging), then you're
+  better off using something else.  Sometimes, you can use a database
+  suitable for heavy writes in combination with ZODB.
+
+When you want to write tests of application logic that interacts with your database
+  ZODB has a number of storage implementations, including layered
+  in-memory implementations that make testing very easy.
+
+  A database without an in-memory storage option can make testing very
+  complicated.
+
+When should you *not* use ZODB?
+===============================
+
+- When search is a dominant data access path
+
+- When you have high write volume
+
+- When caching is unlikely to benefit you
+
+  This can be the case when write volume is high, or when you tend to
+  access small amounts of data from a working set way too large to fit in
+  memory and when there's no good mechanism for dividing the working
+  set across application servers.
+
+- When you need non-Python tools to access your database, especially
+  tools designed to work with relational databases.
+
+How does ZODB scale?
+====================
+
+Note as well as many technologies, but some fairly large applications
+have been built on ZODB.
+
+At Zope Corporation, several hundred newspaper content-management
+systems and web sites were hosted using a multi-database configuration
+with most data in a main database and a catalog database.  The
+databases has several hundred gigabytes of ordinary database records
+plus multiple terabytes of blob data.
+
+ZODB is mature
+==============
+
+ZODB is very mature. Development started in 1996 and it has been used
+in production in thousands of applications for many years.
+
+Learning more
 =============
 
 .. toctree::
