@@ -63,12 +63,12 @@ ZODB transaction support:
   This allows transactions to span multiple ZODB databases and to span
   ZODB and non-ZODB databases.
 
-Other other notable ZODB features
-=================================
+Other notable ZODB features
+===========================
 
 Pluggable layered storage
   ZODB has a pluggable storage architecture. This allows a variety of
-  storage schemes including memory-based, file-based and distributes
+  storage schemes including memory-based, file-based and distributed
   (client-server) storage.  Through storage layering, storage
   components provide compression, encryption, replication and more.
 
@@ -90,7 +90,7 @@ Testing is very easy.
   database-related code very easy.
 
 Time travel
-  ZODB storages typically add new records on write and removes old
+  ZODB storages typically add new records on write and remove old
   records on "pack" operations.  This allows limited time travel, back
   to the last pack time.  This can be very useful for forensic
   analysis.
@@ -132,7 +132,7 @@ When the dominant access method is by accessing object attributes or by calling 
   technologies might be a better fit.
 
   ZODB has no query language other than Python. It's primary support
-  for search is through mapping object called BTrees.  People have
+  for search is through mapping objects called BTrees.  People have
   build higher-level search APIs on top of ZODB. These work well
   enough to support some search.
 
@@ -141,7 +141,7 @@ When you read data a lot more than you write it
   fits) in memory, performance is very good because it rarely has to
   touch the database server.
 
-  If your application if very write heavy (e.g. logging), then you're
+  If your application is very write heavy (e.g. logging), then you're
   better off using something else.  Sometimes, you can use a database
   suitable for heavy writes in combination with ZODB.
 
@@ -172,13 +172,13 @@ When should you *not* use ZODB?
 How does ZODB scale?
 ====================
 
-Note as well as many technologies, but some fairly large applications
+Not as well as many technologies, but some fairly large applications
 have been built on ZODB.
 
 At Zope Corporation, several hundred newspaper content-management
 systems and web sites were hosted using a multi-database configuration
 with most data in a main database and a catalog database.  The
-databases has several hundred gigabytes of ordinary database records
+databases have several hundred gigabytes of ordinary database records
 plus multiple terabytes of blob data.
 
 ZODB is mature
@@ -215,7 +215,7 @@ Community and contributing
 Discussion occurs on the `ZODB mailing list
 <https://groups.google.com/forum/#!forum/zodb>`_. (And for the
 transaction system on the `transaction list
-<https://groups.google.com/forum/#!forum/python-transaction>`_
+<https://groups.google.com/forum/#!forum/python-transaction>`_)
 
 Bug reporting and feature requests are submitted through github issue
 trackers for various ZODB components:
@@ -224,7 +224,7 @@ trackers for various ZODB components:
 
 - `persistent <https://github.com/zopefoundation/persistent>`_
 
-- `transactuon <https://github.com/zopefoundation/transaction>`_
+- `transaction <https://github.com/zopefoundation/transaction>`_
 
 - `BTrees <https://github.com/zopefoundation/BTrees>`_
 
