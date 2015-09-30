@@ -4,24 +4,22 @@ ZODB - a native object database for Python
 
 Because ZODB is an object database:
 
-- You don't use a separate language for database operations.
+- no separate language for database operations
 
-- There's very little impact on your code to make objects persistent.
+- very little impact on your code to make objects persistent
 
-- You don't need a database mapper that partially hides the database
-  from you.
+- no database mapper that partially hides the database.
 
   Using an object-relational mapping **is not** like using an object database.
 
-- There's almost no seam between your code and the database.
+- almost no seam between code and database.
 
 Check out the :doc:`documentation/tutorial`!
 
 Transactions
 ============
 
-Transactions make programs a lot easier to reason about for three
-important reasons.
+Make programs easier to reason about.
 
 Transactions are atomic
   Changes made in a transaction are either saved in their entirety or
@@ -31,7 +29,7 @@ Transactions are atomic
   just abort the current transaction. You don't have to worry about
   undoing previous database changes.
 
-Transactions provide isolation for managing concurrency
+Transactions provide isolation
   Transactions allow multiple logical threads (threads or processes)
   to access databases and the database prevents the threads from
   making conflicting changes.
@@ -84,7 +82,7 @@ Database caching with invalidation
   the number of clients.  The server has to send an invalidation
   message to each client for each write.
 
-Testing is very easy.
+Easy testing
   ZODB provides in-memory storage implementations as well as
   copy-on-write layered "demo storage" implementations that make testing
   database-related code very easy.
@@ -106,12 +104,12 @@ Binary large objects, Blobs
 When should you use ZODB?
 =========================
 
-When you want to focus on what your application does without database operations slowing you down
+You want to focus on your application without writing a lot of database code.
   Even if find you need to incorporate or switch to another database
   later, you can use ZODB in the early part of your project to make
   initial discovery and learning much quicker.
 
-When your application has complex relationships and data structures
+Your application has complex relationships and data structures.
   In relational databases you have to join tables to model complex
   data structures and these joins can be tedious and expensive.  You
   can mitigate this to some extent in databases like Postgres by using
@@ -127,7 +125,7 @@ When your application has complex relationships and data structures
   In ZODB, you can make objects as complex as you want and cross
   object relationships are handled with Python object references.
 
-When the dominant access method is by accessing object attributes or by calling methods
+You access data through object attributes and methods.
   If your primary object access is search, then other database
   technologies might be a better fit.
 
@@ -136,7 +134,7 @@ When the dominant access method is by accessing object attributes or by calling 
   build higher-level search APIs on top of ZODB. These work well
   enough to support some search.
 
-When you read data a lot more than you write it
+You read data a lot more than you write it.
   ZODB caches aggressively, and if you're working set fits (or mostly
   fits) in memory, performance is very good because it rarely has to
   touch the database server.
@@ -145,7 +143,7 @@ When you read data a lot more than you write it
   better off using something else.  Sometimes, you can use a database
   suitable for heavy writes in combination with ZODB.
 
-When you want to write tests of application logic that interacts with your database
+Need to test logic that uses your database.
   ZODB has a number of storage implementations, including layered
   in-memory implementations that make testing very easy.
 
@@ -155,19 +153,20 @@ When you want to write tests of application logic that interacts with your datab
 When should you *not* use ZODB?
 ===============================
 
-- When search is a dominant data access path
+- Search is a dominant data access path
 
-- When you have high write volume
+- You have high write volume
 
-- When caching is unlikely to benefit you
+- Caching is unlikely to benefit you
 
   This can be the case when write volume is high, or when you tend to
   access small amounts of data from a working set way too large to fit in
   memory and when there's no good mechanism for dividing the working
   set across application servers.
 
-- When you need non-Python tools to access your database, especially
-  tools designed to work with relational databases.
+- You need to use non-Python tools to access your database.
+
+  especially tools designed to work with relational databases
 
 How does ZODB scale?
 ====================
@@ -178,7 +177,7 @@ have been built on ZODB.
 At Zope Corporation, several hundred newspaper content-management
 systems and web sites were hosted using a multi-database configuration
 with most data in a main database and a catalog database.  The
-databases have several hundred gigabytes of ordinary database records
+databases had several hundred gigabytes of ordinary database records
 plus multiple terabytes of blob data.
 
 ZODB is mature
@@ -187,8 +186,9 @@ ZODB is mature
 ZODB is very mature. Development started in 1996 and it has been used
 in production in thousands of applications for many years.
 
-ZODB is in heavy use in the :Pyramid and Plone communities and in many
-other applications.
+ZODB is in heavy use in the `Pyramid <http://www.pylonsproject.org/>`_
+and `Plone <https://plone.org/>`_ communities and in many other
+applications.
 
 Learning more
 =============
