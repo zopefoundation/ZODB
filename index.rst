@@ -187,6 +187,9 @@ ZODB is mature
 ZODB is very mature. Development started in 1996 and it has been used
 in production in thousands of applications for many years.
 
+ZODB is in heavy use in the :Pyramid and Plone communities and in many
+other applications.
+
 Learning more
 =============
 
