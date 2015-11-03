@@ -5,7 +5,10 @@
 4.2.1 (unreleased)
 ==================
 
-- TBD
+- Make the ``zodbpickle`` dependency required and not conditional.
+  This fixes various packaging issues involving pip and its wheel
+  cache. zodbpickle was only optional under Python 2.6 so this change
+  only impacts users of that version.
 
 4.2.0 (2015-06-02)
 ==================

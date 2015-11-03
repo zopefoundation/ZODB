@@ -12,20 +12,20 @@
 #
 ##############################################################################
 import sys
+from six import PY3
 
 IS_JYTHON = sys.platform.startswith('java')
 
-try:
+
+if not PY3:
     # Python 2.x
-    import cPickle
-    if ((hasattr(cPickle.Unpickler, 'load') and not hasattr(cPickle.Unpickler, 'noload')) or
-		sys.version_info >= (2,7)):
-        # PyPy doesn't have noload, and noload is broken in Python 2.7.
-        # Get the fastest version we can (PyPy has no fastpickle)
-        try:
-            import zodbpickle.fastpickle as cPickle
-        except ImportError:
-            import zodbpickle.pickle as cPickle
+    # PyPy's cPickle doesn't have noload, and noload is broken in Python 2.7,
+    # so we need zodbpickle.
+    # Get the fastest working version we can (PyPy has no fastpickle)
+    try:
+        import zodbpickle.fastpickle as cPickle
+    except ImportError:
+        import zodbpickle.pickle as cPickle
     Pickler = cPickle.Pickler
     Unpickler = cPickle.Unpickler
     dump = cPickle.dump
@@ -36,7 +36,7 @@ try:
     NAME_MAPPING = {}
     _protocol = 1
     FILESTORAGE_MAGIC = b"FS21"
-except ImportError:
+else:
     # Python 3.x: can't use stdlib's pickle because
     # http://bugs.python.org/issue6784
     import zodbpickle.pickle
