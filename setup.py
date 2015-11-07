@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-VERSION = "4.2.1.dev0"
+version = "4.2.1.dev0"
 
 import os
 import sys
@@ -134,7 +134,7 @@ long_description = str(
 tests_require = ['zope.testing', 'manuel']
 
 setup(name="ZODB",
-      version=VERSION,
+      version=version,
       setup_requires=['persistent'],
       author="Jim Fulton",
       author_email="jim@zope.com",
