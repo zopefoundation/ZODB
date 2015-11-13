@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.2.1 (unreleased)
+4.3.0 (unreleased)
 ==================
 
 - Make the ``zodbpickle`` dependency required and not conditional.
@@ -10,6 +10,8 @@
   cache. zodbpickle was only optional under Python 2.6 so this change
   only impacts users of that version.  See
   https://github.com/zopefoundation/ZODB/pull/42.
+
+- Add support for Python 3.5.
 
 4.2.0 (2015-06-02)
 ==================

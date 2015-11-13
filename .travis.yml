@@ -8,6 +8,7 @@ python:
     - 3.2
     - 3.3
     - 3.4
+    - 3.5
 install:
     # First install a newer pip so that it can use the wheel cache
     # (only needed until travis upgrades pip to 7.x; note that the 3.5
