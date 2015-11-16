@@ -8,11 +8,27 @@ python:
     - 3.2
     - 3.3
     - 3.4
+    - 3.5
 install:
-    - travis_retry pip install BTrees ZConfig manuel persistent six transaction zc.lockfile zdaemon zodbpickle zope.interface zope.testing zope.testrunner
-    - travis_retry pip install -e .
+    # First install a newer pip so that it can use the wheel cache
+    # (only needed until travis upgrades pip to 7.x; note that the 3.5
+    # environment uses pip 7.1 by default).
+    - travis_retry pip install -U pip
+    # A newer wheel is also needed under Python 3, but only after we have
+    # a newer pip to take advantage of the cache.
+    - travis_retry pip install -U wheel
+    # Then start installing our deps so they can be cached. Note that use of --build-options / --global-options / --install-options
+    # disables the cache.
+    - travis_retry pip install -U manuel zope.testing zope.testrunner
+    - travis_retry pip install -U -e .
 script:
     - zope-testrunner -u --test-path=src --auto-color --auto-progress
     - zope-testrunner -f --test-path=src --auto-color --auto-progress
 notifications:
     email: false
+# cache: pip seems not to work if `install` is replaced (https://github.com/travis-ci/travis-ci/issues/3239)
+cache:
+  directories:
+    - $HOME/.cache/pip
+before_cache:
+    - rm -f $HOME/.cache/pip/log/debug.log
