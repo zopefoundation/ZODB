@@ -1,6 +1,8 @@
 Historical ZODB Changelog
 #########################
 
+- Cleanup of nested mvcc connections could have failed.
+
 3.10.5 (2011-11-19)
 ===================
 
