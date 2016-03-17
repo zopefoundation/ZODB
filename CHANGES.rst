@@ -5,6 +5,8 @@
 4.3.0 (unreleased)
 ==================
 
+- Drop support for Python 2.6 and 3.2.
+
 - Make the ``zodbpickle`` dependency required and not conditional.
   This fixes various packaging issues involving pip and its wheel
   cache. zodbpickle was only optional under Python 2.6 so this change
