@@ -1,7 +1,9 @@
 Historical ZODB Changelog
 #########################
 
-- Cleanup of nested mvcc connections could have failed.
+- Avoid failure during cleanup of nested databases that provide MVCC
+  on storage level (Relstorage).
+  https://github.com/zopefoundation/ZODB/issues/45
 
 3.10.5 (2011-11-19)
 ===================
