@@ -5,3 +5,6 @@ include
 build
 *.so
 parts
+*.pyc
+.eggs
+*.egg-info

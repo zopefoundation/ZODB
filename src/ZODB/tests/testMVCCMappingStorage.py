@@ -33,6 +33,15 @@ from ZODB.tests import (
     )
 
 class MVCCTests:
+    def checkClosingNestedDatabasesWorks(self):
+        # This tests for the error described in
+        # https://github.com/zopefoundation/ZODB/issues/45
+        db1 = DB(self._storage)
+        db2 = DB(None, databases=db1.databases, database_name='2')
+        db1.open().get_connection('2')
+        db1.close()
+        db2.close()
+
 
     def checkCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.
@@ -122,7 +131,7 @@ class MVCCTests:
             self.assert_(r2['gamma']['delta'] == 'yes')
         finally:
             db.close()
-    
+
 
 class MVCCMappingStorageTests(
     StorageTestBase.StorageTestBase,
