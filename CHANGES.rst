@@ -15,6 +15,10 @@
 
 - Add support for Python 3.5.
 
+- Avoid failure during cleanup of nested databases that provide MVCC
+  on storage level (Relstorage).
+  https://github.com/zopefoundation/ZODB/issues/45
+
 4.2.0 (2015-06-02)
 ==================
 

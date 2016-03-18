@@ -1085,7 +1085,8 @@ class Connection(ExportImport, object):
     def _release_resources(self):
         for c in six.itervalues(self.connections):
             if c._mvcc_storage:
-                c._storage.release()
+                if c._storage is not None:
+                    c._storage.release()
             c._storage = c._normal_storage = None
             c._cache = PickleCache(self, 0, 0)
 
