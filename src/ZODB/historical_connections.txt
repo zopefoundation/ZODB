@@ -15,6 +15,8 @@ Historical Connections
     ...    time.time = staticmethod(faux_time_time) # Jython
     ... else:
     ...     time.time = faux_time_time
+    >>> def utcnow():
+    ...     return datetime.datetime.fromtimestamp(_now)
 
 Usage
 =====
@@ -55,7 +57,7 @@ We wait for some time to pass, record he time, and then make some other changes.
     >>> time.sleep(.01)
 
     >>> import datetime
-    >>> now = datetime.datetime.utcnow()
+    >>> now = utcnow()
     >>> time.sleep(.01)
 
     >>> root = conn.root()
@@ -272,7 +274,7 @@ Note that if you try to open an historical connection to a time in the future,
 you will get an error.
 
     >>> historical_conn = db.open(
-    ...     at=datetime.datetime.utcnow()+datetime.timedelta(1))
+    ...     at=utcnow()+datetime.timedelta(1))
     Traceback (most recent call last):
     ...
     ValueError: cannot open an historical connection in the future.
