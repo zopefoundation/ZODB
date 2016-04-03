@@ -7,7 +7,7 @@ Historical Connections
     >>> _now = 1231019584.0
     >>> def faux_time_time():
     ...     global _now
-    ...     _now += .1
+    ...     _now += .001 # must be less than 0.01
     ...     return _now
     >>> import time
     >>> real_time_time = time.time
