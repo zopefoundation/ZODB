@@ -4,11 +4,11 @@ Historical Connections
 
 .. We need to mess with time to prevent spurious test failures on windows
 
-    >>> now = 1231019584.0
+    >>> _now = 1231019584.0
     >>> def faux_time_time():
-    ...     global now
-    ...     now += .1
-    ...     return now
+    ...     global _now
+    ...     _now += .1
+    ...     return _now
     >>> import time
     >>> real_time_time = time.time
     >>> if isinstance(time,type):
