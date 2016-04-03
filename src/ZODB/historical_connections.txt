@@ -11,10 +11,16 @@ Historical Connections
     ...     return _now
     >>> import time
     >>> real_time_time = time.time
+    >>> real_time_sleep = time.sleep
+    >>> def faux_time_sleep(amt):
+    ...    global _now
+    ...    _now += amt
     >>> if isinstance(time,type):
     ...    time.time = staticmethod(faux_time_time) # Jython
+    ...    time.sleep = faux_time_sleep
     ... else:
     ...     time.time = faux_time_time
+    ...     time.sleep = faux_time_sleep
     >>> def utcnow():
     ...     return datetime.datetime.fromtimestamp(_now)
 
@@ -312,6 +318,7 @@ memory usage would also be brief and unlikely to overlap.
 .. restore time
 
     >>> time.time = real_time_time
+    >>> time.sleep = real_time_sleep
 
 .. ......... ..
 .. Footnotes ..
