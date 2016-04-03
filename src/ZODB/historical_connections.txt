@@ -2,6 +2,20 @@
 Historical Connections
 ======================
 
+.. We need to mess with time to prevent spurious test failures on windows
+
+    >>> now = 1231019584.0
+    >>> def faux_time_time():
+    ...     global now
+    ...     now += .1
+    ...     return now
+    >>> import time
+    >>> real_time_time = time.time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time_time) # Jython
+    ... else:
+    ...     time.time = faux_time_time
+
 Usage
 =====
 
@@ -292,6 +306,10 @@ memory usage would also be brief and unlikely to overlap.
 
     >>> db.close()
     >>> db2.close()
+
+.. restore time
+
+    >>> time.time = real_time_time
 
 .. ......... ..
 .. Footnotes ..
