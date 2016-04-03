@@ -274,7 +274,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
             pool.map(f)
 
     def availableGC(self):
-        for key, pool in self.pools.items():
+        for key, pool in list(self.pools.items()):
             pool.availableGC()
             if not pool.all:
                 del self.pools[key]
