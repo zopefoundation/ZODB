@@ -2,6 +2,28 @@
 Historical Connections
 ======================
 
+.. We need to mess with time to prevent spurious test failures on windows
+
+    >>> _now = 1231019584.0
+    >>> def faux_time_time():
+    ...     global _now
+    ...     _now += .001 # must be less than 0.01
+    ...     return _now
+    >>> import time
+    >>> real_time_time = time.time
+    >>> real_time_sleep = time.sleep
+    >>> def faux_time_sleep(amt):
+    ...    global _now
+    ...    _now += amt
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time_time) # Jython
+    ...    time.sleep = faux_time_sleep
+    ... else:
+    ...     time.time = faux_time_time
+    ...     time.sleep = faux_time_sleep
+    >>> def utcnow():
+    ...     return datetime.datetime.fromtimestamp(_now)
+
 Usage
 =====
 
@@ -41,7 +63,7 @@ We wait for some time to pass, record he time, and then make some other changes.
     >>> time.sleep(.01)
 
     >>> import datetime
-    >>> now = datetime.datetime.utcnow()
+    >>> now = utcnow()
     >>> time.sleep(.01)
 
     >>> root = conn.root()
@@ -258,7 +280,7 @@ Note that if you try to open an historical connection to a time in the future,
 you will get an error.
 
     >>> historical_conn = db.open(
-    ...     at=datetime.datetime.utcnow()+datetime.timedelta(1))
+    ...     at=utcnow()+datetime.timedelta(1))
     Traceback (most recent call last):
     ...
     ValueError: cannot open an historical connection in the future.
@@ -292,6 +314,11 @@ memory usage would also be brief and unlikely to overlap.
 
     >>> db.close()
     >>> db2.close()
+
+.. restore time
+
+    >>> time.time = real_time_time
+    >>> time.sleep = real_time_sleep
 
 .. ......... ..
 .. Footnotes ..
