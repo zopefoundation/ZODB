@@ -27,11 +27,10 @@ Prerequisites
 You must have Python installed. If you're using a system Python
 install, make sure development support is installed too.
 
-You also need the transaction, BTrees, persistent, zc.lockfile,
-ZConfig, zdaemon, zope.event, zope.interface, zope.proxy and
-zope.testing packages.  If you don't have them and you can connect to
-the Python Package Index, then these will be installed for you if you
-don't have them.
+You also need the transaction, BTrees, persistent, six, zc.lockfile, ZConfig,
+zodbpickle, zope.interface packages, and optionally manuel and zope.testing.
+If you don't have them and you can connect to the Python Package Index,
+then these will be installed for you if you don't have them.
 
 Installation
 ============
@@ -41,9 +40,8 @@ and install it are to use `easy_install
 <http://peak.telecommunity.com/DevCenter/EasyInstall>`_, or
 `zc.buildout <http://www.python.org/pypi/zc.buildout>`_.
 
-To install by hand, first install the dependencies, ZConfig, zdaemon,
-zope.interface, zope.proxy and zope.testing.  These can be found
-in the `Python Package Index <http://www.python.org/pypi>`_.
+To install by hand, first install the dependencies listed in `Prerequisites`_.
+These can be found in the `Python Package Index <http://www.python.org/pypi>`_.
 
 To run the tests, use the test setup command::
 
