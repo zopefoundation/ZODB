@@ -19,6 +19,9 @@
   on storage level (Relstorage).
   https://github.com/zopefoundation/ZODB/issues/45
 
+- Remove useless dependency to `zdaemon` in setup.py. Remove ZEO documentation.
+  Both were leftovers from the time where ZEO was part of this repository.
+
 4.2.0 (2015-06-02)
 ==================
 
