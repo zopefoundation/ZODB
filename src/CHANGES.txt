@@ -22,6 +22,10 @@ Bugs Fixed
   on storage level (Relstorage).
   https://github.com/zopefoundation/ZODB/issues/45
 
+- Fix possible data corruption after FileStorage is truncated to roll back a
+  transaction.
+  https://github.com/zopefoundation/ZODB/pull/52
+
 3.10.5 (2011-11-19)
 ===================
 
