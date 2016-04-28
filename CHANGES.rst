@@ -22,6 +22,10 @@
 - Remove useless dependency to `zdaemon` in setup.py. Remove ZEO documentation.
   Both were leftovers from the time where ZEO was part of this repository.
 
+- Fix possible data corruption after FileStorage is truncated to roll back a
+  transaction.
+  https://github.com/zopefoundation/ZODB/pull/52
+
 4.2.0 (2015-06-02)
 ==================
 
