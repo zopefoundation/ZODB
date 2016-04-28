@@ -43,7 +43,7 @@ Transactions provide isolation
   transactions. With locking-based systems, you have to deal with
   possible deadlocks.
 
-Transactions effect multiple objects
+Transactions affect multiple objects
   Most NoSQL databases don't have transactions. Their notions of
   consistency are much weaker, typically applying to single documents.
   There can be good reasons to use NoSQL databases for their extreme
