@@ -20,13 +20,13 @@ import contextlib
 import errno
 import logging
 import os
-import sys
 import threading
 import time
 from struct import pack
 from struct import unpack
 
 from persistent.TimeStamp import TimeStamp
+from six import PY3
 from six import string_types as STRING_TYPES
 from zc.lockfile import LockFile
 from zope.interface import alsoProvides
@@ -2103,14 +2103,12 @@ class FilePool:
         This is required if they contain data of rolled back transactions.
         """
         with self.write_lock():
-            for f in self._files:
-                f.flush()
-
-    # Unfortunately, Python 3.x has no API to flush read buffers.
-    if sys.version_info.major > 2:
-        def flush(self):
-            with self.write_lock():
+            if PY3:
+                # Unfortunately, Python 3.x has no API to flush read buffers.
                 self.empty()
+            else:
+                for f in self._files:
+                    f.flush()
 
     def close(self):
         with self._cond:
