@@ -313,4 +313,9 @@ class ConflictResolvingStorage(object):
     def registerDB(self, wrapper):
         self._crs_untransform_record_data = wrapper.untransform_record_data
         self._crs_transform_record_data = wrapper.transform_record_data
-        super(ConflictResolvingStorage, self).registerDB(wrapper)
+        try:
+            m = super(ConflictResolvingStorage, self).registerDB
+        except AttributeError:
+            pass
+        else:
+            m(wrapper)
