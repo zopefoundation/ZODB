@@ -746,7 +746,6 @@ class ClientThread(TestThread):
     def runtest(self):
         from random import choice
         conn = self.db.open()
-        root = conn.root()
 
         for j in range(self.loop_trip):
             assign_worked = False
@@ -755,7 +754,7 @@ class ClientThread(TestThread):
             try:
                 index = choice(self.choices)
                 alist.extend([self.millis(), index])
-                root[index].value = MinPO(j)
+                conn.root()[index].value = MinPO(j)
                 assign_worked = True
                 transaction.commit()
                 alist.append(self.millis())

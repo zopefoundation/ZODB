@@ -490,61 +490,6 @@ class Connection(ExportImport, object):
         self._registered_objects = []
         self._creating.clear()
 
-    # Process pending invalidations.
-    def _flush_invalidations(self):
-        if self._mvcc_storage:
-            # Poll the storage for invalidations.
-            invalidated = self._storage.poll_invalidations()
-            if invalidated is None:
-                # special value: the transaction is so old that
-                # we need to flush the whole cache.
-                self._cache.invalidate(list(self._cache.cache_data.keys()))
-            elif invalidated:
-                self._cache.invalidate(invalidated)
-
-        self._inv_lock.acquire()
-        try:
-            # Non-ghostifiable objects may need to read when they are
-            # invalidated, so we'll quickly just replace the
-            # invalidating dict with a new one.  We'll then process
-            # the invalidations after freeing the lock *and* after
-            # resetting the time.  This means that invalidations will
-            # happen after the start of the transactions.  They are
-            # subject to conflict errors and to reading old data.
-
-            # TODO: There is a potential problem lurking for persistent
-            # classes.  Suppose we have an invalidation of a persistent
-            # class and of an instance.  If the instance is
-            # invalidated first and if the invalidation logic uses
-            # data read from the class, then the invalidation could
-            # be performed with stale data.  Or, suppose that there
-            # are instances of the class that are freed as a result of
-            # invalidating some object.  Perhaps code in their __del__
-            # uses class data.  Really, the only way to properly fix
-            # this is to, in fact, make classes ghostifiable.  Then
-            # we'd have to reimplement attribute lookup to check the
-            # class state and, if necessary, activate the class.  It's
-            # much worse than that though, because we'd also need to
-            # deal with slots.  When a class is ghostified, we'd need
-            # to replace all of the slot operations with versions that
-            # reloaded the object when called. It's hard to say which
-            # is better or worse.  For now, it seems the risk of
-            # using a class while objects are being invalidated seems
-            # small enough to be acceptable.
-
-            invalidated = dict.fromkeys(self._invalidated)
-            self._invalidated = set()
-            if self._invalidatedCache:
-                self._invalidatedCache = False
-                invalidated = self._cache.cache_data.copy()
-        finally:
-            self._inv_lock.release()
-
-        self._cache.invalidate(invalidated)
-
-        # Now is a good time to collect some garbage.
-        self._cache.incrgc()
-
     def tpc_begin(self, transaction):
         """Begin commit of a transaction, starting the two-phase commit."""
         self._modified = []
@@ -827,13 +772,62 @@ class Connection(ExportImport, object):
     def newTransaction(self, transaction=None):
         self._readCurrent.clear()
         getattr(self._storage, 'sync', noop)()
+
+        if self._mvcc_storage:
+            # Poll the storage for invalidations.
+            mvc_invalidated = self._storage.poll_invalidations()
+            if mvc_invalidated is None:
+                # special value: the transaction is so old that
+                # we need to flush the whole cache.
+                self._invalidatedCache = True
+        else:
+            mvc_invalidated = None
+
+        with self._inv_lock:
+            # Non-ghostifiable objects may need to read when they are
+            # invalidated, so we'll quickly just replace the
+            # invalidating dict with a new one.  We'll then process
+            # the invalidations after freeing the lock *and* after
+            # resetting the time.  This means that invalidations will
+            # happen after the start of the transactions.  They are
+            # subject to conflict errors and to reading old data.
+
+            # TODO: There is a potential problem lurking for persistent
+            # classes.  Suppose we have an invalidation of a persistent
+            # class and of an instance.  If the instance is
+            # invalidated first and if the invalidation logic uses
+            # data read from the class, then the invalidation could
+            # be performed with stale data.  Or, suppose that there
+            # are instances of the class that are freed as a result of
+            # invalidating some object.  Perhaps code in their __del__
+            # uses class data.  Really, the only way to properly fix
+            # this is to, in fact, make classes ghostifiable.  Then
+            # we'd have to reimplement attribute lookup to check the
+            # class state and, if necessary, activate the class.  It's
+            # much worse than that though, because we'd also need to
+            # deal with slots.  When a class is ghostified, we'd need
+            # to replace all of the slot operations with versions that
+            # reloaded the object when called. It's hard to say which
+            # is better or worse.  For now, it seems the risk of
+            # using a class while objects are being invalidated seems
+            # small enough to be acceptable.
+
+            if self._invalidatedCache:
+                self._invalidatedCache = False
+                invalidated = self._cache.cache_data.copy()
+            else:
+                invalidated = dict.fromkeys(self._invalidated)
+            self._invalidated = set()
+
         if self.opened:
             self._txn_time = p64(u64(self._storage.lastTransaction()) + 1)
 
-        # Nope that we flush invalidation *after* setting transaction
-        # time, because invalidating persistent classes causes data to
-        # be loaded.
-        self._flush_invalidations()
+        if mvc_invalidated:
+            self._cache.invalidate(mvc_invalidated)
+        self._cache.invalidate(invalidated)
+
+        # Now is a good time to collect some garbage.
+        self._cache.incrgc()
 
     afterCompletion = newTransaction
 
