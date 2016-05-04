@@ -577,6 +577,20 @@ class IStorage(Interface):
     def load(oid, version):
         """Load data for an object id
 
+        NOTE: This method is deprecated and may be removed in the
+        future.  It is no longer used by ZODB, although it may still
+        be used in some tests or scripts.  Previously, there was a
+        requirement that load results be properly ordered with
+        invalidations so that at any point in time, clients have a
+        consistent view of what version of an object is current.  This
+        restriction has been relaxed and some storages will be
+        simplified as a result of the removal of this requirement.
+
+        An alternative to calling load is calling loadBefore passing
+        ZODB,utils.maxtid::
+
+            store.loadBefore(oid, ZODB.utils.maxtid)
+
         The version argumement should always be an empty string. It
         exists soley for backward compatibility with older storage
         implementations.

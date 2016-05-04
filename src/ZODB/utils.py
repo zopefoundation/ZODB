@@ -34,6 +34,7 @@ __all__ = ['z64',
            'u64',
            'U64',
            'cp',
+           'maxtid',
            'newTid',
            'oid_repr',
            'serial_repr',
@@ -101,6 +102,8 @@ else:
         return bytes((int,))
 
 z64 = b'\0' * 8
+
+maxtid = b'\xff' * 8
 
 assert sys.hexversion >= 0x02030000
 
