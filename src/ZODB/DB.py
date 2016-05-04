@@ -13,12 +13,14 @@
 ##############################################################################
 """Database objects
 """
+from __future__ import print_function
 import sys
-import threading
 import logging
 import datetime
 import time
 import warnings
+
+from . import utils
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
@@ -179,6 +181,7 @@ class ConnectionPool(AbstractConnectionPool):
             (available and available[0][0] < threshhold)
             ):
             t, c = available.pop(0)
+            assert not c.opened
             self.all.remove(c)
             c._release_resources()
 
@@ -213,6 +216,7 @@ class ConnectionPool(AbstractConnectionPool):
 
         to_remove = ()
         for (t, c) in self.available:
+            assert not c.opened
             if t < threshhold:
                 to_remove += (c,)
                 self.all.remove(c)
@@ -405,7 +409,7 @@ class DB(object):
             storage = ZODB.MappingStorage.MappingStorage(**storage_args)
 
         # Allocate lock.
-        x = threading.RLock()
+        x = utils.RLock()
         self._a = x.acquire
         self._r = x.release
 
@@ -559,15 +563,17 @@ class DB(object):
                 # sys.getrefcount(ob) returns.  But, in addition to that,
                 # the cache holds an extra reference on non-ghost objects,
                 # and we also want to pretend that doesn't exist.
-                # If we have no way to get a refcount, we return False to symbolize
-                # that. As opposed to None, this has the advantage of being usable
-                # as a number (0) in case clients depended on that.
+                # If we have no way to get a refcount, we return False
+                # to symbolize that. As opposed to None, this has the
+                # advantage of being usable as a number (0) in case
+                # clients depended on that.
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
                     'klass': "%s%s" % (module, ob.__class__.__name__),
-                    'rc': rc(ob) - 3 - (ob._p_changed is not None) if rc else False,
+                    'rc': (rc(ob) - 3 - (ob._p_changed is not None)
+                           if rc else False),
                     'state': ob._p_changed,
                     #'references': con.references(oid),
                     })
@@ -628,7 +634,11 @@ class DB(object):
 
         @self._connectionMap
         def _(c):
-            c.transaction_manager.abort()
+            if c.opened:
+                c.transaction_manager.abort()
+                # Note that this will modify out pool, but this is safe, because
+                # _connectionMap makes a list of the pool to iterate over
+                c.close()
             c.afterCompletion = c.newTransaction = c.close = noop
             c._release_resources()
 
@@ -753,17 +763,17 @@ class DB(object):
             assert result is not None
 
             # open the connection.
-            result.open(transaction_manager)
 
             # A good time to do some cache cleanup.
             # (note we already have the lock)
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
-            return result
-
         finally:
             self._r()
+
+        result.open(transaction_manager)
+        return result
 
     def connectionDebugInfo(self):
         result = []
@@ -986,7 +996,7 @@ class ContextManager:
             self.tm.abort()
         self.conn.close()
 
-resource_counter_lock = threading.Lock()
+resource_counter_lock = utils.Lock()
 resource_counter = 0
 
 class TransactionalUndo(object):

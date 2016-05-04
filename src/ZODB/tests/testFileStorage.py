@@ -35,6 +35,7 @@ from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 from ZODB._compat import dump, dumps, _protocol
 
+from . import util
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -696,7 +697,7 @@ def test_suite():
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown,
+        tearDown=util.tearDown,
         checker=ZODB.tests.util.checker))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'BlobFileStorage',

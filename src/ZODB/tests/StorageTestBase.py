@@ -23,7 +23,7 @@ import sys
 import time
 import transaction
 
-from ZODB.utils import u64
+from ZODB.utils import u64, z64
 from ZODB.tests.MinPO import MinPO
 from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 import ZODB.tests.util
@@ -153,8 +153,8 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             self._storage.close()
 
     def tearDown(self):
-        self._close()
         ZODB.tests.util.TestCase.tearDown(self)
+        self._close()
 
     def _dostore(self, oid=None, revid=None, data=None,
                  already_pickled=0, user=None, description=None):

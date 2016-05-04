@@ -20,7 +20,6 @@ import contextlib
 import errno
 import logging
 import os
-import threading
 import time
 from struct import pack
 from struct import unpack
@@ -31,6 +30,8 @@ from six import string_types as STRING_TYPES
 from zc.lockfile import LockFile
 from zope.interface import alsoProvides
 from zope.interface import implementer
+
+from .. import utils
 
 from ZODB.blob import BlobStorageMixin
 from ZODB.blob import link_or_copy
@@ -2046,7 +2047,7 @@ class FilePool:
         self.name = file_name
         self._files = []
         self._out = []
-        self._cond = threading.Condition()
+        self._cond = utils.Condition()
 
     @contextlib.contextmanager
     def write_lock(self):

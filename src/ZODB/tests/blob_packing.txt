@@ -130,4 +130,4 @@ revision as well as the entire directory:
 
 Clean up our blob directory and database:
 
-    >>> blob_storage.close()
+    >>> database.close()

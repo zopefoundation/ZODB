@@ -65,6 +65,7 @@ class ZODBClientThread(TestThread):
             for i in range(self.commits):
                 self.commit(d, i)
         self.test.assertEqual(sorted(d.keys()), list(range(self.commits)))
+        conn.close()
 
     def commit(self, d, num):
         d[num] = time.time()

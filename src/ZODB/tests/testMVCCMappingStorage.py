@@ -33,6 +33,7 @@ from ZODB.tests import (
     )
 
 class MVCCTests:
+
     def checkClosingNestedDatabasesWorks(self):
         # This tests for the error described in
         # https://github.com/zopefoundation/ZODB/issues/45
@@ -41,7 +42,6 @@ class MVCCTests:
         db1.open().get_connection('2')
         db1.close()
         db2.close()
-
 
     def checkCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.

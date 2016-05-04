@@ -130,3 +130,10 @@ class MVCCMappingStorage(MappingStorage):
             MappingStorage.pack(self, t, referencesf, gc)
         finally:
             self._commit_lock.release()
+
+    @ZODB.utils.locked(MappingStorage.opened)
+    def lastTransaction(self):
+        if self._transactions:
+            return self._transactions.maxKey()
+        else:
+            return ZODB.utils.z64

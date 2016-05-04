@@ -54,6 +54,8 @@ except NameError:
     import io
     file_type = io.BufferedReader
 
+from . import util
+
 def new_time():
     """Create a _new_ time stamp.
 
@@ -334,6 +336,7 @@ class RecoveryBlobStorage(BlobTestBase,
         transaction.commit()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
+        db.close()
 
 
 def gc_blob_removes_uncommitted_data():
@@ -446,7 +449,6 @@ def packing_with_uncommitted_data_non_undoing():
     Clean up:
 
     >>> database.close()
-
     """
 
 def packing_with_uncommitted_data_undoing():
@@ -545,13 +547,14 @@ def loadblob_tmpstore():
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
     >>> tid = connection._storage.lastTransaction()
+    >>> _txn_time = connection._txn_time
 
     Now we open a database with a TmpStore in front:
 
     >>> database.close()
 
     >>> from ZODB.Connection import TmpStore
-    >>> tmpstore = TmpStore(blob_storage)
+    >>> tmpstore = TmpStore(blob_storage, _txn_time)
 
     We can access the blob correctly:
 
@@ -609,7 +612,7 @@ def do_not_depend_on_cwd():
     >>> with conn.root()['blob'].open() as fp: fp.read()
     'data'
 
-    >>> bs.close()
+    >>> db.close()
     """
 
 def savepoint_isolation():
@@ -700,9 +703,11 @@ def savepoint_cleanup():
 
     >>> db.close()
     """
+
 def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     r"""
-    >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
+    >>> db = ZODB.DB('data.fs', blob_dir='blobs')
+    >>> conn = db.open()
     >>> blob = ZODB.blob.Blob(b'blah')
     >>> conn.add(blob)
     >>> transaction.commit()
@@ -714,7 +719,7 @@ def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     >>> old_serial == blob._p_serial
     True
 
-    >>> conn.close()
+    >>> db.close()
     """
 
 def setUp(test):
@@ -757,7 +762,7 @@ def storage_reusable_suite(prefix, factory,
         "blob_connection.txt",
         "blob_importexport.txt",
         "blob_transaction.txt",
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+        setUp=setup, tearDown=util.tearDown,
         checker=zope.testing.renormalizing.RENormalizing([
             # Py3k renders bytes where Python2 used native strings...
             (re.compile(r"^b'"), "'"),
@@ -780,15 +785,16 @@ def storage_reusable_suite(prefix, factory,
     if test_packing:
         suite.addTest(doctest.DocFileSuite(
             "blob_packing.txt",
-            setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+            setUp=setup, tearDown=util.tearDown,
             ))
     suite.addTest(doctest.DocTestSuite(
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown,
-        checker = ZODB.tests.util.checker + \
+        setUp=setup, tearDown=util.tearDown,
+        checker = (
+            ZODB.tests.util.checker +
             zope.testing.renormalizing.RENormalizing([
-              (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
-              (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
-              ]),
+                (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
+                (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
+                ])),
         ))
 
     def create_storage(self, name='data', blob_dir=None):
@@ -823,7 +829,7 @@ def test_suite():
         "blob_tempdir.txt",
         "blobstorage_packing.txt",
         setUp=setUp,
-        tearDown=zope.testing.setupstack.tearDown,
+        tearDown=util.tearDown,
         optionflags=doctest.ELLIPSIS,
         checker=ZODB.tests.util.checker,
         ))
@@ -831,7 +837,7 @@ def test_suite():
         "blob_layout.txt",
         optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
         setUp=setUp,
-        tearDown=zope.testing.setupstack.tearDown,
+        tearDown=util.tearDown,
         checker=ZODB.tests.util.checker +
             zope.testing.renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),

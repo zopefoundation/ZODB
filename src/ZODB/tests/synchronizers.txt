@@ -25,10 +25,11 @@ Make a change locally:
     >>> rt = cn.root()
     >>> rt['a'] = 1
 
-Sync should not have been called yet.
+Sync is called when a connection is open, as that starts a new transaction:
 
-    >>> st.sync_called  # False before 3.4
-    False
+    >>> st.sync_called
+    True
+    >>> st.sync_called = False
 
 
 ``sync()`` is called by the Connection's ``afterCompletion()`` hook after the
@@ -77,7 +78,9 @@ path at some point when serving pages.
     >>> rt = cn.root()      # make a change
     >>> rt['c'] = 3
     >>> st.sync_called
-    False
+    True
+    >>> st.sync_called = False
+
 
 Now ensure that ``cn.afterCompletion() -> st.sync()`` gets called by commit
 despite that the `Connection` registered after the transaction began:
@@ -96,7 +99,8 @@ And try the same thing with a non-threaded transaction manager:
     >>> rt = cn.root()      # make a change
     >>> rt['d'] = 4
     >>> st.sync_called
-    False
+    True
+    >>> st.sync_called = False
     >>> tm.commit()
     >>> st.sync_called
     True

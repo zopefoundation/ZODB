@@ -99,10 +99,13 @@ class MinimalMemoryStorage(BaseStorage, object):
         del self._txn
 
     def _finish(self, tid, u, d, e):
-        with self._lock:
+        self._lock_acquire()
+        try:
             self._index.update(self._txn.index)
             self._cur.update(self._txn.cur())
             self._ltid = self._tid
+        finally:
+            self._lock_release()
 
     def loadBefore(self, the_oid, the_tid):
         # It's okay if loadBefore() is really expensive, because this
@@ -121,6 +124,9 @@ class MinimalMemoryStorage(BaseStorage, object):
                 end_tid = None
             else:
                 end_tid = tids[j]
+
+            self.hook(the_oid, self._cur[the_oid], '')
+
             return self._index[(the_oid, tid)], tid, end_tid
 
     def loadSerial(self, oid, serial):

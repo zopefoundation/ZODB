@@ -64,7 +64,7 @@ Now we see two transactions and two changed objects.
 
 Clean up.
 
->>> st.close()
+>>> db.close()
 """
 
 import re
@@ -87,6 +87,6 @@ checker = renormalizing.RENormalizing([
 def test_suite():
     return doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown,
+        tearDown=ZODB.tests.util.tearDown,
         optionflags=doctest.REPORT_NDIFF,
         checker=ZODB.tests.util.checker + checker)

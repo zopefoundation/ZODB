@@ -22,7 +22,7 @@ import unittest
 import transaction
 import ZODB.tests.util
 from ZODB.config import databaseFromString
-from ZODB.utils import p64
+from ZODB.utils import p64, u64, z64
 from persistent import Persistent
 from zope.interface.verify import verifyObject
 from zope.testing import loggingsupport, renormalizing
@@ -522,16 +522,24 @@ class InvalidationTests(unittest.TestCase):
         create one from an int.
 
         >>> cn.invalidate(p64(1), {p1._p_oid: 1})
-        >>> cn._txn_time
-        '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+        Transaction start times are based on storage's last
+        transaction. (Previousely, they were based on the first
+        invalidation seen in a transaction.)
+
+        >>> cn._txn_time == p64(u64(db.storage.lastTransaction()) + 1)
+        True
+
         >>> p1._p_oid in cn._invalidated
         True
         >>> p2._p_oid in cn._invalidated
         False
 
         >>> cn.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})
-        >>> cn._txn_time
-        '\x00\x00\x00\x00\x00\x00\x00\x01'
+
+        >>> cn._txn_time == p64(u64(db.storage.lastTransaction()) + 1)
+        True
+
         >>> p1._p_oid in cn._invalidated
         True
         >>> p2._p_oid in cn._invalidated
@@ -560,6 +568,7 @@ class InvalidationTests(unittest.TestCase):
         >>> cn._invalidated
         set([])
 
+        >>> db.close()
         """
 
 def doctest_invalidateCache():
@@ -1289,6 +1298,9 @@ class StubStorage:
             raise TypeError('StubStorage does not support versions.')
         return self._data[oid]
 
+    def loadBefore(self, oid, tid):
+        return self._data[oid] + (None, )
+
     def store(self, oid, serial, p, version, transaction):
         if version != '':
             raise TypeError('StubStorage does not support versions.')
@@ -1303,6 +1315,9 @@ class StubStorage:
         # Explicitly returning None, as we're not pretending to be a ZEO
         # storage
         return None
+
+    def lastTransaction(self):
+        return z64
 
 
 class TestConnectionInterface(unittest.TestCase):

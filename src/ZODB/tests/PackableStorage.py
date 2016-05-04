@@ -25,7 +25,8 @@ from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-from ZODB._compat import loads, PersistentPickler, Pickler, Unpickler, BytesIO, _protocol
+from ZODB._compat import (loads, PersistentPickler, Pickler, Unpickler,
+                          BytesIO, _protocol)
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util
@@ -270,6 +271,8 @@ class PackableStorage(PackableStorageBase):
 
         self._sanity_check()
 
+        db.close()
+
     def checkPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
 
@@ -312,6 +315,8 @@ class PackableStorage(PackableStorageBase):
 
         self._sanity_check()
 
+        db.close()
+
     def checkPackWithMultiDatabaseReferences(self):
         databases = {}
         db = DB(self._storage, databases=databases, database_name='')
@@ -327,6 +332,9 @@ class PackableStorage(PackableStorageBase):
         db.pack(time.time()+1)
         # some valid storages always return 0 for len()
         self.assertTrue(len(self._storage) in (0, 1))
+        conn.close()
+        otherdb.close()
+        db.close()
 
     def checkPackAllRevisions(self):
         self._initroot()
@@ -718,7 +726,7 @@ class ClientThread(TestThread):
 
     def __init__(self, db, choices, loop_trip, timer, thread_id):
         TestThread.__init__(self)
-        self.root = db.open().root()
+        self.db = db
         self.choices = choices
         self.loop_trip = loop_trip
         self.millis = timer.elapsed_millis
@@ -737,6 +745,8 @@ class ClientThread(TestThread):
 
     def runtest(self):
         from random import choice
+        conn = self.db.open()
+        root = conn.root()
 
         for j in range(self.loop_trip):
             assign_worked = False
@@ -745,7 +755,7 @@ class ClientThread(TestThread):
             try:
                 index = choice(self.choices)
                 alist.extend([self.millis(), index])
-                self.root[index].value = MinPO(j)
+                root[index].value = MinPO(j)
                 assign_worked = True
                 transaction.commit()
                 alist.append(self.millis())
@@ -755,6 +765,8 @@ class ClientThread(TestThread):
                 alist.append('Conflict')
                 transaction.abort()
             alist.append(assign_worked)
+
+        conn.close()
 
 class ElapsedTimer:
     def __init__(self, start_time):
@@ -776,5 +788,5 @@ def IExternalGC_suite(factory):
 
     return doctest.DocFileSuite(
         'IExternalGC.test',
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+        setUp=setup, tearDown=ZODB.tests.util.tearDown,
         checker=ZODB.tests.util.checker)
