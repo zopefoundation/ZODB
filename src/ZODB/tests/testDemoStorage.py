@@ -87,6 +87,23 @@ class DemoStorageTests(
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
+    def checkBaseHistory(self):
+        def base_only():
+            yield 11
+            yield 12
+            yield 13
+            self._storage = self._storage.push()
+        self._checkHistory(base_only())
+        self._storage = self._storage.pop()
+        def base_and_changes():
+            yield 11
+            yield 12
+            self._storage = self._storage.push()
+            yield 13
+            yield 14
+        self._checkHistory(base_and_changes())
+        self._storage = self._storage.pop()
+
 
 class DemoStorageHexTests(DemoStorageTests):
 
@@ -149,7 +166,7 @@ def testSomeDelegation():
     ...         six.print_(self.name, 'size')
     ...     def close(self):
     ...         six.print_(self.name, 'closed')
-    ...     sortKey = __len__ = history = getTid = None
+    ...     sortKey = __len__ = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
     ...     _lock_acquire = _lock_release = lambda self: None
     ...     getName = lambda self: 'S'

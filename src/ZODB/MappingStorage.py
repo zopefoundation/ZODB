@@ -106,7 +106,7 @@ class MappingStorage(object):
         tids.reverse()
         return [
             dict(
-                time = ZODB.TimeStamp.TimeStamp(tid),
+                time = ZODB.TimeStamp.TimeStamp(tid).timeTime(),
                 tid = tid,
                 serial = tid,
                 user_name = self._transactions[tid].user,

@@ -113,7 +113,7 @@ class DemoStorage(ConflictResolvingStorage):
     def _copy_methods_from_changes(self, changes):
         for meth in (
             '_lock_acquire', '_lock_release',
-            'getSize', 'history', 'isReadOnly',
+            'getSize', 'isReadOnly',
             'sortKey', 'tpc_transaction', 'tpc_vote',
             ):
             setattr(self, meth, getattr(changes, meth))
@@ -137,6 +137,20 @@ class DemoStorage(ConflictResolvingStorage):
             return self.changes.getTid(oid)
         except ZODB.POSException.POSKeyError:
             return self.base.getTid(oid)
+
+    def history(self, oid, size=1):
+        try:
+            r = self.changes.history(oid, size)
+        except ZODB.POSException.POSKeyError:
+            r = []
+        size -= len(r)
+        if size:
+            try:
+                r += self.base.history(oid, size)
+            except ZODB.POSException.POSKeyError:
+                if not r:
+                    raise
+        return r
 
     def iterator(self, start=None, end=None):
         for t in self.base.iterator(start, end):
