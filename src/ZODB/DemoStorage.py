@@ -319,7 +319,6 @@ class DemoStorage(object):
     @ZODB.utils.locked
     def tpc_abort(self, transaction):
         if transaction is not self._transaction:
-            print('WTF', transaction, self._transaction)
             return
         self._stored_oids = set()
         self._transaction = None
