@@ -2103,12 +2103,7 @@ class FilePool:
         This is required if they contain data of rolled back transactions.
         """
         with self.write_lock():
-            if PY3:
-                # Unfortunately, Python 3.x has no API to flush read buffers.
-                self.empty()
-            else:
-                for f in self._files:
-                    f.flush()
+            self.empty()
 
     def close(self):
         with self._cond:
