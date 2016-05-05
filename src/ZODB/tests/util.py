@@ -203,4 +203,4 @@ def clear_transaction_syncs():
     underware. Eventually, an transaction managers need to grow an API
     for this.
     """
-    transaction.manager._synchs.data.clear()
+    transaction.manager.clearSynchs()
