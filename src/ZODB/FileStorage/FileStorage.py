@@ -25,7 +25,6 @@ from struct import pack
 from struct import unpack
 
 from persistent.TimeStamp import TimeStamp
-from six import PY3
 from six import string_types as STRING_TYPES
 from zc.lockfile import LockFile
 from zope.interface import alsoProvides
@@ -2103,13 +2102,10 @@ class FilePool:
 
         This is required if they contain data of rolled back transactions.
         """
+        # Unfortunately, Python 3.x has no API to flush read buffers, and
+        # the API is ineffective in Python 2 on Mac OS X.
         with self.write_lock():
-            if PY3:
-                # Unfortunately, Python 3.x has no API to flush read buffers.
-                self.empty()
-            else:
-                for f in self._files:
-                    f.flush()
+            self.empty()
 
     def close(self):
         with self._cond:
