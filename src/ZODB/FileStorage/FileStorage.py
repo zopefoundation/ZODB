@@ -1644,7 +1644,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
         maxoid = index.maxKey()
     except ValueError:
         # The index is empty.
-        maxoid == z64
+        pass # maxoid is already equal to z64
 
     return pos, maxoid, ltid
 
