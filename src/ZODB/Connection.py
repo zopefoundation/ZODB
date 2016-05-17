@@ -771,9 +771,9 @@ class Connection(ExportImport, object):
 
     def newTransaction(self, transaction=None):
         self._readCurrent.clear()
-        getattr(self._storage, 'sync', noop)()
 
         if self._mvcc_storage:
+            self._storage.sync(True)
             # Poll the storage for invalidations.
             mvc_invalidated = self._storage.poll_invalidations()
             if mvc_invalidated is None:
@@ -781,6 +781,7 @@ class Connection(ExportImport, object):
                 # we need to flush the whole cache.
                 self._invalidatedCache = True
         else:
+            getattr(self._storage, 'sync', noop)()
             mvc_invalidated = None
 
         with self._inv_lock:
