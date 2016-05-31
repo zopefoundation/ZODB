@@ -29,6 +29,8 @@
 - DemoStorage: add support for conflict resolution and fix history()
   https://github.com/zopefoundation/ZODB/pull/58
 
+- Fixed a test that depended on implementation-specific behavior in tpc_finish
+
 4.2.0 (2015-06-02)
 ==================
 
