@@ -2,6 +2,11 @@
  Change History
 ================
 
+4.3.1 (2016-06-06)
+==================
+
+- Fixed: FileStorage loadBefore didn't handle deleted/undone data correctly.
+
 4.3.0 (2016-05-31)
 ==================
 
