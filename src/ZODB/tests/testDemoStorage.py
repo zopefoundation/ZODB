@@ -14,6 +14,7 @@
 from ZODB.DB import DB
 from ZODB.tests import (
     BasicStorage,
+    ConflictResolution,
     HistoryStorage,
     IteratorStorage,
     MTStorage,
@@ -42,7 +43,7 @@ from zope.testing import renormalizing
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
-
+    ConflictResolution.ConflictResolvingStorage,
     HistoryStorage.HistoryStorage,
     IteratorStorage.ExtendedIteratorStorage,
     IteratorStorage.IteratorStorage,
@@ -85,6 +86,23 @@ class DemoStorageTests(
     def checkLoadBeforeUndo(self):
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
+
+    def checkBaseHistory(self):
+        def base_only():
+            yield 11
+            yield 12
+            yield 13
+            self._storage = self._storage.push()
+        self._checkHistory(base_only())
+        self._storage = self._storage.pop()
+        def base_and_changes():
+            yield 11
+            yield 12
+            self._storage = self._storage.push()
+            yield 13
+            yield 14
+        self._checkHistory(base_and_changes())
+        self._storage = self._storage.pop()
 
 
 class DemoStorageHexTests(DemoStorageTests):
@@ -144,11 +162,11 @@ def testSomeDelegation():
     >>> class S:
     ...     def __init__(self, name):
     ...         self.name = name
-    ...     def registerDB(self, db):
-    ...         six.print_(self.name, db)
+    ...     def getSize(self):
+    ...         six.print_(self.name, 'size')
     ...     def close(self):
     ...         six.print_(self.name, 'closed')
-    ...     sortKey = getSize = __len__ = history = getTid = None
+    ...     sortKey = __len__ = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
     ...     _lock_acquire = _lock_release = lambda self: None
     ...     getName = lambda self: 'S'
@@ -165,8 +183,8 @@ def testSomeDelegation():
     >>> from ZODB.DemoStorage import DemoStorage
     >>> storage = DemoStorage(base=S(1), changes=S(2))
 
-    >>> storage.registerDB(1)
-    2 1
+    >>> storage.getSize()
+    2 size
 
     >>> storage.close()
     1 closed

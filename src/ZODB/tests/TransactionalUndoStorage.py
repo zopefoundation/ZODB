@@ -179,6 +179,10 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         self._undo(info[2]['id'], [oid])
         self.assertRaises(KeyError, self._storage.load, oid, '')
+
+        # Loading current data via loadBefore should raise a POSKeyError too:
+        self.assertRaises(KeyError, self._storage.loadBefore, oid,
+                          b'\x7f\xff\xff\xff\xff\xff\xff\xff')
         self._iterate()
 
     def checkUndoCreationBranch2(self):
@@ -286,10 +290,9 @@ class TransactionalUndoStorage:
         t = Transaction()
         oids = self._begin_undos_vote(t, tid, tid1)
         self._storage.tpc_finish(t)
-        # We get the finalization stuff called an extra time:
-        eq(len(oids), 4)
-        unless(oid1 in oids)
-        unless(oid2 in oids)
+        # We may get the finalization stuff called an extra time,
+        # depending on the implementation.
+        self.assertEqual(set(oids), set((oid1, oid2)))
         data, revid1 = self._storage.load(oid1, '')
         eq(zodb_unpickle(data), MinPO(30))
         data, revid2 = self._storage.load(oid2, '')

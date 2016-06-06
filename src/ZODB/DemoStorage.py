@@ -31,12 +31,13 @@ import ZODB.MappingStorage
 import ZODB.POSException
 import ZODB.utils
 import zope.interface
+from .ConflictResolution import ConflictResolvingStorage, ResolvedSerial
 
 @zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
         )
-class DemoStorage(object):
+class DemoStorage(ConflictResolvingStorage):
 
 
     def __init__(self, name=None, base=None, changes=None,
@@ -112,7 +113,7 @@ class DemoStorage(object):
     def _copy_methods_from_changes(self, changes):
         for meth in (
             '_lock_acquire', '_lock_release',
-            'getSize', 'history', 'isReadOnly', 'registerDB',
+            'getSize', 'isReadOnly',
             'sortKey', 'tpc_transaction', 'tpc_vote',
             ):
             setattr(self, meth, getattr(changes, meth))
@@ -136,6 +137,20 @@ class DemoStorage(object):
             return self.changes.getTid(oid)
         except ZODB.POSException.POSKeyError:
             return self.base.getTid(oid)
+
+    def history(self, oid, size=1):
+        try:
+            r = self.changes.history(oid, size)
+        except ZODB.POSException.POSKeyError:
+            r = []
+        size -= len(r)
+        if size:
+            try:
+                r += self.base.history(oid, size)
+            except ZODB.POSException.POSKeyError:
+                if not r:
+                    raise
+        return r
 
     def iterator(self, start=None, end=None):
         for t in self.base.iterator(start, end):
@@ -281,8 +296,9 @@ class DemoStorage(object):
                 old = serial
 
         if old != serial:
-            raise ZODB.POSException.ConflictError(
-                oid=oid, serials=(old, serial)) # XXX untested branch
+            rdata = self.tryToResolveConflict(oid, old, serial, data)
+            self.changes.store(oid, old, rdata, '', transaction)
+            return ResolvedSerial
 
         return self.changes.store(oid, serial, data, '', transaction)
 

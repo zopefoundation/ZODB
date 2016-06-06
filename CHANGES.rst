@@ -26,6 +26,11 @@
   transaction.
   https://github.com/zopefoundation/ZODB/pull/52
 
+- DemoStorage: add support for conflict resolution and fix history()
+  https://github.com/zopefoundation/ZODB/pull/58
+
+- Fixed: FileStorage loadBefore didn't handle deleted/undone data correctly.
+
 4.2.0 (2015-06-02)
 ==================
 

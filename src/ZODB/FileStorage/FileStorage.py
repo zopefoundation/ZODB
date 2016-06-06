@@ -490,11 +490,13 @@ class FileStorage(
                 if not pos:
                     return None
 
-            if h.back:
+            if h.plen:
+                return _file.read(h.plen), h.tid, end_tid
+            elif h.back:
                 data, _, _, _ = self._loadBack_impl(oid, h.back, _file=_file)
                 return data, h.tid, end_tid
             else:
-                return _file.read(h.plen), h.tid, end_tid
+                raise POSKeyError(oid)
 
     def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
@@ -1645,7 +1647,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
         maxoid = index.maxKey()
     except ValueError:
         # The index is empty.
-        maxoid == z64
+        pass # maxoid is already equal to z64
 
     return pos, maxoid, ltid
 
