@@ -23,22 +23,7 @@ interface, rich transaction support, and undo.
 version = "4.3.0.dev0"
 
 import os
-import sys
 from setuptools import setup, find_packages
-
-if sys.version_info < (2, 6):
-    print("This version of ZODB requires Python 2.6 or higher")
-    sys.exit(0)
-
-if (3,) < sys.version_info < (3, 2):
-    print("This version of ZODB requires Python 3.2 or higher")
-    sys.exit(0)
-
-
-# The (non-obvious!) choices for the Trove Development Status line:
-# Development Status :: 5 - Production/Stable
-# Development Status :: 4 - Beta
-# Development Status :: 3 - Alpha
 
 classifiers = """\
 Development Status :: 4 - Beta
