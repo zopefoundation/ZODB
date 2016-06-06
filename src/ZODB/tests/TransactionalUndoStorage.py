@@ -179,6 +179,10 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         self._undo(info[2]['id'], [oid])
         self.assertRaises(KeyError, self._storage.load, oid, '')
+
+        # Loading current data via loadBefore should raise a POSKeyError too:
+        self.assertRaises(KeyError, self._storage.loadBefore, oid,
+                          b'\x7f\xff\xff\xff\xff\xff\xff\xff')
         self._iterate()
 
     def checkUndoCreationBranch2(self):
