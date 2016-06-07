@@ -103,7 +103,7 @@ else:
 
 z64 = b'\0' * 8
 
-maxtid = b'\xff' * 8
+maxtid = b'\x7f\xff\xff\xff\xff\xff\xff\xff'
 
 assert sys.hexversion >= 0x02030000
 
