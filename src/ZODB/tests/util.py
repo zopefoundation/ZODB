@@ -73,8 +73,8 @@ def setUp(test, name='test'):
     zope.testing.setupstack.register(test, transaction.abort)
 
 def tearDown(test):
-    zope.testing.setupstack.tearDown(test)
     clear_transaction_syncs()
+    zope.testing.setupstack.tearDown(test)
 
 class TestCase(unittest.TestCase):
 
