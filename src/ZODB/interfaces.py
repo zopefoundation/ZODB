@@ -587,7 +587,7 @@ class IStorage(Interface):
         simplified as a result of the removal of this requirement.
 
         An alternative to calling load is calling loadBefore passing
-        ZODB,utils.maxtid::
+        ZODB.utils.maxtid::
 
             store.loadBefore(oid, ZODB.utils.maxtid)
 
