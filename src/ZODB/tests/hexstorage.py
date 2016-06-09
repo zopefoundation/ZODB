@@ -13,6 +13,7 @@
 ##############################################################################
 import ZODB.blob
 import ZODB.interfaces
+import ZODB.utils
 import zope.interface
 from binascii import hexlify, unhexlify
 
@@ -45,9 +46,7 @@ class HexStorage(object):
     def __len__(self):
         return len(self.base)
 
-    def load(self, oid, version=''):
-        data, serial = self.base.load(oid, version)
-        return unhexlify(data[2:]), serial
+    load = ZODB.utils.load_current
 
     def loadBefore(self, oid, tid):
         r = self.base.loadBefore(oid, tid)

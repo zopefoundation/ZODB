@@ -70,6 +70,7 @@ from ZODB.fsIndex import fsIndex
 from ZODB.utils import as_bytes
 from ZODB.utils import as_text
 from ZODB.utils import cp
+from ZODB.utils import load_current
 from ZODB.utils import mktemp
 from ZODB.utils import p64
 from ZODB.utils import u64
@@ -442,6 +443,8 @@ class FileStorage(
             raise POSKeyError(oid)
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
+
+    load = load_current # Keep load for now for old clients
 
     def load(self, oid, version=''):
         """Return pickle data and serial number."""
@@ -1314,7 +1317,7 @@ class FileStorage(
         except ValueError: # "empty tree" error
             next_oid = None
 
-        data, tid = self.load(oid, "")
+        data, tid = load_current(self, oid)
 
         return oid, tid, data, next_oid
 
