@@ -636,7 +636,7 @@ class DB(object):
         def _(c):
             if c.opened:
                 c.transaction_manager.abort()
-                # Note that this will modify out pool, but this is safe, because
+                # Note that this will modify our pool, but this is safe, because
                 # _connectionMap makes a list of the pool to iterate over
                 c.close()
             c.afterCompletion = c.newTransaction = c.close = noop
