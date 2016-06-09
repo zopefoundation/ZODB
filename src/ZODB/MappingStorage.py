@@ -134,15 +134,7 @@ class MappingStorage(object):
     def __len__(self):
         return len(self._data)
 
-    # ZODB.interfaces.IStorage
-    @ZODB.utils.locked(opened)
-    def load(self, oid, version=''):
-        assert not version, "Versions are not supported"
-        tid_data = self._data.get(oid)
-        if tid_data:
-            tid = tid_data.maxKey()
-            return tid_data[tid], tid
-        raise ZODB.POSException.POSKeyError(oid)
+    load = ZODB.utils.load_current
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)

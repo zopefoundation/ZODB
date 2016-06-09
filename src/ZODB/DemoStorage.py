@@ -31,7 +31,9 @@ import ZODB.MappingStorage
 import ZODB.POSException
 import ZODB.utils
 import zope.interface
+
 from .ConflictResolution import ConflictResolvingStorage, ResolvedSerial
+from .utils import load_current, maxtid
 
 @zope.interface.implementer(
         ZODB.interfaces.IStorage,
@@ -167,11 +169,8 @@ class DemoStorage(ConflictResolvingStorage):
     def __len__(self):
         return len(self.changes)
 
-    def load(self, oid, version=''):
-        try:
-            return self.changes.load(oid, version)
-        except ZODB.POSException.POSKeyError:
-            return self.base.load(oid, version)
+    # still want load for old clients (e.g. zeo servers)
+    load = load_current
 
     def loadBefore(self, oid, tid):
         try:
@@ -190,12 +189,27 @@ class DemoStorage(ConflictResolvingStorage):
                 pass
             else:
                 if result and not result[-1]:
-                    end_tid = None
-                    t = self.changes.load(oid)
+                    # The oid is current in the base.  We need to find
+                    # the end tid in the base by fining the first tid
+                    # in the changes. Unfortunately, there isn't an
+                    # api for this, so we have to walk back using
+                    # loadBefore.
+
+                    if tid == maxtid:
+                        # Special case: we were looking for the
+                        # current value. We won't find anything in
+                        # changes, so we're done.
+                        return result
+
+                    end_tid = maxtid
+                    t = self.changes.loadBefore(oid, end_tid)
                     while t:
                         end_tid = t[1]
                         t = self.changes.loadBefore(oid, end_tid)
-                    result = result[:2] + (end_tid,)
+                    result = result[:2] + (
+                        end_tid if end_tid != maxtid else None,
+                        )
+
         return result
 
     def loadBlob(self, oid, serial):
@@ -240,10 +254,10 @@ class DemoStorage(ConflictResolvingStorage):
             oid = ZODB.utils.p64(self._next_oid )
             if oid not in self._issued_oids:
                 try:
-                    self.changes.load(oid, '')
+                    load_current(self.changes, oid)
                 except ZODB.POSException.POSKeyError:
                     try:
-                        self.base.load(oid, '')
+                        load_current(self.base, oid)
                     except ZODB.POSException.POSKeyError:
                         self._next_oid += 1
                         self._issued_oids.add(oid)
@@ -288,12 +302,9 @@ class DemoStorage(ConflictResolvingStorage):
 
         # See if we already have changes for this oid
         try:
-            old = self.changes.load(oid, '')[1]
+            old = load_current(self, oid)[1]
         except ZODB.POSException.POSKeyError:
-            try:
-                old = self.base.load(oid, '')[1]
-            except ZODB.POSException.POSKeyError:
-                old = serial
+            old = serial
 
         if old != serial:
             rdata = self.tryToResolveConflict(oid, old, serial, data)
