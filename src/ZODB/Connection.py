@@ -306,13 +306,14 @@ class Connection(ExportImport, object):
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
-            for f in self.__onCloseCallbacks:
+            callbacks = self.__onCloseCallbacks
+            self.__onCloseCallbacks = None
+            for f in callbacks:
                 try:
                     f()
                 except: # except what?
                     f = getattr(f, 'im_self', f)
                     self._log.exception("Close callback failed for %s", f)
-            self.__onCloseCallbacks = None
 
         self._debug_info = ()
 
