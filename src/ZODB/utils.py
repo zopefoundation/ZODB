@@ -28,7 +28,6 @@ from ZODB._compat import Unpickler
 from ZODB._compat import BytesIO
 from ZODB._compat import ascii_bytes
 
-
 __all__ = ['z64',
            'p64',
            'u64',
@@ -375,3 +374,14 @@ if os.environ.get('DEBUG_LOCKING'):
 else:
 
     from threading import Condition, Lock, RLock
+
+
+import ZODB.POSException
+
+def load_current(storage, oid, version=''):
+    assert not version
+    r = storage.loadBefore(oid, maxtid)
+    if r is None:
+        raise ZODB.POSException.POSKeyError(oid)
+    assert r[2] is None
+    return r[:2]
