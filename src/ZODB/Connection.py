@@ -785,6 +785,9 @@ class Connection(ExportImport, object):
             getattr(self._storage, 'sync', noop)()
             mvc_invalidated = None
 
+        if self.opened:
+            self._txn_time = p64(u64(self._storage.lastTransaction()) + 1)
+
         with self._inv_lock:
             # Non-ghostifiable objects may need to read when they are
             # invalidated, so we'll quickly just replace the
@@ -820,9 +823,6 @@ class Connection(ExportImport, object):
             else:
                 invalidated = dict.fromkeys(self._invalidated)
             self._invalidated = set()
-
-        if self.opened:
-            self._txn_time = p64(u64(self._storage.lastTransaction()) + 1)
 
         if mvc_invalidated:
             self._cache.invalidate(mvc_invalidated)
