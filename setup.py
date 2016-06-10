@@ -26,7 +26,6 @@ import os
 from setuptools import setup, find_packages
 
 classifiers = """\
-Development Status :: 4 - Beta
 Intended Audience :: Developers
 License :: OSI Approved :: Zope Public License
 Programming Language :: Python
