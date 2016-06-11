@@ -405,7 +405,7 @@ class Connection(ExportImport, object):
 
     def sync(self):
         """Manually update the view on the database."""
-        self.transaction_manager.abort()
+        self.transaction_manager.begin()
 
     def getDebugInfo(self):
         """Returns a tuple with different items for debugging the
@@ -770,10 +770,16 @@ class Connection(ExportImport, object):
         # We don't do anything before a commit starts.
         pass
 
-    def newTransaction(self, transaction=None):
+    def newTransaction(self, transaction, sync=True):
         self._readCurrent.clear()
 
         if self._mvcc_storage:
+            # XXX It's not clear if we should make calling sync
+            # dependent on the sync flag here.  RelStorage's sync semantics
+            # are a bit different, plus RelStorage doesn't actually
+            # work with this code. :/ This will probably be sorted when
+            # we do:
+            # https://groups.google.com/forum/#!topic/zodb/QJYmvF0eUUM
             self._storage.sync(True)
             # Poll the storage for invalidations.
             mvc_invalidated = self._storage.poll_invalidations()
@@ -782,7 +788,8 @@ class Connection(ExportImport, object):
                 # we need to flush the whole cache.
                 self._invalidatedCache = True
         else:
-            getattr(self._storage, 'sync', noop)()
+            if sync:
+                getattr(self._storage, 'sync', noop)()
             mvc_invalidated = None
 
         if self.opened:
@@ -831,7 +838,16 @@ class Connection(ExportImport, object):
         # Now is a good time to collect some garbage.
         self._cache.incrgc()
 
-    afterCompletion = newTransaction
+    def afterCompletion(self, transaction):
+        # Note that we we call newTransaction here for 2 reasons:
+        # a) Applying invalidations early frees up resources
+        #    early. This is especially useful if the connection isn't
+        #    going to be used in a while.
+        # b) Non-hygienic applications might start new transactions by
+        #    finalizing previous ones without calling begin.  We pass
+        #    False to avoid possiblyt expensive sync calls to not
+        #    penalize well-behaved applications that call begin.
+        self.newTransaction(transaction, False)
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
@@ -977,15 +993,30 @@ class Connection(ExportImport, object):
 
         self.transaction_manager = transaction_manager
 
-        transaction_manager.registerSynch(self)
-
         self.opened = time.time()
 
         if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
 
-        self.newTransaction()
+        # This newTransaction is to deal with some pathalogical cases:
+        #
+        # a) Someone opens a connection when a transaction isn't
+        #    active and proceeeds without calling begin on a
+        #    transaction manager. We initialize the transaction for
+        #    the connection, but we don't do a storage sync, since
+        #    this will be done if a well-nehaved application calls
+        #    begin, and we don't want to penalize well-behaved
+        #    transactions by syncing twice, as storage syncs might be
+        #    expensive.
+        # b) Lots of tests assume that connection transaction
+        #    information is set on open.
+        #
+        # Fortunately, this is a cheap operation.  It doesn't really
+        # cost much, if anything.
+        self.newTransaction(None, False)
+
+        transaction_manager.registerSynch(self)
 
         if self._cache is not None:
             self._cache.incrgc() # This is a good time to do some GC
