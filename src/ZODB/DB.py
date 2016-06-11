@@ -762,8 +762,6 @@ class DB(object):
                     result = self.pool.pop()
             assert result is not None
 
-            # open the connection.
-
             # A good time to do some cache cleanup.
             # (note we already have the lock)
             self.pool.availableGC()
