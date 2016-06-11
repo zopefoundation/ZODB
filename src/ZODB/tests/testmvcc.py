@@ -38,7 +38,7 @@ originally written. The new approach is much simpler because we no
 longer call load to get the current state of an object. We call
 loadBefore instead, having gotten a transaction time at the start of a
 transaction.  As a result, the rhythm of the tests is a little odd,
-because the probe a complex dance that doesn't exist any more.
+because the probes against a complex dance that doesn't exist any more.
 
 >>> from ZODB.tests.test_storage import MinimalMemoryStorage
 >>> from ZODB import DB
