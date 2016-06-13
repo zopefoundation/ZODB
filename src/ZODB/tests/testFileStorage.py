@@ -15,6 +15,7 @@ import doctest
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing import doctest
+import sys
 import unittest
 import transaction
 import ZODB.FileStorage
@@ -302,9 +303,18 @@ class FileStorageTests(
         # is based on what was cached during the first load.
         self.assertEqual(storage.load(z64)[0], b'foo' if fail else b'bar')
 
-    def checkFlushNeededAfterTruncate(self):
-        self._storage._files.flush = lambda: None
-        self.checkFlushAfterTruncate(True)
+    # We want to be sure that the above test detects any regression
+    # in the code it checks, because any bug here is like a time bomb: not
+    # obvious, hard to reproduce, with possible data corruption.
+    # It's even more important that FilePool.flush() is quite aggressive and
+    # we'd like to optimize it when Python gets an API to flush read buffers.
+    # Therefore, 'checkFlushAfterTruncate' is tested in turn by another unit
+    # test.
+    # On Windows, flushing explicitely is not (always?) necessary.
+    if sys.platform != 'win32':
+        def checkFlushNeededAfterTruncate(self):
+            self._storage._files.flush = lambda: None
+            self.checkFlushAfterTruncate(True)
 
 class FileStorageHexTests(FileStorageTests):
 
@@ -389,7 +399,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
 
     def checkanalyze(self):
-        import types, sys
+        import types
         from BTrees.OOBTree import OOBTree
         from ZODB.scripts import analyze
 

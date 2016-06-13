@@ -70,6 +70,10 @@ weren't called when the transaction commited.  None of the test suites
 (ZODB's, Zope 2.8's, or Zope3's) caught that, but apparently Zope 3 takes this
 path at some point when serving pages.
 
+UPDATE: transaction 1.6.1 introduced a change that causes
+newTransaction to be called when a synchronizer registeres with a
+transaction manager with an active transaction.
+
     >>> tm = transaction.ThreadTransactionManager()
     >>> st.sync_called = False
     >>> dummy = tm.begin()  # we're doing this _before_ opening a connection
@@ -77,7 +81,8 @@ path at some point when serving pages.
     >>> rt = cn.root()      # make a change
     >>> rt['c'] = 3
     >>> st.sync_called
-    False
+    True
+    >>> st.sync_called = False
 
 Now ensure that ``cn.afterCompletion() -> st.sync()`` gets called by commit
 despite that the `Connection` registered after the transaction began:
@@ -96,7 +101,8 @@ And try the same thing with a non-threaded transaction manager:
     >>> rt = cn.root()      # make a change
     >>> rt['d'] = 4
     >>> st.sync_called
-    False
+    True
+    >>> st.sync_called = False
     >>> tm.commit()
     >>> st.sync_called
     True
