@@ -201,21 +201,6 @@ class IConnection(Interface):
     def isReadOnly():
         """Returns True if the storage for this connection is read only."""
 
-    def invalidate(tid, oids):
-        """Notify the Connection that transaction 'tid' invalidated oids.
-
-        When the next transaction boundary is reached, objects will be
-        invalidated.  If any of the invalidated objects are accessed by the
-        current transaction, the revision written before Connection.tid will be
-        used.
-
-        The DB calls this method, even when the Connection is closed.
-
-        Parameters:
-        tid: the storage-level id of the transaction that committed
-        oids: oids is an iterable of oids.
-        """
-
     def root():
         """Return the database root object.
 
@@ -276,14 +261,6 @@ class IConnection(Interface):
         """Returns the number of objects loaded and stored.
 
         If clear is True, reset the counters.
-        """
-
-    def invalidateCache():
-        """Invalidate the connection cache
-
-        This invalidates *all* objects in the cache. If the connection
-        is open, subsequent reads will fail until a new transaction
-        begins or until the connection os reopned.
         """
 
     def readCurrent(obj):
@@ -456,7 +433,7 @@ class IDatabase(IStorageDB):
         """
 
 
-class IStorage(Interface):
+class IStorageData(Interface):
     """A storage is responsible for storing and retrieving data of objects.
 
     Consistency and locking
@@ -489,90 +466,6 @@ class IStorage(Interface):
     methods.
 
     """
-
-    def close():
-        """Close the storage.
-
-        Finalize the storage, releasing any external resources.  The
-        storage should not be used after this method is called.
-        """
-
-    def getName():
-        """The name of the storage
-
-        The format and interpretation of this name is storage
-        dependent. It could be a file name, a database name, etc..
-
-        This is used soley for informational purposes.
-        """
-
-    def getSize():
-        """An approximate size of the database, in bytes.
-
-        This is used soley for informational purposes.
-        """
-
-    def history(oid, size=1):
-        """Return a sequence of history information dictionaries.
-
-        Up to size objects (including no objects) may be returned.
-
-        The information provides a log of the changes made to the
-        object. Data are reported in reverse chronological order.
-
-        Each dictionary has the following keys:
-
-        time
-            UTC seconds since the epoch (as in time.time) that the
-            object revision was committed.
-
-        tid
-            The transaction identifier of the transaction that
-            committed the version.
-
-        serial
-            An alias for tid, which expected by older clients.
-
-        user_name
-            The user identifier, if any (or an empty string) of the
-            user on whos behalf the revision was committed.
-
-        description
-            The transaction description for the transaction that
-            committed the revision.
-
-        size
-            The size of the revision data record.
-
-        If the transaction had extension items, then these items are
-        also included if they don't conflict with the keys above.
-
-        """
-
-    def isReadOnly():
-        """Test whether a storage allows committing new transactions
-
-        For a given storage instance, this method always returns the
-        same value.  Read-only-ness is a static property of a storage.
-        """
-
-        # XXX Note that this method doesn't really buy us much,
-        # especially since we have to account for the fact that a
-        # ostensibly non-read-only storage may be read-only
-        # transiently.  It would be better to just have read-only errors.
-
-    def lastTransaction():
-        """Return the id of the last committed transaction.
-
-        If no transactions have been committed, return a string of 8
-        null (0) characters.
-        """
-
-    def __len__():
-        """The approximate number of objects in the storage
-
-        This is used soley for informational purposes.
-        """
 
     def load(oid, version):
         """Load data for an object id
@@ -625,19 +518,6 @@ class IStorage(Interface):
         otherwise, POSKeyError is raised.
         """
 
-#     The following two methods are effectively part of the interface,
-#     as they are generally needed when one storage wraps
-#     another. This deserves some thought, at probably debate, before
-#     adding them.
-#
-#     def _lock_acquire():
-#         """Acquire the storage lock
-#         """
-
-#     def _lock_release():
-#         """Release the storage lock
-#         """
-
     def new_oid():
         """Allocate a new object id.
 
@@ -645,54 +525,6 @@ class IStorage(Interface):
         storage is opened.
 
         The return value is a string.
-        """
-
-    def pack(pack_time, referencesf):
-        """Pack the storage
-
-        It is up to the storage to interpret this call, however, the
-        general idea is that the storage free space by:
-
-        - discarding object revisions that were old and not current as of the
-          given pack time.
-
-        - garbage collecting objects that aren't reachable from the
-          root object via revisions remaining after discarding
-          revisions that were not current as of the pack time.
-
-        The pack time is given as a UTC time in seconds since the
-        epoch.
-
-        The second argument is a function that should be used to
-        extract object references from database records.  This is
-        needed to determine which objects are referenced from object
-        revisions.
-        """
-
-    def registerDB(wrapper):
-        """Register a storage wrapper IStorageWrapper.
-
-        The passed object is a wrapper object that provides an upcall
-        interface to support composition.
-
-        Note that, for historical reasons, an implementation may
-        require a second argument, however, if required, the None will
-        be passed as the second argument.
-
-        Also, for historical reasons, this is called registerDB rather
-        than register_wrapper.
-        """
-
-    def sortKey():
-        """Sort key used to order distributed transactions
-
-        When a transaction involved multiple storages, 2-phase commit
-        operations are applied in sort-key order.  This must be unique
-        among storages used in a transaction. Obviously, the storage
-        can't assure this, but it should construct the sort key so it
-        has a reasonable chance of being unique.
-
-        The result must be a string.
         """
 
     def store(oid, serial, data, version, transaction):
@@ -818,6 +650,142 @@ class IStorage(Interface):
 
         """
 
+class IStorageMetaData(Interface):
+
+    def close():
+        """Close the storage.
+
+        Finalize the storage, releasing any external resources.  The
+        storage should not be used after this method is called.
+        """
+
+    def getName():
+        """The name of the storage
+
+        The format and interpretation of this name is storage
+        dependent. It could be a file name, a database name, etc..
+
+        This is used soley for informational purposes.
+        """
+
+    def getSize():
+        """An approximate size of the database, in bytes.
+
+        This is used soley for informational purposes.
+        """
+
+    def history(oid, size=1):
+        """Return a sequence of history information dictionaries.
+
+        Up to size objects (including no objects) may be returned.
+
+        The information provides a log of the changes made to the
+        object. Data are reported in reverse chronological order.
+
+        Each dictionary has the following keys:
+
+        time
+            UTC seconds since the epoch (as in time.time) that the
+            object revision was committed.
+
+        tid
+            The transaction identifier of the transaction that
+            committed the version.
+
+        serial
+            An alias for tid, which expected by older clients.
+
+        user_name
+            The user identifier, if any (or an empty string) of the
+            user on whos behalf the revision was committed.
+
+        description
+            The transaction description for the transaction that
+            committed the revision.
+
+        size
+            The size of the revision data record.
+
+        If the transaction had extension items, then these items are
+        also included if they don't conflict with the keys above.
+
+        """
+
+    def isReadOnly():
+        """Test whether a storage allows committing new transactions
+
+        For a given storage instance, this method always returns the
+        same value.  Read-only-ness is a static property of a storage.
+        """
+
+        # XXX Note that this method doesn't really buy us much,
+        # especially since we have to account for the fact that a
+        # ostensibly non-read-only storage may be read-only
+        # transiently.  It would be better to just have read-only errors.
+
+    def lastTransaction():
+        """Return the id of the last committed transaction.
+
+        If no transactions have been committed, return a string of 8
+        null (0) characters.
+        """
+
+    def __len__():
+        """The approximate number of objects in the storage
+
+        This is used soley for informational purposes.
+        """
+
+    def pack(pack_time, referencesf):
+        """Pack the storage
+
+        It is up to the storage to interpret this call, however, the
+        general idea is that the storage free space by:
+
+        - discarding object revisions that were old and not current as of the
+          given pack time.
+
+        - garbage collecting objects that aren't reachable from the
+          root object via revisions remaining after discarding
+          revisions that were not current as of the pack time.
+
+        The pack time is given as a UTC time in seconds since the
+        epoch.
+
+        The second argument is a function that should be used to
+        extract object references from database records.  This is
+        needed to determine which objects are referenced from object
+        revisions.
+        """
+
+    def registerDB(wrapper):
+        """Register a storage wrapper IStorageWrapper.
+
+        The passed object is a wrapper object that provides an upcall
+        interface to support composition.
+
+        Note that, for historical reasons, an implementation may
+        require a second argument, however, if required, the None will
+        be passed as the second argument.
+
+        Also, for historical reasons, this is called registerDB rather
+        than register_wrapper.
+        """
+
+    def sortKey():
+        """Sort key used to order distributed transactions
+
+        When a transaction involved multiple storages, 2-phase commit
+        operations are applied in sort-key order.  This must be unique
+        among storages used in a transaction. Obviously, the storage
+        can't assure this, but it should construct the sort key so it
+        has a reasonable chance of being unique.
+
+        The result must be a string.
+        """
+
+class IStorage(IStorageMetaData, IStorageData):
+    pass
 
 class IStorageRestoreable(IStorage):
     """Copying Transactions
@@ -1110,11 +1078,7 @@ class IMVCCStorage(IStorage):
         """
 
     def release():
-        """Release all persistent sessions used by this storage instance.
-
-        After this call, the storage instance can still be used;
-        calling methods that use persistent sessions will cause the
-        persistent sessions to be reopened.
+        """Release resources held by
         """
 
     def poll_invalidations():

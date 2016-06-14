@@ -83,34 +83,40 @@ def test_invalidateCache():
         >>> from ZODB.tests.util import DB
         >>> import transaction
         >>> db = DB()
+        >>> mvcc_storage = db._mvcc_storage
         >>> tm1 = transaction.TransactionManager()
         >>> c1 = db.open(transaction_manager=tm1)
         >>> c1.root()['a'] = MinPO(1)
         >>> tm1.commit()
         >>> tm2 = transaction.TransactionManager()
         >>> c2 = db.open(transaction_manager=tm2)
-        >>> c1.root()['a']._p_deactivate()
+        >>> c2.root()['a'].value
+        1
         >>> tm3 = transaction.TransactionManager()
         >>> c3 = db.open(transaction_manager=tm3)
         >>> c3.root()['a'].value
         1
         >>> c3.close()
-        >>> db.invalidateCache()
 
-        >>> c1.root()['a'].value
-        Traceback (most recent call last):
-        ...
-        ReadConflictError: database read conflict error
-
-        >>> c2.root()['a'].value
-        Traceback (most recent call last):
-        ...
-        ReadConflictError: database read conflict error
-
+        >>> mvcc_storage.invalidateCache()
+        >>> c1.root.a._p_changed
+        0
+        >>> c1.sync()
+        >>> c1.root.a._p_changed
+        >>> c2.root.a._p_changed
+        0
+        >>> c2.sync()
+        >>> c2.root.a._p_changed
         >>> c3 is db.open(transaction_manager=tm3)
         True
-        >>> print(c3.root()['a']._p_changed)
-        None
+        >>> c3.root.a._p_changed
+
+        >>> c1.root()['a'].value
+        1
+        >>> c2.root()['a'].value
+        1
+        >>> c3.root()['a'].value
+        1
 
         >>> db.close()
     """
