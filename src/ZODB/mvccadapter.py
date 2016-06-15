@@ -256,7 +256,8 @@ class UndoAdapterInstance(Base):
     def tpc_vote(self, transaction):
         result = self._storage.tpc_vote(transaction)
         if result:
-            self._undone.update(result[1])
+            for oid, serial in result:
+                self._undone.add(oid)
 
     def tpc_finish(self, transaction, func = lambda tid: None):
 
