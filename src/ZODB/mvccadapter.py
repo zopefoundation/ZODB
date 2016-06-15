@@ -165,10 +165,12 @@ class MVCCAdapterInstance(Base):
         return s
 
     def tpc_finish(self, transaction, func = lambda tid: None):
+        modified = self._modified
+        self._modified = None
+
         def invalidate_finish(tid):
-            self._base._invalidate_finish(self._modified, self)
+            self._base._invalidate_finish(modified, self)
             func(tid)
-            self._modified = None
 
         self._storage.tpc_finish(transaction, invalidate_finish)
 
