@@ -49,6 +49,8 @@ from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 import six
 
+from .mvccadapter import HistoricalStorageAdapter
+
 global_reset_counter = 0
 
 noop = lambda : None
@@ -101,11 +103,10 @@ class Connection(ExportImport, object):
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
-        storage = db._mvcc_storage
         if before:
-            storage = storage.before_instance(before)
+            storage = HistoricalStorageAdapter(db.storage, before)
         else:
-            storage = storage.new_instance()
+            storage = db._mvcc_storage.new_instance()
 
         self._normal_storage = self._storage = storage
         self.new_oid = db.new_oid
@@ -308,7 +309,7 @@ class Connection(ExportImport, object):
         """Returns True if this connection is read only."""
         if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
-        return self.before is not None or self._storage.isReadOnly()
+        return self._storage.isReadOnly()
 
     @property
     def root(self):

@@ -177,15 +177,17 @@ class MVCCAdapterInstance(Base):
 def read_only_writer(self, *a, **kw):
     raise POSException.ReadOnlyError
 
-class BeforeAdapterInstance(Base):
+class HistoricalStorageAdapter(Base):
+    """Adapt a storage to a historical storage
+    """
 
     _copy_methods = Base._copy_methods + (
         'loadSerial', 'tpc_begin', 'tpc_finish', 'tpc_abort', 'tpc_vote',
         'checkCurrentSerialInTransaction',
         )
 
-    def __init__(self, base, before=None):
-        Base.__init__(self, base._storage)
+    def __init__(self, storage, before=None):
+        Base.__init__(self, storage)
         self._before = before
 
     def isReadOnly(self):
