@@ -53,7 +53,7 @@ class MVCCAdapter(Base):
         return instance
 
     def before_instance(self, before=None):
-        return BeforeAdapterInstance(self, before)
+        return HistoricalStorageAdapter(self._storage, before)
 
     def undo_instance(self):
         return UndoAdapterInstance(self)
@@ -97,7 +97,6 @@ class MVCCAdapterInstance(Base):
     _copy_methods = Base._copy_methods + (
         'loadSerial', 'new_oid', 'tpc_vote',
         'checkCurrentSerialInTransaction', 'tpc_abort',
-        'loadBefore',
         )
 
     def __init__(self, base):
