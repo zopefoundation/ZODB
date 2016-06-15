@@ -146,6 +146,9 @@ class MVCCAdapterInstance(Base):
             raise POSException.ReadConflictError(repr(oid))
         return r[:2]
 
+    _modified = None # Used to keep track of oids modified within a
+                     # transaction, so we can invalidate them later.
+
     def tpc_begin(self, transaction):
         self._storage.tpc_begin(transaction)
         self._modified = set()
@@ -165,7 +168,7 @@ class MVCCAdapterInstance(Base):
         def invalidate_finish(tid):
             self._base._invalidate_finish(self._modified, self)
             func(tid)
-            del self._modified
+            self._modified = None
 
         self._storage.tpc_finish(transaction, invalidate_finish)
 
