@@ -61,12 +61,14 @@ class MVCCAdapter(Base):
     def __init__(self, storage):
         Base.__init__(self, storage)
         self._instances = set()
+        self._lock = threading.Lock()
         if hasattr(storage, 'registerDB'):
             storage.registerDB(self)
 
     def new_instance(self):
         instance = MVCCAdapterInstance(self)
-        self._instances.add(instance)
+        with self._lock:
+            self._instances.add(instance)
         return instance
 
     def before_instance(self, before=None):
@@ -76,7 +78,8 @@ class MVCCAdapter(Base):
         return UndoAdapterInstance(self)
 
     def _release(self, instance):
-        self._instances.remove(instance)
+        with self._lock:
+            self._instances.remove(instance)
 
     closed = False
     def close(self):
@@ -87,20 +90,23 @@ class MVCCAdapter(Base):
             del self._storage
 
     def invalidateCache(self):
-        for instance in self._instances:
-            instance._invalidateCache()
+        with self._lock:
+            for instance in self._instances:
+                instance._invalidateCache()
 
     def invalidate(self, transaction_id, oids, version=''):
-        for instance in self._instances:
-            instance._invalidate(oids)
+        with self._lock:
+            for instance in self._instances:
+                instance._invalidate(oids)
+
+    def _invalidate_finish(self, oids, committing_instance):
+        with self._lock:
+            for instance in self._instances:
+                if instance is not committing_instance:
+                    instance._invalidate(oids)
 
     references = serialize.referencesf
     transform_record_data = untransform_record_data = lambda self, data: data
-
-    def _invalidate_finish(self, oids, committing_instance):
-        for instance in self._instances:
-            if instance is not committing_instance:
-                instance._invalidate(oids)
 
     def pack(self, pack_time, referencesf):
         return self._storage.pack(pack_time, referencesf)
