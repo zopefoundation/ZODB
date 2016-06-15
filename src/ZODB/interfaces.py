@@ -1069,7 +1069,9 @@ class IMVCCStorage(IStorage):
         """
 
     def release():
-        """Release resources held by
+        """Release resources held by the storage instance.
+
+        The storage instance won't be used again after this call.
         """
 
     def poll_invalidations():
