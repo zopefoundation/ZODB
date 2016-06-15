@@ -97,6 +97,7 @@ class MVCCAdapterInstance(Base):
     _copy_methods = Base._copy_methods + (
         'loadSerial', 'new_oid', 'tpc_vote',
         'checkCurrentSerialInTransaction', 'tpc_abort',
+        'loadBefore',
         )
 
     def __init__(self, base):

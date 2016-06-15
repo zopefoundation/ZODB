@@ -103,10 +103,9 @@ class Connection(ExportImport, object):
         # Multi-database support
         self.connections = {self._db.database_name: self}
 
+        storage = db._mvcc_storage.new_instance()
         if before:
-            storage = HistoricalStorageAdapter(db.storage, before)
-        else:
-            storage = db._mvcc_storage.new_instance()
+            storage = HistoricalStorageAdapter(storage, before)
 
         self._normal_storage = self._storage = storage
         self.new_oid = db.new_oid
