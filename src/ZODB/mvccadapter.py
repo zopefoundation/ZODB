@@ -16,40 +16,23 @@ class Base(object):
     _copy_methods = (
         'getName', 'getSize', 'history', 'lastTransaction', 'sortKey',
         'loadBlob', 'openCommittedBlobFile',
+        'isReadOnly', 'supportsUndo', 'undoLog', 'undoInfo',
+        'temporaryDirectory',
         )
 
     def __init__(self, storage):
         self._storage = storage
-        for name in self._copy_methods:
-            if hasattr(self._storage, name):
-                setattr(self, name, getattr(storage, name))
-
         if interfaces.IBlobStorage.providedBy(storage):
             zope.interface.alsoProvides(self, interfaces.IBlobStorage)
 
-    def isReadOnly(self):
-        return self._storage.isReadOnly()
+    def __getattr__(self, name):
+        if name in self._copy_methods:
+            if hasattr(self._storage, name):
+                m = getattr(self._storage, name)
+                setattr(self, name, m)
+                return m
 
-    def supportsUndo(self):
-        try:
-            return self._storage.supportsUndo()
-        except AttributeError:
-            return False
-
-    def undoLog(self, first, last, filter=None):
-        try:
-            return self._storage.undoLog(first, last, filter)
-        except AttributeError:
-            return False
-
-    def undoInfo(self, first=0, last=20, specification=None):
-        try:
-            return self._storage.undoInfo(first, last, specification)
-        except AttributeError:
-            return False
-
-    def temporaryDirectory(self):
-        return self._storage.temporaryDirectory()
+        raise AttributeError(name)
 
     def __len__():
         return len(self._storage)
@@ -112,7 +95,7 @@ class MVCCAdapter(Base):
 class MVCCAdapterInstance(Base):
 
     _copy_methods = Base._copy_methods + (
-        'isReadOnly', 'loadSerial', 'new_oid', 'tpc_vote',
+        'loadSerial', 'new_oid', 'tpc_vote',
         'checkCurrentSerialInTransaction', 'tpc_abort',
         )
 
