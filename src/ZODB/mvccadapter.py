@@ -6,12 +6,10 @@ and start time and moves it into a storage adapter.  This allows ZODB
 to treat Relstoage and other storages in pretty much the same way and
 also simplifies the implementation of the DB and Connection classes.
 """
-import threading
-
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64
+from .utils import p64, u64, Lock
 
 class Base(object):
 
@@ -61,7 +59,7 @@ class MVCCAdapter(Base):
     def __init__(self, storage):
         Base.__init__(self, storage)
         self._instances = set()
-        self._lock = threading.Lock()
+        self._lock = Lock()
         if hasattr(storage, 'registerDB'):
             storage.registerDB(self)
 
@@ -121,7 +119,7 @@ class MVCCAdapterInstance(Base):
     def __init__(self, base):
         self._base = base
         Base.__init__(self, base._storage)
-        self._lock = threading.Lock()
+        self._lock = Lock()
         self._invalidations = set()
         self._start = None # Transaction start time
         self._sync = getattr(self._storage, 'sync', lambda : None)
