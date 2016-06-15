@@ -547,14 +547,13 @@ def loadblob_tmpstore():
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
     >>> tid = connection._storage.lastTransaction()
-    >>> _txn_time = connection._txn_time
 
     Now we open a database with a TmpStore in front:
 
     >>> database.close()
 
     >>> from ZODB.Connection import TmpStore
-    >>> tmpstore = TmpStore(blob_storage, _txn_time)
+    >>> tmpstore = TmpStore(blob_storage)
 
     We can access the blob correctly:
 

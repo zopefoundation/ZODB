@@ -27,6 +27,8 @@ from persistent import Persistent
 from zope.interface.verify import verifyObject
 from zope.testing import loggingsupport, renormalizing
 
+from .. import mvccadapter
+
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".
     (re.compile("b('.*?')"), r"\1"),
@@ -154,7 +156,8 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.datamgr.add(obj)
         self.datamgr.tpc_begin(self.transaction)
         self.datamgr.tpc_finish(self.transaction)
-        self.assertTrue(obj._p_oid not in self.datamgr._storage._stored)
+        self.assertTrue(obj._p_oid not in
+                        self.datamgr._storage._storage._stored)
 
     def test__resetCacheResetsReader(self):
         # https://bugs.launchpad.net/zodb/+bug/142667
@@ -435,8 +438,11 @@ class UserMethodTests(unittest.TestCase):
           ...
         ConnectionStateError: The database connection is closed
 
+        >>> db.close()
+
         An expedient way to create a read-only storage:
 
+        >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> db.storage.isReadOnly = lambda: True
         >>> cn = db.open()
         >>> cn.isReadOnly()
@@ -510,7 +516,9 @@ class InvalidationTests(unittest.TestCase):
         they have the expected effect.
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        >>> mvcc_storage = db._mvcc_storage
         >>> cn = db.open()
+        >>> mvcc_instance = cn._storage
         >>> p1 = Persistent()
         >>> p2 = Persistent()
         >>> p3 = Persistent()
@@ -521,29 +529,18 @@ class InvalidationTests(unittest.TestCase):
         Transaction ids are 8-byte strings, just like oids; p64() will
         create one from an int.
 
-        >>> cn.invalidate(p64(1), {p1._p_oid: 1})
+        >>> mvcc_storage.invalidate(p64(1), {p1._p_oid: 1})
 
         Transaction start times are based on storage's last
         transaction. (Previousely, they were based on the first
         invalidation seen in a transaction.)
 
-        >>> cn._txn_time == p64(u64(db.storage.lastTransaction()) + 1)
+        >>> mvcc_instance.poll_invalidations() == [p1._p_oid]
+        True
+        >>> mvcc_instance._start == p64(u64(db.storage.lastTransaction()) + 1)
         True
 
-        >>> p1._p_oid in cn._invalidated
-        True
-        >>> p2._p_oid in cn._invalidated
-        False
-
-        >>> cn.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})
-
-        >>> cn._txn_time == p64(u64(db.storage.lastTransaction()) + 1)
-        True
-
-        >>> p1._p_oid in cn._invalidated
-        True
-        >>> p2._p_oid in cn._invalidated
-        True
+        >>> mvcc_storage.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})
 
         Calling invalidate() doesn't affect the object state until
         a transaction boundary.
@@ -560,24 +557,24 @@ class InvalidationTests(unittest.TestCase):
 
         >>> cn.sync()
         >>> p1._p_state
-        -1
+        0
         >>> p2._p_state
         -1
         >>> p3._p_state
         0
-        >>> cn._invalidated
-        set([])
 
         >>> db.close()
         """
 
 def doctest_invalidateCache():
-    """The invalidateCache method invalidates a connection's cache.  It also
-    prevents reads until the end of a transaction::
+    """The invalidateCache method invalidates a connection's cache.
+
+    It also prevents reads until the end of a transaction::
 
         >>> from ZODB.tests.util import DB
         >>> import transaction
         >>> db = DB()
+        >>> mvcc_storage = db._mvcc_storage
         >>> tm = transaction.TransactionManager()
         >>> connection = db.open(transaction_manager=tm)
         >>> connection.root()['a'] = StubObject()
@@ -593,52 +590,32 @@ def doctest_invalidateCache():
     So we have a connection and an active transaction with some modifications.
     Lets call invalidateCache:
 
-        >>> connection.invalidateCache()
+        >>> mvcc_storage.invalidateCache()
+
+    This won't have any effect until the next transaction:
+
+        >>> connection.root()['a']._p_changed
+        0
+        >>> connection.root()['b']._p_changed
+        >>> connection.root()['c']._p_changed
+        1
+
+    But if we sync():
+
+        >>> connection.sync()
+
+    All of our data was invalidated:
+
+        >>> connection.root()['a']._p_changed
+        >>> connection.root()['b']._p_changed
+        >>> connection.root()['c']._p_changed
+
+    But we can load data as usual:
 
     Now, if we try to load an object, we'll get a read conflict:
 
         >>> connection.root()['b'].x
-        Traceback (most recent call last):
-        ...
-        ReadConflictError: database read conflict error
-
-    If we try to commit the transaction, we'll get a conflict error:
-
-        >>> tm.commit()
-        Traceback (most recent call last):
-        ...
-        ConflictError: database conflict error
-
-    and the cache will have been cleared:
-
-        >>> print(connection.root()['a']._p_changed)
-        None
-        >>> print(connection.root()['b']._p_changed)
-        None
-        >>> print(connection.root()['c']._p_changed)
-        None
-
-    But we'll be able to access data again:
-
-        >>> connection.root()['b'].x
         1
-
-    Aborting a transaction after a read conflict also lets us read data and go
-    on about our business:
-
-        >>> connection.invalidateCache()
-
-        >>> connection.root()['c'].x
-        Traceback (most recent call last):
-        ...
-        ReadConflictError: database read conflict error
-
-        >>> tm.abort()
-        >>> connection.root()['c'].x
-        1
-
-        >>> connection.root()['c'].x = 2
-        >>> tm.commit()
 
         >>> db.close()
     """
@@ -1333,6 +1310,7 @@ class StubDatabase:
 
     def __init__(self):
         self.storage = StubStorage()
+        self._mvcc_storage = mvccadapter.MVCCAdapter(self.storage)
         self.new_oid = self.storage.new_oid
 
     classFactory = None

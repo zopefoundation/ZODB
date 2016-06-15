@@ -68,9 +68,9 @@ Now open a second connection.
 >>> tm2 = transaction.TransactionManager()
 >>> cn2 = db.open(transaction_manager=tm2)
 >>> from ZODB.utils import p64, u64
->>> cn2._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn2._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
->>> txn_time2  = cn2._txn_time
+>>> txn_time2  = cn2._storage._start
 
 Connection high-water mark
 --------------------------
@@ -85,13 +85,13 @@ storage has seen.
 
 >>> cn = db.open()
 
->>> cn._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
->>> cn.invalidate(100, dict.fromkeys([1, 2]))
->>> cn._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn.db()._mvcc_storage.invalidate(100, dict.fromkeys([1, 2]))
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
->>> cn.invalidate(200, dict.fromkeys([1, 2]))
->>> cn._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn.db()._mvcc_storage.invalidate(200, dict.fromkeys([1, 2]))
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
 
 A connection's high-water mark is set to the transaction id taken from
@@ -105,7 +105,7 @@ but that doesn't work unless an object is modified.  sync() will abort
 a transaction and process invalidations.
 
 >>> cn.sync()
->>> cn._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
 
 Basic functionality
@@ -121,14 +121,14 @@ will modify "a."  The other transaction will then modify "b" and commit.
 
 The second connection already has its high-water mark set.
 
->>> cn2._txn_time == txn_time2
+>>> cn2._storage._start == txn_time2
 True
 
 It is safe to read "b," because it was not modified by the concurrent
 transaction.
 
 >>> r2 = cn2.root()
->>> r2["b"]._p_serial < cn2._txn_time
+>>> r2["b"]._p_serial < cn2._storage._start
 True
 >>> r2["b"].value
 1
@@ -140,7 +140,7 @@ non-current version.
 
 >>> r2["a"].value
 1
->>> r2["a"]._p_serial < cn2._txn_time
+>>> r2["a"]._p_serial < cn2._storage._start
 True
 
 We can confirm that we have a non-current revision by asking the
@@ -153,32 +153,32 @@ It's possible to modify "a", but we get a conflict error when we
 commit the transaction.
 
 >>> r2["a"].value = 3
->>> tm2.get().commit()
+>>> tm2.get().commit() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO.MinPO)
+ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO...
 
 >>> tm2.get().abort()
 
 This example will demonstrate that we can commit a transaction if we only
 modify current revisions.
 
->>> cn2._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn2._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
->>> txn_time2  = cn2._txn_time
+>>> txn_time2  = cn2._storage._start
 
 >>> r1 = cn1.root()
 >>> r1["a"].value = 3
 >>> tm1.get().commit()
 >>> txn = db.lastTransaction()
->>> cn2._txn_time == txn_time2
+>>> cn2._storage._start == txn_time2
 True
 
 >>> r2["b"].value = r2["a"].value + 1
 >>> r2["b"].value
 3
 >>> tm2.get().commit()
->>> cn2._txn_time == p64(u64(st.lastTransaction()) + 1)
+>>> cn2._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
 
 Object cache
@@ -362,18 +362,18 @@ This test is kinda screwy because it depends on an old approach that
 has changed.  We'll hack the _txn_time to get the original expected
 result, even though what's going on now is much simpler.
 
->>> cn1._txn_time = ts.lastTransaction()
+>>> cn1._storage._start = ts.lastTransaction()
 
 Once the oid is hooked, an invalidation will be delivered the next
 time it is activated.  The code below activates the object, then
 confirms that the hook worked and that the old state was retrieved.
 
->>> oid in cn1._invalidated
+>>> oid in cn1._storage._invalidations
 False
 >>> r1["b"]._p_state
 -1
 >>> r1["b"]._p_activate()
->>> oid in cn1._invalidated
+>>> oid in cn1._storage._invalidations
 True
 >>> ts.count
 1
@@ -406,15 +406,15 @@ Again, once the oid is hooked, an invalidation will be delivered the next
 time it is activated.  The code below activates the object, but unlike the
 section above, this is no older state to retrieve.
 
->>> oid in cn1._invalidated
+>>> oid in cn1._storage._invalidations
 False
 >>> r1["b"]._p_state
 -1
->>> cn1._txn_time = ts.lastTransaction()
->>> r1["b"]._p_activate()
+>>> cn1._storage._start = ts.lastTransaction()
+>>> r1["b"]._p_activate() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ReadConflictError: database read conflict error
+ReadConflictError: ...
 
 >>> db.close()
 """
