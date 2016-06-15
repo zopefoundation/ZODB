@@ -433,7 +433,7 @@ class IDatabase(IStorageDB):
         """
 
 
-class IStorageData(Interface):
+class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
 
     Consistency and locking
@@ -650,8 +650,6 @@ class IStorageData(Interface):
 
         """
 
-class IStorageMetaData(Interface):
-
     def close():
         """Close the storage.
 
@@ -783,9 +781,6 @@ class IStorageMetaData(Interface):
 
         The result must be a string.
         """
-
-class IStorage(IStorageMetaData, IStorageData):
-    pass
 
 class IStorageRestoreable(IStorage):
     """Copying Transactions
