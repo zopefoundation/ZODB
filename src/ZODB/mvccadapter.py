@@ -34,7 +34,7 @@ class Base(object):
 
         raise AttributeError(name)
 
-    def __len__():
+    def __len__(self):
         return len(self._storage)
 
 class MVCCAdapter(Base):
