@@ -19,7 +19,6 @@ storage without distracting storage details.
 
 import BTrees
 import time
-import threading
 import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
@@ -40,10 +39,10 @@ class MappingStorage(object):
         self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
         self._ltid = ZODB.utils.z64
         self._last_pack = None
-        _lock = threading.RLock()
+        _lock = ZODB.utils.RLock()
         self._lock_acquire = _lock.acquire
         self._lock_release = _lock.release
-        self._commit_lock = threading.Lock()
+        self._commit_lock = ZODB.utils.Lock()
         self._opened = True
         self._transaction = None
         self._oid = 0

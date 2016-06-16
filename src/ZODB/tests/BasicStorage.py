@@ -29,6 +29,8 @@ import transaction
 import zope.interface
 import zope.interface.verify
 
+from .. import utils
+
 ZERO = b'\0'*8
 
 class BasicStorage:
@@ -345,7 +347,7 @@ class BasicStorage:
         results = {}
         started.wait()
         attempts = []
-        attempts_cond = threading.Condition()
+        attempts_cond = utils.Condition()
 
         def update_attempts():
             with attempts_cond:

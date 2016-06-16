@@ -76,12 +76,12 @@ class DemoStorageTests(
         db = DB(self._storage) # creates object 0. :)
         self.assertEqual(len(self._storage), 1)
         self.assertTrue(self._storage)
-        conn = db.open()
-        for i in range(10):
-            conn.root()[i] = conn.root().__class__()
-        transaction.commit()
+        with db.transaction() as conn:
+            for i in range(10):
+                conn.root()[i] = conn.root().__class__()
         self.assertEqual(len(self._storage), 11)
         self.assertTrue(self._storage)
+        db.close()
 
     def checkLoadBeforeUndo(self):
         pass # we don't support undo yet

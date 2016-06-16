@@ -201,21 +201,6 @@ class IConnection(Interface):
     def isReadOnly():
         """Returns True if the storage for this connection is read only."""
 
-    def invalidate(tid, oids):
-        """Notify the Connection that transaction 'tid' invalidated oids.
-
-        When the next transaction boundary is reached, objects will be
-        invalidated.  If any of the invalidated objects are accessed by the
-        current transaction, the revision written before Connection.tid will be
-        used.
-
-        The DB calls this method, even when the Connection is closed.
-
-        Parameters:
-        tid: the storage-level id of the transaction that committed
-        oids: oids is an iterable of oids.
-        """
-
     def root():
         """Return the database root object.
 
@@ -276,14 +261,6 @@ class IConnection(Interface):
         """Returns the number of objects loaded and stored.
 
         If clear is True, reset the counters.
-        """
-
-    def invalidateCache():
-        """Invalidate the connection cache
-
-        This invalidates *all* objects in the cache. If the connection
-        is open, subsequent reads will fail until a new transaction
-        begins or until the connection os reopned.
         """
 
     def readCurrent(obj):
@@ -577,6 +554,20 @@ class IStorage(Interface):
     def load(oid, version):
         """Load data for an object id
 
+        NOTE: This method is deprecated and may be removed in the
+        future.  It is no longer used by ZODB, although it may still
+        be used in some tests or scripts.  Previously, there was a
+        requirement that load results be properly ordered with
+        invalidations so that at any point in time, clients have a
+        consistent view of what version of an object is current.  This
+        restriction has been relaxed and some storages will be
+        simplified as a result of the removal of this requirement.
+
+        An alternative to calling load is calling loadBefore passing
+        ZODB.utils.maxtid::
+
+            store.loadBefore(oid, ZODB.utils.maxtid)
+
         The version argumement should always be an empty string. It
         exists soley for backward compatibility with older storage
         implementations.
@@ -610,19 +601,6 @@ class IStorage(Interface):
         If a matching data record can be found, it is returned,
         otherwise, POSKeyError is raised.
         """
-
-#     The following two methods are effectively part of the interface,
-#     as they are generally needed when one storage wraps
-#     another. This deserves some thought, at probably debate, before
-#     adding them.
-#
-#     def _lock_acquire():
-#         """Acquire the storage lock
-#         """
-
-#     def _lock_release():
-#         """Release the storage lock
-#         """
 
     def new_oid():
         """Allocate a new object id.
@@ -661,11 +639,7 @@ class IStorage(Interface):
         The passed object is a wrapper object that provides an upcall
         interface to support composition.
 
-        Note that, for historical reasons, an implementation may
-        require a second argument, however, if required, the None will
-        be passed as the second argument.
-
-        Also, for historical reasons, this is called registerDB rather
+        Note that, for historical reasons, this is called registerDB rather
         than register_wrapper.
         """
 
@@ -803,7 +777,6 @@ class IStorage(Interface):
         invalidated.
 
         """
-
 
 class IStorageRestoreable(IStorage):
     """Copying Transactions
@@ -1096,11 +1069,9 @@ class IMVCCStorage(IStorage):
         """
 
     def release():
-        """Release all persistent sessions used by this storage instance.
+        """Release resources held by the storage instance.
 
-        After this call, the storage instance can still be used;
-        calling methods that use persistent sessions will cause the
-        persistent sessions to be reopened.
+        The storage instance won't be used again after this call.
         """
 
     def poll_invalidations():

@@ -46,6 +46,8 @@ class MVCCMappingStorage(MappingStorage):
         inst._commit_lock = self._commit_lock
         inst.new_oid = self.new_oid
         inst.pack = self.pack
+        inst.loadBefore = self.loadBefore
+        inst._ltid = self._ltid
         inst._main_lock_acquire = self._lock_acquire
         inst._main_lock_release = self._lock_release
         return inst
@@ -73,11 +75,10 @@ class MVCCMappingStorage(MappingStorage):
         # prevent changes to _transactions and _data during analysis
         self._main_lock_acquire()
         try:
-
             if self._transactions:
                 new_tid = self._transactions.maxKey()
             else:
-                new_tid = b''
+                new_tid = ZODB.utils.z64
 
             # Copy the current data into a snapshot. This is obviously
             # very inefficient for large storages, but it's good for
@@ -112,7 +113,7 @@ class MVCCMappingStorage(MappingStorage):
         finally:
             self._main_lock_release()
 
-        self._polled_tid = new_tid
+        self._polled_tid = self._ltid = new_tid
         return list(changed_oids)
 
     def tpc_finish(self, transaction, func = lambda tid: None):

@@ -61,6 +61,7 @@ checker = renormalizing.RENormalizing([
     ])
 
 def setUp(test, name='test'):
+    clear_transaction_syncs()
     transaction.abort()
     d = tempfile.mkdtemp(prefix=name)
     zope.testing.setupstack.register(test, zope.testing.setupstack.rmtree, d)
@@ -71,7 +72,9 @@ def setUp(test, name='test'):
     os.chdir(d)
     zope.testing.setupstack.register(test, transaction.abort)
 
-tearDown = zope.testing.setupstack.tearDown
+def tearDown(test):
+    clear_transaction_syncs()
+    zope.testing.setupstack.tearDown(test)
 
 class TestCase(unittest.TestCase):
 
@@ -186,3 +189,18 @@ def mess_with_time(test=None, globs=None, now=1278864701.5):
         time.time = staticmethod(faux_time) # jython
     else:
         time.time = faux_time
+
+def clear_transaction_syncs():
+    """Clear data managers registered with the global transaction manager
+
+    Many tests don't clean up synchronizer's registered with the
+    global transaction managers, which can wreak havoc with following
+    tests, now that connections interact with their storages at
+    transaction boundaries.  We need to make sure that we clear any
+    registered data managers.
+
+    For now, we'll use the transaction manager's
+    underware. Eventually, an transaction managers need to grow an API
+    for this.
+    """
+    transaction.manager.clearSynchs()

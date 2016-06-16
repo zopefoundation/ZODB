@@ -160,3 +160,5 @@ knowledge that the underlying storage's pack method is also called:
     >>> blob_storage._blobs_pack_is_in_progress
     False
     >>> base_storage.pack = base_pack
+
+    >>> database.close()

@@ -19,11 +19,11 @@ to be layered over a base database.
 The base storage must not change.
 
 """
+from __future__ import print_function
 import os
 import random
 import weakref
 import tempfile
-import threading
 import ZODB.BaseStorage
 import ZODB.blob
 import ZODB.interfaces
@@ -72,7 +72,7 @@ class DemoStorage(ConflictResolvingStorage):
         self._issued_oids = set()
         self._stored_oids = set()
 
-        self._commit_lock = threading.Lock()
+        self._commit_lock = ZODB.utils.Lock()
         self._transaction = None
 
         if name is None:

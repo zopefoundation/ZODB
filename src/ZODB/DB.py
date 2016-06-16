@@ -13,12 +13,14 @@
 ##############################################################################
 """Database objects
 """
+from __future__ import print_function
 import sys
-import threading
 import logging
 import datetime
 import time
 import warnings
+
+from . import utils
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
@@ -179,6 +181,7 @@ class ConnectionPool(AbstractConnectionPool):
             (available and available[0][0] < threshhold)
             ):
             t, c = available.pop(0)
+            assert not c.opened
             self.all.remove(c)
             c._release_resources()
 
@@ -213,6 +216,7 @@ class ConnectionPool(AbstractConnectionPool):
 
         to_remove = ()
         for (t, c) in self.available:
+            assert not c.opened
             if t < threshhold:
                 to_remove += (c,)
                 self.all.remove(c)
@@ -397,15 +401,9 @@ class DB(object):
           - `xrefs` - Boolian flag indicating whether implicit cross-database
             references are allowed
         """
-        if isinstance(storage, six.string_types):
-            from ZODB import FileStorage
-            storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
-        elif storage is None:
-            from ZODB import MappingStorage
-            storage = ZODB.MappingStorage.MappingStorage(**storage_args)
 
         # Allocate lock.
-        x = threading.RLock()
+        x = utils.RLock()
         self._a = x.acquire
         self._r = x.release
 
@@ -419,12 +417,24 @@ class DB(object):
         self._historical_cache_size_bytes = historical_cache_size_bytes
 
         # Setup storage
+        if isinstance(storage, six.string_types):
+            from ZODB import FileStorage
+            storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
+        elif storage is None:
+            from ZODB import MappingStorage
+            storage = ZODB.MappingStorage.MappingStorage(**storage_args)
+        else:
+            assert not storage_args
+
         self.storage = storage
+
+        if IMVCCStorage.providedBy(storage):
+            self._mvcc_storage = storage
+        else:
+            from .mvccadapter import MVCCAdapter
+            self._mvcc_storage = MVCCAdapter(storage)
+
         self.references = ZODB.serialize.referencesf
-        try:
-            storage.registerDB(self)
-        except TypeError:
-            storage.registerDB(self, None) # Backward compat
 
         if (not hasattr(storage, 'tpc_vote')) and not storage.isReadOnly():
             warnings.warn(
@@ -434,12 +444,10 @@ class DB(object):
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
 
-        if IMVCCStorage.providedBy(storage):
-            temp_storage = storage.new_instance()
-        else:
-            temp_storage = storage
+        temp_storage = self._mvcc_storage.new_instance()
         try:
             try:
+                temp_storage.poll_invalidations()
                 temp_storage.load(z64, '')
             except KeyError:
                 # Create the database's root in the storage if it doesn't exist
@@ -458,8 +466,7 @@ class DB(object):
                 temp_storage.tpc_vote(t)
                 temp_storage.tpc_finish(t)
         finally:
-            if IMVCCStorage.providedBy(temp_storage):
-                temp_storage.release()
+            temp_storage.release()
 
         # Multi-database setup.
         if databases is None:
@@ -559,15 +566,17 @@ class DB(object):
                 # sys.getrefcount(ob) returns.  But, in addition to that,
                 # the cache holds an extra reference on non-ghost objects,
                 # and we also want to pretend that doesn't exist.
-                # If we have no way to get a refcount, we return False to symbolize
-                # that. As opposed to None, this has the advantage of being usable
-                # as a number (0) in case clients depended on that.
+                # If we have no way to get a refcount, we return False
+                # to symbolize that. As opposed to None, this has the
+                # advantage of being usable as a number (0) in case
+                # clients depended on that.
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
                     'klass': "%s%s" % (module, ob.__class__.__name__),
-                    'rc': rc(ob) - 3 - (ob._p_changed is not None) if rc else False,
+                    'rc': (rc(ob) - 3 - (ob._p_changed is not None)
+                           if rc else False),
                     'state': ob._p_changed,
                     #'references': con.references(oid),
                     })
@@ -632,8 +641,9 @@ class DB(object):
             c.afterCompletion = c.newTransaction = c.close = noop
             c._release_resources()
 
-        self.storage.close()
+        self._mvcc_storage.close()
         del self.storage
+        del self._mvcc_storage
 
     def getCacheSize(self):
         return self._cache_size
@@ -664,27 +674,6 @@ class DB(object):
 
     def getHistoricalTimeout(self):
         return self.historical_pool.timeout
-
-    def invalidate(self, tid, oids, connection=None, version=''):
-        """Invalidate references to a given oid.
-
-        This is used to indicate that one of the connections has committed a
-        change to the object.  The connection commiting the change should be
-        passed in to prevent useless (but harmless) messages to the
-        connection.
-        """
-        # Storages, esp. ZEO tests, need the version argument still. :-/
-        assert version==''
-        # Notify connections.
-        def inval(c):
-            if c is not connection:
-                c.invalidate(tid, oids)
-        self._connectionMap(inval)
-
-    def invalidateCache(self):
-        """Invalidate each of the connection caches
-        """
-        self._connectionMap(lambda c: c.invalidateCache())
 
     transform_record_data = untransform_record_data = lambda self, data: data
 
@@ -752,18 +741,16 @@ class DB(object):
                     result = self.pool.pop()
             assert result is not None
 
-            # open the connection.
-            result.open(transaction_manager)
-
             # A good time to do some cache cleanup.
             # (note we already have the lock)
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
-            return result
-
         finally:
             self._r()
+
+        result.open(transaction_manager)
+        return result
 
     def connectionDebugInfo(self):
         result = []
@@ -986,16 +973,16 @@ class ContextManager:
             self.tm.abort()
         self.conn.close()
 
-resource_counter_lock = threading.Lock()
+resource_counter_lock = utils.Lock()
 resource_counter = 0
 
 class TransactionalUndo(object):
 
     def __init__(self, db, tids):
         self._db = db
-        self._storage = db.storage
+        self._storage = getattr(
+            db._mvcc_storage, 'undo_instance', db._mvcc_storage.new_instance)()
         self._tids = tids
-        self._oids = set()
 
     def abort(self, transaction):
         pass
@@ -1005,19 +992,13 @@ class TransactionalUndo(object):
 
     def commit(self, transaction):
         for tid in self._tids:
-            result = self._storage.undo(tid, transaction)
-            if result:
-                self._oids.update(result[1])
+            self._storage.undo(tid, transaction)
 
     def tpc_vote(self, transaction):
-        for oid, _ in  self._storage.tpc_vote(transaction) or ():
-            self._oids.add(oid)
+        self._storage.tpc_vote(transaction)
 
     def tpc_finish(self, transaction):
-        self._storage.tpc_finish(
-            transaction,
-            lambda tid: self._db.invalidate(tid, self._oids)
-            )
+        self._storage.tpc_finish(transaction)
 
     def tpc_abort(self, transaction):
         self._storage.tpc_abort(transaction)

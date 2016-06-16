@@ -11,10 +11,12 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+from __future__ import print_function
 import os
 import struct
 import sys
 import time
+import threading
 import warnings
 from binascii import hexlify, unhexlify
 from struct import pack, unpack
@@ -32,6 +34,7 @@ __all__ = ['z64',
            'u64',
            'U64',
            'cp',
+           'maxtid',
            'newTid',
            'oid_repr',
            'serial_repr',
@@ -99,6 +102,8 @@ else:
         return bytes((int,))
 
 z64 = b'\0' * 8
+
+maxtid = b'\x7f\xff\xff\xff\xff\xff\xff\xff'
 
 assert sys.hexversion >= 0x02030000
 
@@ -308,3 +313,65 @@ class locked(object):
     def __call__(self, func):
         return Locked(func, preconditions=self.preconditions)
 
+
+if os.environ.get('DEBUG_LOCKING'):
+    class Lock:
+
+        lock_class = threading.Lock
+
+        def __init__(self):
+            self._lock = self.lock_class()
+
+        def pr(self, name, a=None, kw=None):
+            f = sys._getframe(2)
+            if f.f_code.co_filename.endswith('ZODB/utils.py'):
+                f = sys._getframe(3)
+            f = '%s:%s' % (f.f_code.co_filename, f.f_lineno)
+            print(id(self), self._lock, threading.get_ident(), f, name,
+                  a if a else '', kw if kw else '')
+
+        def acquire(self, *a, **kw):
+            self.pr('acquire', a, kw)
+            return self._lock.acquire(*a, **kw)
+
+        def release(self):
+            self.pr('release')
+            return self._lock.release()
+
+        def __enter__(self):
+            self.pr('acquire')
+            return self._lock.acquire()
+
+        def __exit__(self, *ignored):
+            self.pr('release')
+            return self._lock.release()
+
+    class RLock(Lock):
+
+        lock_class = threading.RLock
+
+    class Condition(Lock):
+
+        lock_class = threading.Condition
+
+        def wait(self, *a, **kw):
+            self.pr('wait', a, kw)
+            return self._lock.wait(*a, **kw)
+
+        def wait_for(self, *a, **kw):
+            self.pr('wait_for', a, kw)
+            return self._lock.wait_for(*a, **kw)
+
+        def notify(self, *a, **kw):
+            self.pr('notify', a, kw)
+            return self._lock.notify(*a, **kw)
+
+        def notify_all(self):
+            self.pr('notify_all')
+            return self._lock.notify_all()
+
+        notifyAll = notify_all
+
+else:
+
+    from threading import Condition, Lock, RLock

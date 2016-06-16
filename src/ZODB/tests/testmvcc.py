@@ -33,9 +33,17 @@ This note includes doctests that explain how MVCC is implemented (and
 test that the implementation is correct).  The tests use a
 MinimalMemoryStorage that implements MVCC support, but not much else.
 
+***IMPORTANT***: The MVCC approach has changed since these tests were
+originally written. The new approach is much simpler because we no
+longer call load to get the current state of an object. We call
+loadBefore instead, having gotten a transaction time at the start of a
+transaction.  As a result, the rhythm of the tests is a little odd,
+because we no longer need to probe a complex dance that doesn't exist any more.
+
 >>> from ZODB.tests.test_storage import MinimalMemoryStorage
 >>> from ZODB import DB
->>> db = DB(MinimalMemoryStorage())
+>>> st = MinimalMemoryStorage()
+>>> db = DB(st)
 
 We will use two different connections with different transaction managers
 to make sure that the connections act independently, even though they'll
@@ -59,6 +67,10 @@ Now open a second connection.
 
 >>> tm2 = transaction.TransactionManager()
 >>> cn2 = db.open(transaction_manager=tm2)
+>>> from ZODB.utils import p64, u64
+>>> cn2._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
+>>> txn_time2  = cn2._storage._start
 
 Connection high-water mark
 --------------------------
@@ -67,22 +79,20 @@ The ZODB Connection tracks a transaction high-water mark, which
 bounds the latest transaction id that can be read by the current
 transaction and still present a consistent view of the database.
 Transactions with ids up to but not including the high-water mark
-are OK to read.  When a transaction commits, the database sends
-invalidations to all the other connections; the invalidation contains
-the transaction id and the oids of modified objects.  The Connection
-stores the high-water mark in _txn_time, which is set to None until
-an invalidation arrives.
+are OK to read.  At the beginning of a transaction, a connection
+sets the high-water mark to just over the last transaction time the
+storage has seen.
 
 >>> cn = db.open()
 
->>> print(cn._txn_time)
-None
->>> cn.invalidate(100, dict.fromkeys([1, 2]))
->>> cn._txn_time
-100
->>> cn.invalidate(200, dict.fromkeys([1, 2]))
->>> cn._txn_time
-100
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
+>>> cn.db()._mvcc_storage.invalidate(100, dict.fromkeys([1, 2]))
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
+>>> cn.db()._mvcc_storage.invalidate(200, dict.fromkeys([1, 2]))
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
 
 A connection's high-water mark is set to the transaction id taken from
 the first invalidation processed by the connection.  Transaction ids are
@@ -95,8 +105,8 @@ but that doesn't work unless an object is modified.  sync() will abort
 a transaction and process invalidations.
 
 >>> cn.sync()
->>> print(cn._txn_time)  # the high-water mark got reset to None
-None
+>>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
 
 Basic functionality
 -------------------
@@ -109,16 +119,16 @@ will modify "a."  The other transaction will then modify "b" and commit.
 >>> tm1.get().commit()
 >>> txn = db.lastTransaction()
 
-The second connection has its high-water mark set now.
+The second connection already has its high-water mark set.
 
->>> cn2._txn_time == txn
+>>> cn2._storage._start == txn_time2
 True
 
 It is safe to read "b," because it was not modified by the concurrent
 transaction.
 
 >>> r2 = cn2.root()
->>> r2["b"]._p_serial < cn2._txn_time
+>>> r2["b"]._p_serial < cn2._storage._start
 True
 >>> r2["b"].value
 1
@@ -130,7 +140,7 @@ non-current version.
 
 >>> r2["a"].value
 1
->>> r2["a"]._p_serial < cn2._txn_time
+>>> r2["a"]._p_serial < cn2._storage._start
 True
 
 We can confirm that we have a non-current revision by asking the
@@ -143,32 +153,33 @@ It's possible to modify "a", but we get a conflict error when we
 commit the transaction.
 
 >>> r2["a"].value = 3
->>> tm2.get().commit()
+>>> tm2.get().commit() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO.MinPO)
+ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO...
 
 >>> tm2.get().abort()
 
 This example will demonstrate that we can commit a transaction if we only
 modify current revisions.
 
->>> print(cn2._txn_time)
-None
+>>> cn2._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
+>>> txn_time2  = cn2._storage._start
 
 >>> r1 = cn1.root()
 >>> r1["a"].value = 3
 >>> tm1.get().commit()
 >>> txn = db.lastTransaction()
->>> cn2._txn_time == txn
+>>> cn2._storage._start == txn_time2
 True
 
 >>> r2["b"].value = r2["a"].value + 1
 >>> r2["b"].value
 3
 >>> tm2.get().commit()
->>> print(cn2._txn_time)
-None
+>>> cn2._storage._start == p64(u64(st.lastTransaction()) + 1)
+True
 
 Object cache
 ------------
@@ -302,22 +313,18 @@ same things now.
 >>> r2["a"].value, r2["b"].value
 (42, 43)
 
+>>> db.close()
 
 Late invalidation
 -----------------
 
-The combination of ZEO and MVCC adds more complexity.  Since
-invalidations are delivered asynchronously by ZEO, it is possible for
-an invalidation to arrive just after a request to load the invalidated
-object is sent.  The connection can't use the just-loaded data,
-because the invalidation arrived first.  The complexity for MVCC is
-that it must check for invalidated objects after it has loaded them,
-just in case.
+The combination of ZEO and MVCC used to add more complexity. That's
+why ZODB no-longer calls load. :)
 
 Rather than add all the complexity of ZEO to these tests, the
 MinimalMemoryStorage has a hook.  We'll write a subclass that will
-deliver an invalidation when it loads an object.  The hook allows us
-to test the Connection code.
+deliver an invalidation when it loads (or loadBefore's) an object.
+The hook allows us to test the Connection code.
 
 >>> class TestStorage(MinimalMemoryStorage):
 ...    def __init__(self):
@@ -351,21 +358,29 @@ non-current revision to load.
 >>> oid = r1["b"]._p_oid
 >>> ts.hooked[oid] = 1
 
+This test is kinda screwy because it depends on an old approach that
+has changed.  We'll hack the _txn_time to get the original expected
+result, even though what's going on now is much simpler.
+
+>>> cn1._storage._start = ts.lastTransaction()
+
 Once the oid is hooked, an invalidation will be delivered the next
 time it is activated.  The code below activates the object, then
 confirms that the hook worked and that the old state was retrieved.
 
->>> oid in cn1._invalidated
+>>> oid in cn1._storage._invalidations
 False
 >>> r1["b"]._p_state
 -1
 >>> r1["b"]._p_activate()
->>> oid in cn1._invalidated
+>>> oid in cn1._storage._invalidations
 True
 >>> ts.count
 1
 >>> r1["b"].value
 0
+
+>>> db.close()
 
 No earlier revision available
 -----------------------------
@@ -391,18 +406,17 @@ Again, once the oid is hooked, an invalidation will be delivered the next
 time it is activated.  The code below activates the object, but unlike the
 section above, this is no older state to retrieve.
 
->>> oid in cn1._invalidated
+>>> oid in cn1._storage._invalidations
 False
 >>> r1["b"]._p_state
 -1
->>> r1["b"]._p_activate()
+>>> cn1._storage._start = ts.lastTransaction()
+>>> r1["b"]._p_activate() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ReadConflictError: database read conflict error (oid 0x02, class ZODB.tests.MinPO.MinPO)
->>> oid in cn1._invalidated
-True
->>> ts.count
-1
+ReadConflictError: ...
+
+>>> db.close()
 """
 import doctest
 import re

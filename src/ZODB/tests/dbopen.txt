@@ -61,7 +61,7 @@ While it's boring, it's important to verify that the same relationships
 hold if the default pool size is overridden.
 
     >>> handler.clear()
-    >>> st.close()
+    >>> db.close()
     >>> st = Storage()
     >>> PS = 2 # smaller pool size
     >>> db = DB(st, pool_size=PS)
@@ -117,7 +117,7 @@ We can change the pool size on the fly:
 Enough of that.
 
     >>> handler.clear()
-    >>> st.close()
+    >>> db.close()
 
 More interesting is the stack-like nature of connection reuse.  So long as
 we keep opening new connections, and keep them alive, all connections
@@ -256,7 +256,7 @@ Nothing in that last block should have logged any msgs:
 If "too many" connections are open, then closing one may kick an older
 closed one out of the available connection stack.
 
-    >>> st.close()
+    >>> db.close()
     >>> st = Storage()
     >>> db = DB(st, pool_size=3)
     >>> conns = [db.open() for dummy in range(6)]
@@ -324,7 +324,7 @@ gc to reclaim the Connection and its cache eventually works, but that can
 take "a long time" and caches can hold on to many objects, and limited
 resources (like RDB connections), for the duration.
 
-    >>> st.close()
+    >>> db.close()
     >>> st = Storage()
     >>> db = DB(st, pool_size=2)
     >>> conn0 = db.open()
