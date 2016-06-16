@@ -34,7 +34,7 @@ class HistoryStorage:
         for data in data:
             if sys.platform == 'win32':
                 # time.time() has a precision of 1ms on Windows.
-                sleep(0.001)
+                sleep(0.002)
             revids.append(self._dostore(oid, revids[-1], MinPO(data)))
         revids.reverse()
         del revids[-1]
