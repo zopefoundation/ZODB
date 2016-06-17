@@ -66,7 +66,7 @@ import traceback
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr, get_pickle_metadata
+from ZODB.utils import u64, oid_repr, get_pickle_metadata, load_current
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
 
@@ -120,7 +120,7 @@ def main(path=None):
 
     for oid in fs._index.keys():
         try:
-            data, serial = fs.load(oid, "")
+            data, serial = load_current(fs, oid)
         except (KeyboardInterrupt, SystemExit):
             raise
         except POSKeyError:
@@ -135,7 +135,7 @@ def main(path=None):
     for oid in fs._index.keys():
         if oid in inactive:
             continue
-        data, serial = fs.load(oid, "")
+        data, serial = load_current(fs, oid)
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for ref, klass in refs:

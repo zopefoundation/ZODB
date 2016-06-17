@@ -18,6 +18,9 @@ import random
 import stat
 
 import ZODB.FileStorage
+
+from ZODB.utils import load_current
+
 from .StorageTestBase import StorageTestBase
 
 class FileStorageCorruptTests(StorageTestBase):
@@ -36,7 +39,7 @@ class FileStorageCorruptTests(StorageTestBase):
 
     def _check_stores(self, oids):
         for oid, revid in oids:
-            data, s_revid = self._storage.load(oid, '')
+            data, s_revid = load_current(self._storage, oid)
             self.assertEqual(s_revid, revid)
 
     def checkTruncatedIndex(self):

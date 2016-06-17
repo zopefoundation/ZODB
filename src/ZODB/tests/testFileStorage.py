@@ -26,7 +26,7 @@ import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
 from ZODB.fsIndex import fsIndex
-from ZODB.utils import U64, p64, z64
+from ZODB.utils import U64, p64, z64, load_current
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
@@ -279,7 +279,7 @@ class FileStorageTests(
             oid, tid, data, next_oid = self._storage.record_iternext(key)
             self.assertEqual(oid, (b'\000' * 7) + x)
             key = next_oid
-            expected_data, expected_tid = self._storage.load(oid, '')
+            expected_data, expected_tid = load_current(self._storage, oid)
             self.assertEqual(expected_data, data)
             self.assertEqual(expected_tid, tid)
             if x == b'\002':
@@ -296,13 +296,14 @@ class FileStorageTests(
         storage.tpc_vote(t)
         # Read operations are done with separate 'file' objects with their
         # own buffers: here, the buffer also includes voted data.
-        storage.load(z64)
+        load_current(storage, z64)
         # This must invalidate all read buffers.
         storage.tpc_abort(t)
         self._dostore(z64, r0, b'bar', 1)
         # In the case that read buffers were not invalidated, return value
         # is based on what was cached during the first load.
-        self.assertEqual(storage.load(z64)[0], b'foo' if fail else b'bar')
+        self.assertEqual(load_current(storage, z64)[0],
+                         b'foo' if fail else b'bar')
 
     # We want to be sure that the above test detects any regression
     # in the code it checks, because any bug here is like a time bomb: not
@@ -642,7 +643,7 @@ def deal_with_finish_failures():
 
     >>> handler.uninstall()
 
-    >>> fs.load(b'\0'*8, b'') # doctest: +ELLIPSIS
+    >>> load_current(fs, b'\0'*8) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     ValueError: ...

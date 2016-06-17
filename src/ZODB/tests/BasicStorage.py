@@ -73,7 +73,7 @@ class BasicStorage:
         r2 = self._storage.tpc_vote(txn)
         self._storage.tpc_finish(txn)
         newrevid = handle_serials(oid, r1, r2)
-        data, revid = self._storage.load(oid, '')
+        data, revid = utils.load_current(self._storage, oid)
         value = zodb_unpickle(data)
         eq(value, MinPO(11))
         eq(revid, newrevid)
@@ -88,14 +88,14 @@ class BasicStorage:
         eq = self.assertEqual
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(7))
-        data, revid = self._storage.load(oid, '')
+        data, revid = utils.load_current(self._storage, oid)
         value = zodb_unpickle(data)
         eq(value, MinPO(7))
         # Now do a bunch of updates to an object
         for i in range(13, 22):
             revid = self._dostore(oid, revid=revid, data=MinPO(i))
         # Now get the latest revision of the object
-        data, revid = self._storage.load(oid, '')
+        data, revid = utils.load_current(self._storage, oid)
         eq(zodb_unpickle(data), MinPO(21))
 
     def checkConflicts(self):
@@ -132,7 +132,7 @@ class BasicStorage:
         revid = self._dostore(oid=oid, data=MinPO(6))
 
         for oid, revid in [(oid1, revid1), (oid, revid)]:
-            data, _revid = self._storage.load(oid, '')
+            data, _revid = utils.load_current(self._storage, oid)
             self.assertEqual(revid, _revid)
 
     def checkStoreTwoObjects(self):
@@ -270,8 +270,10 @@ class BasicStorage:
         self._storage.tpc_finish(t)
         thread.join(33)
 
-        tid3 = self._storage.load(oid)[1]
-        self.assertTrue(tid3 > self._storage.load(b'\0\0\0\0\0\0\0\xf3')[1])
+        tid3 = utils.load_current(self._storage, oid)[1]
+        self.assertTrue(tid3 >
+                        utils.load_current(
+                            self._storage, b'\0\0\0\0\0\0\0\xf3')[1])
 
         #----------------------------------------------------------------------
         # non-stale competing trans after checkCurrentSerialInTransaction
@@ -296,9 +298,10 @@ class BasicStorage:
         else:
             self._storage.tpc_finish(t)
             thread.join()
-            tid4 = self._storage.load(oid)[1]
-            self.assertTrue(tid4 >
-                                self._storage.load(b'\0\0\0\0\0\0\0\xf4')[1])
+            tid4 = utils.load_current(self._storage, oid)[1]
+            self.assertTrue(
+                tid4 >
+                utils.load_current(self._storage, b'\0\0\0\0\0\0\0\xf4')[1])
 
 
     def check_tid_ordering_w_commit(self):
@@ -363,7 +366,7 @@ class BasicStorage:
         @run_in_thread
         def load():
             update_attempts()
-            results['load'] = self._storage.load(ZERO, '')[1]
+            results['load'] = utils.load_current(self._storage, ZERO)[1]
 
         expected_attempts = 2
 
@@ -397,4 +400,3 @@ class BasicStorage:
         self.assertEqual(results.pop('lastTransaction'), tids[1])
         for m, tid in results.items():
             self.assertEqual(tid, tids[1])
-

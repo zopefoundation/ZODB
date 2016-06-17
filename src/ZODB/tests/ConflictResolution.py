@@ -17,6 +17,8 @@ from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
 from transaction import Transaction
 
+from ZODB.utils import load_current
+
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
 class PCounter(Persistent):
@@ -71,7 +73,7 @@ class ConflictResolvingStorage:
         revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         revid3 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
 
-        data, serialno = self._storage.load(oid, '')
+        data, serialno = load_current(self._storage, oid)
         inst = zodb_unpickle(data)
         self.assertEqual(inst._value, 5)
 
