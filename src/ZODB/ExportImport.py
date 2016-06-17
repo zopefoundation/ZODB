@@ -48,7 +48,7 @@ class ExportImport:
                 continue
             done_oids[oid] = True
             try:
-                p, serial = load(oid, '')
+                p, serial = load(oid)
             except:
                 logger.debug("broken reference for oid %s", repr(oid),
                              exc_info=True)
