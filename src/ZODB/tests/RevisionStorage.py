@@ -16,7 +16,7 @@
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
 from ZODB.tests.StorageTestBase import handle_serials
-from ZODB.utils import p64, u64
+from ZODB.utils import p64, u64, load_current
 
 import transaction
 
@@ -52,7 +52,7 @@ class RevisionStorage:
             snooze()
             snooze()
             revid = self._dostore(oid, revid, data=MinPO(i))
-            revs.append(self._storage.load(oid, ""))
+            revs.append(load_current(self._storage, oid))
 
         prev = u64(revs[0][1])
         for i in range(1, 10):
@@ -123,7 +123,7 @@ class RevisionStorage:
             # Always undo the most recent txn, so the value will
             # alternate between 3 and 4.
             self._undo(tid, note="undo %d" % i)
-            revs.append(self._storage.load(oid, ""))
+            revs.append(load_current(self._storage, oid))
 
         prev_tid = None
         for i, (data, tid) in enumerate(revs):

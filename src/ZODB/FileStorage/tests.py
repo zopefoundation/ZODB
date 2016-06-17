@@ -119,7 +119,8 @@ def pack_with_repeated_blob_records():
     >>> transaction.commit()
     >>> tm = transaction.TransactionManager()
     >>> oid = conn.root()[1]._p_oid
-    >>> blob_record, oldserial = fs.load(oid)
+    >>> from ZODB.utils import load_current
+    >>> blob_record, oldserial = load_current(fs, oid)
 
     Now, create a transaction with multiple saves:
 

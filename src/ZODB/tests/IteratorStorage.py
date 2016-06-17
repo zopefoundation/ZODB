@@ -20,7 +20,7 @@ all these tests.
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
-from ZODB.utils import U64, p64
+from ZODB.utils import U64, p64, load_current
 
 from transaction import Transaction
 
@@ -122,7 +122,7 @@ class IteratorStorage(IteratorCompare):
     def checkLoad_was_checkLoadEx(self):
         oid = self._storage.new_oid()
         self._dostore(oid, data=42)
-        data, tid = self._storage.load(oid, "")
+        data, tid = load_current(self._storage, oid)
         self.assertEqual(zodb_unpickle(data), MinPO(42))
         match = False
         for txn in self._storage.iterator():

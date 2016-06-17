@@ -28,7 +28,7 @@ from persistent.TimeStamp import TimeStamp
 
 import ZODB.interfaces
 from . import POSException, utils
-from .utils import z64, oid_repr, byte_ord, byte_chr
+from .utils import z64, oid_repr, byte_ord, byte_chr, load_current
 from .UndoLogCompatible import UndoLogCompatible
 from ._compat import dumps, _protocol, py2_hasattr
 
@@ -275,16 +275,7 @@ class BaseStorage(UndoLogCompatible):
     def getTid(self, oid):
         self._lock_acquire()
         try:
-            v = ''
-            try:
-                supportsVersions = self.supportsVersions
-            except AttributeError:
-                pass
-            else:
-                if supportsVersions():
-                    v = self.modifiedInVersion(oid)
-            pickledata, serial = self.load(oid, v)
-            return serial
+            return load_current(self, oid)[1]
         finally:
             self._lock_release()
 

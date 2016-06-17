@@ -37,6 +37,9 @@ import ZODB.DemoStorage
 import ZODB.tests.hexstorage
 import ZODB.tests.util
 import ZODB.utils
+
+from ZODB.utils import load_current
+
 from zope.testing import renormalizing
 
 
@@ -67,8 +70,8 @@ class DemoStorageTests(
         # Minimal test of loadEX w/o version -- ironically
         db = DB(self._storage) # creates object 0. :)
         s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
-        self.assertEqual(s2.load(ZODB.utils.z64, ''),
-                         self._storage.load(ZODB.utils.z64, ''))
+        self.assertEqual(load_current(s2, ZODB.utils.z64),
+                         load_current(self._storage, ZODB.utils.z64))
 
     def checkLengthAndBool(self):
         self.assertEqual(len(self._storage), 0)
@@ -238,7 +241,7 @@ def load_before_base_storage_current():
     >>> transaction.commit()
 
     >>> oid = ZODB.utils.z64
-    >>> base_current = storage.base.load(oid)
+    >>> base_current = load_current(storage.base, oid)
     >>> tid = ZODB.utils.p64(ZODB.utils.u64(base_current[1]) + 1)
     >>> base_record = storage.base.loadBefore(oid, tid)
     >>> base_record[-1] is None
@@ -253,7 +256,7 @@ def load_before_base_storage_current():
 
     >>> t[:2] == base_record[:2]
     True
-    >>> t[-1] == storage.changes.load(oid)[1]
+    >>> t[-1] == load_current(storage.changes, oid)[1]
     True
 
     >>> conn.close()

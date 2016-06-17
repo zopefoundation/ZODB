@@ -13,6 +13,8 @@ from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.tests.MinPO import MinPO
 from ZODB.POSException import ConflictError
 
+from ZODB.utils import load_current
+
 SHORT_DELAY = 0.01
 
 class TestThread(threading.Thread):
@@ -124,7 +126,7 @@ class StorageClientThread(TestThread):
 
     def check(self):
         for oid, revid in self.oids.items():
-            data, serial = self.storage.load(oid, '')
+            data, serial = load_current(self.storage, oid)
             self.test.assertEqual(serial, revid)
             obj = zodb_unpickle(data)
             self.test.assertEqual(obj.value[0], self.getName())
@@ -192,7 +194,7 @@ class ExtStorageClientThread(StorageClientThread):
 
     def do_load(self):
         oid = self.pick_oid()
-        self.storage.load(oid, '')
+        load_current(self.storage, oid)
 
     def do_loadSerial(self):
         oid = self.pick_oid()

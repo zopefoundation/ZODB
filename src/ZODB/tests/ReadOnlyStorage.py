@@ -14,6 +14,8 @@
 from ZODB.POSException import ReadOnlyError, Unsupported
 import transaction
 
+from ZODB.utils import load_current
+
 class ReadOnlyStorage:
 
     def _create_data(self):
@@ -34,7 +36,7 @@ class ReadOnlyStorage:
         self._make_readonly()
         # Note that this doesn't check _all_ read methods.
         for oid in self.oids.keys():
-            data, revid = self._storage.load(oid, '')
+            data, revid = load_current(self._storage, oid)
             self.assertEqual(revid, self.oids[oid])
             # Storages without revisions may not have loadSerial().
             try:

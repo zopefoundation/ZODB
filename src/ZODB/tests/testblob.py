@@ -568,14 +568,16 @@ def loadblob_tmpstore():
 
 def is_blob_record():
     r"""
+    >>> from ZODB.utils import load_current
+
     >>> bs = create_storage()
     >>> db = DB(bs)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
     >>> transaction.commit()
-    >>> ZODB.blob.is_blob_record(bs.load(ZODB.utils.p64(0), '')[0])
+    >>> ZODB.blob.is_blob_record(load_current(bs, ZODB.utils.p64(0))[0])
     False
-    >>> ZODB.blob.is_blob_record(bs.load(ZODB.utils.p64(1), '')[0])
+    >>> ZODB.blob.is_blob_record(load_current(bs, ZODB.utils.p64(1))[0])
     True
 
     An invalid pickle yields a false value:

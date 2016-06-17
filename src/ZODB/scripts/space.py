@@ -9,7 +9,7 @@ Current limitations / simplifications: Ignores revisions and versions.
 """
 from __future__ import print_function
 from ZODB.FileStorage import FileStorage
-from ZODB.utils import U64, get_pickle_metadata
+from ZODB.utils import U64, get_pickle_metadata, load_current
 import six
 
 def run(path, v=0):
@@ -21,7 +21,7 @@ def run(path, v=0):
         iter = fs._index.keys()
     totals = {}
     for oid in iter:
-        data, serialno = fs.load(oid, '')
+        data, serialno = load_current(fs, oid)
         mod, klass = get_pickle_metadata(data)
         key = "%s.%s" % (mod, klass)
         bytes, count = totals.get(key, (0, 0))

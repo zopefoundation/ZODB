@@ -32,6 +32,7 @@ import ZODB.interfaces
 import ZODB.tests.util
 import zope.testing.setupstack
 
+from ZODB.utils import load_current
 
 ZERO = b'\0'*8
 
@@ -141,7 +142,7 @@ class PackableStorageBase:
 
     def _initroot(self):
         try:
-            self._storage.load(ZERO, '')
+            load_current(self._storage, ZERO)
         except KeyError:
             from transaction import Transaction
             file = BytesIO()
@@ -393,7 +394,7 @@ class PackableStorage(PackableStorageBase):
         root.value = 0
         revid0 = self._dostoreNP(ZERO, data=dumps(root))
         # Make sure the root can be retrieved
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         # Commit three different revisions of the other object
@@ -424,7 +425,7 @@ class PackableStorage(PackableStorageBase):
         self._storage.pack(packtime, referencesf)
         # Make sure the revisions are gone, but that object zero and revision
         # 3 are still there and correct
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         raises(KeyError, self._storage.loadSerial, oid, revid1)
@@ -433,7 +434,7 @@ class PackableStorage(PackableStorageBase):
         pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
-        data, revid = self._storage.load(oid, '')
+        data, revid = load_current(self._storage, oid)
         eq(revid, revid3)
         pobj = loads(data)
         eq(pobj.getoid(), oid)
@@ -461,7 +462,7 @@ class PackableStorage(PackableStorageBase):
         root.value = 0
         revid0 = self._dostoreNP(ZERO, data=dumps(root))
         # Make sure the root can be retrieved
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         # Commit three different revisions of the first object
@@ -501,7 +502,7 @@ class PackableStorage(PackableStorageBase):
         self._storage.pack(packtime, referencesf)
         # Make sure the revisions are gone, but that object zero, object2, and
         # revision 3 of object1 are still there and correct.
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         raises(KeyError, self._storage.loadSerial, oid1, revid1)
@@ -510,12 +511,12 @@ class PackableStorage(PackableStorageBase):
         pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
-        data, revid = self._storage.load(oid1, '')
+        data, revid = load_current(self._storage, oid1)
         eq(revid, revid3)
         pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
-        data, revid = self._storage.load(oid2, '')
+        data, revid = load_current(self._storage, oid2)
         eq(revid, revid4)
         eq(loads(data).value, 11)
         data = self._storage.loadSerial(oid2, revid4)
@@ -649,7 +650,7 @@ class PackableUndoStorage(PackableStorageBase):
             pass
         # This object would be removed by the second pack, even though
         # it is reachable.
-        self._storage.load(lost_oid, "")
+        load_current(self._storage, lost_oid)
 
     def checkPackUndoLog(self):
         self._initroot()
