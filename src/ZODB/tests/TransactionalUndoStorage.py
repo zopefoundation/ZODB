@@ -138,8 +138,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         self._undo(info[4]["id"], [oid], note="undo3")
         # This should fail since we've undone the object's creation
-        self.assertRaises(KeyError,
-                          self._storage.load, oid, '')
+        self.assertRaises(KeyError, load_current, self._storage, oid)
 
         # And now let's try to redo the object's creation
         info = self._storage.undoInfo()
@@ -178,7 +177,7 @@ class TransactionalUndoStorage:
         # creation.  Let's undo the object creation.
         info = self._storage.undoInfo()
         self._undo(info[2]['id'], [oid])
-        self.assertRaises(KeyError, self._storage.load, oid, '')
+        self.assertRaises(KeyError, load_current, self._storage, oid)
 
         # Loading current data via loadBefore should raise a POSKeyError too:
         self.assertRaises(KeyError, self._storage.loadBefore, oid,

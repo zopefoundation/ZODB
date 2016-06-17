@@ -91,8 +91,8 @@ class RecoveryStorage(IteratorDeepCompare):
         # And check to see that the root object exists, but not the other
         # objects.
         data, serial = load_current(self._dst, root._p_oid)
-        raises(KeyError, self._dst.load, obj1._p_oid, '')
-        raises(KeyError, self._dst.load, obj2._p_oid, '')
+        raises(KeyError, load_current, self._dst, obj1._p_oid)
+        raises(KeyError, load_current, self._dst, obj2._p_oid)
 
     def checkRestoreWithMultipleObjectsInUndoRedo(self):
         from ZODB.FileStorage import FileStorage
