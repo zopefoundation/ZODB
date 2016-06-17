@@ -796,7 +796,7 @@ class BlobStorage(BlobStorageMixin):
         for oid, oid_path in self.fshelper.listOIDs():
             exists = True
             try:
-                utils.load_current(self, oid) # no version support
+                utils.load_current(self, oid)
             except (POSKeyError, KeyError):
                 exists = False
 
