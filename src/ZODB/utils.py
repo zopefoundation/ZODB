@@ -379,6 +379,18 @@ else:
 import ZODB.POSException
 
 def load_current(storage, oid, version=''):
+    """Load the most recent revision of an object by calling loadBefore
+
+    Starting in ZODB 5, it's no longer necessary for storages to
+    provide a load method.
+
+    This function is mainly intended to facilitate transitioning from
+    load to loadBefore.  It's mainly useful for tests that are meant
+    to test storages, but do so by calling load on the storages.
+
+    This function will likely become unnecessary and be deprecated
+    some time in the future.
+    """
     assert not version
     r = storage.loadBefore(oid, maxtid)
     if r is None:
