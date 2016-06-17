@@ -448,7 +448,7 @@ class DB(object):
         try:
             try:
                 temp_storage.poll_invalidations()
-                temp_storage.load(z64, '')
+                temp_storage.load(z64)
             except KeyError:
                 # Create the database's root in the storage if it doesn't exist
                 from persistent.mapping import PersistentMapping

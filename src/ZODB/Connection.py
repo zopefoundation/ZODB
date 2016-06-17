@@ -230,7 +230,7 @@ class Connection(ExportImport, object):
         if obj is not None:
             return obj
 
-        p, _ = self._storage.load(oid, '')
+        p, _ = self._storage.load(oid)
         obj = self._reader.getGhost(p)
 
         # Avoid infiniate loop if obj tries to load its state before
@@ -755,7 +755,7 @@ class Connection(ExportImport, object):
                 raise
 
         try:
-            p, serial = self._storage.load(oid, '')
+            p, serial = self._storage.load(oid)
 
             self._load_count += 1
 
@@ -1100,7 +1100,7 @@ class TmpStore:
     def load(self, oid, version=''):
         pos = self.index.get(oid)
         if pos is None:
-            return self._storage.load(oid, '')
+            return self._storage.load(oid)
         self._file.seek(pos)
         h = self._file.read(8)
         oidlen = u64(h)

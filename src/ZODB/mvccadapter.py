@@ -75,7 +75,7 @@ class MVCCAdapter(Base):
             for instance in self._instances:
                 instance._invalidateCache()
 
-    def invalidate(self, transaction_id, oids, version=''):
+    def invalidate(self, transaction_id, oids):
         with self._lock:
             for instance in self._instances:
                 instance._invalidate(oids)
