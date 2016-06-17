@@ -2,7 +2,12 @@
  Change History
 ================
 
-4.3.0 (unreleased)
+4.3.1 (2016-06-06)
+==================
+
+- Fixed: FileStorage loadBefore didn't handle deleted/undone data correctly.
+
+4.3.0 (2016-05-31)
 ==================
 
 - Drop support for Python 2.6 and 3.2.
@@ -29,7 +34,7 @@
 - DemoStorage: add support for conflict resolution and fix history()
   https://github.com/zopefoundation/ZODB/pull/58
 
-- Fixed: FileStorage loadBefore didn't handle deleted/undone data correctly.
+- Fixed a test that depended on implementation-specific behavior in tpc_finish
 
 4.2.0 (2015-06-02)
 ==================

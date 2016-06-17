@@ -17,7 +17,8 @@ Any storage that supports the history() method should be able to pass
 all these tests.
 """
 
-from time import time
+import sys
+from time import time, sleep
 from ZODB.tests.MinPO import MinPO
 
 class HistoryStorage:
@@ -31,6 +32,9 @@ class HistoryStorage:
         self.assertRaises(KeyError,self._storage.history,oid)
         revids = [None]
         for data in data:
+            if sys.platform == 'win32':
+                # time.time() has a precision of 1ms on Windows.
+                sleep(0.002)
             revids.append(self._dostore(oid, revids[-1], MinPO(data)))
         revids.reverse()
         del revids[-1]

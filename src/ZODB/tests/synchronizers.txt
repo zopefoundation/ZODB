@@ -25,27 +25,43 @@ Make a change locally:
     >>> rt = cn.root()
     >>> rt['a'] = 1
 
-Sync is called when a connection is open, as that starts a new transaction:
+Sync isn't called when a connectiin is opened, even though that
+implicitly starts a new transaction:
+
+    >>> st.sync_called
+    False
+
+Sync is only called when we explicitly start a new transaction:
+
+    >>> _ = transaction.begin()
 
     >>> st.sync_called
     True
     >>> st.sync_called = False
 
+BTW, calling ``sync()`` on a connectin starts a new transaction, which
+caused ``sync()`` to be called on the storage:
 
-``sync()`` is called by the Connection's ``afterCompletion()`` hook after the
-commit completes.
+    >>> cn.sync()
+    >>> st.sync_called
+    True
+    >>> st.sync_called = False
+
+``sync()`` is not called by the Connection's ``afterCompletion()``
+hook after the commit completes, because we'll sunc when a new
+transaction begins:
 
     >>> transaction.commit()
     >>> st.sync_called  # False before 3.4
-    True
+    False
 
-``sync()`` is also called by the ``afterCompletion()`` hook after an abort.
+``sync()`` is also not called by the ``afterCompletion()`` hook after an abort.
 
     >>> st.sync_called = False
     >>> rt['b'] = 2
     >>> transaction.abort()
     >>> st.sync_called  # False before 3.4
-    True
+    False
 
 And ``sync()`` is called whenever we explicitly start a new transaction, via
 the ``newTransaction()`` hook.
@@ -63,45 +79,14 @@ traceback then ;-)
 
     >>> cn.close()
 
-One more, very obscure.  It was the case that if the first action a new
-threaded transaction manager saw was a ``begin()`` call, then synchronizers
-registered after that in the same transaction weren't communicated to the
-`Transaction` object, and so the synchronizers' ``afterCompletion()`` hooks
-weren't called when the transaction commited.  None of the test suites
-(ZODB's, Zope 2.8's, or Zope3's) caught that, but apparently Zope 3 takes this
-path at some point when serving pages.
+As a special case, if a synchronizer registers while a transaction is
+in flight, then newTransaction and this the storage sync method is
+called:
 
-    >>> tm = transaction.ThreadTransactionManager()
-    >>> st.sync_called = False
-    >>> dummy = tm.begin()  # we're doing this _before_ opening a connection
-    >>> cn = db.open(transaction_manager=tm)
-    >>> rt = cn.root()      # make a change
-    >>> rt['c'] = 3
-    >>> st.sync_called
-    True
-    >>> st.sync_called = False
-
-
-Now ensure that ``cn.afterCompletion() -> st.sync()`` gets called by commit
-despite that the `Connection` registered after the transaction began:
-
-    >>> tm.commit()
-    >>> st.sync_called
-    True
-
-And try the same thing with a non-threaded transaction manager:
-
-    >>> cn.close()
     >>> tm = transaction.TransactionManager()
     >>> st.sync_called = False
-    >>> dummy = tm.begin()  # we're doing this _before_ opening a connection
+    >>> _ = tm.begin()  # we're doing this _before_ opening a connection
     >>> cn = db.open(transaction_manager=tm)
-    >>> rt = cn.root()      # make a change
-    >>> rt['d'] = 4
-    >>> st.sync_called
-    True
-    >>> st.sync_called = False
-    >>> tm.commit()
     >>> st.sync_called
     True
 

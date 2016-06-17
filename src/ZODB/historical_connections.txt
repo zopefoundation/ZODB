@@ -273,8 +273,6 @@ test.
     >>> conn.root()['first']['count'] += 1
     >>> conn.root()['third'] = persistent.mapping.PersistentMapping()
     >>> transaction.commit()
-    >>> len(historical_conn._invalidated)
-    0
     >>> historical_conn.close()
 
 Note that if you try to open an historical connection to a time in the future,
