@@ -85,13 +85,13 @@ class BaseStorage(UndoLogCompatible):
 
         # Allocate locks:
         self._lock = utils.RLock()
-        self.__commit_lock = utils.Lock()
+        self._commit_lock = utils.Lock()
 
-        # Comment out the following 4 lines to debug locking:
+        # Needed by external storages that use this dumb api :(
         self._lock_acquire = self._lock.acquire
         self._lock_release = self._lock.release
-        self._commit_lock_acquire = self.__commit_lock.acquire
-        self._commit_lock_release = self.__commit_lock.release
+        self._commit_lock_acquire = self._commit_lock.acquire
+        self._commit_lock_release = self._commit_lock.release
 
         t = time.time()
         t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t%60,)))
@@ -128,8 +128,8 @@ class BaseStorage(UndoLogCompatible):
     def new_oid(self):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        self._lock_acquire()
-        try:
+
+        with self._lock:
             last = self._oid
             d = byte_ord(last[-1])
             if d < 255:  # fast path for the usual case
@@ -139,19 +139,14 @@ class BaseStorage(UndoLogCompatible):
                 last = _structpack(">Q", last_as_long + 1)
             self._oid = last
             return last
-        finally:
-            self._lock_release()
 
     # Update the maximum oid in use, under protection of a lock.  The
     # maximum-in-use attribute is changed only if possible_new_max_oid is
     # larger than its current value.
     def set_max_oid(self, possible_new_max_oid):
-        self._lock_acquire()
-        try:
+        with self._lock:
             if possible_new_max_oid > self._oid:
                 self._oid = possible_new_max_oid
-        finally:
-            self._lock_release()
 
     def registerDB(self, db):
         pass # we don't care
@@ -160,18 +155,17 @@ class BaseStorage(UndoLogCompatible):
         return self._is_read_only
 
     def tpc_abort(self, transaction):
-        self._lock_acquire()
-        try:
+        with self._lock:
+
             if transaction is not self._transaction:
                 return
+
             try:
                 self._abort()
                 self._clear_temp()
                 self._transaction = None
             finally:
                 self._commit_lock_release()
-        finally:
-            self._lock_release()
 
     def _abort(self):
         """Subclasses should redefine this to supply abort actions"""
@@ -180,14 +174,15 @@ class BaseStorage(UndoLogCompatible):
     def tpc_begin(self, transaction, tid=None, status=' '):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        self._lock_acquire()
-        try:
+
+        with self._lock:
             if self._transaction is transaction:
                 raise POSException.StorageTransactionError(
                     "Duplicate tpc_begin calls for same transaction")
-            self._lock_release()
-            self._commit_lock_acquire()
-            self._lock_acquire()
+
+        self._commit_lock.acquire()
+
+        with self._lock:
             self._transaction = transaction
             self._clear_temp()
 
@@ -212,8 +207,6 @@ class BaseStorage(UndoLogCompatible):
 
             self._tstatus = status
             self._begin(self._tid, user, desc, ext)
-        finally:
-            self._lock_release()
 
     def tpc_transaction(self):
         return self._transaction
@@ -224,14 +217,11 @@ class BaseStorage(UndoLogCompatible):
         pass
 
     def tpc_vote(self, transaction):
-        self._lock_acquire()
-        try:
+        with self._lock:
             if transaction is not self._transaction:
                 raise POSException.StorageTransactionError(
                     "tpc_vote called with wrong transaction")
             self._vote()
-        finally:
-            self._lock_release()
 
     def _vote(self):
         """Subclasses should redefine this to supply transaction vote actions.
@@ -245,8 +235,7 @@ class BaseStorage(UndoLogCompatible):
         # to send an invalidation message to all of the other
         # connections!
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             if transaction is not self._transaction:
                 raise POSException.StorageTransactionError(
                     "tpc_finish called with wrong transaction")
@@ -259,9 +248,7 @@ class BaseStorage(UndoLogCompatible):
             finally:
                 self._ude = None
                 self._transaction = None
-                self._commit_lock_release()
-        finally:
-            self._lock_release()
+                self._commit_lock.release()
 
     def _finish(self, tid, u, d, e):
         """Subclasses should redefine this to supply transaction finish actions
@@ -273,11 +260,8 @@ class BaseStorage(UndoLogCompatible):
             return self._ltid
 
     def getTid(self, oid):
-        self._lock_acquire()
-        try:
+        with self._lock:
             return load_current(self, oid)[1]
-        finally:
-            self._lock_release()
 
     def loadSerial(self, oid, serial):
         raise POSException.Unsupported(

@@ -39,9 +39,7 @@ class MappingStorage(object):
         self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
         self._ltid = ZODB.utils.z64
         self._last_pack = None
-        _lock = ZODB.utils.RLock()
-        self._lock_acquire = _lock.acquire
-        self._lock_release = _lock.release
+        self._lock = ZODB.utils.RLock()
         self._commit_lock = ZODB.utils.Lock()
         self._opened = True
         self._transaction = None
@@ -269,9 +267,9 @@ class MappingStorage(object):
         if transaction is self._transaction:
             raise ZODB.POSException.StorageTransactionError(
                 "Duplicate tpc_begin calls for same transaction")
-        self._lock_release()
+        self._lock.release()
         self._commit_lock.acquire()
-        self._lock_acquire()
+        self._lock.acquire()
         self._transaction = transaction
         self._tdata = {}
         if tid is None:

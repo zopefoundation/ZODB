@@ -696,8 +696,7 @@ class BlobStorageMixin(object):
         return self._tid
 
     def _blob_storeblob(self, oid, serial, blobfilename):
-        self._lock_acquire()
-        try:
+        with self._lock:
             self.fshelper.getPathForOID(oid, create=True)
             targetname = self.fshelper.getBlobFilename(oid, serial)
             rename_or_copy_blob(blobfilename, targetname)
@@ -705,8 +704,6 @@ class BlobStorageMixin(object):
             # if oid already in there, something is really hosed.
             # The underlying storage should have complained anyway
             self.dirty_oids.append((oid, serial))
-        finally:
-            self._lock_release()
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
@@ -816,13 +813,10 @@ class BlobStorage(BlobStorageMixin):
 
     def pack(self, packtime, referencesf):
         """Remove all unused OID/TID combinations."""
-        self._lock_acquire()
-        try:
+        with self._lock:
             if self._blobs_pack_is_in_progress:
                 raise BlobStorageError('Already packing')
             self._blobs_pack_is_in_progress = True
-        finally:
-            self._lock_release()
 
         try:
             # Pack the underlying storage, which will allow us to determine
@@ -836,9 +830,8 @@ class BlobStorage(BlobStorageMixin):
             else:
                 self._packNonUndoing(packtime, referencesf)
         finally:
-            self._lock_acquire()
-            self._blobs_pack_is_in_progress = False
-            self._lock_release()
+            with self._lock:
+                self._blobs_pack_is_in_progress = False
 
         return result
 
@@ -853,9 +846,7 @@ class BlobStorage(BlobStorageMixin):
         # (belying the web UI legacy of the ZODB code :-()
         serial_id = decodebytes(serial_id + b'\n')
 
-        self._lock_acquire()
-
-        try:
+        with self._lock:
             # we get all the blob oids on the filesystem related to the
             # transaction we want to undo.
             for oid in self.fshelper.getOIDsForSerial(serial_id):
@@ -887,8 +878,6 @@ class BlobStorage(BlobStorageMixin):
                         utils.cp(orig, new)
                 self.dirty_oids.append((oid, undo_serial))
 
-        finally:
-            self._lock_release()
         return undo_serial, keys
 
     def new_instance(self):

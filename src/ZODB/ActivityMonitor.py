@@ -41,18 +41,15 @@ class ActivityMonitor:
         self.trim(now)
 
     def trim(self, now):
-        self.trim_lock.acquire()
-
-        log = self.log
-        cutoff = now - self.history_length
-        n = 0
-        loglen = len(log)
-        while n < loglen and log[n][0] < cutoff:
-            n = n + 1
-        if n:
-            del log[:n]
-
-        self.trim_lock.release()
+        with self.trim_lock:
+            log = self.log
+            cutoff = now - self.history_length
+            n = 0
+            loglen = len(log)
+            while n < loglen and log[n][0] < cutoff:
+                n = n + 1
+            if n:
+                del log[:n]
 
     def setHistoryLength(self, history_length):
         self.history_length = history_length

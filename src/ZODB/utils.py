@@ -286,8 +286,7 @@ class Locked(object):
             inst = args[0]
         func = self.__func__.__get__(self.__self__, self.__self_class__)
 
-        inst._lock_acquire()
-        try:
+        with inst._lock:
             for precondition in self.preconditions:
                 if not precondition(inst):
                     raise AssertionError(
@@ -295,8 +294,6 @@ class Locked(object):
                         precondition.__doc__.strip())
 
             return func(*args, **kw)
-        finally:
-            inst._lock_release()
 
 class locked(object):
 

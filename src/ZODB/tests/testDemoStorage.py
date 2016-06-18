@@ -171,7 +171,7 @@ def testSomeDelegation():
     ...         six.print_(self.name, 'closed')
     ...     sortKey = __len__ = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
-    ...     _lock_acquire = _lock_release = lambda self: None
+    ...     _lock = ZODB.utils.Lock()
     ...     getName = lambda self: 'S'
     ...     isReadOnly = tpc_transaction = None
     ...     supportsUndo = undo = undoLog = undoInfo = None
@@ -196,6 +196,8 @@ def testSomeDelegation():
     >>> storage.tpc_begin(1, 2, 3)
     begin 2 3
     >>> storage.tpc_abort(1)
+
+    >>> 
 
     """
 

@@ -32,8 +32,7 @@ class MVCCMappingStorage(MappingStorage):
         # _polled_tid contains the transaction ID at the last poll.
         self._polled_tid = b''
         self._data_snapshot = None  # {oid->(state, tid)}
-        self._main_lock_acquire = self._lock_acquire
-        self._main_lock_release = self._lock_release
+        self._main_lock = self._lock
 
     def new_instance(self):
         """Returns a storage instance that is a view of the same data.
@@ -48,8 +47,7 @@ class MVCCMappingStorage(MappingStorage):
         inst.pack = self.pack
         inst.loadBefore = self.loadBefore
         inst._ltid = self._ltid
-        inst._main_lock_acquire = self._lock_acquire
-        inst._main_lock_release = self._lock_release
+        inst._main_lock = self._lock
         return inst
 
     @ZODB.utils.locked(MappingStorage.opened)
@@ -73,8 +71,7 @@ class MVCCMappingStorage(MappingStorage):
         """Poll the storage for changes by other connections.
         """
         # prevent changes to _transactions and _data during analysis
-        self._main_lock_acquire()
-        try:
+        with self._main_lock:
             if self._transactions:
                 new_tid = self._transactions.maxKey()
             else:
@@ -110,9 +107,6 @@ class MVCCMappingStorage(MappingStorage):
                     continue
                 changed_oids.update(txn.data.keys())
 
-        finally:
-            self._main_lock_release()
-
         self._polled_tid = self._ltid = new_tid
         return list(changed_oids)
 
@@ -126,8 +120,5 @@ class MVCCMappingStorage(MappingStorage):
 
     def pack(self, t, referencesf, gc=True):
         # prevent all concurrent commits during packing
-        self._commit_lock.acquire()
-        try:
+        with self._commit_lock:
             MappingStorage.pack(self, t, referencesf, gc)
-        finally:
-            self._commit_lock.release()

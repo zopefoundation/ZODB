@@ -747,7 +747,7 @@ class FileStorage(
                 finally:
                     self._ude = None
                     self._transaction = None
-                    self._commit_lock_release()
+                    self._commit_lock.release()
 
     def _finish(self, tid, u, d, e):
         # If self._nextpos is 0, then the transaction didn't write any
@@ -918,8 +918,8 @@ class FileStorage(
                     us.search()
                 # Give another thread a chance, so that a long undoLog()
                 # operation doesn't block all other activity.
-                self._lock_release()
-                self._lock_acquire()
+                self._lock.release()
+                self._lock.acquire()
             return us.results
 
     def undo(self, transaction_id, transaction):
@@ -1153,13 +1153,13 @@ class FileStorage(
             # blobs and removing the .old file (see further down).
 
             if self.blob_dir:
-                self._commit_lock_release()
+                self._commit_lock.release()
                 have_commit_lock = False
                 self._remove_blob_files_tagged_for_removal_during_pack()
 
         finally:
             if have_commit_lock:
-                self._commit_lock_release()
+                self._commit_lock.release()
             with self._lock:
                 self._pack_is_in_progress = False
 
@@ -1195,14 +1195,14 @@ class FileStorage(
 
             removed = False
             if level:
-                self._lock_acquire()
+                self._lock.acquire()
             try:
                 if not os.listdir(path):
                     os.rmdir(path)
                     removed = True
             finally:
                 if level:
-                    self._lock_release()
+                    self._lock.release()
 
             if removed:
                 maybe_remove_empty_dir_containing(path, level+1)

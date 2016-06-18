@@ -334,11 +334,10 @@ class FileStoragePacker(FileStorageFormatter):
 
     # path is the storage file path.
     # stop is the pack time, as a TimeStamp.
-    # la and lr are the acquire() and release() methods of the storage's lock.
-    # cla and clr similarly, for the storage's commit lock.
     # current_size is the storage's _pos.  All valid data at the start
     # lives before that offset (there may be a checkpoint transaction in
     # progress after it).
+
     def __init__(self, storage, referencesf, stop, gc=True):
         self._storage = storage
         if storage.blob_dir:
@@ -366,10 +365,8 @@ class FileStoragePacker(FileStorageFormatter):
         # The packer needs to acquire the parent's commit lock
         # during the copying stage, so the two sets of lock acquire
         # and release methods are passed to the constructor.
-        self._lock_acquire = storage._lock_acquire
-        self._lock_release = storage._lock_release
-        self._commit_lock_acquire = storage._commit_lock_acquire
-        self._commit_lock_release = storage._commit_lock_release
+        self._lock = storage._lock
+        self._commit_lock = storage._commit_lock
 
         # The packer will use several indexes.
         # index: oid -> pos
@@ -445,11 +442,10 @@ class FileStoragePacker(FileStorageFormatter):
             # pack didn't free any data.  there's no point in continuing.
             close_files_remove()
             return None
-        self._commit_lock_acquire()
+        self._commit_lock.acquire()
         self.locked = True
         try:
-            self._lock_acquire()
-            try:
+            with self._lock:
                 # Re-open the file in unbuffered mode.
 
                 # The main thread may write new transactions to the
@@ -468,8 +464,7 @@ class FileStoragePacker(FileStorageFormatter):
                 self._file = open(self._path, "rb", 0)
                 self._file.seek(0, 2)
                 self.file_end = self._file.tell()
-            finally:
-                self._lock_release()
+
             if ipos < self.file_end:
                 self.copyRest(ipos)
 
@@ -486,11 +481,11 @@ class FileStoragePacker(FileStorageFormatter):
             # most probably ran out of disk space or some other IO error
             close_files_remove()
             if self.locked:
-                self._commit_lock_release()
+                self._commit_lock.release()
             raise  # don't succeed silently
         except:
             if self.locked:
-                self._commit_lock_release()
+                self._commit_lock.release()
             raise
 
     def copyToPacktime(self):
@@ -639,7 +634,7 @@ class FileStoragePacker(FileStorageFormatter):
         # The call below will raise CorruptedDataError at EOF.
         th = self._read_txn_header(ipos)
         # Release commit lock while writing to pack file
-        self._commit_lock_release()
+        self._commit_lock.release()
         self.locked = False
         pos = self._tfile.tell()
         self._copier.setTxnPos(pos)
@@ -668,6 +663,6 @@ class FileStoragePacker(FileStorageFormatter):
 
         self.index.update(self.tindex)
         self.tindex.clear()
-        self._commit_lock_acquire()
+        self._commit_lock.acquire()
         self.locked = True
         return ipos
