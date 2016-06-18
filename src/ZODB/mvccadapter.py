@@ -75,7 +75,7 @@ class MVCCAdapter(Base):
             for instance in self._instances:
                 instance._invalidateCache()
 
-    def invalidate(self, transaction_id, oids, version=''):
+    def invalidate(self, transaction_id, oids):
         with self._lock:
             for instance in self._instances:
                 instance._invalidate(oids)
@@ -139,7 +139,7 @@ class MVCCAdapterInstance(Base):
                 self._invalidations.clear()
                 return result
 
-    def load(self, oid, version=''):
+    def load(self, oid):
         assert self._start is not None
         r = self._storage.loadBefore(oid, self._start)
         if r is None:

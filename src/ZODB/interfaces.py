@@ -313,7 +313,7 @@ class IStorageWrapper(Interface):
         there would be so many that it would be inefficient to do so.
         """
 
-    def invalidate(transaction_id, oids, version=''):
+    def invalidate(transaction_id, oids):
         """Invalidate object ids committed by the given transaction
 
         The oids argument is an iterable of object identifiers.
@@ -549,34 +549,6 @@ class IStorage(Interface):
         """The approximate number of objects in the storage
 
         This is used soley for informational purposes.
-        """
-
-    def load(oid, version):
-        """Load data for an object id
-
-        NOTE: This method is deprecated and may be removed in the
-        future.  It is no longer used by ZODB, although it may still
-        be used in some tests or scripts.  Previously, there was a
-        requirement that load results be properly ordered with
-        invalidations so that at any point in time, clients have a
-        consistent view of what version of an object is current.  This
-        restriction has been relaxed and some storages will be
-        simplified as a result of the removal of this requirement.
-
-        An alternative to calling load is calling loadBefore passing
-        ZODB.utils.maxtid::
-
-            store.loadBefore(oid, ZODB.utils.maxtid)
-
-        The version argumement should always be an empty string. It
-        exists soley for backward compatibility with older storage
-        implementations.
-
-        A data record and serial are returned.  The serial is a
-        transaction identifier of the transaction that wrote the data
-        record.
-
-        A POSKeyError is raised if there is no record for the object id.
         """
 
     def loadBefore(oid, tid):
@@ -1092,6 +1064,16 @@ class IMVCCStorage(IStorage):
         If the force parameter is False, the storage may choose to
         ignore this call. By ignoring this call, a storage can reduce
         the frequency of database polls, thus reducing database load.
+        """
+
+    def load(oid):
+        """Load current data for an object id
+
+        A data record and serial are returned.  The serial is a
+        transaction identifier of the transaction that wrote the data
+        record.
+
+        A POSKeyError is raised if there is no record for the object id.
         """
 
 
