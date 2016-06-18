@@ -43,6 +43,10 @@ class HistoryStorage:
             h = self._storage.history(oid, size=i)
             self.assertEqual([d['tid'] for d in h], revids[:i])
         # Check results are sorted by timestamp, in descending order.
+        if sys.platform == 'win32':
+            # Same as above. This is also required in case this method is
+            # called several times for the same storage.
+            sleep(0.001)
         a = time()
         for d in h:
             b = a
