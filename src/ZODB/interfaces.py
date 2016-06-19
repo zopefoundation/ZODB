@@ -797,13 +797,14 @@ class IStorage(Interface):
         without an error, then there must not be an error if
         tpc_finish or tpc_abort is called subsequently.
 
-        The return value can be either None or a sequence of object-id
-        and serial pairs giving new serials for objects who's ids were
-        passed to previous store calls in the same transaction.
+        The return value can be either None or a sequence of oids for which
+        a conflict was resolved.
 
-        A serial returned in a sequence of oid/serial pairs, may be
-        the special value ZODB.ConflictResolution.ResolvedSerial to
-        indicate that a conflict occured and that the object should be
+        For compatibility, the return value can also be a sequence of object-id
+        and serial pairs giving new serials for objects whose ids were
+        passed to previous store calls in the same transaction. The serial
+        can be the special value ZODB.ConflictResolution.ResolvedSerial to
+        indicate that a conflict occurred and that the object should be
         invalidated.
 
         After the tpc_vote call, all solved conflicts must have been notified,

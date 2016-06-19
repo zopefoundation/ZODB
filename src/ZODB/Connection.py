@@ -705,7 +705,7 @@ class Connection(ExportImport, object):
 
             self._handle_serial(oid, s)
 
-    def _handle_serial(self, oid, serial, change=True):
+    def _handle_serial(self, oid, serial=True, change=True):
 
         # if we write an object, we don't want to check if it was read
         # while current.  This is a convenient choke point to do this.
@@ -713,7 +713,9 @@ class Connection(ExportImport, object):
 
         if not serial:
             return
-        if not isinstance(serial, bytes):
+        if serial is True:
+            serial = ResolvedSerial
+        elif not isinstance(serial, bytes):
             raise serial
         obj = self._cache.get(oid, None)
         if obj is None:
@@ -721,6 +723,7 @@ class Connection(ExportImport, object):
         if serial == ResolvedSerial:
             del obj._p_changed # transition from changed to ghost
         else:
+            self._warn_about_returned_serial()
             if change:
                 obj._p_changed = 0 # transition from changed to up-to-date
             obj._p_serial = serial
@@ -790,6 +793,11 @@ class Connection(ExportImport, object):
             raise
 
         if s:
+            if type(s[0]) is bytes:
+                for oid in s:
+                    self._handle_serial(oid)
+                return
+            self._warn_about_returned_serial()
             for oid, serial in s:
                 self._handle_serial(oid, serial)
 
@@ -829,9 +837,9 @@ class Connection(ExportImport, object):
             self._warn_about_returned_serial = lambda: None
         else:
             warnings.warn(
-                "In ZODB 5+, it will be required for tpc_finish to return the"
-                " committed tid. store/tpc_vote will only have to notify about"
-                " resolved conflicts.",
+                "In ZODB 5+, the new API for the returned value of"
+                " store/tpc_vote/tpc_finish will be mandatory."
+                " See IStorage for more information.",
                 DeprecationWarning, 2)
             Connection._warn_about_returned_serial = lambda self: None
 

@@ -28,7 +28,7 @@ from pickle import PicklingError
 
 logger = logging.getLogger('ZODB.ConflictResolution')
 
-ResolvedSerial = b'rs'
+ResolvedSerial = b'rs' # deprecated: store/tpc_finish should just use True
 
 class BadClassName(Exception):
     pass

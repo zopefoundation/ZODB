@@ -58,8 +58,8 @@ class DemoStorage(ZODB.DemoStorage.DemoStorage):
             assert type(s) is bytes, s
             return
         if not self.delayed_store:
-            return s
-        self.__stored.append((oid, s))
+            return True
+        self.__stored.append(oid)
 
     tpc_vote = property(lambda self: self._tpc_vote, lambda *_: None)
 
