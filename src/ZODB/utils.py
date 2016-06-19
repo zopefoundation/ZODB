@@ -268,6 +268,12 @@ def mktemp(dir=None, prefix='tmp'):
     os.close(handle)
     return filename
 
+def check_precondition(precondition):
+    if not precondition():
+        raise AssertionError(
+            "Failed precondition: ",
+            precondition.__doc__.strip())
+
 class Locked(object):
 
     def __init__(self, func, inst=None, class_=None, preconditions=()):

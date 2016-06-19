@@ -261,24 +261,28 @@ class MappingStorage(object):
         self._commit_lock.release()
 
     # ZODB.interfaces.IStorage
-    @ZODB.utils.locked(opened)
     def tpc_begin(self, transaction, tid=None):
-        # The tid argument exists to support testing.
-        if transaction is self._transaction:
-            raise ZODB.POSException.StorageTransactionError(
-                "Duplicate tpc_begin calls for same transaction")
-        self._lock.release()
+        with self._lock:
+
+            ZODB.utils.check_precondition(self.opened)
+
+            # The tid argument exists to support testing.
+            if transaction is self._transaction:
+                raise ZODB.POSException.StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
+
         self._commit_lock.acquire()
-        self._lock.acquire()
-        self._transaction = transaction
-        self._tdata = {}
-        if tid is None:
-            if self._transactions:
-                old_tid = self._transactions.maxKey()
-            else:
-                old_tid = None
-            tid = ZODB.utils.newTid(old_tid)
-        self._tid = tid
+
+        with self._lock:
+            self._transaction = transaction
+            self._tdata = {}
+            if tid is None:
+                if self._transactions:
+                    old_tid = self._transactions.maxKey()
+                else:
+                    old_tid = None
+                tid = ZODB.utils.newTid(old_tid)
+            self._tid = tid
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
