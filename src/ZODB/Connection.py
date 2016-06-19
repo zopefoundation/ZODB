@@ -818,7 +818,22 @@ class Connection(ExportImport, object):
                     if obj is not None and obj._p_changed is not None:
                         obj._p_changed = 0
                         obj._p_serial = serial
+        else:
+            self._warn_about_returned_serial()
         self._tpc_cleanup()
+
+    def _warn_about_returned_serial(self):
+        # Do not warn about own implementations of ZODB.
+        # We're aware and the user can't do anything about it.
+        if self._normal_storage.__module__.startswith("_ZODB."):
+            self._warn_about_returned_serial = lambda: None
+        else:
+            warnings.warn(
+                "In ZODB 5+, it will be required for tpc_finish to return the"
+                " committed tid. store/tpc_vote will only have to notify about"
+                " resolved conflicts.",
+                DeprecationWarning, 2)
+            Connection._warn_about_returned_serial = lambda self: None
 
     def sortKey(self):
         """Return a consistent sort key for this connection."""
