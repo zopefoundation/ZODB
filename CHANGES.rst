@@ -2,6 +2,22 @@
  Change History
 ================
 
+5.0.0a1 (2016-06-20)
+====================
+
+Major **internal** implementation changes to the Multi Version
+Concurrency Control (MVCC) implementation:
+
+- For storages that implement IMVCCStorage (RelStorage), no longer
+  implement MVCC in ZODB.
+
+- For other storages, MVCC is implemented using an additional storage
+  layer. This underlying layer works by calling ``loadBefore``. The
+  low-level storage ``load`` method isn't used any more.
+
+  This change allows server-nased storages like ZEO and NEO to be
+  implemented more simply and cleanly.
+
 4.3.1 (2016-06-06)
 ==================
 
