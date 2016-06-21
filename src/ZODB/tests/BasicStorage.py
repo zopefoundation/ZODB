@@ -69,8 +69,10 @@ class BasicStorage:
         r1 = self._storage.store(oid, None, zodb_pickle(MinPO(11)),
                                        '', txn)
         r2 = self._storage.tpc_vote(txn)
-        self._storage.tpc_finish(txn)
+        serial = self._storage.tpc_finish(txn)
         newrevid = handle_serials(oid, r1, r2)
+        if newrevid is None and serial is not None:
+            newrevid = serial
         data, revid = self._storage.load(oid, '')
         value = zodb_unpickle(data)
         eq(value, MinPO(11))
