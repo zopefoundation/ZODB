@@ -155,10 +155,12 @@ class StorageClientThread(TestThread):
         r2 = self.storage.tpc_vote(t)
         self.pause()
 
-        self.storage.tpc_finish(t)
+        serial = self.storage.tpc_finish(t)
         self.pause()
 
         revid = handle_serials(oid, r1, r2)
+        if serial is not None and revid is None:
+            revid = serial
         self.oids[oid] = revid
 
 class ExtStorageClientThread(StorageClientThread):

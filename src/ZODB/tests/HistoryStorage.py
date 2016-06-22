@@ -34,7 +34,7 @@ class HistoryStorage:
         for data in data:
             if sys.platform == 'win32':
                 # time.time() has a precision of 1ms on Windows.
-                sleep(0.002)
+                sleep(0.001)
             revids.append(self._dostore(oid, revids[-1], MinPO(data)))
         revids.reverse()
         del revids[-1]
@@ -43,6 +43,10 @@ class HistoryStorage:
             h = self._storage.history(oid, size=i)
             self.assertEqual([d['tid'] for d in h], revids[:i])
         # Check results are sorted by timestamp, in descending order.
+        if sys.platform == 'win32':
+            # Same as above. This is also required in case this method is
+            # called several times for the same storage.
+            sleep(0.001)
         a = time()
         for d in h:
             b = a

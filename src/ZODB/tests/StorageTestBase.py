@@ -132,7 +132,7 @@ def handle_serials(oid, *args):
 
     A helper for function _handle_all_serials().
     """
-    return handle_all_serials(oid, *args)[oid]
+    return handle_all_serials(oid, *args).get(oid)
 
 def import_helper(name):
     __import__(name)
@@ -189,7 +189,9 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             # Finish the transaction
             r2 = self._storage.tpc_vote(t)
             revid = handle_serials(oid, r1, r2)
-            self._storage.tpc_finish(t)
+            serial = self._storage.tpc_finish(t)
+            if serial is not None and revid is None:
+                revid = serial
         except:
             self._storage.tpc_abort(t)
             raise
@@ -209,8 +211,8 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         self._storage.tpc_begin(t)
         undo_result = self._storage.undo(tid, t)
         vote_result = self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
-        if expected_oids is not None:
+        serial = self._storage.tpc_finish(t)
+        if expected_oids is not None and serial is None:
             oids = list(undo_result[1]) if undo_result else []
             oids.extend(oid for (oid, _) in vote_result or ())
             self.assertEqual(len(oids), len(expected_oids), repr(oids))

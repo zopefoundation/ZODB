@@ -150,10 +150,12 @@ class RevisionStorage:
                 # Finish the transaction
                 r2 = self._storage.tpc_vote(t)
                 newrevid = handle_serials(oid, r1, r2)
-                self._storage.tpc_finish(t)
+                serial = self._storage.tpc_finish(t)
             except:
                 self._storage.tpc_abort(t)
                 raise
+            if serial is not None and newrevid is None:
+                newrevid = serial
             return newrevid
         revid1 = helper(1, None, 1)
         revid2 = helper(2, revid1, 2)

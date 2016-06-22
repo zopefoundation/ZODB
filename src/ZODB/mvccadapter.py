@@ -172,7 +172,7 @@ class MVCCAdapterInstance(Base):
             self._base._invalidate_finish(modified, self)
             func(tid)
 
-        self._storage.tpc_finish(transaction, invalidate_finish)
+        return self._storage.tpc_finish(transaction, invalidate_finish)
 
 def read_only_writer(self, *a, **kw):
     raise POSException.ReadOnlyError
