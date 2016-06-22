@@ -30,7 +30,6 @@ class IFileStoragePacker(zope.interface.Interface):
         or, of the form:
 
            oid.encode('hex')+'\n'
-        
 
         If packing is unnecessary, or would not change the file, then
         no pack or removed files are created None is returned,
@@ -47,7 +46,7 @@ class IFileStoragePacker(zope.interface.Interface):
         - Rename the .pack file, and
 
         - process the blob_dir/.removed file by removing the blobs
-          corresponding to the file records.        
+          corresponding to the file records.
         """
 
 class IFileStorage(zope.interface.Interface):
@@ -60,14 +59,10 @@ class IFileStorage(zope.interface.Interface):
         "The file object used to access the underlying data."
         )
 
-    def _lock_acquire():
-        "Acquire the storage lock"
+    _lock = zope.interface.Attribute(
+        "The storage lock."
+        )
 
-    def _lock_release():
-        "Release the storage lock"
-
-    def _commit_lock_acquire():
-        "Acquire the storage commit lock"
-
-    def _commit_lock_release():
-        "Release the storage commit lock"
+    _commit_lock = zope.interface.Attribute(
+        "The storage commit lock."
+        )

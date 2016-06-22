@@ -114,7 +114,7 @@ class DemoStorage(ConflictResolvingStorage):
 
     def _copy_methods_from_changes(self, changes):
         for meth in (
-            '_lock_acquire', '_lock_release',
+            '_lock',
             'getSize', 'isReadOnly',
             'sortKey', 'tpc_transaction', 'tpc_vote',
             ):
@@ -248,22 +248,22 @@ class DemoStorage(ConflictResolvingStorage):
         except ZODB.POSException.POSKeyError:
             return self.base.loadSerial(oid, serial)
 
-    @ZODB.utils.locked
     def new_oid(self):
-        while 1:
-            oid = ZODB.utils.p64(self._next_oid )
-            if oid not in self._issued_oids:
-                try:
-                    load_current(self.changes, oid)
-                except ZODB.POSException.POSKeyError:
+        with self._lock:
+            while 1:
+                oid = ZODB.utils.p64(self._next_oid )
+                if oid not in self._issued_oids:
                     try:
-                        load_current(self.base, oid)
+                        load_current(self.changes, oid)
                     except ZODB.POSException.POSKeyError:
-                        self._next_oid += 1
-                        self._issued_oids.add(oid)
-                        return oid
+                        try:
+                            load_current(self.base, oid)
+                        except ZODB.POSException.POSKeyError:
+                            self._next_oid += 1
+                            self._issued_oids.add(oid)
+                            return oid
 
-            self._next_oid = random.randint(1, 1<<62)
+                self._next_oid = random.randint(1, 1<<62)
 
     def pack(self, t, referencesf, gc=None):
         if gc is None:
@@ -343,38 +343,39 @@ class DemoStorage(ConflictResolvingStorage):
                 return self.changes.temporaryDirectory()
             raise
 
-    @ZODB.utils.locked
     def tpc_abort(self, transaction):
-        if transaction is not self._transaction:
-            return
-        self._stored_oids = set()
-        self._transaction = None
-        self.changes.tpc_abort(transaction)
-        self._commit_lock.release()
+        with self._lock:
+            if transaction is not self._transaction:
+                return
+            self._stored_oids = set()
+            self._transaction = None
+            self.changes.tpc_abort(transaction)
+            self._commit_lock.release()
 
-    @ZODB.utils.locked
     def tpc_begin(self, transaction, *a, **k):
-        # The tid argument exists to support testing.
-        if transaction is self._transaction:
-            raise ZODB.POSException.StorageTransactionError(
-                "Duplicate tpc_begin calls for same transaction")
-        self._lock_release()
-        self._commit_lock.acquire()
-        self._lock_acquire()
-        self.changes.tpc_begin(transaction, *a, **k)
-        self._transaction = transaction
-        self._stored_oids = set()
+        with self._lock:
+            # The tid argument exists to support testing.
+            if transaction is self._transaction:
+                raise ZODB.POSException.StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
 
-    @ZODB.utils.locked
+        self._commit_lock.acquire()
+
+        with self._lock:
+            self.changes.tpc_begin(transaction, *a, **k)
+            self._transaction = transaction
+            self._stored_oids = set()
+
     def tpc_finish(self, transaction, func = lambda tid: None):
-        if (transaction is not self._transaction):
-            raise ZODB.POSException.StorageTransactionError(
-                "tpc_finish called with wrong transaction")
-        self._issued_oids.difference_update(self._stored_oids)
-        self._stored_oids = set()
-        self._transaction = None
-        self.changes.tpc_finish(transaction, func)
-        self._commit_lock.release()
+        with self._lock:
+            if (transaction is not self._transaction):
+                raise ZODB.POSException.StorageTransactionError(
+                    "tpc_finish called with wrong transaction")
+            self._issued_oids.difference_update(self._stored_oids)
+            self._stored_oids = set()
+            self._transaction = None
+            self.changes.tpc_finish(transaction, func)
+            self._commit_lock.release()
 
 _temporary_blobdirs = {}
 def cleanup_temporary_blobdir(

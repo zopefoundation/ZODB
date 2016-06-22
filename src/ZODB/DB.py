@@ -403,9 +403,7 @@ class DB(object):
         """
 
         # Allocate lock.
-        x = utils.RLock()
-        self._a = x.acquire
-        self._r = x.release
+        self._lock = utils.RLock()
 
         # pools and cache sizes
         self.pool = ConnectionPool(pool_size, pool_timeout)
@@ -492,8 +490,7 @@ class DB(object):
         connection._db must be self on entry.
         """
 
-        self._a()
-        try:
+        with self._lock:
             assert connection._db is self
             connection.opened = None
 
@@ -501,18 +498,13 @@ class DB(object):
                 self.historical_pool.repush(connection, connection.before)
             else:
                 self.pool.repush(connection)
-        finally:
-            self._r()
 
     def _connectionMap(self, f):
         """Call f(c) for all connections c in all pools, live and historical.
         """
-        self._a()
-        try:
+        with self._lock:
             self.pool.map(f)
             self.historical_pool.map(f)
-        finally:
-            self._r()
 
     def cacheDetail(self):
         """Return information on objects in the various caches
@@ -716,8 +708,7 @@ class DB(object):
                 DeprecationWarning, 2)
             transaction_manager = None
 
-        self._a()
-        try:
+        with self._lock:
             # result <- a connection
             if before is not None:
                 result = self.historical_pool.pop(before)
@@ -746,8 +737,6 @@ class DB(object):
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
-        finally:
-            self._r()
 
         result.open(transaction_manager)
         return result
@@ -814,65 +803,44 @@ class DB(object):
         return find_global(modulename, globalname)
 
     def setCacheSize(self, size):
-        self._a()
-        try:
+        with self._lock:
             self._cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
             self.pool.map(setsize)
-        finally:
-            self._r()
 
     def setCacheSizeBytes(self, size):
-        self._a()
-        try:
+        with self._lock:
             self._cache_size_bytes = size
             def setsize(c):
                 c._cache.cache_size_bytes = size
             self.pool.map(setsize)
-        finally:
-            self._r()
 
     def setHistoricalCacheSize(self, size):
-        self._a()
-        try:
+        with self._lock:
             self._historical_cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
             self.historical_pool.map(setsize)
-        finally:
-            self._r()
 
     def setHistoricalCacheSizeBytes(self, size):
-        self._a()
-        try:
+        with self._lock:
             self._historical_cache_size_bytes = size
             def setsize(c):
                 c._cache.cache_size_bytes = size
             self.historical_pool.map(setsize)
-        finally:
-            self._r()
 
     def setPoolSize(self, size):
-        self._a()
-        try:
+        with self._lock:
             self.pool.size = size
-        finally:
-            self._r()
 
     def setHistoricalPoolSize(self, size):
-        self._a()
-        try:
+        with self._lock:
             self.historical_pool.size = size
-        finally:
-            self._r()
 
     def setHistoricalTimeout(self, timeout):
-        self._a()
-        try:
+        with self._lock:
             self.historical_pool.timeout = timeout
-        finally:
-            self._r()
 
     def history(self, *args, **kw):
         return self.storage.history(*args, **kw)

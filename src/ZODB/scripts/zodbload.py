@@ -188,8 +188,7 @@ class MBox:
         self._max = max
 
     def next(self):
-        self._lock.acquire()
-        try:
+        with self.lock:
             if self._max > 0 and self.number >= self._max:
                 raise IndexError(self.number + 1)
             message = next(self._mbox)
@@ -199,8 +198,6 @@ class MBox:
             message.number = self.number
             message.mbox = self.__name__
             return message
-        finally:
-            self._lock.release()
 
 bins = 9973
 #bins = 11

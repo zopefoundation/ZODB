@@ -98,6 +98,10 @@ we'll create a "lock" type that simply prints when it is called:
     ...         print('acquire')
     ...     def release(self):
     ...         print('release')
+    ...     def __enter__(self):
+    ...         return self.acquire()
+    ...     def __exit__(self, *ignored):
+    ...         return self.release()
 
 Now we'll demonstrate the descriptor:
 
@@ -150,9 +154,7 @@ supports optional method preconditions [1]_.
 
     >>> class C:
     ...     def __init__(self):
-    ...         _lock = Lock()
-    ...         self._lock_acquire = _lock.acquire
-    ...         self._lock_release = _lock.release
+    ...         self._lock = Lock()
     ...         self._opened = True
     ...         self._transaction = None
     ...
