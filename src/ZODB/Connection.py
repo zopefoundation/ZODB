@@ -613,16 +613,17 @@ class Connection(ExportImport, object):
                 raise InvalidObjectReference(obj, obj._p_jar)
             elif oid in self._added:
                 assert obj._p_serial == z64
-            elif obj._p_changed:
+            elif obj._p_changed and oid not in self._creating:
                 if oid in self._invalidated:
                     resolve = getattr(obj, "_p_resolveConflict", None)
                     if resolve is None:
                         raise ConflictError(object=obj)
-                self._modified.append(oid)
             else:
                 # Nothing to do.  It's been said that it's legal, e.g., for
                 # an object to set _p_changed to false after it's been
                 # changed and registered.
+                # And new objects that are registered after any referrer are
+                # already processed.
                 continue
 
             self._store_objects(ObjectWriter(obj), transaction)

@@ -269,7 +269,7 @@ class BaseStorage(UndoLogCompatible):
             if transaction is not self._transaction:
                 raise POSException.StorageTransactionError(
                     "tpc_vote called with wrong transaction")
-            self._vote()
+            return self._vote()
         finally:
             self._lock_release()
 
@@ -398,8 +398,8 @@ def copy(source, dest, verbose=0):
                              r.data_txn, transaction)
             else:
                 pre = preget(oid, None)
-                s = dest.store(oid, pre, r.data, r.version, transaction)
-                preindex[oid] = s
+                dest.store(oid, pre, r.data, r.version, transaction)
+                preindex[oid] = tid
 
         dest.tpc_vote(transaction)
         dest.tpc_finish(transaction)

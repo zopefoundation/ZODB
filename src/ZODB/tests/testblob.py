@@ -706,8 +706,8 @@ def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     >>> blob = ZODB.blob.Blob(b'blah')
     >>> conn.add(blob)
     >>> transaction.commit()
-    >>> old_serial = blob._p_serial
     >>> blob._p_changed = True
+    >>> old_serial = blob._p_serial
     >>> transaction.commit()
     >>> with blob.open() as fp: fp.read()
     'blah'
