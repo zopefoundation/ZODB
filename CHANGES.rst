@@ -2,6 +2,26 @@
  Change History
 ================
 
+4.4.0 (2016-06-30)
+==================
+
+This release begins evolution to a more effcient commit protocol that
+allows storage implementations, like `NEO <http://www.neoppod.org/>`_,
+to support multiple transactions committing at the same time, for
+greater write parallelism.
+
+This release updates IStorage:
+
+- The committed transaction's ID is returned by ``tpc_finish``, rather
+  than being returned in response store and tpc_vote results.
+
+- ``tpc_vote`` is now expected to return ``None`` or a list of object
+  ids for objects for which conflicts were resolved.
+
+This release works with storages that implemented the older version of
+the storage interface, but also supports storages that implement the
+updated interface.
+
 4.3.1 (2016-06-06)
 ==================
 
