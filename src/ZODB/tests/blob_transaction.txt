@@ -381,16 +381,17 @@ stored are discarded.
     >>> blob_storage.tpc_begin(t)
     >>> with open('blobfile', 'wb') as file:
     ...     _ = file.write(b'This data should go away')
-    >>> s1 = blob_storage.storeBlob(blob._p_oid, oldserial, olddata, 'blobfile',
+    >>> blob_storage.storeBlob(blob._p_oid, oldserial, olddata, 'blobfile',
     ...                             '', t)
     >>> new_oid = blob_storage.new_oid()
     >>> with open('blobfile2', 'wb') as file:
     ...     _ = file.write(b'This data should go away too')
-    >>> s2 = blob_storage.storeBlob(new_oid, '\0'*8, olddata, 'blobfile2',
+    >>> blob_storage.storeBlob(new_oid, '\0'*8, olddata, 'blobfile2',
     ...                             '', t)
-
-    >>> serials = blob_storage.tpc_vote(t)
-
+    >>> bool(blob_storage.tpc_vote(t))
+    False
+    >>> oldserial < blob_storage._tid
+    True
     >>> blob_storage.tpc_abort(t)
 
 Now, the serial for the existing blob should be the same:

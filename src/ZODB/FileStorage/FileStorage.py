@@ -40,7 +40,6 @@ from ZODB.BaseStorage import BaseStorage
 from ZODB.BaseStorage import DataRecord as _DataRecord
 from ZODB.BaseStorage import TransactionRecord as _TransactionRecord
 from ZODB.ConflictResolution import ConflictResolvingStorage
-from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.FileStorage.format import CorruptedDataError
 from ZODB.FileStorage.format import CorruptedError
 from ZODB.FileStorage.format import DATA_HDR
@@ -536,9 +535,7 @@ class FileStorage(
                     "The storage quota has been exceeded.")
 
             if old and oldserial != committed_tid:
-                return ResolvedSerial
-            else:
-                return self._tid
+                self._resolved.append(oid)
 
     def deleteObject(self, oid, oldserial, transaction):
         if self._is_read_only:
@@ -731,6 +728,7 @@ class FileStorage(
                 self._files.flush()
                 raise
             self._nextpos = self._pos + (tl + 8)
+            return self._resolved
 
     def tpc_finish(self, transaction, f=None):
         with self._files.write_lock():
@@ -739,15 +737,16 @@ class FileStorage(
                     raise StorageTransactionError(
                         "tpc_finish called with wrong transaction")
                 try:
+                    tid = self._tid
                     if f is not None:
-                        f(self._tid)
-                    u, d, e = self._ude
-                    self._finish(self._tid, u, d, e)
+                        f(tid)
+                    self._finish(tid, *self._ude)
                     self._clear_temp()
                 finally:
                     self._ude = None
                     self._transaction = None
                     self._commit_lock.release()
+        return tid
 
     def _finish(self, tid, u, d, e):
         # If self._nextpos is 0, then the transaction didn't write any

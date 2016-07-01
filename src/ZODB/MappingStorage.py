@@ -43,6 +43,7 @@ class MappingStorage(object):
         self._commit_lock = ZODB.utils.Lock()
         self._opened = True
         self._transaction = None
+        self._resolved = []
         self._oid = 0
 
     ######################################################################
@@ -232,7 +233,7 @@ class MappingStorage(object):
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
-    def store(self, oid, serial, data, version, transaction):
+    def store(self, oid, serial, data, version, transaction, resolved=False):
         assert not version, "Versions are not supported"
         if transaction is not self._transaction:
             raise ZODB.POSException.StorageTransactionError(self, transaction)
@@ -246,8 +247,8 @@ class MappingStorage(object):
                     oid=oid, serials=(old_tid, serial), data=data)
 
         self._tdata[oid] = data
-
-        return self._tid
+        if resolved:
+            self._resolved.append(oid)
 
     checkCurrentSerialInTransaction = (
         ZODB.BaseStorage.checkCurrentSerialInTransaction)
@@ -283,6 +284,7 @@ class MappingStorage(object):
                     old_tid = None
                 tid = ZODB.utils.newTid(old_tid)
             self._tid = tid
+            del self._resolved[:]
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
@@ -307,6 +309,7 @@ class MappingStorage(object):
         self._transaction = None
         del self._tdata
         self._commit_lock.release()
+        return tid
 
     # ZEO.interfaces.IServeable
     @ZODB.utils.locked(opened)
@@ -318,6 +321,7 @@ class MappingStorage(object):
         if transaction is not self._transaction:
             raise ZODB.POSException.StorageTransactionError(
                 "tpc_vote called with wrong transaction")
+        return self._resolved
 
 class TransactionRecord:
 

@@ -32,7 +32,7 @@ import ZODB.POSException
 import ZODB.utils
 import zope.interface
 
-from .ConflictResolution import ConflictResolvingStorage, ResolvedSerial
+from .ConflictResolution import ConflictResolvingStorage
 from .utils import load_current, maxtid
 
 @zope.interface.implementer(
@@ -308,10 +308,9 @@ class DemoStorage(ConflictResolvingStorage):
 
         if old != serial:
             rdata = self.tryToResolveConflict(oid, old, serial, data)
-            self.changes.store(oid, old, rdata, '', transaction)
-            return ResolvedSerial
-
-        return self.changes.store(oid, serial, data, '', transaction)
+            self.changes.store(oid, old, rdata, '', transaction, True)
+        else:
+            self.changes.store(oid, serial, data, '', transaction)
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
@@ -324,11 +323,11 @@ class DemoStorage(ConflictResolvingStorage):
         self._stored_oids.add(oid)
 
         try:
-            return self.changes.storeBlob(
+            self.changes.storeBlob(
                 oid, oldserial, data, blobfilename, '', transaction)
         except AttributeError:
             if self._blobify():
-                return self.changes.storeBlob(
+                self.changes.storeBlob(
                     oid, oldserial, data, blobfilename, '', transaction)
             raise
 
@@ -374,8 +373,9 @@ class DemoStorage(ConflictResolvingStorage):
             self._issued_oids.difference_update(self._stored_oids)
             self._stored_oids = set()
             self._transaction = None
-            self.changes.tpc_finish(transaction, func)
+            tid = self.changes.tpc_finish(transaction, func)
             self._commit_lock.release()
+        return tid
 
 _temporary_blobdirs = {}
 def cleanup_temporary_blobdir(
