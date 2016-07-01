@@ -1011,9 +1011,14 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     storing '\x00\x00\x00\x00\x00\x00\x00\x00'
     storing '\x00\x00\x00\x00\x00\x00\x00\x01'
 
-    >>> conn.add(C())
+    Retry with the new object registered before its referrer.
+
+    >>> z = C()
+    >>> conn.add(z)
+    >>> conn.root.z = z
     >>> transaction.commit()
     storing '\x00\x00\x00\x00\x00\x00\x00\x02'
+    storing '\x00\x00\x00\x00\x00\x00\x00\x00'
 
     We still see updates:
 
