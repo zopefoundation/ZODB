@@ -2,6 +2,12 @@
  Change History
 ================
 
+4.4.1 (2016-07-01)
+==================
+
+Added IMultiCommitStorage to directly represent the changes in the 4.4.0
+release and to make complient storages introspectable.
+
 4.4.0 (2016-06-30)
 ==================
 
