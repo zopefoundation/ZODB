@@ -817,14 +817,14 @@ class IMultiCommitStorage(IStorage):
     def store(oid, serial, data, version, transaction):
         """Store data for the object id, oid.
 
-        See IStorage.store. For object's implementing this interface,
+        See IStorage.store. For objects implementing this interface,
         the return value is always None.
         """
 
     def tpc_finish(transaction, func = lambda tid: None):
         """Finish the transaction, making any transaction changes permanent.
 
-        See IStorage.store. For object's implementing this interface,
+        See IStorage.store. For objects implementing this interface,
         the return value must be the committed tid. It is used to set the
         serial for objects whose ids were passed to previous store calls
         in the same transaction.
@@ -833,7 +833,7 @@ class IMultiCommitStorage(IStorage):
     def tpc_vote(transaction):
         """Provide a storage with an opportunity to veto a transaction
 
-        See IStorage.store. For object's implementing this interface,
+        See IStorage.store. For objects implementing this interface,
         the return value can be either None or a sequence of oids for which
         a conflict was resolved.
         """
