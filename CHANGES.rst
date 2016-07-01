@@ -2,8 +2,11 @@
  Change History
 ================
 
-5.0.0a2 (unreleased)
+5.0.0a2 (2016-07-01)
 ====================
+
+Added IMultiCommitStorage to directly represent the changes in the 4.4.0
+release and to make complient storages introspectable.
 
 See the 4.4.0 release.
 
