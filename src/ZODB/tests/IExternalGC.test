@@ -46,7 +46,7 @@ transaction ourselves.
     >>> storage.deleteObject(oid0, s0, txn)
     >>> storage.deleteObject(oid1, s1, txn)
     >>> storage.tpc_vote(txn)
-    >>> storage.tpc_finish(txn)
+    >>> _ = storage.tpc_finish(txn)
     >>> tid = storage.lastTransaction()
 
 Now if we try to load data for the objects, we get a POSKeyError:

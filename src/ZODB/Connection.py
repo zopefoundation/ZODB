@@ -694,9 +694,15 @@ class Connection(ExportImport, object):
             for oid_iterator in self._modified, self._creating:
                 for oid in oid_iterator:
                     obj = self._cache.get(oid)
-                    # Ignore missing objects and don't update ghosts.
-                    if obj is not None and obj._p_changed is not None:
-                        obj._p_changed = 0
+
+                    # Ignore missing objects and don't update state for ghosts.
+                    if obj is not None:
+                        if obj._p_changed is not None:
+                            obj._p_changed = 0
+
+                        # We  need to  update the  serial, because  it
+                        # wasn't updated  earlier for blobs without
+                        # resolved conflicts.
                         obj._p_serial = serial
         else:
             self._warn_about_returned_serial()

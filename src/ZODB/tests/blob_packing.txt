@@ -31,42 +31,17 @@ Put some revisions of a blob object in our database and on the filesystem:
     >>> import os
     >>> tids = []
     >>> times = []
-    >>> nothing = transaction.begin()
-    >>> times.append(new_time())
     >>> blob = Blob()
-    >>> with blob.open('w') as file:
-    ...     _ = file.write(b'this is blob data 0')
-    >>> root['blob'] = blob
-    >>> transaction.commit()
-    >>> tids.append(blob._p_serial)
 
-    >>> nothing = transaction.begin()
-    >>> times.append(new_time())
-    >>> with root['blob'].open('w') as file:
-    ...     _ = file.write(b'this is blob data 1')
-    >>> transaction.commit()
-    >>> tids.append(blob._p_serial)
-
-    >>> nothing = transaction.begin()
-    >>> times.append(new_time())
-    >>> with root['blob'].open('w') as file:
-    ...     _ = file.write(b'this is blob data 2')
-    >>> transaction.commit()
-    >>> tids.append(blob._p_serial)
-
-    >>> nothing = transaction.begin()
-    >>> times.append(new_time())
-    >>> with root['blob'].open('w') as file:
-    ...     _ = file.write(b'this is blob data 3')
-    >>> transaction.commit()
-    >>> tids.append(blob._p_serial)
-
-    >>> nothing = transaction.begin()
-    >>> times.append(new_time())
-    >>> with root['blob'].open('w') as file:
-    ...     _ = file.write(b'this is blob data 4')
-    >>> transaction.commit()
-    >>> tids.append(blob._p_serial)
+    >>> for i in range(5):
+    ...     _ = transaction.begin()
+    ...     if i == 0:
+    ...         root['blob'] = blob
+    ...     times.append(new_time())
+    ...     with root['blob'].open('w') as file:
+    ...         _ = file.write(b'this is blob data ' + str(i).encode())
+    ...     transaction.commit()
+    ...     tids.append(blob._p_serial)
 
     >>> oid = root['blob']._p_oid
     >>> fns = [ blob_storage.fshelper.getBlobFilename(oid, x) for x in tids ]
