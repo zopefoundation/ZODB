@@ -920,10 +920,13 @@ class IStorageUndoable(IStorage):
         used elsewhere in the storage APIs.
 
         This method must only be called in the first phase of
-        two-phase commit (after tpc_begin but before tpc_vote). It
-        returns a serial (transaction id) and a sequence of object ids
-        for objects affected by the transaction. The serial is ignored
-        and may be None.
+        two-phase commit (after tpc_begin but before tpc_vote).
+
+        This returns a serial (transaction id) and a sequence of object
+        ids for objects affected by the transaction. The serial is
+        ignored and may be None.
+
+        Alternatively, this methos may return None.
         """
         # Used by DB (Actually, by TransactionalUndo)
 
@@ -1251,6 +1254,9 @@ class IBlobStorage(Interface):
           is raised when an internal error occurs while the storage is
           handling the store() call.
 
+
+        Note that the return value is always None if the storage also
+        implements IMultiCommitStorage.
         """
 
     def loadBlob(oid, serial):
