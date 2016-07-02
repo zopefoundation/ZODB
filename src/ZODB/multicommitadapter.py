@@ -63,3 +63,6 @@ class MultiCommitAdapter:
         self._storage.tpc_finish(transaction, func)
 
         return t[0]
+
+    def __len__(self):
+        return len(self._storage)
