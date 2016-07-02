@@ -39,7 +39,7 @@ Put some revisions of a blob object in our database and on the filesystem:
     ...         root['blob'] = blob
     ...     times.append(new_time())
     ...     with root['blob'].open('w') as file:
-    ...         _ = file.write(b'this is blob data %s' % i)
+    ...         _ = file.write(b'this is blob data ' + str(i).encode())
     ...     transaction.commit()
     ...     tids.append(blob._p_serial)
 
