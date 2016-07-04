@@ -390,10 +390,6 @@ stored are discarded.
     ...                             '', t)
 
     >>> serials = blob_storage.tpc_vote(t)
-    >>> if s1 is None:
-    ...     s1 = [s for (oid, s) in serials if oid == blob._p_oid][0]
-    >>> if s2 is None:
-    ...     s2 = [s for (oid, s) in serials if oid == new_oid][0]
 
     >>> blob_storage.tpc_abort(t)
 
@@ -402,14 +398,7 @@ Now, the serial for the existing blob should be the same:
     >>> blob_storage.load(blob._p_oid, '') == (olddata, oldserial)
     True
 
-And we shouldn't be able to read the data that we saved:
-
-    >>> blob_storage.loadBlob(blob._p_oid, s1)
-    Traceback (most recent call last):
-    ...
-    POSKeyError: 'No blob file at <BLOB STORAGE PATH>'
-
-Of course the old data should be unaffected:
+The old data should be unaffected:
 
     >>> with open(blob_storage.loadBlob(blob._p_oid, oldserial)) as fp:
     ...     fp.read()

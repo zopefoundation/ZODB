@@ -111,7 +111,12 @@ class TransactionalUndoStorage:
             undo_result = self._storage.undo(tid, t)
             if undo_result:
                 oids.extend(undo_result[1])
-        oids.extend(oid for (oid, _) in self._storage.tpc_vote(t) or ())
+        v = self._storage.tpc_vote(t)
+        if v:
+            if isinstance(v[0], bytes):
+                oids.extend(v)
+            else:
+                oids.extend(oid for (oid, _) in v)
         return oids
 
     def undo(self, tid, note):
