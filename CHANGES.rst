@@ -2,6 +2,12 @@
  Change History
 ================
 
+4.4.2 (unreleased)
+==================
+
+Better support of the new commit protocol. This fixes issues with blobs and
+undo. See https://github.com/zopefoundation/ZODB/pull/77
+
 4.4.1 (2016-07-01)
 ==================
 
