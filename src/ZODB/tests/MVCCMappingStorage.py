@@ -117,7 +117,7 @@ class MVCCMappingStorage(MappingStorage):
 
     def tpc_finish(self, transaction, func = lambda tid: None):
         self._data_snapshot = None
-        MappingStorage.tpc_finish(self, transaction, func)
+        return MappingStorage.tpc_finish(self, transaction, func)
 
     def tpc_abort(self, transaction):
         self._data_snapshot = None

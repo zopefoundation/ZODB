@@ -713,9 +713,8 @@ class BlobStorageMixin(object):
         """Stores data that has a BLOB attached."""
         assert not version, "Versions aren't supported."
         serial = self.store(oid, oldserial, data, '', transaction)
-        self._blob_storeblob(oid, serial, blobfilename)
-
-        return self._tid
+        self._blob_storeblob(oid, self._tid, blobfilename)
+        return serial
 
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
@@ -764,8 +763,9 @@ class BlobStorage(BlobStorageMixin):
         # We need to override the base storage's tpc_finish instead of
         # providing a _finish method because methods found on the proxied
         # object aren't rebound to the proxy
-        self.__storage.tpc_finish(*arg, **kw)
+        tid = self.__storage.tpc_finish(*arg, **kw)
         self._blob_tpc_finish()
+        return tid
 
     def tpc_abort(self, *arg, **kw):
         # We need to override the base storage's abort instead of

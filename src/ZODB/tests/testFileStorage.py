@@ -36,6 +36,7 @@ from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 from ZODB._compat import dump, dumps, _protocol
 
+from .. import multicommitadapter
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -322,6 +323,12 @@ class FileStorageHexTests(FileStorageTests):
         self._storage = ZODB.tests.hexstorage.HexStorage(
             ZODB.FileStorage.FileStorage('FileStorageTests.fs',**kwargs))
 
+class MultiFileStorageTests(FileStorageTests):
+
+    def open(self, **kwargs):
+        self._storage = multicommitadapter.MultiCommitAdapter(
+            ZODB.FileStorage.FileStorage('FileStorageTests.fs', **kwargs))
+
 
 class FileStorageTestsWithBlobsEnabled(FileStorageTests):
 
@@ -331,6 +338,7 @@ class FileStorageTestsWithBlobsEnabled(FileStorageTests):
             kwargs['blob_dir'] = 'blobs'
         FileStorageTests.open(self, **kwargs)
 
+
 class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
 
     def open(self, **kwargs):
@@ -339,6 +347,16 @@ class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
             kwargs['blob_dir'] = 'blobs'
         FileStorageTests.open(self, **kwargs)
         self._storage = ZODB.tests.hexstorage.HexStorage(self._storage)
+
+
+class MultiFileStorageTestsWithBlobsEnabled(MultiFileStorageTests):
+
+    def open(self, **kwargs):
+        if 'blob_dir' not in kwargs:
+            kwargs = kwargs.copy()
+            kwargs['blob_dir'] = 'blobs'
+        MultiFileStorageTests.open(self, **kwargs)
+
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
@@ -702,6 +720,7 @@ def test_suite():
         FileStorageNoRestoreRecoveryTest,
         FileStorageTestsWithBlobsEnabled, FileStorageHexTestsWithBlobsEnabled,
         AnalyzeDotPyTest,
+        MultiFileStorageTests, MultiFileStorageTestsWithBlobsEnabled,
         ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
@@ -719,6 +738,14 @@ def test_suite():
         'BlobFileHexStorage',
         lambda name, blob_dir:
         ZODB.tests.hexstorage.HexStorage(
+            ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
+        test_blob_storage_recovery=True,
+        test_packing=True,
+        ))
+    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
+        'BlobMultiFileStorage',
+        lambda name, blob_dir:
+        multicommitadapter.MultiCommitAdapter(
             ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
         test_blob_storage_recovery=True,
         test_packing=True,

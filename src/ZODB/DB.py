@@ -1010,8 +1010,13 @@ class TransactionalUndo(object):
                 self._oids.update(result[1])
 
     def tpc_vote(self, transaction):
-        for oid, _ in  self._storage.tpc_vote(transaction) or ():
-            self._oids.add(oid)
+        result = self._storage.tpc_vote(transaction)
+        if result:
+            if isinstance(next(iter(result)), bytes):
+                self._oids.update(result)
+            else:
+                for oid, _ in result:
+                    self._oids.add(oid)
 
     def tpc_finish(self, transaction):
         self._storage.tpc_finish(
