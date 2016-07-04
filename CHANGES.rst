@@ -2,6 +2,11 @@
  Change History
 ================
 
+5.0.0a4 (unreleased)
+====================
+
+See 4.4.2.
+
 5.0.0a3 (2016-07-01)
 ====================
 
@@ -28,6 +33,12 @@ Concurrency Control (MVCC) implementation:
 
   This change allows server-nased storages like ZEO and NEO to be
   implemented more simply and cleanly.
+
+4.4.2 (unreleased)
+==================
+
+Better support of the new commit protocol. This fixes issues with blobs and
+undo. See https://github.com/zopefoundation/ZODB/pull/77
 
 4.4.1 (2016-07-01)
 ==================
