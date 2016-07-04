@@ -794,7 +794,7 @@ class Connection(ExportImport, object):
             raise
 
         if s:
-            if type(s[0]) is bytes:
+            if type(next(iter(s))) is bytes:
                 for oid in s:
                     self._handle_serial(oid)
                 return

@@ -113,7 +113,7 @@ class TransactionalUndoStorage:
                 oids.extend(undo_result[1])
         v = self._storage.tpc_vote(t)
         if v:
-            if isinstance(v[0], bytes):
+            if isinstance(next(iter(v)), bytes):
                 oids.extend(v)
             else:
                 oids.extend(oid for (oid, _) in v)

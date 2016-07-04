@@ -411,11 +411,6 @@ Similarly, the new object wasn't added to the storage:
     ...
     POSKeyError: 0x...
 
-    >>> blob_storage.loadBlob(blob._p_oid, s2)
-    Traceback (most recent call last):
-    ...
-    POSKeyError: 'No blob file at <BLOB STORAGE PATH>'
-
 .. clean up
 
     >>> tm1.abort()

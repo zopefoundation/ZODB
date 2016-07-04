@@ -11,7 +11,7 @@ class MultiCommitAdapter:
         self._storage = storage
         ifaces = zope.interface.providedBy(storage)
         zope.interface.alsoProvides(self, ifaces)
-        self._resolved = set()
+        self._resolved = set() # {OID}, here to make linters happy
 
     def __getattr__(self, name):
         v = getattr(self._storage, name)
@@ -39,7 +39,7 @@ class MultiCommitAdapter:
     def undo(self, transaction_id, transaction):
         r = self._storage.undo(transaction_id, transaction)
         if r:
-            self._resolved.update(set(r[1]))
+            self._resolved.update(r[1])
 
     def tpc_vote(self, *args):
         s = self._storage.tpc_vote(*args)
@@ -47,7 +47,7 @@ class MultiCommitAdapter:
             if serial == ResolvedSerial:
                 self._resolved.add(oid)
 
-        return list(self._resolved)
+        return self._resolved
 
     def tpc_finish(self, transaction, f=lambda tid: None):
 
