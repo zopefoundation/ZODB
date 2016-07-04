@@ -923,7 +923,7 @@ class IStorageUndoable(IStorage):
         two-phase commit (after tpc_begin but before tpc_vote). It
         returns a serial (transaction id) and a sequence of object ids
         for objects affected by the transaction. The serial is ignored
-        and may be None.
+        and may be None. The return from this method may be None.
         """
         # Used by DB (Actually, by TransactionalUndo)
 

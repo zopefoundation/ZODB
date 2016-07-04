@@ -504,12 +504,12 @@ class Connection(ExportImport, object):
                 raise InvalidObjectReference(obj, obj._p_jar)
             elif oid in self._added:
                 assert obj._p_serial == z64
-            elif obj._p_changed:
-                self._modified.append(oid)
-            else:
+            elif oid in self._creating or not obj._p_changed:
                 # Nothing to do.  It's been said that it's legal, e.g., for
                 # an object to set _p_changed to false after it's been
                 # changed and registered.
+                # And new objects that are registered after any referrer are
+                # already processed.
                 continue
 
             self._store_objects(ObjectWriter(obj), transaction)
@@ -677,7 +677,7 @@ class Connection(ExportImport, object):
             raise
 
         if s:
-            if type(s[0]) is bytes:
+            if type(next(iter(s))) is bytes:
                 for oid in s:
                     self._handle_serial(oid)
                 return

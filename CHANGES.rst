@@ -11,7 +11,7 @@ release and to make complient storages introspectable.
 5.0.0a2 (2016-07-01)
 ====================
 
-See the 4.4.0 release.
+See the 4.4.x releases.
 
 5.0.0a1 (2016-06-20)
 ====================
@@ -28,6 +28,12 @@ Concurrency Control (MVCC) implementation:
 
   This change allows server-nased storages like ZEO and NEO to be
   implemented more simply and cleanly.
+
+4.4.1 (2016-07-01)
+==================
+
+Added IMultiCommitStorage to directly represent the changes in the 4.4.0
+release and to make complient storages introspectable.
 
 4.4.0 (2016-06-30)
 ==================
