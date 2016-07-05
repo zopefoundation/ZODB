@@ -6,7 +6,7 @@
 ==================
 
 Better support of the new commit protocol. This fixes issues with blobs and
-undo. See https://github.com/zopefoundation/ZODB/pull/77
+undo. See pull requests #77, #80, #83
 
 4.4.1 (2016-07-01)
 ==================
