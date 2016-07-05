@@ -49,8 +49,6 @@ from ZODB.ConflictResolution import ResolvedSerial
 
 class DemoStorage(ZODB.DemoStorage.DemoStorage):
 
-    delayed_store = False
-
     def tpc_begin(self, *args):
         super(DemoStorage, self).tpc_begin(*args)
         self.__stored = []
@@ -60,8 +58,6 @@ class DemoStorage(ZODB.DemoStorage.DemoStorage):
         if s != ResolvedSerial:
             assert type(s) is bytes, s
             return
-        if not self.delayed_store:
-            return True
         self.__stored.append(oid)
 
     tpc_vote = property(lambda self: self._tpc_vote, lambda *_: None)
@@ -69,7 +65,7 @@ class DemoStorage(ZODB.DemoStorage.DemoStorage):
     def _tpc_vote(self, transaction):
         s = self.changes.tpc_vote(transaction)
         assert s is None, s
-        return self.__stored if self.delayed_store else s
+        return self.__stored
 
     def tpc_finish(self, transaction, func = lambda tid: None):
         r = []
@@ -145,11 +141,6 @@ class DemoStorageTests(
             yield 14
         self._checkHistory(base_and_changes())
         self._storage = self._storage.pop()
-
-    def checkResolveLate(self):
-        self._storage.delayed_store = True
-        self.checkResolve()
-
 
 class DemoStorageHexTests(DemoStorageTests):
 
