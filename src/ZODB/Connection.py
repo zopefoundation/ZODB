@@ -706,7 +706,7 @@ class Connection(ExportImport, object):
 
             self._handle_serial(oid, s)
 
-    def _handle_serial(self, oid, serial=True, change=True):
+    def _handle_serial(self, oid, serial=ResolvedSerial, change=True):
 
         # if we write an object, we don't want to check if it was read
         # while current.  This is a convenient choke point to do this.
@@ -714,10 +714,7 @@ class Connection(ExportImport, object):
 
         if not serial:
             return
-        if serial is True:
-            serial = ResolvedSerial
-        elif not isinstance(serial, bytes):
-            raise serial
+        assert isinstance(serial, bytes), serial
         obj = self._cache.get(oid, None)
         if obj is None:
             return
