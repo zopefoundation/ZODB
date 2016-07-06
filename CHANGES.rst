@@ -2,6 +2,14 @@
  Change History
 ================
 
+5.0.0a5 (2016-07-06)
+====================
+
+Drop support for old commit protocol.  All of the build-in storages
+implement the new protocol.  This new protocol allows storages to
+provide better write performance by allowing multiple commits to
+execute in parallel.
+
 5.0.0a4 (2016-07-05)
 ====================
 
