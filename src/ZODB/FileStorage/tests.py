@@ -128,10 +128,10 @@ def pack_with_repeated_blob_records():
     >>> fs.tpc_begin(trans)
     >>> with open('ablob', 'w') as file:
     ...     _ = file.write('some data')
-    >>> _ = fs.store(oid, oldserial, blob_record, '', trans)
-    >>> _ = fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
-    >>> fs.tpc_vote(trans)
-    >>> fs.tpc_finish(trans)
+    >>> fs.store(oid, oldserial, blob_record, '', trans)
+    >>> fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
+    >>> _ = fs.tpc_vote(trans)
+    >>> _ = fs.tpc_finish(trans)
 
     >>> time.sleep(.01)
     >>> db.pack()
@@ -156,9 +156,9 @@ _save_index can fail for large indexes.
     >>> oid = 0
     >>> for i in range(5000):
     ...     oid += (1<<16)
-    ...     _ = fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, b'x', '', t)
-    >>> fs.tpc_vote(t)
-    >>> fs.tpc_finish(t)
+    ...     fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, b'x', '', t)
+    >>> _ = fs.tpc_vote(t)
+    >>> _ = fs.tpc_finish(t)
 
     >>> import sys
     >>> old_limit = sys.getrecursionlimit()

@@ -36,7 +36,6 @@ from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
 from ZODB._compat import dump, dumps, _protocol
 
 from . import util
-from .. import multicommitadapter
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -324,12 +323,6 @@ class FileStorageHexTests(FileStorageTests):
         self._storage = ZODB.tests.hexstorage.HexStorage(
             ZODB.FileStorage.FileStorage('FileStorageTests.fs',**kwargs))
 
-class MultiFileStorageTests(FileStorageTests):
-
-    def open(self, **kwargs):
-        self._storage = multicommitadapter.MultiCommitAdapter(
-            ZODB.FileStorage.FileStorage('FileStorageTests.fs', **kwargs))
-
 
 class FileStorageTestsWithBlobsEnabled(FileStorageTests):
 
@@ -348,15 +341,6 @@ class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
             kwargs['blob_dir'] = 'blobs'
         FileStorageTests.open(self, **kwargs)
         self._storage = ZODB.tests.hexstorage.HexStorage(self._storage)
-
-
-class MultiFileStorageTestsWithBlobsEnabled(MultiFileStorageTests):
-
-    def open(self, **kwargs):
-        if 'blob_dir' not in kwargs:
-            kwargs = kwargs.copy()
-            kwargs['blob_dir'] = 'blobs'
-        MultiFileStorageTests.open(self, **kwargs)
 
 
 class FileStorageRecoveryTest(
@@ -432,33 +416,25 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         module.Broken = Broken
 
         oids = [[self._storage.new_oid(), None] for i in range(3)]
+        def store(i, data):
+            oid, revid = oids[i]
+            self._storage.store(oid, revid, data, "", t)
+
         for i in range(2):
             t = transaction.Transaction()
             self._storage.tpc_begin(t)
 
             # sometimes data is in this format
-            j = 0
-            oid, revid = oids[j]
-            serial = self._storage.store(
-                oid, revid, dumps(OOBTree, _protocol), "", t)
-            oids[j][1] = serial
-
+            store(0, dumps(OOBTree, _protocol))
             # and it could be from a broken module
-            j = 1
-            oid, revid = oids[j]
-            serial = self._storage.store(
-                oid, revid, dumps(Broken, _protocol), "", t)
-            oids[j][1] = serial
-
+            store(1, dumps(Broken, _protocol))
             # but mostly it looks like this
-            j = 2
-            o = MinPO(j)
-            oid, revid = oids[j]
-            serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
-            oids[j][1] = serial
+            store(2, zodb_pickle(MinPO(2)))
 
             self._storage.tpc_vote(t)
-            self._storage.tpc_finish(t)
+            tid = self._storage.tpc_finish(t)
+            for oid_revid in oids:
+                oid_revid[1] = tid
 
         # now break the import of the Broken class
         del sys.modules[module_name]
@@ -721,7 +697,6 @@ def test_suite():
         FileStorageNoRestoreRecoveryTest,
         FileStorageTestsWithBlobsEnabled, FileStorageHexTestsWithBlobsEnabled,
         AnalyzeDotPyTest,
-        MultiFileStorageTests, MultiFileStorageTestsWithBlobsEnabled,
         ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
@@ -739,14 +714,6 @@ def test_suite():
         'BlobFileHexStorage',
         lambda name, blob_dir:
         ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
-        test_blob_storage_recovery=True,
-        test_packing=True,
-        ))
-    suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
-        'BlobMultiFileStorage',
-        lambda name, blob_dir:
-        multicommitadapter.MultiCommitAdapter(
             ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
         test_blob_storage_recovery=True,
         test_packing=True,

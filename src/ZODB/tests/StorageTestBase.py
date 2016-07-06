@@ -118,9 +118,7 @@ def handle_all_serials(oid, *args):
     for arg in args:
         if isinstance(arg, bytes):
             d[oid] = arg
-        elif arg is None:
-            pass
-        else:
+        elif arg:
             for oid, serial in arg:
                 if not isinstance(serial, bytes):
                     raise serial # error from ZEO server

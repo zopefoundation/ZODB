@@ -247,8 +247,6 @@ class MappingStorage(object):
 
         self._tdata[oid] = data
 
-        return self._tid
-
     checkCurrentSerialInTransaction = (
         ZODB.BaseStorage.checkCurrentSerialInTransaction)
 
@@ -307,6 +305,7 @@ class MappingStorage(object):
         self._transaction = None
         del self._tdata
         self._commit_lock.release()
+        return tid
 
     # ZEO.interfaces.IServeable
     @ZODB.utils.locked(opened)

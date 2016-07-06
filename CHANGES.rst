@@ -10,13 +10,12 @@ See 4.4.2.
 5.0.0a3 (2016-07-01)
 ====================
 
-Added IMultiCommitStorage to directly represent the changes in the 4.4.0
-release and to make complient storages introspectable.
+See 4.4.1.
 
 5.0.0a2 (2016-07-01)
 ====================
 
-See the 4.4.x releases.
+See 4.4.0.
 
 5.0.0a1 (2016-06-20)
 ====================
@@ -38,7 +37,7 @@ Concurrency Control (MVCC) implementation:
 ==================
 
 Better support of the new commit protocol. This fixes issues with blobs and
-undo. See https://github.com/zopefoundation/ZODB/pull/77
+undo. See pull requests #77, #80, #83
 
 4.4.1 (2016-07-01)
 ==================
