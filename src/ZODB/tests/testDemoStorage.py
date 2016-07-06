@@ -42,46 +42,6 @@ from ZODB.utils import load_current
 
 from zope.testing import renormalizing
 
-# With the following monkey-patch, we can test the different ways
-# to update _p_changed/_p_serial status of committed oids.
-
-from ZODB.ConflictResolution import ResolvedSerial
-
-class DemoStorage(ZODB.DemoStorage.DemoStorage):
-
-    delayed_store = False
-
-    def tpc_begin(self, *args):
-        super(DemoStorage, self).tpc_begin(*args)
-        self.__stored = []
-
-    def store(self, oid, *args):
-        s = super(DemoStorage, self).store(oid, *args)
-        if s != ResolvedSerial:
-            assert type(s) is bytes, s
-            return
-        if not self.delayed_store:
-            return True
-        self.__stored.append(oid)
-
-    tpc_vote = property(lambda self: self._tpc_vote, lambda *_: None)
-
-    def _tpc_vote(self, transaction):
-        s = self.changes.tpc_vote(transaction)
-        assert s is None, s
-        return self.__stored if self.delayed_store else s
-
-    def tpc_finish(self, transaction, func = lambda tid: None):
-        r = []
-        def callback(tid):
-            func(tid)
-            r.append(tid)
-        tid = super(DemoStorage, self).tpc_finish(transaction, callback)
-        assert tid is None, tid
-        return r[0]
-
-ZODB.DemoStorage.DemoStorage = DemoStorage
-
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
@@ -145,11 +105,6 @@ class DemoStorageTests(
             yield 14
         self._checkHistory(base_and_changes())
         self._storage = self._storage.pop()
-
-    def checkResolveLate(self):
-        self._storage.delayed_store = True
-        self.checkResolve()
-
 
 class DemoStorageHexTests(DemoStorageTests):
 

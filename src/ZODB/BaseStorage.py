@@ -106,6 +106,9 @@ class BaseStorage(UndoLogCompatible):
             self._oid = z64
         else:
             self._oid = oid
+        # In case that conflicts are resolved during store,
+        # this collects oids to be returned by tpc_vote.
+        self._resolved = []
 
     def sortKey(self):
         """Return a string that can be used to sort storage instances.
@@ -205,6 +208,7 @@ class BaseStorage(UndoLogCompatible):
                 self._ts = TimeStamp(tid)
                 self._tid = tid
 
+            del self._resolved[:]
             self._tstatus = status
             self._begin(self._tid, user, desc, ext)
 
@@ -226,7 +230,7 @@ class BaseStorage(UndoLogCompatible):
     def _vote(self):
         """Subclasses should redefine this to supply transaction vote actions.
         """
-        pass
+        return self._resolved
 
     def tpc_finish(self, transaction, f=None):
         # It's important that the storage calls the function we pass
@@ -249,6 +253,7 @@ class BaseStorage(UndoLogCompatible):
                 self._ude = None
                 self._transaction = None
                 self._commit_lock.release()
+            return self._tid
 
     def _finish(self, tid, u, d, e):
         """Subclasses should redefine this to supply transaction finish actions
