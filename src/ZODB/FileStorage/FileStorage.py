@@ -520,6 +520,7 @@ class FileStorage(
                 if oldserial != committed_tid:
                     data = self.tryToResolveConflict(oid, committed_tid,
                                                      oldserial, data)
+                    self._resolved.append(oid)
 
             pos = self._pos
             here = pos + self._tfile.tell() + self._thl
@@ -533,9 +534,6 @@ class FileStorage(
             if self._quota is not None and here > self._quota:
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
-
-            if old and oldserial != committed_tid:
-                self._resolved.append(oid)
 
     def deleteObject(self, oid, oldserial, transaction):
         if self._is_read_only:

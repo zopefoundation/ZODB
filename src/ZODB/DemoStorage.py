@@ -73,6 +73,7 @@ class DemoStorage(ConflictResolvingStorage):
 
         self._issued_oids = set()
         self._stored_oids = set()
+        self._resolved = []
 
         self._commit_lock = ZODB.utils.Lock()
         self._transaction = None
@@ -116,7 +117,7 @@ class DemoStorage(ConflictResolvingStorage):
         for meth in (
             '_lock',
             'getSize', 'isReadOnly',
-            'sortKey', 'tpc_transaction', 'tpc_vote',
+            'sortKey', 'tpc_transaction',
             ):
             setattr(self, meth, getattr(changes, meth))
 
@@ -308,7 +309,8 @@ class DemoStorage(ConflictResolvingStorage):
 
         if old != serial:
             rdata = self.tryToResolveConflict(oid, old, serial, data)
-            self.changes.store(oid, old, rdata, '', transaction, True)
+            self.changes.store(oid, old, rdata, '', transaction)
+            self._resolved.append(oid)
         else:
             self.changes.store(oid, serial, data, '', transaction)
 
@@ -364,6 +366,13 @@ class DemoStorage(ConflictResolvingStorage):
             self.changes.tpc_begin(transaction, *a, **k)
             self._transaction = transaction
             self._stored_oids = set()
+            del self._resolved[:]
+
+    def tpc_vote(self, *a, **k):
+        if self.changes.tpc_vote(*a, **k):
+            raise ZODB.POSException.StorageTransactionError(
+                "Unexpected resolved conflicts")
+        return self._resolved
 
     def tpc_finish(self, transaction, func = lambda tid: None):
         with self._lock:

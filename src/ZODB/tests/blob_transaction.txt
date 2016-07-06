@@ -390,8 +390,6 @@ stored are discarded.
     ...                             '', t)
     >>> bool(blob_storage.tpc_vote(t))
     False
-    >>> oldserial < blob_storage._tid
-    True
     >>> blob_storage.tpc_abort(t)
 
 Now, the serial for the existing blob should be the same:
