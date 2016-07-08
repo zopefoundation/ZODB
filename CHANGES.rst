@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.4.2 (unreleased)
+4.4.2 (2016-07-08)
 ==================
 
 Better support of the new commit protocol. This fixes issues with blobs and
