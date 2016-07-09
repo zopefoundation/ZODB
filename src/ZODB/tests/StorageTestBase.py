@@ -113,18 +113,24 @@ def handle_all_serials(oid, *args):
 
     The original interface just returned the serialno for the
     object.
+
+    The updated multi-commit API returns nothing from store(), and
+    returns a sequence of resolved oids from tpc_vote.
     """
     d = {}
     for arg in args:
         if isinstance(arg, bytes):
             d[oid] = arg
-        elif arg is None:
-            pass
-        else:
-            for oid, serial in arg:
-                if not isinstance(serial, bytes):
-                    raise serial # error from ZEO server
-                d[oid] = serial
+        elif arg:
+            for t in arg:
+                if isinstance(t, bytes):
+                    # This will be the tid returned by tpc_finish.
+                    pass
+                else:
+                    oid, serial = t
+                    if not isinstance(serial, bytes):
+                        raise serial # error from ZEO server
+                    d[oid] = serial
     return d
 
 def handle_serials(oid, *args):
