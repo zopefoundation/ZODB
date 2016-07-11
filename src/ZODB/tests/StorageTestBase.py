@@ -111,11 +111,8 @@ def handle_all_serials(oid, *args):
     This is pointless with IMultiCommitStorage.
     """
     d = {}
-    for arg in args:
-        if arg: # store() will have passed us None
-            for t in arg:
-                assert isinstance(t, bytes)
-                # This will be the tid returned by tpc_finish.
+    # On empty dict, _dostore will choose the serial returned from
+    # tpc_finish.
     return d
 
 def handle_serials(oid, *args):
