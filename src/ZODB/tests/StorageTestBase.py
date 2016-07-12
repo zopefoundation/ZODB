@@ -116,6 +116,8 @@ def handle_all_serials(oid, *args):
 
     The updated multi-commit API returns nothing from store(), and
     returns a sequence of resolved oids from tpc_vote.
+
+    NOTE: This function is removed entirely in ZODB 5.
     """
     d = {}
     for arg in args:
@@ -124,7 +126,9 @@ def handle_all_serials(oid, *args):
         elif arg:
             for t in arg:
                 if isinstance(t, bytes):
-                    # This will be the tid returned by tpc_finish.
+                    # New protocol. The caller will use the tid
+                    # returned from tpc_finish if we return a dict
+                    # missing the oid.
                     pass
                 else:
                     oid, serial = t
