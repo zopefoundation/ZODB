@@ -142,6 +142,13 @@ class DBMethods(CacheTestBase):
         # isn't looking out for this, it can get into an infinite loop
         # then, endlessly trying to ghostify an object that in turn keeps
         # unghostifying itself again.
+
+        # This test uses threads, so we can't use the default
+        # transaction manager.
+        for conn in self.conns:
+            conn.close()
+        self.conns[0] = self.db.open(transaction.TransactionManager())
+
         class Worker(threading.Thread):
 
             def __init__(self, testcase):
@@ -158,7 +165,7 @@ class DBMethods(CacheTestBase):
                 d = r[1]
                 for i in range(len(d)):
                     d[i] = CantGetRidOfMe(i)
-                transaction.commit()
+                conn.transaction_manager.commit()
 
                 self.testcase.db.cacheMinimize()
 
