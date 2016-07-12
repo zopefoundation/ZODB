@@ -787,13 +787,15 @@ class FileStorage(
         """Return the tid, data pointer, and data for the oid record at pos
         """
         if tpos:
-            pos = tpos - self._pos - self._thl
+            itpos = tpos - self._pos - self._thl
+            pos = tpos
             tpos = self._tfile.tell()
-            h = self._tfmt._read_data_header(pos, oid)
+            h = self._tfmt._read_data_header(itpos, oid)
             afile = self._tfile
         else:
             h = self._read_data_header(pos, oid)
             afile = self._file
+
         if h.oid != oid:
             raise UndoError("Invalid undo transaction id", oid)
 
@@ -830,7 +832,7 @@ class FileStorage(
         pointer 0.
         """
 
-        copy = 1 # Can we just copy a data pointer
+        copy = True # Can we just copy a data pointer
 
         # First check if it is possible to undo this record.
         tpos = self._tindex.get(oid, 0)
@@ -838,36 +840,60 @@ class FileStorage(
         tipos = tpos or ipos
 
         if tipos != pos:
-            # Eek, a later transaction modified the data, but,
-            # maybe it is pointing at the same data we are.
-            ctid, cdataptr, cdata = self._undoDataInfo(oid, ipos, tpos)
+            # The transaction being undone isn't current because:
+            # a) A later transaction was committed ipos != pos, or
+            # b) A change was made in the current transaction. This
+            #    could only be a previous undo in a multi-undo.
+            #    (We don't allow multiple data managers with the same
+            #    storage to participate in the same transaction.)
+            assert tipos > pos
+
+            # Get current data, as identified by tipos.  We'll use
+            # it to decide if and how we can undo in this case.
+            ctid, cdataptr, current_data = self._undoDataInfo(oid, ipos, tpos)
 
             if cdataptr != pos:
-                # We aren't sure if we are talking about the same data
+
+                # if cdataptr was == pos, then we'd be cool, because
+                # we're dealing with the same data.
+
+                # Because they aren't equal, we have to dig deeper
+
+                # Let's see if data to be undone and current data
+                # are the same. If not, we'll have to decide whether
+                # we should try conflict resolution.
+
                 try:
-                    if (
-                        # The current record wrote a new pickle
-                        cdataptr == tipos
-                        or
-                        # Backpointers are different
-                        self._loadBackPOS(oid, pos) !=
-                        self._loadBackPOS(oid, cdataptr)
-                        ):
-                        if pre and not tpos:
-                            copy = 0 # we'll try to do conflict resolution
-                        else:
-                            # We bail if:
-                            # - We don't have a previous record, which should
-                            #   be impossible.
-                            raise UndoError("no previous record", oid)
+                    data_to_be_undone = self._loadBack_impl(oid, pos)[0]
+
+                    # Note that we use ``cdata or`` below, because
+                    # _loadBackPOS dosn't work with in-tranaaction
+                    # data and because we don't need to bother if we
+                    # already have the data.
+                    if not current_data:
+                        current_data = self._loadBack_impl(oid, cdataptr)[0]
+
+                    if data_to_be_undone != current_data:
+                        # OK, so the current data is different from
+                        # the data being undone.  We can't just copy:
+                        copy = False
+
+                        if not pre:
+                            # The transaction we're undoing has no
+                            # previous state to merge with, so we
+                            # can't resolve a conflict.
+                            raise UndoError(
+                                "Can't undo an add transaction followed by"
+                                " conflicting transactions.", oid)
                 except KeyError:
                     # LoadBack gave us a key error. Bail.
                     raise UndoError("_loadBack() failed", oid)
 
         # Return the data that should be written in the undo record.
         if not pre:
-            # There is no previous revision, because the object creation
-            # is being undone.
+            # We're undoing object addition.  We're doing this because
+            # subsequent transactions has no net effect on the state
+            # (possibly because some of them were undos).
             return "", 0, ipos
 
         if copy:
@@ -875,12 +901,14 @@ class FileStorage(
             return "", pre, ipos
 
         try:
-            bdata = self._loadBack_impl(oid, pre)[0]
+            pre_data = self._loadBack_impl(oid, pre)[0]
         except KeyError:
             # couldn't find oid; what's the real explanation for this?
             raise UndoError("_loadBack() failed for %s", oid)
+
         try:
-            data = self.tryToResolveConflict(oid, ctid, tid, bdata, cdata)
+            data = self.tryToResolveConflict(
+                oid, ctid, tid, pre_data, current_data)
             return data, 0, ipos
         except ConflictError:
             pass
@@ -1002,7 +1030,8 @@ class FileStorage(
                             # We're undoing a blob modification operation.
                             # We have to copy the blob data
                             tmp = mktemp(dir=self.fshelper.temp_dir)
-                            with self.openCommittedBlobFile(h.oid, userial) as sfp:
+                            with self.openCommittedBlobFile(
+                                h.oid, userial) as sfp:
                                 with open(tmp, 'wb') as dfp:
                                     cp(sfp, dfp)
                             self._blob_storeblob(h.oid, self._tid, tmp)
@@ -1237,7 +1266,8 @@ class FileStorage(
                     continue
 
                 if len(line) != 16:
-                    raise ValueError("Bad record in ", self.blob_dir, '.removed')
+                    raise ValueError(
+                        "Bad record in ", self.blob_dir, '.removed')
 
                 oid, tid = line[:8], line[8:]
                 path = fshelper.getBlobFilename(oid, tid)
