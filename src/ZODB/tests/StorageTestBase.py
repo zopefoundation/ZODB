@@ -101,45 +101,6 @@ def zodb_unpickle(data):
     inst.__setstate__(state)
     return inst
 
-def handle_all_serials(oid, *args):
-    """Return dict of oid to serialno from store() and tpc_vote().
-
-    Raises an exception if one of the calls raised an exception.
-
-    The storage interface got complicated when ZEO was introduced.
-    Any individual store() call can return None or a sequence of
-    2-tuples where the 2-tuple is either oid, serialno or an
-    exception to be raised by the client.
-
-    The original interface just returned the serialno for the
-    object.
-
-    The updated multi-commit API returns nothing from store(), and
-    returns a sequence of resolved oids from tpc_vote.
-    """
-    d = {}
-    for arg in args:
-        if isinstance(arg, bytes):
-            d[oid] = arg
-        elif arg:
-            for t in arg:
-                if isinstance(t, bytes):
-                    # This will be the tid returned by tpc_finish.
-                    pass
-                else:
-                    oid, serial = t
-                    if not isinstance(serial, bytes):
-                        raise serial # error from ZEO server
-                    d[oid] = serial
-    return d
-
-def handle_serials(oid, *args):
-    """Return the serialno for oid based on multiple return values.
-
-    A helper for function _handle_all_serials().
-    """
-    return handle_all_serials(oid, *args).get(oid)
-
 def import_helper(name):
     __import__(name)
     return sys.modules[name]
@@ -194,10 +155,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             r1 = self._storage.store(oid, revid, data, '', t)
             # Finish the transaction
             r2 = self._storage.tpc_vote(t)
-            revid = handle_serials(oid, r1, r2)
-            serial = self._storage.tpc_finish(t)
-            if serial is not None and revid is None:
-                revid = serial
+            revid = self._storage.tpc_finish(t)
         except:
             self._storage.tpc_abort(t)
             raise
