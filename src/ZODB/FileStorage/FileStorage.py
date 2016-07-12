@@ -865,11 +865,6 @@ class FileStorage(
 
                 try:
                     data_to_be_undone = self._loadBack_impl(oid, pos)[0]
-
-                    # Note that we use ``cdata or`` below, because
-                    # _loadBackPOS dosn't work with in-tranaaction
-                    # data and because we don't need to bother if we
-                    # already have the data.
                     if not current_data:
                         current_data = self._loadBack_impl(oid, cdataptr)[0]
 
