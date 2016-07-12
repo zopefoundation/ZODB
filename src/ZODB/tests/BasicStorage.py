@@ -21,7 +21,6 @@ All storages should be able to pass these tests.
 from ZODB import POSException
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
-from ZODB.tests.StorageTestBase import handle_serials
 
 import threading
 import time
@@ -68,13 +67,10 @@ class BasicStorage:
         self._storage.tpc_begin(txn)
         # Use None for serial.  Don't use _dostore() here because that coerces
         # serial=None to serial=ZERO.
-        r1 = self._storage.store(oid, None, zodb_pickle(MinPO(11)),
-                                       '', txn)
-        r2 = self._storage.tpc_vote(txn)
-        serial = self._storage.tpc_finish(txn)
-        newrevid = handle_serials(oid, r1, r2)
-        if newrevid is None and serial is not None:
-            newrevid = serial
+        self._storage.store(oid, None, zodb_pickle(MinPO(11)),
+                            '', txn)
+        self._storage.tpc_vote(txn)
+        newrevid = self._storage.tpc_finish(txn)
         data, revid = utils.load_current(self._storage, oid)
         value = zodb_unpickle(data)
         eq(value, MinPO(11))

@@ -101,29 +101,6 @@ def zodb_unpickle(data):
     inst.__setstate__(state)
     return inst
 
-def handle_all_serials(oid, *args):
-    """
-    Return dict of oid to serialno from store() and tpc_vote().
-
-    The updated multi-commit API returns nothing from store(), and
-    returns a sequence of resolved oids from tpc_vote.
-
-    This is pointless with IMultiCommitStorage.
-    """
-    d = {}
-    # On empty dict, _dostore will choose the serial returned from
-    # tpc_finish.
-    return d
-
-def handle_serials(oid, *args):
-    """Return the serialno for oid based on multiple return values.
-
-    A helper for function _handle_all_serials().
-
-    This is pointless with IMultiCommitStorage.
-    """
-    return handle_all_serials(oid, *args).get(oid)
-
 def import_helper(name):
     __import__(name)
     return sys.modules[name]

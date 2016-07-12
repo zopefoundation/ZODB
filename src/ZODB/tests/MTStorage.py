@@ -9,7 +9,6 @@ import transaction
 
 import ZODB
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
-from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.tests.MinPO import MinPO
 from ZODB.POSException import ConflictError
 
@@ -149,18 +148,14 @@ class StorageClientThread(TestThread):
         self.pause()
 
         # Always create a new object, signified by None for revid
-        r1 = self.storage.store(oid, None, data, '', t)
+        self.storage.store(oid, None, data, '', t)
         self.pause()
 
-        r2 = self.storage.tpc_vote(t)
+        self.storage.tpc_vote(t)
         self.pause()
 
-        serial = self.storage.tpc_finish(t)
+        revid = self.storage.tpc_finish(t)
         self.pause()
-
-        revid = handle_serials(oid, r1, r2)
-        if serial is not None and revid is None:
-            revid = serial
         self.oids[oid] = revid
 
 class ExtStorageClientThread(StorageClientThread):

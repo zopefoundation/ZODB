@@ -15,7 +15,6 @@
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
-from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.utils import p64, u64, load_current
 
 import transaction
@@ -146,16 +145,13 @@ class RevisionStorage:
             t = transaction.Transaction()
             try:
                 self._storage.tpc_begin(t, p64(tid))
-                r1 = self._storage.store(oid, revid, data, '', t)
+                self._storage.store(oid, revid, data, '', t)
                 # Finish the transaction
-                r2 = self._storage.tpc_vote(t)
-                newrevid = handle_serials(oid, r1, r2)
-                serial = self._storage.tpc_finish(t)
+                self._storage.tpc_vote(t)
+                newrevid = self._storage.tpc_finish(t)
             except:
                 self._storage.tpc_abort(t)
                 raise
-            if serial is not None and newrevid is None:
-                newrevid = serial
             return newrevid
         revid1 = helper(1, None, 1)
         revid2 = helper(2, revid1, 2)
