@@ -801,3 +801,25 @@ class TransactionalUndoStorage:
 
     def checkIndicesInUndoLog(self):
         self._exercise_info_indices("undoLog")
+
+    def checkUndoMultipleConflictResolution(self, reverse=False):
+        from .ConflictResolution import PCounter
+        db = DB(self._storage)
+
+        with db.transaction() as conn:
+            conn.root.x = PCounter()
+
+        for i in range(4):
+            with db.transaction() as conn:
+                conn.transaction_manager.get().note(str(i))
+                conn.root.x.inc()
+
+        ids = [l['id'] for l in db.undoLog(1, 3)]
+        if reverse:
+            ids = list(reversed(ids))
+
+        db.undoMultiple(ids)
+        transaction.commit()
+
+    def checkUndoMultipleConflictResolutionReversed(self):
+        self.checkUndoMultipleConflictResolution(True)
