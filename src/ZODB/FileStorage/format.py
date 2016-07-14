@@ -233,6 +233,22 @@ class FileStorageFormatter(object):
             if dh.plen:
                 self.fail(pos, "data record has back pointer and data")
 
+    def _undoDataInfo(self, oid, pos):
+        """Return the tid, data pointer, and data for the oid record at pos
+        """
+        h = self._read_data_header(pos, oid)
+        if h.oid != oid:
+            raise UndoError("Invalid undo transaction id", oid)
+
+        if h.plen:
+            data = self._file.read(h.plen)
+        else:
+            data = ''
+            pos = h.back
+
+        return h.tid, pos, data
+
+
 def DataHeaderFromString(s):
     return DataHeader(*struct.unpack(DATA_HDR, s))
 
@@ -245,7 +261,7 @@ class DataHeader(object):
         if vlen:
             raise ValueError(
                 "Non-zero version length. Versions aren't supported.")
-        
+
         self.oid = oid
         self.tid = tid
         self.prev = prev

@@ -20,6 +20,7 @@ import contextlib
 import errno
 import logging
 import os
+import tempfile
 import time
 from struct import pack
 from struct import unpack
@@ -36,6 +37,7 @@ from ZODB.blob import BlobStorageMixin
 from ZODB.blob import link_or_copy
 from ZODB.blob import remove_committed
 from ZODB.blob import remove_committed_dir
+from ZODB.blob import rename_or_copy_blob
 from ZODB.BaseStorage import BaseStorage
 from ZODB.BaseStorage import DataRecord as _DataRecord
 from ZODB.BaseStorage import TransactionRecord as _TransactionRecord
@@ -144,6 +146,7 @@ class FileStorage(
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
+    _vote_size = 0 # needed for quota
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
@@ -163,10 +166,6 @@ class FileStorage(
         if not read_only:
             # Create the lock file
             self._lock_file = LockFile(file_name + '.lock')
-            self._tfile = open(file_name + '.tmp', 'w+b')
-            self._tfmt = TempFormatter(self._tfile)
-        else:
-            self._tfile = None
 
         self._file_name = os.path.abspath(file_name)
 
@@ -177,8 +176,8 @@ class FileStorage(
 
         BaseStorage.__init__(self, file_name)
 
-        index, tindex = self._newIndexes()
-        self._initIndex(index, tindex)
+        index = fsIndex()
+        self._initIndex(index)
 
         # Now open the file
 
@@ -213,15 +212,15 @@ class FileStorage(
             self._used_index = 1 # Marker for testing
             index, start, ltid = r
 
-            self._initIndex(index, tindex)
+            self._initIndex(index)
             self._pos, self._oid, tid = read_index(
-                self._file, file_name, index, tindex, stop,
+                self._file, file_name, index, stop,
                 ltid=ltid, start=start, read_only=read_only,
                 )
         else:
             self._used_index = 0 # Marker for testing
             self._pos, self._oid, tid = read_index(
-                self._file, file_name, index, tindex, stop,
+                self._file, file_name, index, stop,
                 read_only=read_only,
                 )
             self._save_index()
@@ -256,23 +255,20 @@ class FileStorage(
             self.blob_dir = None
             self._blob_init_no_blobs()
 
+        del self._tid
+
     def copyTransactionsFrom(self, other):
         if self.blob_dir:
             return BlobStorageMixin.copyTransactionsFrom(self, other)
         else:
             return BaseStorage.copyTransactionsFrom(self, other)
 
-    def _initIndex(self, index, tindex):
-        self._index=index
-        self._tindex=tindex
-        self._index_get=index.get
+    def _initIndex(self, index):
+        self._index = index
+        self._index_get = index.get
 
     def __len__(self):
         return len(self._index)
-
-    def _newIndexes(self):
-        # hook to use something other than builtin dict
-        return fsIndex(), {}
 
     _saved = 0
     def _save_index(self):
@@ -421,11 +417,8 @@ class FileStorage(
 
     def close(self):
         self._file.close()
-        self._files.close()
         if hasattr(self,'_lock_file'):
             self._lock_file.close()
-        if self._tfile:
-            self._tfile.close()
         try:
             self._save_index()
         except:
@@ -503,9 +496,10 @@ class FileStorage(
     def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
             raise ReadOnlyError()
-        if transaction is not self._transaction:
-            raise StorageTransactionError(self, transaction)
+
         assert not version
+
+        tbuf = self._tbuf(transaction)
 
         with self._lock:
             if oid > self._oid:
@@ -513,6 +507,7 @@ class FileStorage(
             old = self._index_get(oid, 0)
             committed_tid = None
             pnv = None
+            resolved = False
             if old:
                 h = self._read_data_header(old, oid)
                 committed_tid = h.tid
@@ -520,26 +515,26 @@ class FileStorage(
                 if oldserial != committed_tid:
                     data = self.tryToResolveConflict(oid, committed_tid,
                                                      oldserial, data)
-                    self._resolved.append(oid)
+                    resolved = True
 
-            pos = self._pos
-            here = pos + self._tfile.tell() + self._thl
-            self._tindex[oid] = here
-            new = DataHeader(oid, self._tid, old, pos, 0, len(data))
+        tbuf.store(oid, data, old, resolved)
 
-            self._tfile.write(new.asString())
-            self._tfile.write(data)
+    def storeBlob(self, oid, oldserial, data, blobfilename, version,
+                  transaction):
+        """Stores data that has a BLOB attached.
+        """
+        assert not version, "Versions aren't supported."
 
-            # Check quota
-            if self._quota is not None and here > self._quota:
-                raise FileStorageQuotaError(
-                    "The storage quota has been exceeded.")
+        self.store(oid, oldserial, data, '', transaction)
+
+        tbuf = self._tbuf(transaction)
+        tbuf.storeblob(oid, blobfilename)
 
     def deleteObject(self, oid, oldserial, transaction):
         if self._is_read_only:
             raise ReadOnlyError()
-        if transaction is not self._transaction:
-            raise StorageTransactionError(self, transaction)
+
+        tbuf = self._tbuf(transaction)
 
         with self._lock:
             old = self._index_get(oid, 0)
@@ -552,17 +547,7 @@ class FileStorage(
                 raise ConflictError(
                     oid=oid, serials=(committed_tid, oldserial))
 
-            pos = self._pos
-            here = pos + self._tfile.tell() + self._thl
-            self._tindex[oid] = here
-            new = DataHeader(oid, self._tid, old, pos, 0, 0)
-            self._tfile.write(new.asString())
-            self._tfile.write(z64)
-
-            # Check quota
-            if self._quota is not None and here > self._quota:
-                raise FileStorageQuotaError(
-                    "The storage quota has been exceeded.")
+        tbuf.store(oid, '', old, False)
 
     def _data_find(self, tpos, oid, data):
         # Return backpointer for oid.  Must call with the lock held.
@@ -613,8 +598,7 @@ class FileStorage(
         # differences:
         #
         # - serial is the serial number of /this/ revision, not of the
-        #   previous revision.  It is used instead of self._tid, which is
-        #   ignored.
+        #   previous revision.
         #
         # - Nothing is returned
         #
@@ -631,140 +615,126 @@ class FileStorage(
         # doesn't exist.
         if self._is_read_only:
             raise ReadOnlyError()
-        if transaction is not self._transaction:
-            raise StorageTransactionError(self, transaction)
+
+        tbuf = self._tbuf(transaction)
+
         if version:
             raise TypeError("Versions are no-longer supported")
 
         with self._lock:
             if oid > self._oid:
                 self.set_max_oid(oid)
-            prev_pos = 0
-            if prev_txn is not None:
-                prev_txn_pos = self._txn_find(prev_txn, 0)
-                if prev_txn_pos:
-                    prev_pos = self._data_find(prev_txn_pos, oid, data)
             old = self._index_get(oid, 0)
-            # Calculate the file position in the temporary file
-            here = self._pos + self._tfile.tell() + self._thl
-            # And update the temp file index
-            self._tindex[oid] = here
-            if prev_pos:
-                # If there is a valid prev_pos, don't write data.
-                data = None
-            if data is None:
-                dlen = 0
-            else:
-                dlen = len(data)
 
-            # Write the recovery data record
-            new = DataHeader(oid, serial, old, self._pos, 0, dlen)
+        tbuf.store(oid, data, old, False)
 
-            self._tfile.write(new.asString())
-
-            # Finally, write the data or a backpointer.
-            if data is None:
-                if prev_pos:
-                    self._tfile.write(p64(prev_pos))
-                else:
-                    # Write a zero backpointer, which indicates an
-                    # un-creation transaction.
-                    self._tfile.write(z64)
-            else:
-                self._tfile.write(data)
+    def restoreBlob(self, oid, serial, data, blobfilename, prev_txn,
+                    transaction):
+        """Write blob data already committed in a separate database
+        """
+        self.restore(oid, serial, data, '', prev_txn, transaction)
+        tbuf = self._tbuf(transaction)
+        tbuf.storeblob(oid, blobfilename, serial=serial)
 
     def supportsUndo(self):
         return 1
 
-    def _clear_temp(self):
-        self._tindex.clear()
-        if self._tfile is not None:
-            self._tfile.seek(0)
+    def tpc_begin(self, transaction, tid=None, status=' '):
+        if self._is_read_only:
+            raise ReadOnlyError()
 
-    def _begin(self, tid, u, d, e):
-        self._nextpos = 0
-        self._thl = TRANS_HDR_LEN + len(u) + len(d) + len(e)
-        if self._thl > 65535:
-            # one of u, d, or e may be > 65535
-            # We have to check lengths here because struct.pack
-            # doesn't raise an exception on overflow!
-            if len(u) > 65535:
-                raise FileStorageError('user name too long')
-            if len(d) > 65535:
-                raise FileStorageError('description too long')
-            if len(e) > 65535:
-                raise FileStorageError('too much extension data')
+        try:
+            tbuf = transaction.data(self)
+        except AttributeError:
+            # Gaaaa. This is a recovery transaction. Work around this
+            # until we can think of something better. XXX
+            tb = {}
+            transaction.data = tb.__getitem__
+            transaction.set_data = tb.__setitem__
+        except KeyError:
+            pass
+        else:
+            if tbuf is not None:
+                raise StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
+
+        with self._lock:
+            transaction.set_data(
+                self, TransactionBuffer(
+                    transaction, tid, status, self._pos, self.fshelper))
+
+        self._commit_lock.acquire()
+
+    def _tbuf(self, transaction):
+        try:
+            return transaction.data(self)
+        except KeyError:
+            raise StorageTransactionError(
+                "Transaction hasn't begin two-phase commit")
 
     def tpc_vote(self, transaction):
-        with self._lock:
-            if transaction is not self._transaction:
-                raise StorageTransactionError(
-                    "tpc_vote called with wrong transaction")
-            dlen = self._tfile.tell()
-            if not dlen:
-                return # No data in this trans
-            self._tfile.seek(0)
-            user, descr, ext = self._ude
+        tbuf = self._tbuf(transaction)
+        if self._quota is not None:
+            with self._lock:
+                # Check quota
+                size = tbuf.size
+                if self._pos + self._vote_size + size > self._quota:
+                    raise FileStorageQuotaError(
+                        "The storage quota has been exceeded.")
+                tbuf.vote_size = size
+                self._vote_size += size
 
-            self._file.seek(self._pos)
-            tl = self._thl + dlen
-
-            try:
-                h = TxnHeader(self._tid, tl, "c", len(user),
-                              len(descr), len(ext))
-                h.user = user
-                h.descr = descr
-                h.ext = ext
-                self._file.write(h.asString())
-                cp(self._tfile, self._file, dlen)
-                self._file.write(p64(tl))
-                self._file.flush()
-            except:
-                # Hm, an error occurred writing out the data. Maybe the
-                # disk is full. We don't want any turd at the end.
-                self._file.truncate(self._pos)
-                self._files.flush()
-                raise
-            self._nextpos = self._pos + (tl + 8)
-            return self._resolved
+        return tbuf.resolved
 
     def tpc_finish(self, transaction, f=None):
+        tbuf = self._tbuf(transaction)
+
         with self._files.write_lock():
             with self._lock:
-                if transaction is not self._transaction:
-                    raise StorageTransactionError(
-                        "tpc_finish called with wrong transaction")
+                tid = tbuf.tid
+
+                if tid is None:
+                    now = time.time()
+                    t = TimeStamp(*(time.gmtime(now)[:5] + (now % 60,)))
+                    self._ts = t = t.laterThan(self._ts)
+                    tid = t.raw()
+                else:
+                    self._ts = TimeStamp(tid)
+
                 try:
-                    tid = self._tid
                     if f is not None:
                         f(tid)
-                    self._finish(tid, *self._ude)
-                    self._clear_temp()
+                    self._finish(tbuf, tid)
                 finally:
-                    self._ude = None
-                    self._transaction = None
+                    self._vote_size -= tbuf.vote_size
                     self._commit_lock.release()
+
         return tid
 
-    def _finish(self, tid, u, d, e):
-        # If self._nextpos is 0, then the transaction didn't write any
-        # data, so we don't bother writing anything to the file.
-        if self._nextpos:
-            # Clear the checkpoint flag
-            self._file.seek(self._pos+16)
-            self._file.write(as_bytes(self._tstatus))
-            try:
-                # At this point, we may have committed the data to disk.
-                # If we fail from here, we're in bad shape.
-                self._finish_finish(tid)
-            except:
-                # Ouch.  This is bad.  Let's try to get back to where we were
-                # and then roll over and die
-                logger.critical("Failure in _finish. Closing.", exc_info=True)
-                self.close()
-                raise
+    def _finish(self, tbuf, tid):
+        if not tbuf.dlen:
+            # The transaction didn't write any data, so we don't
+            # bother writing anything to the file.
+            return
 
-    def _finish_finish(self, tid):
+        pos = self._pos
+        try:
+            self._pos, tindex = tbuf.commit(tid, self._file, pos)
+
+            # At this point, we may have committed the data to disk.
+            # If we fail from here, we're in bad shape.
+            self._finish_finish(tid, tindex)
+        except:
+            # Ouch.  This is bad.  Let's try to get back to where we were
+            # and then roll over and die
+            self._file.truncate(pos)
+            self._pos = pos
+            self._files.empty()
+            logger.critical("Failure in _finish. Closing.", exc_info=True)
+            self.close()
+            raise
+
+    def _finish_finish(self, tid, tindex):
         # This is a separate method to allow tests to replace it with
         # something broken. :)
 
@@ -772,44 +742,26 @@ class FileStorage(
         if fsync is not None:
             fsync(self._file.fileno())
 
-        self._pos = self._nextpos
-        self._index.update(self._tindex)
+        self._index.update(tindex)
         self._ltid = tid
-        self._blob_tpc_finish()
 
-    def _abort(self):
-        if self._nextpos:
-            self._file.truncate(self._pos)
-            self._files.flush()
-            self._nextpos=0
-            self._blob_tpc_abort()
+    def tpc_abort(self, transaction):
 
-    def _undoDataInfo(self, oid, pos, tpos):
-        """Return the tid, data pointer, and data for the oid record at pos
-        """
-        if tpos:
-            itpos = tpos - self._pos - self._thl
-            pos = tpos
-            tpos = self._tfile.tell()
-            h = self._tfmt._read_data_header(itpos, oid)
-            afile = self._tfile
-        else:
-            h = self._read_data_header(pos, oid)
-            afile = self._file
+        try:
+            tbuf = transaction.data(self)
+        except KeyError:
+            tbuf = None
 
-        if h.oid != oid:
-            raise UndoError("Invalid undo transaction id", oid)
+        if tbuf is None:
+            return
 
-        if h.plen:
-            data = afile.read(h.plen)
-        else:
-            data = ''
-            pos = h.back
+        with self._lock:
+            self._vote_size -= tbuf.vote_size
+            self._commit_lock_release()
 
-        if tpos:
-            self._tfile.seek(tpos) # Restore temp file to end
+        tbuf.abort()
 
-        return h.tid, pos, data
+        transaction.set_data(self, None)
 
     def getTid(self, oid):
         with self._lock:
@@ -820,7 +772,7 @@ class FileStorage(
                 raise POSKeyError(oid)
             return h.tid
 
-    def _transactionalUndoRecord(self, oid, pos, tid, pre):
+    def _transactionalUndoRecord(self, tbuf, oid, pos, tid, pre):
         """Get the undo information for a data record
 
         'pos' points to the data header for 'oid' in the transaction
@@ -836,7 +788,7 @@ class FileStorage(
         copy = True # Can we just copy a data pointer
 
         # First check if it is possible to undo this record.
-        tpos = self._tindex.get(oid, 0)
+        tpos = tbuf.index.get(oid, 0)
         ipos = self._index.get(oid, 0)
         tipos = tpos or ipos
 
@@ -851,7 +803,10 @@ class FileStorage(
 
             # Get current data, as identified by tipos.  We'll use
             # it to decide if and how we can undo in this case.
-            ctid, cdataptr, current_data = self._undoDataInfo(oid, ipos, tpos)
+            if tpos:
+                ctid, cdataptr, current_data = tbuf.undoDataInfo(oid, tpos)
+            else:
+                ctid, cdataptr, current_data = self._undoDataInfo(oid, ipos)
 
             if cdataptr != pos:
 
@@ -956,17 +911,16 @@ class FileStorage(
 
         if self._is_read_only:
             raise ReadOnlyError()
-        if transaction is not self._transaction:
-            raise StorageTransactionError(self, transaction)
+
+        tbuf = self._tbuf(transaction)
+
+        tid = decodebytes(transaction_id + b'\n')
+        assert len(tid) == 8
 
         with self._lock:
           # Find the right transaction to undo and call _txn_undo_write().
-          tid = decodebytes(transaction_id + b'\n')
-          assert len(tid) == 8
           tpos = self._txn_find(tid, 1)
-          tindex = self._txn_undo_write(tpos)
-          self._tindex.update(tindex)
-          return self._tid, tindex.keys()
+          self._txn_undo_write(tpos, tbuf)
 
     def _txn_find(self, tid, stop_at_pack):
         pos = self._pos
@@ -984,12 +938,9 @@ class FileStorage(
                     break
         raise UndoError("Invalid transaction id")
 
-    def _txn_undo_write(self, tpos):
+    def _txn_undo_write(self, tpos, tbuf):
         # a helper function to write the data records for transactional undo
 
-        otloc = self._pos
-        here = self._pos + self._tfile.tell() + self._thl
-        base = here - self._tfile.tell()
         # Let's move the file pointer back to the start of the txn record.
         th = self._read_txn_header(tpos)
         if th.status != " ":
@@ -1006,11 +957,9 @@ class FileStorage(
             if h.oid in failures:
                 del failures[h.oid] # second chance!
 
-            assert base + self._tfile.tell() == here, (here, base,
-                                                       self._tfile.tell())
             try:
                 p, prev, ipos = self._transactionalUndoRecord(
-                    h.oid, pos, h.tid, h.prev)
+                    tbuf, h.oid, pos, h.tid, h.prev)
             except UndoError as v:
                 # Don't fail right away. We may be redeemed later!
                 failures[h.oid] = v
@@ -1030,21 +979,9 @@ class FileStorage(
                                 h.oid, userial) as sfp:
                                 with open(tmp, 'wb') as dfp:
                                     cp(sfp, dfp)
-                            self._blob_storeblob(h.oid, self._tid, tmp)
+                            tbuf.storeblob(h.oid, tmp)
 
-                new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
-
-                # TODO:  This seek shouldn't be necessary, but some other
-                # bit of code is messing with the file pointer.
-                assert self._tfile.tell() == here - base, (here, base,
-                                                           self._tfile.tell())
-                self._tfile.write(new.asString())
-                if p:
-                    self._tfile.write(p)
-                else:
-                    self._tfile.write(p64(prev))
-                tindex[h.oid] = here
-                here += new.recordlen()
+                tbuf.store(h.oid, p, ipos, True, p64(prev) if not p else z64)
 
             pos += h.recordlen()
             if pos > tend:
@@ -1167,7 +1104,7 @@ class FileStorage(
                     # OK, we're beyond the point of no return
                     os.rename(self._file_name + '.pack', self._file_name)
                     self._file = open(self._file_name, 'r+b')
-                    self._initIndex(index, self._tindex)
+                    self._initIndex(index)
                     self._pos = opos
 
             # We're basically done.  Now we need to deal with removed
@@ -1472,9 +1409,8 @@ def search_back(file, pos):
 def recover(file_name):
     file=open(file_name, 'r+b')
     index={}
-    tindex={}
 
-    pos, oid, tid = read_index(file, file_name, index, tindex, recover=1)
+    pos, oid, tid = read_index(file, file_name, index, recover=1)
     if oid is not None:
         print("Nothing to recover")
         return
@@ -1491,8 +1427,8 @@ def recover(file_name):
 
 
 
-def read_index(file, name, index, tindex, stop=b'\377'*8,
-               ltid=z64, start=4, maxoid=z64, recover=0, read_only=0):
+def read_index(file, name, index, stop=b'\377'*8,
+               ltid=z64, start=4, recover=0, read_only=0):
     """Scan the file storage and update the index.
 
     Returns file position, max oid, and last transaction id.  It also
@@ -1502,8 +1438,6 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
     file -- a file object (the Data.fs)
     name -- the name of the file (presumably file.name)
     index -- fsIndex, oid -> data record file offset
-    tindex -- dictionary, oid -> data record offset
-              tindex is cleared before return
 
     There are several default arguments that affect the scan or the
     return values.  TODO:  document them.
@@ -1514,9 +1448,6 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
              the .index file was last saved, and that's the intended value
              to pass in for start; accept the default (and pass empty
              indices) to recreate the index from scratch
-    maxoid -- ignored (it meant something prior to ZODB 3.2.6; the argument
-              still exists just so the signature of read_index() stayed the
-              same)
 
     The file position returned is the position just after the last
     valid transaction record.  The oid returned is the maximum object
@@ -1546,6 +1477,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
     pos = start
     seek(start)
     tid = b'\0' * 7 + b'\1'
+    tindex = {}
 
     while 1:
         # Read the transaction record
@@ -1672,7 +1604,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
         maxoid = index.maxKey()
     except ValueError:
         # The index is empty.
-        pass # maxoid is already equal to z64
+        maxoid = z64
 
     return pos, maxoid, ltid
 
@@ -2141,3 +2073,166 @@ class FilePool:
                 self._out.pop().close()
             self.empty()
             self.writing = self.writers = 0
+
+class TransactionBuffer(FileStorageFormatter):
+
+    count = dlen = vote_size = 0
+
+    def __init__(self, transaction, tid, status, tpos, fshelper):
+        self.tpos = tpos
+        self.tid = tid
+        self.status = status
+        self._file = tempfile.TemporaryFile()
+        self.index = {}
+        self.resolved = set()
+
+        user = transaction.user
+        desc = transaction.description
+        ext = transaction._extension
+        if ext:
+            ext = dumps(ext, _protocol)
+        else:
+            ext = ""
+
+        self.ude = user, desc, ext
+
+        self.tlen = TRANS_HDR_LEN + len(user) + len(desc) + len(ext)
+        if self.tlen > 65535:
+            # one of u, d, or e may be > 65535
+            # We have to check lengths here because struct.pack
+            # doesn't raise an exception on overflow!
+            if len(user) > 65535:
+                raise FileStorageError('user name too long')
+            if len(desc) > 65535:
+                raise FileStorageError('description too long')
+            if len(ext) > 65535:
+                raise FileStorageError('too much extension data')
+
+        self.pos = tpos + self.tlen
+
+        # blobs
+        self.fshelper = fshelper
+        self.blob_files = {} # oid -> blobfilename
+
+    def store(self, oid, data, prev, resolved, back_pointer=z64):
+        h = DataHeader(oid, z64, prev, self.tpos, 0, len(data)).asString()
+        self.index[oid] = self.pos
+        self._file.write(h)
+        data = data or back_pointer
+        self._file.write(data)
+        dlen = len(h) + len(data)
+        self.pos += dlen
+        self.dlen += dlen
+        self.count += 1
+        if resolved:
+            self.resolved.add(oid)
+
+    def storeblob(self, oid, blobfilename, serial=None):
+        if serial is not None:
+            assert serial == self.tid
+
+        if oid in self.blob_files:
+            # Older store. Replace with newer
+            remove_committed(self.blob_files[oid])
+
+        self.blob_files[oid] = blobfilename
+
+    @property
+    def size(self):
+        return self.tlen + self.dlen
+
+    def commit(self, tid, dest, tpos):
+        dest.seek(tpos)
+        write = dest.write
+
+        try:
+
+            # Write the transaction heade
+            user, descr, ext = self.ude
+            # Note that self.size may be wrong and we may need to fix it.
+            th = TxnHeader(tid, self.size, "c", len(user), len(descr), len(ext))
+            th.user = user
+            th.descr = descr
+            th.ext = ext
+            write(th.asString())
+
+            read_offset = self.tpos + self.tlen
+            index = { oid: ipos - read_offset
+                      for oid, ipos in self.index.items() }
+
+            write_offset = tpos + self.tlen
+            tindex = {}
+
+            # Write the data records:
+            pos = 0
+            opos = write_offset
+            for i in range(self.count):
+                h = self._read_data_header(pos)
+                oid = h.oid
+                if index[oid] == pos:
+                    h.tid = tid
+                    h.tloc = tpos
+                    write(h.asString())
+                    if h.plen:
+                        write(self._file.read(h.plen))
+                    else:
+                        write(p64(h.back))
+                    tindex[oid] = opos
+                    opos += h.recordlen()
+                else:
+                    # The oid was written multiple times, and this wasn't
+                    # the final, so don't include in output.
+                    assert index[oid] > pos
+
+                pos += h.recordlen()
+
+            # Sanity check that we didn't miss any
+            assert len(tindex) == len(index)
+
+            size = opos - tpos
+
+            write(p64(size))
+            opos += 8
+
+            # Clear the checkpoint flag, and correct the size, if necessary
+            if size != self.size:
+                assert self.size > size
+                dest.seek(tpos + 8)
+                dest.write(p64(size) + as_bytes(self.status))
+            else:
+                dest.seek(tpos + 16)
+                dest.write(as_bytes(self.status))
+
+            for oid in list(self.blob_files):
+                blobfilename = self.blob_files[oid]
+                self.fshelper.getPathForOID(oid, create=True)
+                targetname = self.fshelper.getBlobFilename(oid, tid)
+                rename_or_copy_blob(blobfilename, targetname)
+                del self.blob_files[oid]
+
+            self.close()
+            return opos, tindex
+        except:
+            # We probably ran out of space.
+            dest.truncate(tpos)
+            raise
+
+    def abort(self):
+        for blobfilename in self.blob_files.values():
+            if os.path.exists(blobfilename):
+                remove_committed(blobfilename)
+
+        self.close()
+
+    def undoDataInfo(self, oid, pos):
+        restore_pos = self._file.tell()
+        r = self._undoDataInfo(oid, pos)
+        self._file.seek(restore_pos)
+        return r
+
+    closed = False
+    def close(self):
+        if not self.closed:
+            self.closed = True
+            self._file.close()
+            self.index.clear()

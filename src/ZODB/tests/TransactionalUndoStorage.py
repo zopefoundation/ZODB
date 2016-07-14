@@ -75,9 +75,7 @@ class TransactionalUndoStorage:
         self._storage.tpc_begin(t)
         oids = set()
         for tid in tids:
-            undo_result = self._storage.undo(tid, t)
-            if undo_result:
-                oids.update(undo_result[1])
+            self._storage.undo(tid, t)
         oids.update(self._storage.tpc_vote(t) or ())
         return oids
 
@@ -130,7 +128,6 @@ class TransactionalUndoStorage:
         tid = info[0]['id']
         self.undo(tid, 'undo1')
         # Check that calling getTid on an uncreated object raises a KeyError
-        # The current version of FileStorage fails this test
         self.assertRaises(KeyError, self._storage.getTid, oid)
 
     def checkUndoCreationBranch1(self):

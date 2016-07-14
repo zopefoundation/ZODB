@@ -38,4 +38,3 @@ Now clean up the storage again:
   >>> os.unlink(storagefile)
   >>> os.unlink(storagefile+'.index')
   >>> os.unlink(storagefile+'.lock')
-  >>> os.unlink(storagefile+'.tmp')
