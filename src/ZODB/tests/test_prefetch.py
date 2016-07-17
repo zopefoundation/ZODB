@@ -34,6 +34,8 @@ class PrefetchTests(unittest.TestCase):
                           ([0, 1, 2, 3, 4], conn._storage._start),
                           ])
 
+        db.close()
+
     def test_prefetch_optional(self):
         conn = ZODB.connection(None)
         conn.prefetch(z64)
@@ -41,6 +43,7 @@ class PrefetchTests(unittest.TestCase):
         conn.prefetch(conn.root())
         conn.prefetch(z64, [z64])
         conn.prefetch(z64, [z64], conn.root())
+        conn.close()
 
     def test_prefetch_optional_imvcc(self):
         conn = ZODB.connection(MVCCMappingStorage())
@@ -49,6 +52,7 @@ class PrefetchTests(unittest.TestCase):
         conn.prefetch(conn.root())
         conn.prefetch(z64, [z64])
         conn.prefetch(z64, [z64], conn.root())
+        conn.close()
 
 
 def test_suite():
