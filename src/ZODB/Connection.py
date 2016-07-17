@@ -1080,6 +1080,27 @@ class Connection(ExportImport, object):
     # Savepoint support
     #####################################################################
 
+    def prefetch(self, *args):
+        try:
+            self._storage.prefetch(self._prefetch_flatten(args))
+        except AttributeError:
+            if not hasattr(self._storage, 'prefetch'):
+                self.prefetch = lambda *a: None
+            else:
+                raise
+
+    def _prefetch_flatten(self, args):
+        for arg in args:
+            if isinstance(arg, bytes):
+                yield arg
+            elif hasattr(arg, '_p_oid'):
+                yield arg._p_oid
+            else:
+                for ob in arg:
+                    if isinstance(ob, bytes):
+                        yield ob
+                    else:
+                        yield ob._p_oid
 
 @implementer(IDataManagerSavepoint)
 class Savepoint:

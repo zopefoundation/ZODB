@@ -567,6 +567,15 @@ class IStorage(Interface):
         If the object id isn't in the storage, then POSKeyError is raised.
         """
 
+    def prefetch(oids, tid):
+        """Prefetch data for the given object ids before the given tid
+
+        The oids argument is an iterable that should be iterated no
+        more than once.
+
+        This method is optional. It is an optimization
+        """
+
     def loadSerial(oid, serial):
         """Load the object record for the give transaction id
 
@@ -1110,6 +1119,15 @@ class IMVCCStorage(IStorage):
         record.
 
         A POSKeyError is raised if there is no record for the object id.
+        """
+
+    def prefetch(oids):
+        """Prefetch data for the given object ids
+
+        The oids argument is an iterable that should be iterated no
+        more than once.
+
+        This method is optional. It is an optimization
         """
 
 
