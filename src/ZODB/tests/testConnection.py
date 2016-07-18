@@ -1275,6 +1275,7 @@ class StubStorage:
         del self._transaction
         self._transdata.clear()
         self._transstored = []
+        return z64
 
     def load(self, oid, version=''):
         if version != '':
@@ -1295,9 +1296,6 @@ class StubStorage:
         self._stored.append(oid)
         self._transstored.append(oid)
         self._transdata[oid] = (p, serial)
-        # Explicitly returning None, as we're not pretending to be a ZEO
-        # storage
-        return None
 
     def lastTransaction(self):
         return z64

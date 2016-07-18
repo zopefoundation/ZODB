@@ -163,15 +163,13 @@ class MVCCAdapterInstance(Base):
         self._modified = set()
 
     def store(self, oid, serial, data, version, transaction):
-        s = self._storage.store(oid, serial, data, version, transaction)
+        self._storage.store(oid, serial, data, version, transaction)
         self._modified.add(oid)
-        return s
 
     def storeBlob(self, oid, serial, data, blobfilename, version, transaction):
-        s = self._storage.storeBlob(
+        self._storage.storeBlob(
             oid, serial, data, blobfilename, '', transaction)
         self._modified.add(oid)
-        return s
 
     def tpc_finish(self, transaction, func = lambda tid: None):
         modified = self._modified
@@ -253,11 +251,7 @@ class UndoAdapterInstance(Base):
     def tpc_vote(self, transaction):
         result = self._storage.tpc_vote(transaction)
         if result:
-            if isinstance(next(iter(result)), bytes):
-                self._undone.update(result)
-            else:
-                for oid, _ in result:
-                    self._undone.add(oid)
+            self._undone.update(result)
 
     def tpc_finish(self, transaction, func = lambda tid: None):
 

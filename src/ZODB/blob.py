@@ -709,9 +709,8 @@ class BlobStorageMixin(object):
                   transaction):
         """Stores data that has a BLOB attached."""
         assert not version, "Versions aren't supported."
-        serial = self.store(oid, oldserial, data, '', transaction)
+        self.store(oid, oldserial, data, '', transaction)
         self._blob_storeblob(oid, self._tid, blobfilename)
-        return serial
 
     def temporaryDirectory(self):
         return self.fshelper.temp_dir

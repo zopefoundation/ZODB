@@ -653,23 +653,6 @@ class IStorage(Interface):
             A transaction object.  This should match the current
             transaction for the storage, set by tpc_begin.
 
-        The new serial for the object is returned, but not necessarily
-        immediately.  It may be returned directly, or on a subsequent
-        store or tpc_vote call.
-
-        The return value may be:
-
-        - None, or
-
-        - A new serial (string) for the object
-
-        If None is returned, then a new serial (or other special
-        values) must ve returned in tpc_vote results.
-
-        A serial, returned as a string, may be the special value
-        ZODB.ConflictResolution.ResolvedSerial to indicate that a
-        conflict occured and that the object should be invalidated.
-
         Several different exceptions may be raised when an error occurs.
 
         ConflictError
@@ -739,18 +722,8 @@ class IStorage(Interface):
         without an error, then there must not be an error if
         tpc_finish or tpc_abort is called subsequently.
 
-        The return value can be None or a sequence of object-id
-        and serial pairs giving new serials for objects whose ids were
-        passed to previous store calls in the same transaction. The serial
-        can be the special value ZODB.ConflictResolution.ResolvedSerial to
-        indicate that a conflict occurred and that the object should be
-        invalidated.
-
-        The return value can also be a sequence of object ids, as
-        described in IMultiCommitStorage.tpc_vote.
-
-        After the tpc_vote call, all solved conflicts must have been notified,
-        either from tpc_vote or store for objects passed to store.
+        The return value can be None or a sequence of a sequence of object ids,
+        as described in IMultiCommitStorage.tpc_vote.
         """
 
 
@@ -790,7 +763,7 @@ class IMultiCommitStorage(IStorage):
     def tpc_vote(transaction):
         """Provide a storage with an opportunity to veto a transaction
 
-        See IStorage.store. For objects implementing this interface,
+        See IStorage.tpc_vote. For objects implementing this interface,
         the return value can be either None or a sequence of oids for which
         a conflict was resolved.
         """
@@ -1235,24 +1208,6 @@ class IBlobStorage(Interface):
         The storage will take ownership of the file and will rename it
         (or copy and remove it) immediately, or at transaction-commit
         time.  The file must not be open.
-
-        The new serial for the object is returned, but not necessarily
-        immediately.  It may be returned directly, or on a subsequent
-        store or tpc_vote call.
-
-        The return value may be:
-
-        - None
-
-        - A new serial (string) for the object, or
-
-        - An iterable of object-id and serial pairs giving new serials
-          for objects.
-
-        A serial, returned as a string or in a sequence of oid/serial
-        pairs, may be the special value
-        ZODB.ConflictResolution.ResolvedSerial to indicate that a
-        conflict occured and that the object should be invalidated.
 
         Several different exceptions may be raised when an error occurs.
 
