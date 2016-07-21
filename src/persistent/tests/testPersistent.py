@@ -180,6 +180,30 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(obj._p_changed, None)
         self.assertEqual(obj._p_state, GHOST)
 
+    def test__p_invalidate_from_changed_w_slots(self):
+        from persistent import Persistent
+        class Derived(Persistent):
+            __slots__ = ('myattr1', 'myattr2')
+            def __init__(self):
+                self.myattr1 = 'value1'
+                self.myattr2 = 'value2'
+        obj = Derived()
+        jar = self._makeJar()
+        jar.add(obj)
+        obj._p_activate()
+        obj._p_changed = True
+        jar._loaded = []
+        jar._registered = []
+        self.assertEqual(Derived.myattr1.__get__(obj), 'value1')
+        self.assertEqual(Derived.myattr2.__get__(obj), 'value2')
+        obj._p_invalidate()
+        self.assertIs(obj._p_changed, None)
+        self.assertEqual(list(jar._loaded), [])
+        self.assertRaises(AttributeError, lambda: Derived.myattr1.__get__(obj))
+        self.assertRaises(AttributeError, lambda: Derived.myattr2.__get__(obj))
+        self.assertEqual(list(jar._loaded), [])
+        self.assertEqual(list(jar._registered), [])
+
     def test_initial_serial(self):
         NOSERIAL = "\000" * 8
         obj = self._makeOne()

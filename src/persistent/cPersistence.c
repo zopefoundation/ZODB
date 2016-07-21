@@ -75,6 +75,7 @@ fatal_1350(cPersistentObject *self, const char *caller, const char *detail)
 #endif
 
 static void ghostify(cPersistentObject*);
+static PyObject * pickle_slotnames(PyTypeObject *cls);
 
 /* Load the state of the object, unghostifying it.  Upon success, return 1.
  * If an error occurred, re-ghostify the object and return -1.
@@ -141,7 +142,7 @@ accessed(cPersistentObject *self)
 static void
 ghostify(cPersistentObject *self)
 {
-  PyObject **dictptr;
+  PyObject **dictptr, *slotnames;
 
   /* are we already a ghost? */
   if (self->state == cPersistent_GHOST_STATE)
@@ -171,12 +172,46 @@ ghostify(cPersistentObject *self)
     _estimated_size_in_bytes(self->estimated_size);
   ring_del(&self->ring);
   self->state = cPersistent_GHOST_STATE;
+
+  /* clear __dict__ */
   dictptr = _PyObject_GetDictPtr((PyObject *)self);
   if (dictptr && *dictptr)
     {
       Py_DECREF(*dictptr);
       *dictptr = NULL;
     }
+
+  /* clear all slots besides _p_* */
+  slotnames = pickle_slotnames(Py_TYPE(self));
+  if (slotnames && slotnames != Py_None)
+  {
+    int i;
+
+    for (i = 0; i < PyList_GET_SIZE(slotnames); i++)
+    {
+        PyObject *name;
+        char *cname;
+        int is_special;
+
+        name = PyList_GET_ITEM(slotnames, i);
+        if (PyBytes_Check(name))
+        {
+            cname = PyBytes_AS_STRING(name);
+            is_special = !strncmp(cname, "_p_", 3);
+            if (is_special) /* skip persistent */
+            {
+                continue;
+            }
+        }
+
+        /* NOTE: this skips our delattr hook */
+        if (PyObject_GenericSetAttr((PyObject *)self, name, NULL) < 0)
+            /* delattr of non-set slot will raise AttributeError - we
+             * simply ignore. */
+            PyErr_Clear();
+    }
+  }
+  Py_XDECREF(slotnames);
 
   /* We remove the reference to the just ghosted object that the ring
    * holds.  Note that the dictionary of oids->objects has an uncounted
@@ -261,6 +296,8 @@ Per__p_deactivate(cPersistentObject *self)
          called directly. Methods that override this need to
          do the same! */
       ghostify(self);
+      if (PyErr_Occurred())
+        return NULL;
     }
 
   Py_INCREF(Py_None);
@@ -289,6 +326,8 @@ Per__p_invalidate(cPersistentObject *self)
       if (Per_set_changed(self, NULL) < 0)
         return NULL;
       ghostify(self);
+      if (PyErr_Occurred())
+        return NULL;
     }
   Py_INCREF(Py_None);
   return Py_None;

@@ -29,6 +29,9 @@ Bugs Fixed
 - Call _p_resolveConflict() even if a conflicting change doesn't change the
   state. This reverts to the behaviour of 3.10.3 and older.
 
+- Ensure that ``__slots__`` attributes are cleared when a persistent object
+  is ghostified.
+
 3.10.5 (2011-11-19)
 ===================
 
