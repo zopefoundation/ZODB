@@ -754,6 +754,16 @@ class IStorage(Interface):
         """
 
 
+class IPrefetchStorage(IStorage):
+
+    def prefetch(oids, tid):
+        """Prefetch data for the given object ids before the given tid
+
+        The oids argument is an iterable that should be iterated no
+        more than once.
+        """
+
+
 class IMultiCommitStorage(IStorage):
     """A multi-commit storage can commit multiple transactions at once.
 
@@ -1112,6 +1122,14 @@ class IMVCCStorage(IStorage):
         A POSKeyError is raised if there is no record for the object id.
         """
 
+class IMVCCPrefetchStorage(IMVCCStorage):
+
+    def prefetch(oids):
+        """Prefetch data for the given object ids
+
+        The oids argument is an iterable that should be iterated no
+        more than once.
+        """
 
 class IStorageCurrentRecordIteration(IStorage):
 

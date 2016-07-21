@@ -146,6 +146,15 @@ class MVCCAdapterInstance(Base):
             raise POSException.ReadConflictError(repr(oid))
         return r[:2]
 
+    def prefetch(self, oids):
+        try:
+            self._storage.prefetch(oids, self._start)
+        except AttributeError:
+            if not hasattr(self._storage, 'prefetch'):
+                self.prefetch = lambda *a: None
+            else:
+                raise
+
     _modified = None # Used to keep track of oids modified within a
                      # transaction, so we can invalidate them later.
 
