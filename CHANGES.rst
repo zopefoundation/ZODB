@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.0.0a6 (unreleased)
+5.0.0a6 (2016-07-21)
 ====================
 
 - Added a connection ``prefetch`` method that can be used to request
