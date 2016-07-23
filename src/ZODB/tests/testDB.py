@@ -125,7 +125,7 @@ def connectionDebugInfo():
     r"""DB.connectionDebugInfo provides information about connections.
 
     >>> import time
-    >>> now = 1228423244.5
+    >>> now = 1228423244.1
     >>> def faux_time():
     ...     global now
     ...     now += .1
@@ -154,8 +154,8 @@ def connectionDebugInfo():
     >>> before = [x['before'] for x in info]
     >>> opened = [x['opened'] for x in info]
     >>> infos = [x['info'] for x in info]
-    >>> before
-    [None, '\x03zY\xd8\xc0m9\xdd', None]
+    >>> before == [None, c1.root()._p_serial, None]
+    True
     >>> opened
     ['2008-12-04T20:40:44Z (1.30s)', '2008-12-04T20:40:46Z (0.10s)', None]
     >>> infos
@@ -351,6 +351,7 @@ def minimally_test_connection_timeout():
 
     >>> db = ZODB.DB(None, pool_timeout=.01)
     >>> c1 = db.open()
+    >>> c1.cacheMinimize() # See fix84.rst
     >>> c2 = db.open()
     >>> c1.close()
     >>> c2.close()

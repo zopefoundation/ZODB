@@ -21,6 +21,7 @@ Make a change locally:
 
     >>> st = SimpleStorage()
     >>> db = ZODB.DB(st)
+    >>> st.sync_called = False
     >>> cn = db.open()
     >>> rt = cn.root()
     >>> rt['a'] = 1

@@ -126,6 +126,7 @@ returned are distinct:
     >>> st = Storage()
     >>> db = DB(st)
     >>> c1 = db.open()
+    >>> c1.cacheMinimize()
     >>> c2 = db.open()
     >>> c3 = db.open()
     >>> c1 is c2 or c1 is c3 or c2 is c3
@@ -260,6 +261,7 @@ closed one out of the available connection stack.
     >>> st = Storage()
     >>> db = DB(st, pool_size=3)
     >>> conns = [db.open() for dummy in range(6)]
+    >>> conns[0].cacheMinimize()
     >>> len(handler.records)  # 3 warnings for the "excess" connections
     3
     >>> pool = db.pool
@@ -328,6 +330,7 @@ resources (like RDB connections), for the duration.
     >>> st = Storage()
     >>> db = DB(st, pool_size=2)
     >>> conn0 = db.open()
+    >>> conn0.cacheMinimize() # See fix84.rst
     >>> len(conn0._cache)  # empty now
     0
     >>> import transaction
