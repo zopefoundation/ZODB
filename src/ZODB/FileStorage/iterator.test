@@ -6,6 +6,18 @@ special tests.
 
 We'll make some assertions about time, so we'll take it over:
 
+    >>> now = 1229959248
+    >>> def faux_time():
+    ...     global now
+    ...     now += 0.1
+    ...     return now
+    >>> import time
+    >>> time_time = time.time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time) # Jython
+    ... else:
+    ...     time.time = faux_time
+
 Commit a bunch of transactions:
 
     >>> import ZODB.FileStorage, transaction
@@ -166,4 +178,5 @@ Even if we write more transactions:
 
 .. Cleanup
 
+    >>> time.time = time_time
     >>> db.close()
