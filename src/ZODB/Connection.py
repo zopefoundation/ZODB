@@ -190,7 +190,6 @@ class Connection(ExportImport, object):
 
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
 
-
     def add(self, obj):
         """Add a new object 'obj' to the database and assign it an oid."""
         if self.opened is None:
@@ -202,18 +201,21 @@ class Connection(ExportImport, object):
             raise TypeError("Only first-class persistent objects may be"
                             " added to a Connection.", obj)
         elif obj._p_jar is None:
-            assert obj._p_oid is None
-            oid = obj._p_oid = self.new_oid()
-            obj._p_jar = self
-            if self._added_during_commit is not None:
-                self._added_during_commit.append(obj)
-            self._register(obj)
-            # Add to _added after calling register(), so that _added
-            # can be used as a test for whether the object has been
-            # registered with the transaction.
-            self._added[oid] = obj
+            self._add(obj, self.new_oid())
         elif obj._p_jar is not self:
             raise InvalidObjectReference(obj, obj._p_jar)
+
+    def _add(self, obj, oid):
+        assert obj._p_oid is None
+        oid = obj._p_oid = oid
+        obj._p_jar = self
+        if self._added_during_commit is not None:
+            self._added_during_commit.append(obj)
+        self._register(obj)
+        # Add to _added after calling register(), so that _added
+        # can be used as a test for whether the object has been
+        # registered with the transaction.
+        self._added[oid] = obj
 
     def get(self, oid):
         """Return the persistent object with oid 'oid'."""

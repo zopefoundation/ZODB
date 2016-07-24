@@ -39,6 +39,7 @@ import transaction
 from persistent.TimeStamp import TimeStamp
 import six
 
+from . import POSException
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -211,7 +212,8 @@ class ConnectionPool(AbstractConnectionPool):
         """Perform garbage collection on available connections.
 
         If a connection is no longer viable because it has timed out, it is
-        garbage collected."""
+        garbage collected.
+        """
         threshhold = time.time() - self.timeout
 
         to_remove = ()
@@ -442,30 +444,6 @@ class DB(object):
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
 
-        temp_storage = self._mvcc_storage.new_instance()
-        try:
-            try:
-                temp_storage.poll_invalidations()
-                temp_storage.load(z64)
-            except KeyError:
-                # Create the database's root in the storage if it doesn't exist
-                from persistent.mapping import PersistentMapping
-                root = PersistentMapping()
-                # Manually create a pickle for the root to put in the storage.
-                # The pickle must be in the special ZODB format.
-                file = BytesIO()
-                p = Pickler(file, _protocol)
-                p.dump((root.__class__, None))
-                p.dump(root.__getstate__())
-                t = transaction.Transaction()
-                t.description = 'initial database creation'
-                temp_storage.tpc_begin(t)
-                temp_storage.store(z64, None, file.getvalue(), '', t)
-                temp_storage.tpc_vote(t)
-                temp_storage.tpc_finish(t)
-        finally:
-            temp_storage.release()
-
         # Multi-database setup.
         if databases is None:
             databases = {}
@@ -478,6 +456,15 @@ class DB(object):
         self.xrefs = xrefs
 
         self.large_record_size = large_record_size
+
+        # Make sure we have a root:
+        with self.transaction('initial database creation') as conn:
+            try:
+                conn.get(z64)
+            except KeyError:
+                from persistent.mapping import PersistentMapping
+                root = PersistentMapping()
+                conn._add(root, z64)
 
     @property
     def _storage(self):      # Backward compatibility
@@ -906,8 +893,8 @@ class DB(object):
         """
         self.undoMultiple([id], txn)
 
-    def transaction(self):
-        return ContextManager(self)
+    def transaction(self, note=None):
+        return ContextManager(self, note)
 
     def new_oid(self):
         return self.storage.new_oid()
@@ -926,12 +913,16 @@ class ContextManager:
     """PEP 343 context manager
     """
 
-    def __init__(self, db):
+    def __init__(self, db, note=None):
         self.db = db
+        self.note = note
 
     def __enter__(self):
-        self.tm = transaction.TransactionManager()
+        self.tm = tm = transaction.TransactionManager()
         self.conn = self.db.open(self.tm)
+        t = tm.begin()
+        if self.note:
+            t.note(self.note)
         return self.conn
 
     def __exit__(self, t, v, tb):

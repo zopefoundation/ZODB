@@ -230,6 +230,7 @@ class UserMethodTests(unittest.TestCase):
 
         >>> db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         >>> cn = db.open()
+        >>> cn.cacheMinimize() # See fix84.rst
         >>> obj = cn.get(p64(0))
         >>> obj._p_oid
         '\x00\x00\x00\x00\x00\x00\x00\x00'

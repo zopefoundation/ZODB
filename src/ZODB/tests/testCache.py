@@ -237,8 +237,8 @@ class LRUCacheTests(CacheTestBase):
             # not bother to check this
 
     def testSize(self):
+        self.db.cacheMinimize()
         self.assertEqual(self.db.cacheSize(), 0)
-        self.assertEqual(self.db.cacheDetailSize(), [])
 
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
@@ -444,6 +444,7 @@ def test_basic_cache_size_estimation():
     >>> import ZODB.MappingStorage
     >>> db = ZODB.MappingStorage.DB()
     >>> conn = db.open()
+    >>> conn.cacheMinimize(); _ = gc.collect() # See fix84.rst
 
     >>> def check_cache_size(cache, expected):
     ...     actual = cache.total_estimated_size

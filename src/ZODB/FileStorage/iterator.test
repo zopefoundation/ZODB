@@ -63,28 +63,32 @@ seems best and set the next record to that:
     >>> it.close()
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[1])
-    Scan forward data.fs:<OFFSET> looking for '\x03z\xbd\xd8\xd06\x9c\xcc'
+    ... # doctest: +ELLIPSIS
+    Scan forward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[1]
     True
 
     >>> it.close()
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[30])
-    Scan forward data.fs:<OFFSET> looking for '\x03z\xbd\xd8\xdc\x96.\xcc'
+    ... # doctest: +ELLIPSIS
+    Scan forward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[30]
     True
 
     >>> it.close()
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[70])
-    Scan backward data.fs:<OFFSET> looking for '\x03z\xbd\xd8\xed\xa7>\xcc'
+    ... # doctest: +ELLIPSIS
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[70]
     True
 
     >>> it.close()
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[-2])
-    Scan backward data.fs:<OFFSET> looking for '\x03z\xbd\xd8\xfa\x06\xd0\xcc'
+    ... # doctest: +ELLIPSIS
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[-2]
     True
 
@@ -118,14 +122,16 @@ starting point, or just pick up where another iterator left off:
     >>> it.close()
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[50], pos=poss[50])
-    Scan backward data.fs:<OFFSET> looking for '\x03z\xbd\xd8\xe5\x1e\xb6\xcc'
+    ... # doctest: +ELLIPSIS
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[50]
     True
 
     >>> it.close()
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[49], pos=poss[50])
-    Scan backward data.fs:<OFFSET> looking for '\x03z\xbd\xd8\xe4\xb1|\xcc'
+    ... # doctest: +ELLIPSIS
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[49]
     True
 
