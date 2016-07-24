@@ -52,7 +52,7 @@ seems best and set the next record to that:
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[1])
     ... # doctest: +ELLIPSIS
-    Scan forward data.fs:<OFFSET> looking for '...'
+    Scan forward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[1]
     True
 
@@ -60,7 +60,7 @@ seems best and set the next record to that:
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[30])
     ... # doctest: +ELLIPSIS
-    Scan forward data.fs:<OFFSET> looking for '...'
+    Scan forward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[30]
     True
 
@@ -68,7 +68,7 @@ seems best and set the next record to that:
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[70])
     ... # doctest: +ELLIPSIS
-    Scan backward data.fs:<OFFSET> looking for '...'
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[70]
     True
 
@@ -76,7 +76,7 @@ seems best and set the next record to that:
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[-2])
     ... # doctest: +ELLIPSIS
-    Scan backward data.fs:<OFFSET> looking for '...'
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[-2]
     True
 
@@ -111,7 +111,7 @@ starting point, or just pick up where another iterator left off:
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[50], pos=poss[50])
     ... # doctest: +ELLIPSIS
-    Scan backward data.fs:<OFFSET> looking for '...'
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[50]
     True
 
@@ -119,7 +119,7 @@ starting point, or just pick up where another iterator left off:
 
     >>> it = ZODB.FileStorage.FileIterator('data.fs', tids[49], pos=poss[50])
     ... # doctest: +ELLIPSIS
-    Scan backward data.fs:<OFFSET> looking for '...'
+    Scan backward data.fs:<OFFSET> looking for ...
     >>> it.next().tid == tids[49]
     True
 
