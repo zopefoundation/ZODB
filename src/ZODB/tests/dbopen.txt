@@ -330,7 +330,7 @@ resources (like RDB connections), for the duration.
     >>> st = Storage()
     >>> db = DB(st, pool_size=2)
     >>> conn0 = db.open()
-    >>> conn0.cacheMinimize() # See fix84.rst
+    >>> conn0.cacheMinimize(); import gc; _ = gc.collect() # See fix84.rst
     >>> len(conn0._cache)  # empty now
     0
     >>> import transaction

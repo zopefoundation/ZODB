@@ -444,7 +444,7 @@ def test_basic_cache_size_estimation():
     >>> import ZODB.MappingStorage
     >>> db = ZODB.MappingStorage.DB()
     >>> conn = db.open()
-    >>> conn.cacheMinimize() # See fix84.rst
+    >>> conn.cacheMinimize(); _ = gc.collect() # See fix84.rst
 
     >>> def check_cache_size(cache, expected):
     ...     actual = cache.total_estimated_size
