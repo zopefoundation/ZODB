@@ -175,7 +175,8 @@ Make sure we can restore:
     >>> index, pos, tid = fs._restore_index()
     >>> index.items() == fs._index.items()
     True
-    >>> pos, tid = fs._pos, fs._tid
+    >>> (pos, tid) == (fs._pos, fs._ltid)
+    True
 
 cleanup
 
