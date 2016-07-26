@@ -52,46 +52,13 @@ def listeq(L1, L2):
 
 class TransactionalUndoStorage:
 
-    def _transaction_begin(self):
-        self.__serials = {}
-
-    def _transaction_store(self, oid, rev, data, vers, trans):
-        r = self._storage.store(oid, rev, data, vers, trans)
-        if r:
-            if isinstance(r, bytes):
-                self.__serials[oid] = r
-            else:
-                for oid, serial in r:
-                    self.__serials[oid] = serial
-
-    def _transaction_vote(self, trans):
-        r = self._storage.tpc_vote(trans)
-        if r:
-            for oid, serial in r:
-                self.__serials[oid] = serial
-
-    def _transaction_newserial(self, oid):
-        return self.__serials[oid]
-
-    def _transaction_finish(self, t, oid_list):
-        tid = self._storage.tpc_finish(t)
-        if tid is not None:
-            for oid in oid_list:
-                self.__serials[oid] = tid
-
     def _multi_obj_transaction(self, objs):
-        newrevs = {}
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction_begin()
         for oid, rev, data in objs:
-            self._transaction_store(oid, rev, data, '', t)
-            newrevs[oid] = None
-        self._transaction_vote(t)
-        self._transaction_finish(t, [x[0] for x in objs])
-        for oid in newrevs.keys():
-            newrevs[oid] = self._transaction_newserial(oid)
-        return newrevs
+            self._storage.store(oid, rev, data, '', t)
+        self._storage.tpc_vote(t)
+        return self._storage.tpc_finish(t)
 
     def _iterate(self):
         """Iterate over the storage in its final state."""
@@ -106,22 +73,18 @@ class TransactionalUndoStorage:
 
     def _begin_undos_vote(self, t, *tids):
         self._storage.tpc_begin(t)
-        oids = []
+        oids = set()
         for tid in tids:
             undo_result = self._storage.undo(tid, t)
             if undo_result:
-                oids.extend(undo_result[1])
-        v = self._storage.tpc_vote(t)
-        if v:
-            if isinstance(next(iter(v)), bytes):
-                oids.extend(v)
-            else:
-                oids.extend(oid for (oid, _) in v)
+                oids.update(undo_result[1])
+        oids.update(self._storage.tpc_vote(t) or ())
         return oids
 
-    def undo(self, tid, note):
+    def undo(self, tid, note=None):
         t = Transaction()
-        t.note(note)
+        if note is not None:
+            t.note(note)
         oids = self._begin_undos_vote(t, tid)
         self._storage.tpc_finish(t)
         return oids
@@ -165,10 +128,7 @@ class TransactionalUndoStorage:
         # undo its creation
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        t = Transaction()
-        t.note('undo1')
-        self._begin_undos_vote(t, tid)
-        self._storage.tpc_finish(t)
+        self.undo(tid, 'undo1')
         # Check that calling getTid on an uncreated object raises a KeyError
         # The current version of FileStorage fails this test
         self.assertRaises(KeyError, self._storage.getTid, oid)
@@ -224,27 +184,19 @@ class TransactionalUndoStorage:
         # Store two objects in the same transaction
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction_begin()
-        self._transaction_store(oid1, revid1, p31, '', t)
-        self._transaction_store(oid2, revid2, p51, '', t)
+        self._storage.store(oid1, revid1, p31, '', t)
+        self._storage.store(oid2, revid2, p51, '', t)
         # Finish the transaction
-        self._transaction_vote(t)
-        self._transaction_finish(t, [oid1, oid2])
-        revid1 = self._transaction_newserial(oid1)
-        revid2 = self._transaction_newserial(oid2)
-        eq(revid1, revid2)
+        self._storage.tpc_vote(t)
+        tid = self._storage.tpc_finish(t)
         # Update those same two objects
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction_begin()
-        self._transaction_store(oid1, revid1, p32, '', t)
-        self._transaction_store(oid2, revid2, p52, '', t)
+        self._storage.store(oid1, tid, p32, '', t)
+        self._storage.store(oid2, tid, p52, '', t)
         # Finish the transaction
-        self._transaction_vote(t)
-        self._transaction_finish(t, [oid1, oid2])
-        revid1 = self._transaction_newserial(oid1)
-        revid2 = self._transaction_newserial(oid2)
-        eq(revid1, revid2)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         # Make sure the objects have the current value
         data, revid1 = load_current(self._storage, oid1)
         eq(zodb_unpickle(data), MinPO(32))
@@ -269,25 +221,18 @@ class TransactionalUndoStorage:
                                                (30, 31, 32, 50, 51, 52)))
         oid1 = self._storage.new_oid()
         oid2 = self._storage.new_oid()
-        revid1 = revid2 = ZERO
         # Store two objects in the same transaction
-        d = self._multi_obj_transaction([(oid1, revid1, p30),
-                                         (oid2, revid2, p50),
-                                         ])
-        eq(d[oid1], d[oid2])
+        tid = self._multi_obj_transaction([(oid1, ZERO, p30),
+                                           (oid2, ZERO, p50),
+                                           ])
         # Update those same two objects
-        d = self._multi_obj_transaction([(oid1, d[oid1], p31),
-                                         (oid2, d[oid2], p51),
-                                         ])
-        eq(d[oid1], d[oid2])
+        tid = self._multi_obj_transaction([(oid1, tid, p31),
+                                           (oid2, tid, p51),
+                                           ])
         # Update those same two objects
-        d = self._multi_obj_transaction([(oid1, d[oid1], p32),
-                                         (oid2, d[oid2], p52),
-                                         ])
-        eq(d[oid1], d[oid2])
-        revid1 = self._transaction_newserial(oid1)
-        revid2 = self._transaction_newserial(oid2)
-        eq(revid1, revid2)
+        tid = self._multi_obj_transaction([(oid1, tid, p32),
+                                           (oid2, tid, p52),
+                                           ])
         # Make sure the objects have the current value
         data, revid1 = load_current(self._storage, oid1)
         eq(zodb_unpickle(data), MinPO(32))
@@ -303,7 +248,7 @@ class TransactionalUndoStorage:
         # We may get the finalization stuff called an extra time,
         # depending on the implementation.
         if serial is None:
-            self.assertEqual(set(oids), {oid1, oid2})
+            self.assertEqual(oids, {oid1, oid2})
         data, revid1 = load_current(self._storage, oid1)
         eq(zodb_unpickle(data), MinPO(30))
         data, revid2 = load_current(self._storage, oid2)
@@ -332,15 +277,11 @@ class TransactionalUndoStorage:
         # Update those same two objects
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction_begin()
-        self._transaction_store(oid1, revid1, p32, '', t)
-        self._transaction_store(oid2, revid2, p52, '', t)
+        self._storage.store(oid1, revid1, p32, '', t)
+        self._storage.store(oid2, revid2, p52, '', t)
         # Finish the transaction
-        self._transaction_vote(t)
-        self._transaction_finish(t, [oid1, oid2])
-        revid1 = self._transaction_newserial(oid1)
-        revid2 = self._transaction_newserial(oid2)
-        eq(revid1, revid2)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
         # Now attempt to undo the transaction containing two objects
         info = self._storage.undoInfo()
         self._undo(info[0]["id"], [oid1, oid2])
@@ -352,28 +293,17 @@ class TransactionalUndoStorage:
         # one object.
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction_begin()
-        self._transaction_store(oid1, revid1, p33, '', t)
-        self._transaction_store(oid2, revid2, p53, '', t)
+        self._storage.store(oid1, revid1, p33, '', t)
+        self._storage.store(oid2, revid2, p53, '', t)
         # Finish the transaction
-        self._transaction_vote(t)
-        self._transaction_finish(t, [oid1, oid2])
-        revid1 = self._transaction_newserial(oid1)
-        revid2 = self._transaction_newserial(oid2)
-        eq(revid1, revid2)
+        self._storage.tpc_vote(t)
+        tid = self._storage.tpc_finish(t)
         # Update in different transactions
-        revid1 = self._dostore(oid1, revid=revid1, data=MinPO(34))
-        revid2 = self._dostore(oid2, revid=revid2, data=MinPO(54))
+        revid1 = self._dostore(oid1, revid=tid, data=MinPO(34))
+        revid2 = self._dostore(oid2, revid=tid, data=MinPO(54))
         # Now attempt to undo the transaction containing two objects
         info = self._storage.undoInfo()
-        tid = info[1]['id']
-        t = Transaction()
-        oids = self._begin_undos_vote(t, tid)
-        serial = self._storage.tpc_finish(t)
-        if serial is None:
-            eq(len(oids), 1)
-            self.assertTrue(oid1 in oids)
-            self.assertTrue(not oid2 in oids)
+        self.undo(info[1]['id'])
         data, revid1 = load_current(self._storage, oid1)
         eq(zodb_unpickle(data), MinPO(33))
         data, revid2 = load_current(self._storage, oid2)
@@ -406,25 +336,20 @@ class TransactionalUndoStorage:
 
         t = Transaction()
         self._storage.tpc_begin(t)
-        self._transaction_begin()
-        self._transaction_store(oid1, revid1, p81, '', t)
-        self._transaction_store(oid2, revid2, p91, '', t)
-        self._transaction_vote(t)
-        self._transaction_finish(t, [oid1, oid2])
-        revid1 = self._transaction_newserial(oid1)
-        revid2 = self._transaction_newserial(oid2)
-        eq(revid1, revid2)
+        self._storage.store(oid1, revid1, p81, '', t)
+        self._storage.store(oid2, revid2, p91, '', t)
+        self._storage.tpc_vote(t)
+        tid = self._storage.tpc_finish(t)
         # Make sure the objects have the expected values
         data, revid_11 = load_current(self._storage, oid1)
         eq(zodb_unpickle(data), MinPO(81))
         data, revid_22 = load_current(self._storage, oid2)
         eq(zodb_unpickle(data), MinPO(91))
-        eq(revid_11, revid1)
-        eq(revid_22, revid2)
+        eq(revid_11, tid)
+        eq(revid_22, tid)
         # Now modify oid2
-        revid2 = self._dostore(oid2, revid=revid2, data=MinPO(92))
-        self.assertNotEqual(revid1, revid2)
-        self.assertNotEqual(revid2, revid_22)
+        revid2 = self._dostore(oid2, tid, MinPO(92))
+        self.assertNotEqual(tid, revid2)
         info = self._storage.undoInfo()
         tid = info[1]['id']
         t = Transaction()
@@ -468,11 +393,8 @@ class TransactionalUndoStorage:
         info2 = self._storage.undoInfo()
         self.assertEqual(len(info2), 2)
         # And now attempt to undo the last transaction
-        t = Transaction()
-        oids = self._begin_undos_vote(t, tid)
-        self._storage.tpc_finish(t)
-        self.assertEqual(len(oids), 1)
-        self.assertEqual(oids[0], oid)
+        undone, = self.undo(tid)
+        self.assertEqual(undone, oid)
         data, revid = load_current(self._storage, oid)
         # The object must now be at the second state
         self.assertEqual(zodb_unpickle(data), MinPO(52))
@@ -805,8 +727,9 @@ class TransactionalUndoStorage:
         from .ConflictResolution import PCounter
         db = DB(self._storage)
 
-        with db.transaction() as conn:
-            conn.root.x = PCounter()
+        cn = db.open()
+        cn.root.x = PCounter()
+        transaction.commit()
 
         for i in range(4):
             with db.transaction() as conn:
@@ -815,10 +738,13 @@ class TransactionalUndoStorage:
 
         ids = [l['id'] for l in db.undoLog(1, 3)]
         if reverse:
-            ids = list(reversed(ids))
+            ids.reverse()
 
         db.undoMultiple(ids)
         transaction.commit()
+
+        self.assertEqual(cn.root.x._value, 2)
+        cn.close()
 
     def checkUndoMultipleConflictResolutionReversed(self):
         self.checkUndoMultipleConflictResolution(True)

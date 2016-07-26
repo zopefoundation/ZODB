@@ -175,11 +175,9 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         self._storage.tpc_begin(t)
         undo_result = self._storage.undo(tid, t)
         vote_result = self._storage.tpc_vote(t)
-        serial = self._storage.tpc_finish(t)
-        if expected_oids is not None and serial is None:
-            oids = list(undo_result[1]) if undo_result else []
-            oids.extend(oid for (oid, _) in vote_result or ())
-            self.assertEqual(len(oids), len(expected_oids), repr(oids))
-            for oid in expected_oids:
-                self.assertTrue(oid in oids)
-        return self._storage.lastTransaction()
+        if expected_oids is not None:
+            oids = set(undo_result[1]) if undo_result else set()
+            if vote_result:
+                oids.update(vote_result)
+            self.assertEqual(oids, set(expected_oids))
+        return self._storage.tpc_finish(t)

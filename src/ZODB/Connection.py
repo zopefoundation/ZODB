@@ -37,7 +37,6 @@ import transaction
 
 import ZODB
 from ZODB.blob import SAVEPOINT_SUFFIX
-from ZODB.ConflictResolution import ResolvedSerial
 from ZODB.ExportImport import ExportImport
 from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
@@ -589,27 +588,13 @@ class Connection(ExportImport, object):
             self._cache.update_object_size_estimation(oid, len(p))
             obj._p_estimated_size = len(p)
 
-            self._handle_serial(oid, s)
-
-    def _handle_serial(self, oid, serial=ResolvedSerial, change=True):
-
-        # if we write an object, we don't want to check if it was read
-        # while current.  This is a convenient choke point to do this.
-        self._readCurrent.pop(oid, None)
-
-        if not serial:
-            return
-        assert isinstance(serial, bytes), serial
-        obj = self._cache.get(oid, None)
-        if obj is None:
-            return
-        if serial == ResolvedSerial:
-            del obj._p_changed # transition from changed to ghost
-        else:
-            self._warn_about_returned_serial()
-            if change:
+            # if we write an object, we don't want to check if it was read
+            # while current.  This is a convenient choke point to do this.
+            self._readCurrent.pop(oid, None)
+            if s:
+                # savepoint
                 obj._p_changed = 0 # transition from changed to up-to-date
-            obj._p_serial = serial
+                obj._p_serial = s
 
     def tpc_abort(self, transaction):
         if self._import:
@@ -674,45 +659,26 @@ class Connection(ExportImport, object):
             if v.oid:
                 self._cache.invalidate(v.oid)
             raise
-
         if s:
-            if type(next(iter(s))) is bytes:
-                for oid in s:
-                    self._handle_serial(oid)
-                return
-            self._warn_about_returned_serial()
-            for oid, serial in s:
-                self._handle_serial(oid, serial)
+            # Resolved conflicts.
+            for oid in s:
+                obj = self._cache.get(oid)
+                if obj is not None:
+                    del obj._p_changed # transition from changed to ghost
 
     def tpc_finish(self, transaction):
         """Indicate confirmation that the transaction is done.
         """
         serial = self._storage.tpc_finish(transaction)
-        if serial is not None:
-            assert type(serial) is bytes, repr(serial)
-            for oid_iterator in self._modified, self._creating:
-                for oid in oid_iterator:
-                    obj = self._cache.get(oid)
-                    # Ignore missing objects and don't update ghosts.
-                    if obj is not None and obj._p_changed is not None:
-                        obj._p_changed = 0
-                        obj._p_serial = serial
-        else:
-            self._warn_about_returned_serial()
+        assert type(serial) is bytes, repr(serial)
+        for oid_iterator in self._modified, self._creating:
+            for oid in oid_iterator:
+                obj = self._cache.get(oid)
+                # Ignore missing objects and don't update ghosts.
+                if obj is not None and obj._p_changed is not None:
+                    obj._p_changed = 0
+                    obj._p_serial = serial
         self._tpc_cleanup()
-
-    def _warn_about_returned_serial(self):
-        # Do not warn about own implementations of ZODB.
-        # We're aware and the user can't do anything about it.
-        if self._normal_storage.__module__.startswith("_ZODB."):
-            self._warn_about_returned_serial = lambda: None
-        else:
-            warnings.warn(
-                "In ZODB 5+, the new API for the returned value of"
-                " store/tpc_vote/tpc_finish will be mandatory."
-                " See IStorage for more information.",
-                DeprecationWarning, 2)
-            Connection._warn_about_returned_serial = lambda self: None
 
     def sortKey(self):
         """Return a consistent sort key for this connection."""
@@ -1033,7 +999,7 @@ class Connection(ExportImport, object):
                     obj._p_estimated_size = len(data)
                 if isinstance(self._reader.getGhost(data), Blob):
                     blobfilename = src.loadBlob(oid, serial)
-                    s = self._storage.storeBlob(
+                    self._storage.storeBlob(
                         oid, serial, data, blobfilename,
                         '', transaction)
                     # we invalidate the object here in order to ensure
@@ -1042,10 +1008,9 @@ class Connection(ExportImport, object):
                     # to be reattached "cleanly"
                     self._cache.invalidate(oid)
                 else:
-                    s = self._storage.store(oid, serial, data,
-                                            '', transaction)
+                    self._storage.store(oid, serial, data, '', transaction)
 
-                self._handle_serial(oid, s, change=False)
+                self._readCurrent.pop(oid, None) # same as in _store_objects()
         finally:
             src.close()
 

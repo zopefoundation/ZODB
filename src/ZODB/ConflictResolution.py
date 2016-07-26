@@ -28,8 +28,6 @@ from pickle import PicklingError
 
 logger = logging.getLogger('ZODB.ConflictResolution')
 
-ResolvedSerial = b'rs' # deprecated: see IMultiCommitStorage.tpc_vote
-
 class BadClassName(Exception):
     pass
 
