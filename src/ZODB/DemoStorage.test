@@ -206,7 +206,7 @@ Blob Support
 DemoStorage supports Blobs if the changes database supports blobs.
 
     >>> import ZODB.blob
-    >>> base = ZODB.blob.BlobStorage('base', FileStorage('base.fs'))
+    >>> base = FileStorage('base.fs', blob_dir='base')
     >>> db = DB(base)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
@@ -215,10 +215,8 @@ DemoStorage supports Blobs if the changes database supports blobs.
     >>> transaction.commit()
     >>> db.close()
 
-    >>> base = ZODB.blob.BlobStorage('base',
-    ...                               FileStorage('base.fs', read_only=True))
-    >>> changes = ZODB.blob.BlobStorage('changes',
-    ...                                 FileStorage('changes.fs', create=True))
+    >>> base = FileStorage('base.fs', read_only=True, blob_dir='base')
+    >>> changes = FileStorage('changes.fs', blob_dir='changes', create=True)
     >>> storage = DemoStorage(base=base, changes=changes)
 
     >>> db = DB(storage)
