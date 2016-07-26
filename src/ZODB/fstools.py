@@ -67,9 +67,14 @@ class TxnHeader:
             self._ext = self._file.read(self.ext_len)
             self.ext = loads(self._ext)
 
+    def get_offset(self):
+        return self._pos
+
+    def __len__(self):
+        return TRANS_HDR_LEN + self.user_len + self.descr_len + self.ext_len
+
     def get_data_offset(self):
-        return (self._pos + TRANS_HDR_LEN + self.user_len + self.descr_len
-                + self.ext_len)
+        return self._pos + len(self)
 
     def get_timestamp(self):
         return TimeStamp(self.tid)

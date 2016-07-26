@@ -8,6 +8,9 @@
 - Internal FileStorage-undo fixes that should allow undo in some cases
   where it didn't work before.
 
+- fstail: print the txn offset and header size, instead of only the data offset.
+  fstail can now be used to truncate a DB at the right offset.
+
 4.4.2 (2016-07-08)
 ==================
 

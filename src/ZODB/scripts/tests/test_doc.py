@@ -29,13 +29,13 @@ checker = zope.testing.renormalizing.RENormalizing([
     # Python 3 produces larger pickles, even when we use zodbpickle :(
     # this changes all the offsets and sizes in fstail.txt
     (re.compile("user='' description='' "
-                    "length=[0-9]+ offset=[0-9]+"),
+                    "length=[0-9]+ offset=[0-9]+ \(\+23\)"),
                 "user='' description='' "
-                    "length=<LENGTH> offset=<OFFSET>"),
+                    "length=<LENGTH> offset=<OFFSET> (+23)"),
     (re.compile("user='' description='initial database creation' "
-                    "length=[0-9]+ offset=[0-9]+"),
+                    "length=[0-9]+ offset=4 \(\+48\)"),
                 "user='' description='initial database creation' "
-                    "length=<<LENGTH> offset=<OFFSET>"),
+                    "length=<LENGTH> offset=4 (+48)"),
 ])
 
 def test_suite():
