@@ -839,8 +839,9 @@ def test_suite():
         'BlobAdaptedMappingStorage',
         lambda name, blob_dir:
         ZODB.blob.BlobStorage(blob_dir, MappingStorage()),
-        test_blob_storage_recovery=True,
-        test_packing=True,
+        test_blob_storage_recovery=False,
+        test_packing=False,
+        test_undo=False,
         ))
 
     return suite
