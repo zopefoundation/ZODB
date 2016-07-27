@@ -14,7 +14,7 @@
 from ZODB.blob import Blob
 from ZODB.blob import BushyLayout
 from ZODB.DB import DB
-from ZODB.FileStorage import FileStorage
+from ZODB.MappingStorage import MappingStorage
 from ZODB.tests.testConfig import ConfigTestBase
 from ZODB._compat import Pickler, Unpickler, _protocol
 
@@ -117,9 +117,7 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
         readers and writers values in cloned objects (see
         http://mail.zope.org/pipermail/zodb-dev/2008-August/012054.html)
         """
-        import ZODB.MappingStorage
-        database = DB(ZODB.blob.BlobStorage(
-            'blobs', ZODB.MappingStorage.MappingStorage()))
+        database = DB(ZODB.blob.BlobStorage('blobs', MappingStorage()))
         connection = database.open()
         root = connection.root()
         transaction.begin()
@@ -728,16 +726,6 @@ def setUp(test):
     test.globs['rmtree'] = zope.testing.setupstack.rmtree
 
 
-def setUpBlobAdaptedFileStorage(test):
-    setUp(test)
-
-    def create_storage(name='data', blob_dir=None):
-        if blob_dir is None:
-            blob_dir = '%s.bobs' % name
-        return ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name))
-
-    test.globs['create_storage'] = create_storage
-
 def storage_reusable_suite(prefix, factory,
                            test_blob_storage_recovery=False,
                            test_packing=False,
@@ -848,9 +836,9 @@ def test_suite():
             ]),
         ))
     suite.addTest(storage_reusable_suite(
-        'BlobAdaptedFileStorage',
+        'BlobAdaptedMappingStorage',
         lambda name, blob_dir:
-        ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name)),
+        ZODB.blob.BlobStorage(blob_dir, MappingStorage()),
         test_blob_storage_recovery=True,
         test_packing=True,
         ))
