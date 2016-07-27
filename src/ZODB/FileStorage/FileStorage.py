@@ -2154,6 +2154,12 @@ class TransactionBuffer(FileStorageFormatter):
             # Older store. Replace with newer
             remove_committed(self.blob_files[oid])
 
+        if os.path.dirname(blobfilename) != self.fshelper.temp_dir:
+            # We're storing from a savepoint.  Need to move to our tempdir
+            dest = utils.mktemp(self.fshelper.temp_dir, prefix='BUCSP')
+            rename_or_copy_blob(blobfilename, dest)
+            blobfilename = dest
+
         self.blob_files[oid] = blobfilename
 
     @property
