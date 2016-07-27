@@ -31,6 +31,7 @@ from zc.lockfile import LockFile
 from zope.interface import alsoProvides
 from zope.interface import implementer
 
+from .._compat import dumps
 from .. import utils
 
 from ZODB.blob import BlobStorageMixin
