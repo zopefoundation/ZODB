@@ -418,6 +418,7 @@ class FileStorage(
 
     def close(self):
         self._file.close()
+        self._files.close()
         if hasattr(self,'_lock_file'):
             self._lock_file.close()
         try:
