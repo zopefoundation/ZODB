@@ -62,6 +62,7 @@ from ZODB.interfaces import IStorageUndoable
 from ZODB.POSException import ConflictError
 from ZODB.POSException import MultipleUndoErrors
 from ZODB.POSException import POSKeyError
+from ZODB.POSException import ReadConflictError
 from ZODB.POSException import ReadOnlyError
 from ZODB.POSException import StorageError
 from ZODB.POSException import StorageSystemError
@@ -498,12 +499,14 @@ class FileStorage(
 
         with self._lock:
             old = self._index_get(oid, 0)
+            committed_tid = z64
             if old:
                 h = self._read_data_header(old, oid)
                 if read_serial == h.tid:
                     return
+                committed_tid = h.tid
 
-            raise POSException.ReadConflictError(
+            raise ReadConflictError(
                 oid=oid, serials=(committed_tid, read_serial))
 
     def store(self, oid, oldserial, data, version, transaction):
