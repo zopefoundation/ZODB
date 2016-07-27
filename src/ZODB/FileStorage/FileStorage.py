@@ -2134,7 +2134,7 @@ class TransactionBuffer(FileStorageFormatter):
         self.blob_files = {} # oid -> blobfilename
 
     def store(self, oid, data, prev, resolved, back_pointer=z64):
-        h = DataHeader(oid, z64, prev, self.tpos, 0, len(data)).asString()
+        h = DataHeader(oid, z64, prev, self.tpos, 0, len(data or '')).asString()
         self.index[oid] = self.pos
         self._file.write(h)
         data = data or back_pointer
