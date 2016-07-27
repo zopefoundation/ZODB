@@ -493,6 +493,19 @@ class FileStorage(
             else:
                 raise POSKeyError(oid)
 
+    def checkCurrentSerialInTransaction(self, oid, read_serial, transaction):
+        tbuf = self._tbuf(transaction)
+
+        with self._lock:
+            old = self._index_get(oid, 0)
+            if old:
+                h = self._read_data_header(old, oid)
+                if read_serial == h.tid:
+                    return
+
+            raise POSException.ReadConflictError(
+                oid=oid, serials=(committed_tid, read_serial))
+
     def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
             raise ReadOnlyError()
@@ -772,100 +785,6 @@ class FileStorage(
                 raise POSKeyError(oid)
             return h.tid
 
-    def _transactionalUndoRecord(self, tbuf, oid, pos, tid, pre):
-        """Get the undo information for a data record
-
-        'pos' points to the data header for 'oid' in the transaction
-        being undone.  'tid' refers to the transaction being undone.
-        'pre' is the 'prev' field of the same data header.
-
-        Return a 3-tuple consisting of a pickle, data pointer, and
-        current position.  If the pickle is true, then the data
-        pointer must be 0, but the pickle can be empty *and* the
-        pointer 0.
-        """
-
-        copy = True # Can we just copy a data pointer
-
-        # First check if it is possible to undo this record.
-        tpos = tbuf.index.get(oid, 0)
-        ipos = self._index.get(oid, 0)
-        tipos = tpos or ipos
-
-        if tipos != pos:
-            # The transaction being undone isn't current because:
-            # a) A later transaction was committed ipos != pos, or
-            # b) A change was made in the current transaction. This
-            #    could only be a previous undo in a multi-undo.
-            #    (We don't allow multiple data managers with the same
-            #    storage to participate in the same transaction.)
-            assert tipos > pos
-
-            # Get current data, as identified by tipos.  We'll use
-            # it to decide if and how we can undo in this case.
-            if tpos:
-                ctid, cdataptr, current_data = tbuf.undoDataInfo(oid, tpos)
-            else:
-                ctid, cdataptr, current_data = self._undoDataInfo(oid, ipos)
-
-            if cdataptr != pos:
-
-                # if cdataptr was == pos, then we'd be cool, because
-                # we're dealing with the same data.
-
-                # Because they aren't equal, we have to dig deeper
-
-                # Let's see if data to be undone and current data
-                # are the same. If not, we'll have to decide whether
-                # we should try conflict resolution.
-
-                try:
-                    data_to_be_undone = self._loadBack_impl(oid, pos)[0]
-                    if not current_data:
-                        current_data = self._loadBack_impl(oid, cdataptr)[0]
-
-                    if data_to_be_undone != current_data:
-                        # OK, so the current data is different from
-                        # the data being undone.  We can't just copy:
-                        copy = False
-
-                        if not pre:
-                            # The transaction we're undoing has no
-                            # previous state to merge with, so we
-                            # can't resolve a conflict.
-                            raise UndoError(
-                                "Can't undo an add transaction followed by"
-                                " conflicting transactions.", oid)
-                except KeyError:
-                    # LoadBack gave us a key error. Bail.
-                    raise UndoError("_loadBack() failed", oid)
-
-        # Return the data that should be written in the undo record.
-        if not pre:
-            # We're undoing object addition.  We're doing this because
-            # subsequent transactions has no net effect on the state
-            # (possibly because some of them were undos).
-            return "", 0, ipos
-
-        if copy:
-            # we can just copy our previous-record pointer forward
-            return "", pre, ipos
-
-        try:
-            pre_data = self._loadBack_impl(oid, pre)[0]
-        except KeyError:
-            # couldn't find oid; what's the real explanation for this?
-            raise UndoError("_loadBack() failed for %s", oid)
-
-        try:
-            data = self.tryToResolveConflict(
-                oid, ctid, tid, pre_data, current_data)
-            return data, 0, ipos
-        except ConflictError:
-            pass
-
-        raise UndoError("Some data were modified by a later transaction", oid)
-
     # undoLog() returns a description dict that includes an id entry.
     # The id is opaque to the client, but contains the transaction id.
     # The transactionalUndo() implementation does a simple linear
@@ -991,6 +910,100 @@ class FileStorage(
             raise MultipleUndoErrors(list(failures.items()))
 
         return tindex
+
+    def _transactionalUndoRecord(self, tbuf, oid, pos, tid, pre):
+        """Get the undo information for a data record
+
+        'pos' points to the data header for 'oid' in the transaction
+        being undone.  'tid' refers to the transaction being undone.
+        'pre' is the 'prev' field of the same data header.
+
+        Return a 3-tuple consisting of a pickle, data pointer, and
+        current position.  If the pickle is true, then the data
+        pointer must be 0, but the pickle can be empty *and* the
+        pointer 0.
+        """
+
+        copy = True # Can we just copy a data pointer
+
+        # First check if it is possible to undo this record.
+        tpos = tbuf.index.get(oid, 0)
+        ipos = self._index.get(oid, 0)
+        tipos = tpos or ipos
+
+        if tipos != pos:
+            # The transaction being undone isn't current because:
+            # a) A later transaction was committed ipos != pos, or
+            # b) A change was made in the current transaction. This
+            #    could only be a previous undo in a multi-undo.
+            #    (We don't allow multiple data managers with the same
+            #    storage to participate in the same transaction.)
+            assert tipos > pos
+
+            # Get current data, as identified by tipos.  We'll use
+            # it to decide if and how we can undo in this case.
+            if tpos:
+                ctid, cdataptr, current_data = tbuf.undoDataInfo(oid, tpos)
+            else:
+                ctid, cdataptr, current_data = self._undoDataInfo(oid, ipos)
+
+            if cdataptr != pos:
+
+                # if cdataptr was == pos, then we'd be cool, because
+                # we're dealing with the same data.
+
+                # Because they aren't equal, we have to dig deeper
+
+                # Let's see if data to be undone and current data
+                # are the same. If not, we'll have to decide whether
+                # we should try conflict resolution.
+
+                try:
+                    data_to_be_undone = self._loadBack_impl(oid, pos)[0]
+                    if not current_data:
+                        current_data = self._loadBack_impl(oid, cdataptr)[0]
+
+                    if data_to_be_undone != current_data:
+                        # OK, so the current data is different from
+                        # the data being undone.  We can't just copy:
+                        copy = False
+
+                        if not pre:
+                            # The transaction we're undoing has no
+                            # previous state to merge with, so we
+                            # can't resolve a conflict.
+                            raise UndoError(
+                                "Can't undo an add transaction followed by"
+                                " conflicting transactions.", oid)
+                except KeyError:
+                    # LoadBack gave us a key error. Bail.
+                    raise UndoError("_loadBack() failed", oid)
+
+        # Return the data that should be written in the undo record.
+        if not pre:
+            # We're undoing object addition.  We're doing this because
+            # subsequent transactions has no net effect on the state
+            # (possibly because some of them were undos).
+            return "", 0, ipos
+
+        if copy:
+            # we can just copy our previous-record pointer forward
+            return "", pre, ipos
+
+        try:
+            pre_data = self._loadBack_impl(oid, pre)[0]
+        except KeyError:
+            # couldn't find oid; what's the real explanation for this?
+            raise UndoError("_loadBack() failed for %s", oid)
+
+        try:
+            data = self.tryToResolveConflict(
+                oid, ctid, tid, pre_data, current_data)
+            return data, 0, ipos
+        except ConflictError:
+            pass
+
+        raise UndoError("Some data were modified by a later transaction", oid)
 
     def history(self, oid, size=1, filter=None):
         with self._lock:
@@ -2108,7 +2121,7 @@ class TransactionBuffer(FileStorageFormatter):
             if len(ext) > 65535:
                 raise FileStorageError('too much extension data')
 
-        self.pos = tpos + self.tlen
+        self.pos = self.read_offset = tpos + self.tlen
 
         # blobs
         self.fshelper = fshelper
@@ -2156,7 +2169,7 @@ class TransactionBuffer(FileStorageFormatter):
             th.ext = ext
             write(th.asString())
 
-            read_offset = self.tpos + self.tlen
+            read_offset = self.read_offset
             index = { oid: ipos - read_offset
                       for oid, ipos in self.index.items() }
 
@@ -2226,7 +2239,7 @@ class TransactionBuffer(FileStorageFormatter):
 
     def undoDataInfo(self, oid, pos):
         restore_pos = self._file.tell()
-        r = self._undoDataInfo(oid, pos)
+        r = self._undoDataInfo(oid, pos - self.read_offset)
         self._file.seek(restore_pos)
         return r
 
