@@ -352,7 +352,7 @@ class FilesystemHelper:
 
     def __init__(self, base_dir, layout_name='automatic'):
         self.base_dir = os.path.abspath(base_dir) + os.path.sep
-        self.temp_dir = os.path.join(base_dir, 'tmp')
+        self.temp_dir = os.path.join(self.base_dir, 'tmp')
 
         if layout_name == 'automatic':
             layout_name = auto_layout_select(base_dir)
