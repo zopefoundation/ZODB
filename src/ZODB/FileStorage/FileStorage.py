@@ -724,6 +724,7 @@ class FileStorage(
                 finally:
                     self._vote_size -= tbuf.vote_size
                     self._commit_lock.release()
+                    transaction.set_data(self, None)
 
         return tid
 
