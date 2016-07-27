@@ -286,7 +286,7 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
-    def checkFlushAfterTruncate(self, fail=False):
+    def checkFlushAfterTruncate(self):
         r0 = self._dostore(z64)
         storage = self._storage
         t = transaction.Transaction()
@@ -301,21 +301,7 @@ class FileStorageTests(
         self._dostore(z64, r0, b'bar', 1)
         # In the case that read buffers were not invalidated, return value
         # is based on what was cached during the first load.
-        self.assertEqual(load_current(storage, z64)[0],
-                         b'foo' if fail else b'bar')
-
-    # We want to be sure that the above test detects any regression
-    # in the code it checks, because any bug here is like a time bomb: not
-    # obvious, hard to reproduce, with possible data corruption.
-    # It's even more important that FilePool.flush() is quite aggressive and
-    # we'd like to optimize it when Python gets an API to flush read buffers.
-    # Therefore, 'checkFlushAfterTruncate' is tested in turn by another unit
-    # test.
-    # On Windows, flushing explicitely is not (always?) necessary.
-    if sys.platform != 'win32':
-        def checkFlushNeededAfterTruncate(self):
-            self._storage._files.flush = lambda: None
-            self.checkFlushAfterTruncate(True)
+        self.assertEqual(load_current(storage, z64)[0], b'bar')
 
 class FileStorageHexTests(FileStorageTests):
 
