@@ -18,7 +18,8 @@ import six
 import zope.interface
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
-from ZODB._compat import BytesIO, PersistentUnpickler, PersistentPickler, _protocol
+from ZODB._compat import (
+    BytesIO, PersistentUnpickler, PersistentPickler, _protocol)
 
 # Subtle: Python 2.x has pickle.PicklingError and cPickle.PicklingError,
 # and these are unrelated classes!  So we shouldn't use pickle.PicklingError,
@@ -71,7 +72,8 @@ def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
     p = self._crs_untransform_record_data(p)
     file = BytesIO(p)
-    unpickler = PersistentUnpickler(find_global, prfactory.persistent_load, file)
+    unpickler = PersistentUnpickler(
+        find_global, prfactory.persistent_load, file)
     unpickler.load() # skip the class tuple
     return unpickler.load()
 
@@ -239,7 +241,8 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         prfactory = PersistentReferenceFactory()
         newpickle = self._crs_untransform_record_data(newpickle)
         file = BytesIO(newpickle)
-        unpickler = PersistentUnpickler(find_global, prfactory.persistent_load, file)
+        unpickler = PersistentUnpickler(
+            find_global, prfactory.persistent_load, file)
         meta = unpickler.load()
         if isinstance(meta, tuple):
             klass = meta[0]

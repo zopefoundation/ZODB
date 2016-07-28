@@ -56,7 +56,16 @@ Concurrency Control (MVCC) implementation:
   This change allows server-nased storages like ZEO and NEO to be
   implemented more simply and cleanly.
 
-4.4.2 (unreleased)
+4.4.3 (unreleased)
+==================
+
+- Internal FileStorage-undo fixes that should allow undo in some cases
+  where it didn't work before.
+
+- fstail: print the txn offset and header size, instead of only the data offset.
+  fstail can now be used to truncate a DB at the right offset.
+
+4.4.2 (2016-07-08)
 ==================
 
 Better support of the new commit protocol. This fixes issues with blobs and

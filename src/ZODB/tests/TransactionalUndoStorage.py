@@ -619,9 +619,9 @@ class TransactionalUndoStorage:
             tid = p64(i + 1)
             eq(txn.tid, tid)
 
-            L1 = [(rec.oid, rec.tid, rec.data_txn) for rec in txn]
-            L2 = [(oid, revid, None) for _tid, oid, revid in orig
-                  if _tid == tid]
+            L1 = {(rec.oid, rec.tid, rec.data_txn) for rec in txn}
+            L2 = {(oid, revid, None) for _tid, oid, revid in orig
+                  if _tid == tid}
 
             eq(L1, L2)
 
