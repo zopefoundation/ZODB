@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.4.3 (unreleased)
+4.4.3 (2016-08-04)
 ==================
 
 - Internal FileStorage-undo fixes that should allow undo in some cases
