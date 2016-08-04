@@ -2,6 +2,26 @@
  Change History
 ================
 
+5.0.0b1 (2016-08-04)
+====================
+
+- fstail: print the txn offset and header size, instead of only the data offset.
+  fstail can now be used to truncate a DB at the right offset.
+
+Numerous internal cleanups, including:
+
+- Changed the way the root object was created.  Now the root object is
+  created using a database connection, rather than by making low-level
+  storage calls.
+
+- Drop support for the old commit protocol.
+
+- Internal FileStorage-undo fixes that should allow undo in some cases
+  where it didn't work before.
+
+- Drop the ``version`` argument to some methods where it was the last
+  argument and optional.
+
 5.0.0a6 (2016-07-21)
 ====================
 
@@ -56,7 +76,7 @@ Concurrency Control (MVCC) implementation:
   This change allows server-nased storages like ZEO and NEO to be
   implemented more simply and cleanly.
 
-4.4.3 (unreleased)
+4.4.3 (2016-08-04)
 ==================
 
 - Internal FileStorage-undo fixes that should allow undo in some cases
