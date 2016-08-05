@@ -120,8 +120,8 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             self._storage.close()
 
     def tearDown(self):
-        ZODB.tests.util.TestCase.tearDown(self)
         self._close()
+        ZODB.tests.util.TestCase.tearDown(self)
 
     def _dostore(self, oid=None, revid=None, data=None,
                  already_pickled=0, user=None, description=None):
