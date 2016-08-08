@@ -178,6 +178,8 @@ class FileStorage(
 
         BaseStorage.__init__(self, file_name)
 
+        self._commit_lock = NLock()
+
         index = fsIndex()
         self._initIndex(index)
 
@@ -776,7 +778,7 @@ class FileStorage(
 
         with self._lock:
             self._vote_size -= tbuf.vote_size
-            self._commit_lock_release()
+            self._commit_lock.release()
 
         tbuf.abort()
 
@@ -862,6 +864,20 @@ class FileStorage(
                 if h[16] == b'p':
                     break
         raise UndoError("Invalid transaction id")
+
+    def undo_transaction_oids(self, transaction_id):
+        tpos = self._txn_find(tid, 1)
+        th = self._read_txn_header(tpos)
+        if th.status != " ":
+            raise UndoError('non-undoable transaction')
+        tend = tpos + th.tlen
+        pos = tpos + th.headerlen()
+        oids = set()
+        while pos < tend:
+            h = self._read_data_header(pos)
+            oids.add(h.oid)
+            pos += h.recordlen()
+        return oids
 
     def _txn_undo_write(self, tpos, tbuf):
         # a helper function to write the data records for transactional undo
@@ -2261,3 +2277,6 @@ class TransactionBuffer(FileStorageFormatter):
             self.closed = True
             self._file.close()
             self.index.clear()
+
+class NLock:
+    acquire = release = lambda self: None
