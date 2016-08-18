@@ -17,6 +17,7 @@ from __future__ import print_function
 import doctest
 import re
 import six
+import sys
 import unittest
 
 import transaction
@@ -1140,13 +1141,14 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         # ... on connectionB
         conn = db.open()
         self.assertEqual(conn._cache.cache_size_bytes, expected)
-        # test huge (larger than 4 byte) size limit
-        db = databaseFromString("<zodb>\n"
-                                "  cache-size-bytes 8GB\n"
-                                "  <mappingstorage />\n"
-                                "</zodb>"
-                                )
-        self.assertEqual(db.getCacheSizeBytes(), 0x1 << 33)
+        # test huge (larger than 4 byte) size limit (if possible)
+        if sys.maxsize > (0x1 << 33):
+            db = databaseFromString("<zodb>\n"
+                                    "  cache-size-bytes 8GB\n"
+                                    "  <mappingstorage />\n"
+                                    "</zodb>"
+                                    )
+            self.assertEqual(db.getCacheSizeBytes(), 0x1 << 33)
 
 
     def test_cache_garbage_collection(self):
