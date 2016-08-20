@@ -26,6 +26,9 @@ Bugs Fixed
   transaction.
   https://github.com/zopefoundation/ZODB/pull/52
 
+- Call _p_resolveConflict() even if a conflicting change doesn't change the
+  state. This reverts to the behaviour of 3.10.3 and older.
+
 3.10.5 (2011-11-19)
 ===================
 
