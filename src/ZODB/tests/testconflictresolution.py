@@ -40,6 +40,15 @@ def tearDown(test):
 class ResolveableWhenStateDoesNotChange(persistent.Persistent):
 
     def _p_resolveConflict(self, old, committed, new):
+        if new == old:
+            # old -> new diff is empty, so merge is trivial
+            committed['resolved'] = 'committed'
+            return committed
+        elif committed == old:
+            # old -> committed diff is empty, so merge is trivial
+            new['resolved'] = 'new'
+            return new
+        # 3-way merge
         raise ZODB.POSException.ConflictError
 
 class Unresolvable(persistent.Persistent):
@@ -47,8 +56,17 @@ class Unresolvable(persistent.Persistent):
 
 def succeed_with_resolution_when_state_is_unchanged():
     """
-    If a conflicting change doesn't change the state, then don't even
-    bother calling _p_resolveConflict
+    If a conflicting change doesn't change the state, then we must still call
+    _p_resolveConflict, even if in most cases the result would be either
+    committed or new (as shown above in ResolveableWhenStateDoesNotChange).
+    One use case is to implement an "asynchronous" cache:
+    - Initially, a cache value is not filled (e.g. None is used to describe
+      this state).
+    - A transaction fills the cache (actually done by a background application)
+      (None -> "foo").
+    - A concurrent transaction invalidates the cache due to some user action
+      (None -> None), and pushes a new background task to fill the cache.
+    Then the expected resolved value is None, and not "foo".
 
     >>> db = ZODB.DB('t.fs') # FileStorage!
     >>> storage = db.storage
@@ -63,23 +81,23 @@ def succeed_with_resolution_when_state_is_unchanged():
     >>> oid = conn.root.x._p_oid
 
 So, let's try resolving when the old and committed states are the same
-bit the new state (pickle) is different:
+but the new state (pickle) is different:
 
     >>> p = storage.tryToResolveConflict(
     ...         oid, serial1, serial1, storage.loadSerial(oid, serial2))
 
-    >>> p == storage.loadSerial(oid, serial2)
-    True
+    >>> conn._reader.getState(p)['resolved']
+    'new'
 
 
-And when the old and new states are the same bit the committed state
+And when the old and new states are the same but the committed state
 is different:
 
     >>> p = storage.tryToResolveConflict(
     ...         oid, serial2, serial1, storage.loadSerial(oid, serial1))
 
-    >>> p == storage.loadSerial(oid, serial2)
-    True
+    >>> conn._reader.getState(p)['resolved']
+    'committed'
 
 But we still conflict if both the committed and new are different than
 the original:
@@ -92,7 +110,9 @@ the original:
     ConflictError: database conflict error (oid 0x01, ...
 
 
-Of course, none of this applies if content doesn't support conflict resolution.
+Of course, there's also no automatic trivial merge if content doesn't support
+conflict resolution. Touching an object without change is a common locking
+mechanism.
 
     >>> conn.root.y = Unresolvable()
     >>> conn.root.y.v = 1
