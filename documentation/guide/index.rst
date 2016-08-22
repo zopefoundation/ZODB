@@ -19,4 +19,5 @@ If you haven't yet, you should read the :ref:`Tutorial <tutorial-label>`.
    threading.rst
    packing-and-garbage-collection.rst
    blobs.rst
+   schema-migration.rst
    multi-databases.rst
