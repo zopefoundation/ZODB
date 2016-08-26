@@ -13,13 +13,13 @@ Access and modification
 
 Two of the main jobs of the ``Persistent`` base class is to detect
 when an object has been accessed and when it has been modified.  When
-an object is accessed, it's state may need to be loaded from the
+an object is accessed, its state may need to be loaded from the
 database.  When an object is modified, the modification needs to be
 saved if a transaction is committed.
 
 ``Persistent`` detects object accesses by hooking into object
 attribute access and update.  In the case of object update, there
-maybe other ways of modifying state that we need to make provision for.
+may be other ways of modifying state that we need to make provision for.
 
 Rules of persistence
 ====================
