@@ -281,6 +281,16 @@ objects may need to be loaded or saved and you may incur more memory
 overhead. On the other hand, if objects are too big, you may load or
 save more data than would otherwise be needed.
 
+You can't change your mind in subclassing persistent
+====================================================
+
+Currently, you can't change your mind about whether a class is
+persistent (subclasses ``persistent.Persistent``) or not.  If you save
+objects in a database who's classes subclass ``persistent.Persistent``,
+you can't change your mind later and make them non-persistent, and the
+other way around.  This may be a `bug or misfeature
+<https://github.com/zopefoundation/ZODB/issues/99>`_.
+
 .. _schema-migration-label:
 
 Schema migration
