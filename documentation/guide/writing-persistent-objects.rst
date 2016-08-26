@@ -3,7 +3,7 @@ Writing persistent objects
 ==========================
 
 In the :ref:`Tutorial <tutorial-label>`, we discussed the basics of
-implementing persisetnt objects by subclassing
+implementing persistent objects by subclassing
 ``persistent.Persistent``.  This is probably enough for 80% of
 persistent-object classes you write, but there are some other aspects
 of writing persistent classes you should be aware of.
@@ -14,7 +14,7 @@ Access and modification
 Two of the main jobs of the ``Persistent`` base class is to detect
 when an object has been accessed and when it has been modified.  When
 an object is accessed, it's state may need to be loaded from the
-database.  When an object us modified, the modification needs to be
+database.  When an object is modified, the modification needs to be
 saved if a transaction is committed.
 
 ``Persistent`` detects object accesses by hooking into object
@@ -24,7 +24,7 @@ maybe other ways of modifying state that we need to make provision for.
 Rules of persistence
 ====================
 
-When implementing persistet objects, be aware that an object's
+When implementing persistent objects, be aware that an object's
 attributes should be :
 
 - immutable (such as strings or integers),
@@ -34,7 +34,8 @@ attributes should be :
 - You need to take special precautions.
 
 If you modify a non-persistent mutable value of a persistent-object
-attribute, you need to mark the persistent object as changed yourself::
+attribute, you need to mark the persistent object as changed yourself
+by setting ``_p_changed`` to True::
 
   import persistent
 
@@ -73,14 +74,14 @@ we didn't set an attribute on the book, it's not marked as changed, so
 we set ``_p_changed`` ourselves.
 
 Using standard Python lists, dicts, or sets is a common thing to do,
-so this pattern of calling ``_p_changed`` is common.
+so this pattern of setting ``_p_changed`` is common.
 
 Let's look at some alternatives.
 
-Using tuples for small collections instead of lists
----------------------------------------------------
+Using tuples for small sequences instead of lists
+------------------------------------------------
 
-If objects contain collections that are small or that don't change
+If objects contain sequences that are small or that don't change
 often, you can use tuples instead of lists::
 
   import persistent
@@ -153,7 +154,7 @@ Note that in this example, when we added an author, the book itself
 didn't change, but the ``authors`` attribute value did.  Because
 ``authors`` is a persistent object, it's stored in a separate database
 record from the book record and is managed by ZODB independent of the
-manageemnt of the book.
+management of the book.
 
 In addition to ``PersistentList`` and ``PersistentMapping``, general
 persistent data structures are provided by the ``BTrees`` package,
@@ -164,7 +165,7 @@ objects, because their data are spread over many subobjects.
 
 It's generally better to use ``BTree`` objects than
 ``PersistentMapping`` objects, because they're scalable and because
-the handle :ref:`conflicts <conflicts-label>` better. ``TreeSet``
+they handle :ref:`conflicts <conflicts-label>` better. ``TreeSet``
 objects are the only ZODB-provided persistent set implementation.
 ``BTree`` and ``TreeSets`` come in a number of families provided via
 different modules and differ in their internal implementations:
@@ -229,9 +230,11 @@ Special attributes
 There are some attributes that are treated specially.
 
 Attributes with names starting with ``_p_`` are reserved for use by
-the persistence machiner and by ZODB.  These include:
+the persistence machinery and by ZODB.  These include (but aren't
+limited to):
 
-_p_changed The ``_p_changed`` attribute has the value ``None`` if the
+_p_changed
+  The ``_p_changed`` attribute has the value ``None`` if the
   object is a :ref:`ghost <ghost-label>`, True if it's changed, an
   False if it's not a ghost and not changed.
 
@@ -241,7 +244,7 @@ _p_oid
 _p_serial
   The object's revision identifier also know as the object serial
   number, also known as the object transaction id. It's a timestamp
-  and if not set as the value 0 encoded as string of 8 zero bytes.
+  and if not set has the value 0 encoded as string of 8 zero bytes.
 
 _p_jar
   The database connection the object was accessed through.  This is
@@ -249,7 +252,7 @@ _p_jar
   object's database connection.
 
 Attributes with names starting with ``_v_`` are treated as volatile.
-They aren't saved to the database.  They are useful for caching data
+They aren't saved to the database.  They're useful for caching data
 that can be computed from saved data and shouldn't be saved.  They
 should be treated as though they can disappear between transactions.
 Setting a volatile attribute doesn't cause an object to be considered
@@ -257,7 +260,7 @@ to be modified.
 
 An object's ``__dict__`` attribute is treated specially in that
 getting it doesn't cause an object's state to be loaded.  It may have
-the value ``None`` rather than a disctionary for :ref:`ghosts
+the value ``None`` rather than a dictionary for :ref:`ghosts
 <ghost-label>`.
 
 
@@ -265,20 +268,20 @@ Object storage and management
 =============================
 
 Every persistent object is stored in its own database record. Some
-storages maintain multile object revisions, in which case each
+storages maintain multiple object revisions, in which case each
 persistent object is stored in its own set of records.  Data for
 different persistent objects are stored separately.
 
-The database manages each object separately, according to a lifecycle
-described in the next section.
+The database manages each object separately, according to a :ref:`life
+cycle <object-life-cycle-label>`.
 
-This is important when considering how to distribute data accross your
-objects.  If you use lots of little persistent objects, then more
+This is important when considering how to distribute data across your
+objects.  If you use lots of small persistent objects, then more
 objects may need to be loaded or saved and you may incur more memory
-overhead. OTOH, of objects are too big, you may load or save more data
-than would otherwise be needed.
+overhead. On the other hand, if objects are too big, you may load or
+save more data than would otherwise be needed.
 
-.. _schema-migration-label
+.. _schema-migration-label:
 
 Schema migration
 ================
@@ -292,8 +295,8 @@ still be loaded into an object with the new schema.
 Adding attributes
 -----------------
 
-Perhaps the commonest schema change is to add information.  This can
-often be accomplished by adding a default value in a class
+Perhaps the commonest schema change is to add attributes.  This is
+usually accomplished easily by adding a default value in a class
 definition::
 
   class Book(persistent.Persistent):
@@ -325,13 +328,51 @@ can keep a ``library`` module that contains::
   from catalog import Publication as Book # XXX deprecated name
 
 A downside of this approach is that it clutters code and may even
-cause is to keep modules solely to hold aliases. (`zope.deferredimport
+cause us to keep modules solely to hold aliases. (`zope.deferredimport
 <http://zopedeferredimport.readthedocs.io/en/latest/narrative.html>`_
-can help with this by making these aliases a little more effecient and
+can help with this by making these aliases a little more efficient and
 by generating deprecation warnings.)
 
-Object lifecycle states and special attributes (advanced)
-=========================================================
+Migration scripts
+-----------------
+
+If the simple approaches above aren't enough, then migration scripts
+can be used.  How these scripts are written is usually application
+dependent, as the application usually determines where objects of a
+given type reside in the database. (There are also some low-level
+interfaces for iterating over all of the objects of a database, but
+these are usually impractical for large databases.)
+
+An improvement to running migration scripts manually is to use a
+generational framework like `zope.generations
+<https://pypi.python.org/pypi/zope.generations>`_. With a generational
+framework, each migration is assigned a migration number and the
+number is recorded in the database as each migration is run.  This is
+useful because remembering what migrations are needed is automated.
+
+Upgrading multiple clients without down time
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Production applications typically have multiple clients for
+availability and load balancing.  This means an active application may
+be committing transactions using multiple software and schema
+versions.  In this situation, you may need to plan schema migrations
+in multiple steps:
+
+#. Upgrade software on all clients to a version that works with the old and new
+   version of the schema and that writes data using the old schema.
+
+#. Upgrade software on all clients to a version that works with the old and new
+   version of the schema and that writes data using the new schema.
+
+#. Migrate objects written with the old schema to the new schema.
+
+#. Remove support for the old schema from the software.
+
+.. _object-life-cycle-label:
+
+Object life cycle states and special attributes (advanced)
+==========================================================
 
 Persistent objects typically transition through a collection of
 states. Most of the time, you don't need to think too much about this.
@@ -346,7 +387,7 @@ Added
 
    Note that most objects are added implicitly by being set as
    subobjects (attribute values or items) of objects already in the
-   database) of objects already in the database.
+   database.
 
 Saved
    When an object is added and saved through a transaction commit, the
@@ -354,7 +395,14 @@ Saved
 
 Changed
    When a saved object is updated, it enters the *changed* state to
-   indicate that there are changes that need to be committed.
+   indicate that there are changes that need to be committed. It
+   remains in this state until either:
+
+   - The current transaction committed, and the object transitions to
+     the saved state, or
+
+   - The current transitions is aborted, and the object transitions to
+     the ghost state.
 
 .. _ghost-label:
 
@@ -364,12 +412,12 @@ Ghost
    and it will enter the saved state.  A saved object can become a
    ghost if it hasn't been accessed in a while and the database
    releases its state to make room for other objects.  A changed
-   object can become a ghost if the transaction it's modified in is
+   object can also become a ghost if the transaction it's modified in is
    aborted.
 
    An object that's loaded from the database is loaded as a
-   ghost. This typically happens when the object is a subobjet of
-   another object whos state is loaded.
+   ghost. This typically happens when the object is a subobject of
+   another object who's state is loaded.
 
 We can interrogate and control an object's state, although somewhat
 indirectly.  To do this, we'll look at some special persistent-object
@@ -394,14 +442,13 @@ If we add it to a database::
     (False, True, True)
 
 We know it's added because it has an oid, but its serial (object
-revision timestamp), ``_p_serial``, is the special zero value it's
+revision timestamp), ``_p_serial``, is the special zero value, and it's
 value for ``_p_changed`` is False.
 
 If we commit the transaction that added it::
 
     >>> import transaction
     >>> transaction.commit()
-    >>> from ZODB.utils import z64
     >>> book._p_changed, bool(book._p_oid), book._p_serial == z64
     (False, True, False)
 
@@ -435,30 +482,30 @@ Note that accessing ``_p_`` attributes didn't cause the object's state
 to be loaded.
 
 We've already seen how modifying ``_p_changed`` can cause an object to
-be maked as modified.  We can also use it to make an object into a
+be marked as modified.  We can also use it to make an object into a
 ghost:
 
     >>> book._p_changed = None
     >>> book._p_changed, bool(book._p_oid)
     (None, True)
 
-Other things you can do, but shouldn't
-======================================
+Other things you can do, but shouldn't (advanced)
+=================================================
 
-The first rule here is don't be clever!!!  It's soooo tempting to be
+The first rule here is don't be clever!!!  It's very tempting to be
 clever, but it's almost never worth it.
 
 Overriding ``__getstate__`` and ``__setstate__``
 ------------------------------------------------
 
 When an object is saved in a database, it's ``__getstate__`` method is
-called without arguments.  The default implementation simply returns a
-copy of an object's instance dictionary. (It's a little more
-complicated for objects with slots.)
+called without arguments to get the object's state.  The default
+implementation simply returns a copy of an object's instance
+dictionary. (It's a little more complicated for objects with slots.)
 
 An object's state is loaded by loading the state from the database and
 passing it to the object's ``__setstate__`` method.  The default
-implementation expects a discionary, which it used to populate the
+implementation expects a dictionary, which it used to populate the
 object's instance dictionary.
 
 Early on, we thought that overriding these methods would be useful for
@@ -468,7 +515,7 @@ the result was to make object implementations brittle and/or complex
 and the benefit usually wasn't worth it.
 
 Overriding ``__getattr__``, ``__getattribute__``, or ``__setattribute__``
-=========================================================================
+-------------------------------------------------------------------------
 
 This is something extremely clever people might attempt, but it's
 probably never worth the bother. It's possible, but it requires such
