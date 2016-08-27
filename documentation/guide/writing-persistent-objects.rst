@@ -215,6 +215,10 @@ Here's a version of the example that uses a ``TreeSet``::
    True
    >>> db.close()
 
+Scalable sequences are a bit more challenging. The `zc.blist
+<https://pypi.python.org/pypi/zc.blist/>`_ package provides a scalable
+list implementation that works well for some sequence use cases.
+
 Properties
 ==========
 
@@ -253,10 +257,10 @@ _p_jar
 
 Attributes with names starting with ``_v_`` are treated as volatile.
 They aren't saved to the database.  They're useful for caching data
-that can be computed from saved data and shouldn't be saved.  They
-should be treated as though they can disappear between transactions.
-Setting a volatile attribute doesn't cause an object to be considered
-to be modified.
+that can be computed from saved data and shouldn't be saved [#cache]_.
+They should be treated as though they can disappear between
+transactions.  Setting a volatile attribute doesn't cause an object to
+be considered to be modified.
 
 An object's ``__dict__`` attribute is treated specially in that
 getting it doesn't cause an object's state to be loaded.  It may have
@@ -508,7 +512,7 @@ clever, but it's almost never worth it.
 Overriding ``__getstate__`` and ``__setstate__``
 ------------------------------------------------
 
-When an object is saved in a database, it's ``__getstate__`` method is
+When an object is saved in a database, its ``__getstate__`` method is
 called without arguments to get the object's state.  The default
 implementation simply returns a copy of an object's instance
 dictionary. (It's a little more complicated for objects with slots.)
@@ -531,3 +535,34 @@ This is something extremely clever people might attempt, but it's
 probably never worth the bother. It's possible, but it requires such
 deep understanding of persistence and internals that we're not even
 going to document it. :)
+
+Links
+=====
+
+`persistent.Persistent
+<http://persistent.readthedocs.io/en/latest/index.html>`_ provides
+additional documentation on the ``Persistent`` base class.
+
+The `zc.blist <https://pypi.python.org/pypi/zc.blist/>`_ package provides
+a scalable sequence implementation for many use cases.
+
+The `zope.cachedescriptors
+<https://pypi.python.org/pypi/zope.cachedescriptors>`_ package
+provides descriptor implementations that facilitate implementing
+caching attributes, especially ``_v_`` volatile attributes.
+
+The `zope.deferredimport
+<http://zopedeferredimport.readthedocs.io/en/latest/narrative.html>`_
+package provides lazy import and support for deprecating import
+location, which is helpful when moving classes, especially persistent
+classes.
+
+The `zope.generations
+<https://pypi.python.org/pypi/zope.generations>`_ package provides a
+framework for managing schema-migration scripts.
+
+
+.. [#cache] The `zope.cachedescriptors
+   <https://pypi.python.org/pypi/zope.cachedescriptors>`_ package
+   provides some descriptors that help implement attributes that cache
+   data.
