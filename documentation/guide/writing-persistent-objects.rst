@@ -239,7 +239,7 @@ limited to):
 
 _p_changed
   The ``_p_changed`` attribute has the value ``None`` if the
-  object is a :ref:`ghost <ghost-label>`, True if it's changed, an
+  object is a :ref:`ghost <ghost-label>`, True if it's changed, and
   False if it's not a ghost and not changed.
 
 _p_oid
@@ -412,10 +412,10 @@ Changed
    indicate that there are changes that need to be committed. It
    remains in this state until either:
 
-   - The current transaction committed, and the object transitions to
+   - The current transaction is committed, and the object transitions to
      the saved state, or
 
-   - The current transitions is aborted, and the object transitions to
+   - The current transaction is aborted, and the object transitions to
      the ghost state.
 
 .. _ghost-label:
@@ -519,7 +519,7 @@ dictionary. (It's a little more complicated for objects with slots.)
 
 An object's state is loaded by loading the state from the database and
 passing it to the object's ``__setstate__`` method.  The default
-implementation expects a dictionary, which it used to populate the
+implementation expects a dictionary, which it uses to populate the
 object's instance dictionary.
 
 Early on, we thought that overriding these methods would be useful for
