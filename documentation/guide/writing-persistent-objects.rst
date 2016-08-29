@@ -79,7 +79,7 @@ so this pattern of setting ``_p_changed`` is common.
 Let's look at some alternatives.
 
 Using tuples for small sequences instead of lists
-------------------------------------------------
+-------------------------------------------------
 
 If objects contain sequences that are small or that don't change
 often, you can use tuples instead of lists::
