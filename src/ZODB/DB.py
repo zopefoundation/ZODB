@@ -39,7 +39,7 @@ import transaction
 from persistent.TimeStamp import TimeStamp
 import six
 
-from . import POSException
+from . import POSException, valuedoc
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -323,11 +323,9 @@ def getTID(at, before):
             before = TimeStamp(before).raw()
     return before
 
-
 @implementer(IDatabase)
 class DB(object):
     """The Object Database
-    -------------------
 
     The DB class coordinates the activities of multiple database
     Connection instances.  Most of the work is done by the
@@ -340,36 +338,19 @@ class DB(object):
     connections are opened, a warning is logged, and if more than twice
     that many, a critical problem is logged.
 
-    The class variable 'klass' is used by open() to create database
-    connections.  It is set to Connection, but a subclass could override
-    it to provide a different connection implementation.
-
     The database provides a few methods intended for application code
     -- open, close, undo, and pack -- and a large collection of
     methods for inspecting the database and its connections' caches.
-
-    :Cvariables:
-      - `klass`: Class used by L{open} to create database connections
-
-    :Groups:
-      - `User Methods`: __init__, open, close, undo, pack, classFactory
-      - `Inspection Methods`: getName, getSize, objectCount,
-        getActivityMonitor, setActivityMonitor
-      - `Connection Pool Methods`: getPoolSize, getHistoricalPoolSize,
-        setPoolSize, setHistoricalPoolSize, getHistoricalTimeout,
-        setHistoricalTimeout
-      - `Transaction Methods`: invalidate
-      - `Other Methods`: lastTransaction, connectionDebugInfo
-      - `Cache Inspection Methods`: cacheDetail, cacheExtremeDetail,
-        cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheSize,
-        cacheDetailSize, getCacheSize, getHistoricalCacheSize, setCacheSize,
-        setHistoricalCacheSize
     """
 
     klass = Connection  # Class to use for connections
     _activity_monitor = next = previous = None
 
-    def __init__(self, storage,
+    #: Database storage, implementing :interface:`~ZODB.interfaces.IStorage`
+    storage = valuedoc.ValueDoc('storage object')
+
+    def __init__(self,
+                 storage,
                  pool_size=7,
                  pool_timeout=1<<31,
                  cache_size=400,
@@ -385,23 +366,53 @@ class DB(object):
                  **storage_args):
         """Create an object database.
 
-        :Parameters:
-          - `storage`: the storage used by the database, e.g. FileStorage
-          - `pool_size`: expected maximum number of open connections
-          - `cache_size`: target size of Connection object cache
-          - `cache_size_bytes`: target size measured in total estimated size
-               of objects in the Connection object cache.
-               "0" means unlimited.
-          - `historical_pool_size`: expected maximum number of total
+        :param storage: the storage used by the database, such as a
+             :class:`~ZODB.FileStorage.FileStorage.FileStorage`.
+             This can be a string path name to use a constructed
+             :class:`~ZODB.FileStorage.FileStorage.FileStorage`
+             storage or ``None`` to use a constructed
+             :class:`~ZODB.MappingStorage.MappingStorage`.
+        :param int pool_size: expected maximum number of open connections.
+             Warnings are logged when this is exceeded and critical
+             messages are logged if twice the pool size is exceeded.
+        :param seconds pool_timeout: Maximum age of inactive connections
+             When a connection has remained unused in a connection
+             pool for more than pool_timeout seconds, it will be
+             discarded and it's resources released.
+        :param objects cache_size`: target maximum number of non-ghost
+             objects in each connection object cache.
+        :param int cache_size_bytes`: target total memory usage of non-ghost
+             objects in each connection object cache.
+        :param int historical_pool_size`: expected maximum number of total
             historical connections
-          - `historical_cache_size`: target size of Connection object cache for
-            historical (`at` or `before`) connections
-          - `historical_cache_size_bytes` -- similar to `cache_size_bytes` for
-            the historical connection.
-          - `historical_timeout`: minimum number of seconds that
-            an unused historical connection will be kept, or None.
-          - `xrefs` - Boolian flag indicating whether implicit cross-database
-            references are allowed
+        :param objects historical_cache_size`: target maximum number
+             of non-ghost objects in each historical connection object
+             cache.
+        :param int historical_cache_size_bytes`: target total memory
+             usage of non-ghost objects in each historical connection
+             object cache.
+        :param seconds historical_timeout: Maximum age of inactive
+             historical connections.  When a connection has remained
+             unused in a historical connection pool for more than pool_timeout
+             seconds, it will be discarded and it's resources
+             released.
+        :param str database_name: The name of this database in a
+             multi-database configuration.  The name is used when
+             constructing cross-database references ans when accessing
+             database connections fron other databases.
+        :param dict databases: dictionary of database name to
+             databases in a multi-database configuration. The new
+             database will add itself to this dictionary. The
+             dictionary is used when getting connections in other databases.
+        :param boolean xrefs: Flag indicating whether cross-database
+            references are allowed from this database to other
+            databases in a multi-database configuration.
+        :param int large_record_size: When object records are saved
+             that are larger than this, a warning is issued,
+             suggesting that blobs should be used instead.
+        :param storage_args: Extra keywork arguments passed to a
+             storage constructor if a path name or None is passed as
+             the storage argument.
         """
 
         # Allocate lock.
@@ -494,9 +505,7 @@ class DB(object):
             self.historical_pool.map(f)
 
     def cacheDetail(self):
-        """Return information on objects in the various caches
-
-        Organized by class.
+        """Return object counts by class accross all connections.
         """
 
         detail = {}
@@ -514,6 +523,12 @@ class DB(object):
         return sorted(detail.items())
 
     def cacheExtremeDetail(self):
+        """Return information about all of the objects in the object caches.
+
+        Information includes a connection number, class, object id,
+        reference count and state.  The reference count returned
+        excludes references help by ZODB itself.
+        """
         detail = []
         conn_no = [0]  # A mutable reference to a counter
         # sys.getrefcount is a CPython implementation detail
@@ -563,7 +578,7 @@ class DB(object):
         self._connectionMap(f)
         return detail
 
-    def cacheFullSweep(self):
+    def cacheFullSweep(self): # XXX this is the same as cacheMinimize
         self._connectionMap(lambda c: c._cache.full_sweep())
 
     def cacheLastGCTime(self):
@@ -577,9 +592,13 @@ class DB(object):
         return m[0]
 
     def cacheMinimize(self):
+        """Minimize cache sizes for all connections
+        """
         self._connectionMap(lambda c: c._cache.minimize())
 
     def cacheSize(self):
+        """Return the total count of non-ghost objects in all object caches
+        """
         m = [0]
         def f(con, m=m):
             m[0] += con._cache.cache_non_ghost_count
@@ -588,6 +607,8 @@ class DB(object):
         return m[0]
 
     def cacheDetailSize(self):
+        """Return non-ghost counts sizes for all connections.
+        """
         m = []
         def f(con, m=m):
             m.append({'connection': repr(con),
@@ -625,38 +646,60 @@ class DB(object):
         del self._mvcc_storage
 
     def getCacheSize(self):
+        """Get the configured cache size (objects).
+        """
         return self._cache_size
 
     def getCacheSizeBytes(self):
+        """Get the configured cache size in bytes.
+        """
         return self._cache_size_bytes
 
     def lastTransaction(self):
+        """Get the storage last transaction id.
+        """
         return self.storage.lastTransaction()
 
     def getName(self):
+        """Get the storage name
+        """
         return self.storage.getName()
 
     def getPoolSize(self):
+        """Get the configured pool size
+        """
         return self.pool.size
 
     def getSize(self):
+        """Get the approximate database size, in bytes
+        """
         return self.storage.getSize()
 
     def getHistoricalCacheSize(self):
+        """Get the configured historical cache size (objects).
+        """
         return self._historical_cache_size
 
     def getHistoricalCacheSizeBytes(self):
+        """Get the configured historical cache size in bytes.
+        """
         return self._historical_cache_size_bytes
 
     def getHistoricalPoolSize(self):
+        """Get the configured historical pool size
+        """
         return self.historical_pool.size
 
     def getHistoricalTimeout(self):
+        """Get the configured historical pool timeout
+        """
         return self.historical_pool.timeout
 
     transform_record_data = untransform_record_data = lambda self, data: data
 
     def objectCount(self):
+        """Get the approximate object count
+        """
         return len(self.storage)
 
     def open(self, transaction_manager=None, at=None, before=None):
@@ -729,6 +772,15 @@ class DB(object):
         return result
 
     def connectionDebugInfo(self):
+        """Get debugging information about connections
+
+        This is especially useful to debug connections that seem to be
+        leaking or open too long.  Information includes connection
+        info, the connection before setting, and, if a connection is
+        open, the time it was opened.  The info is the result of
+        calling :meth:`~ZODB.Connection.Connection.getDebugInfo` on
+        the connection, and the connection's cache size.
+        """
         result = []
         t = time.time()
 
@@ -790,6 +842,8 @@ class DB(object):
         return find_global(modulename, globalname)
 
     def setCacheSize(self, size):
+        """Reconfigure the cache size (non-ghost object count)
+        """
         with self._lock:
             self._cache_size = size
             def setsize(c):
@@ -797,6 +851,8 @@ class DB(object):
             self.pool.map(setsize)
 
     def setCacheSizeBytes(self, size):
+        """Reconfigure the cache total size in bytes
+        """
         with self._lock:
             self._cache_size_bytes = size
             def setsize(c):
@@ -804,6 +860,8 @@ class DB(object):
             self.pool.map(setsize)
 
     def setHistoricalCacheSize(self, size):
+        """Reconfigure the historical cache size (non-ghost object count)
+        """
         with self._lock:
             self._historical_cache_size = size
             def setsize(c):
@@ -811,6 +869,8 @@ class DB(object):
             self.historical_pool.map(setsize)
 
     def setHistoricalCacheSizeBytes(self, size):
+        """Reconfigure the historical cache total size in bytes
+        """
         with self._lock:
             self._historical_cache_size_bytes = size
             def setsize(c):
@@ -818,21 +878,33 @@ class DB(object):
             self.historical_pool.map(setsize)
 
     def setPoolSize(self, size):
+        """Reconfigure the connection pool size
+        """
         with self._lock:
             self.pool.size = size
 
     def setHistoricalPoolSize(self, size):
+        """Reconfigure the connection historical pool size
+        """
         with self._lock:
             self.historical_pool.size = size
 
     def setHistoricalTimeout(self, timeout):
+        """Reconfigure the connection historical pool timeout
+        """
         with self._lock:
             self.historical_pool.timeout = timeout
 
-    def history(self, *args, **kw):
-        return self.storage.history(*args, **kw)
+    def history(self, oid, size=1):
+        """Get revision history information for an object.
+
+        See :meth:`ZODB.interfaces.IStorage.history`.
+        """
+        return self.storage.history(oid, size)
 
     def supportsUndo(self):
+        """Return whether the database supports undo.
+        """
         try:
             f = self.storage.supportsUndo
         except AttributeError:
@@ -840,11 +912,20 @@ class DB(object):
         return f()
 
     def undoLog(self, *args, **kw):
+        """Return a sequence of descriptions for transactions.
+
+        See :meth:`ZODB.interfaces.IStorageUndoable.undoLog`.
+        """
+
         if not self.supportsUndo():
             return ()
         return self.storage.undoLog(*args, **kw)
 
     def undoInfo(self, *args, **kw):
+        """Return a sequence of descriptions for transactions.
+
+        See :meth:`ZODB.interfaces.IStorageUndoable.undoInfo`.
+        """
         if not self.supportsUndo():
             return ()
         return self.storage.undoInfo(*args, **kw)
@@ -894,6 +975,14 @@ class DB(object):
         self.undoMultiple([id], txn)
 
     def transaction(self, note=None):
+        """Execute a block of code as a transaction.
+
+        If a note is given, it will be added to the transaction's
+        description.
+
+        The ``transaction`` method returns a context manager that can
+        be used with the ``with`` statement.
+        """
         return ContextManager(self, note)
 
     def new_oid(self):
@@ -966,4 +1055,11 @@ class TransactionalUndo(object):
         return "%s:%s" % (self._storage.sortKey(), id(self))
 
 def connection(*args, **kw):
+    """Create a database :class:`connection <ZODB.Connection.Connection>`.
+
+    A database is created using the given arguments and opened to
+    create the returned connection. The database will be closed when
+    the connection is closed.  This is a convenience function to avoid
+    managing a separate database object.
+    """
     return DB(*args, **kw).open_then_close_db_when_connection_closes()

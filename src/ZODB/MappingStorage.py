@@ -32,8 +32,22 @@ import zope.interface
         ZODB.interfaces.IStorageIteration,
         )
 class MappingStorage(object):
+    """In-memory storage implementation
+
+    Note that this implementation is somewhat naive and inefficient
+    with regard to locking.  It's implementation is primarily meant to
+    be a simple illustration of storage implementation. It's also
+    useful for testing and exploration where scalability and efficiency
+    are unimportant.
+    """
 
     def __init__(self, name='MappingStorage'):
+        """Create a mapping storage
+
+        The name parameter is used by the
+        :meth:`~ZODB.interfaces.IStorage.getName` and
+        :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+        """
         self.__name__ = name
         self._data = {}                               # {oid->{tid->pickle}}
         self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}

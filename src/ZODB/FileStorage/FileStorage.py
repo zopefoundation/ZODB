@@ -140,7 +140,8 @@ class FileStorage(
     ConflictResolvingStorage,
     BaseStorage,
     ):
-
+    """Storage that saves data in a file
+    """
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
@@ -148,6 +149,82 @@ class FileStorage(
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
                  blob_dir=None):
+        """Create a file storage
+
+        :param str file_name: Path to store data file
+        :param bool create: Flag indicating whether a file should be
+            created even if it already exists.
+        :param bool read_only: Flag indicating whether the file is
+            read only. Only one process is able to open the file
+            non-read-only.
+        :param bytes stop: Time-travel transaction id
+            When the file is opened, data will be read up to the given
+            transaction id.  Transaction ids correspond to times and
+            you can compute transaction ids for a given time using
+            :class:`~ZODB.TimeStamp.TimeStamp`.
+        :param int quota: File-size quota
+        :param bool pack_gc: Flag indicating whether garbage
+            collection should be performed when packing.
+        :param bool pack_keep_old: flag indicating whether old data
+            files should be retained after packing as a ``.old`` file.
+        :param callable packer: An alternative
+           :interface:`packer <ZODB.FileStorage.interfaces.IFileStoragePacker>`.
+        :param str blob_dir: A blob-directory path name.
+           Blobs will be supported if this option is provided.
+
+        A file storage stores data in a single file that behaves like
+        a traditional transaction log. New data records are appended
+        to the end of the file.  Periodically, the file is packed to
+        free up space.  When this is done, current records as of the
+        pack time or later are copied to a new file, which replaces
+        the old file.
+
+        FileStorages keep in-memory indexes mapping object oids to the
+        location of their current records in the file. Back pointers to
+        previous records allow access to non-current records from the
+        current records.
+
+        In addition to the data file, some ancillary files are
+        created. These can be lost without affecting data
+        integrity, however losing the index file may cause extremely
+        slow startup. Each has a name that's a concatenation of the
+        original file and a suffix. The files are listed below by
+        suffix:
+
+        .index
+           Snapshot of the in-memory index.  This are created on
+           shutdown, packing, and after rebuilding an index when one
+           was not found.  For large databases, creating a
+           file-storage object without an index file can take very
+           long because it's necessary to scan the data file to build
+           the index.
+
+        .lock
+           A lock file preventing multiple processes from opening a
+           file storage on non-read-only mode.
+
+        .tmp
+          A file used to store data being committed in the first phase
+          of 2-phase commit
+
+        .index_tmp
+          A temporary file used when saving the in-memory index to
+          avoid overwriting an existing index until a new index has
+          been fully saved.
+
+        .pack
+          A temporary file written while packing containing current
+          records as of and after the pack time.
+
+        .old
+          The previous database file after a pack.
+
+        When the database is packed, current records as of the pack
+        time and later are written to the ``.pack`` file. At the end
+        of packing, the ``.old`` file is removed, if it exists, and
+        the data file is renamed to the ``.old`` file and finally the
+        ``.pack`` file is rewritten to the data file.
+        """
 
         if read_only:
             self._is_read_only = True
