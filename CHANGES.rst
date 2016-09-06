@@ -2,6 +2,31 @@
  Change History
 ================
 
+5.0.0 (2016-09-06)
+==================
+
+Major internal improvements and cleanups plus:
+
+- Added a connection ``prefetch`` method that can be used to request
+  that a storage prefect data an application will need::
+
+    conn.prefetch(obj, ...)
+
+  Where arguments can be objects, object ids, or iterables of objects
+  or object ids.
+
+  Added optional ``prefetch`` methods to the storage APIs. If a
+  storage doesn't support prefetch, then the connection prefetch
+  method is a noop.
+
+- fstail: print the txn offset and header size, instead of only the data offset.
+  fstail can now be used to truncate a DB at the right offset.
+
+- Drop support for old commit protocol.  All of the build-in storages
+  implement the new protocol.  This new protocol allows storages to
+  provide better write performance by allowing multiple commits to
+  execute in parallel.
+
 5.0.0b1 (2016-08-04)
 ====================
 
