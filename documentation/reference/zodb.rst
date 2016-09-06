@@ -1,0 +1,96 @@
+=========
+ZODB APIs
+=========
+
+.. contents::
+
+ZODB module functions
+=====================
+
+.. method:: DB(storage, *args, **kw)
+
+      Create a databse. See :py:class:`ZODB.DB`.
+
+.. autofunction:: ZODB.connection
+
+Databases
+=========
+
+.. autoclass:: ZODB.DB
+   :members: __init__, open, close, pack,
+             cacheDetail, cacheExtremeDetail, cacheMinimize,
+             cacheSize, cacheDetailSize, getCacheSize, getCacheSizeBytes,
+             lastTransaction, getName, getPoolSize, getSize,
+             getHistoricalCacheSize, getHistoricalCacheSizeBytes,
+             getHistoricalPoolSize, getHistoricalTimeout,
+             objectCount, connectionDebugInfo,
+             setCacheSize, setCacheSizeBytes,
+             setHistoricalCacheSize, setHistoricalCacheSizeBytes,
+             setPoolSize, setHistoricalPoolSize, setHistoricalTimeout,
+             history,
+             supportsUndo, undoLog, undoInfo, undoMultiple, undo,
+             transaction, storage
+
+
+Connections
+===========
+
+.. autoclass:: ZODB.Connection.Connection
+   :members: add, cacheGC, cacheMinimize, close, db, get,
+             getDebugInfo, get_connection, isReadOnly, oldstate,
+             onCloseCallback, root, setDebugInfo, sync
+
+TimeStamp (transaction ids)
+===========================
+
+.. class:: ZODB.TimeStamp.TimeStamp(year, month, day, hour, minute, seconds)
+
+   Create a time-stamp object. Time stamps facilitate the computation
+   of transaction ids, which are based on times. The arguments are
+   integers, except for seconds, which may be a floating-point
+   number. Time stamps have microsecond precision. Time stamps are
+   implicitly UTC based.
+
+   Time stamps are orderable and hashable.
+
+   .. method:: day()
+
+      Return the time stamp's day.
+
+   .. method:: hour()
+
+      Return the time stamp's hour.
+
+   .. method:: laterThan(other)
+
+      Return a timestamp instance which is later than 'other'.
+
+      If self already qualifies, return self.
+
+      Otherwise, return a new instance one moment later than 'other'.
+
+   .. method:: minute()
+
+      Return the time stamp's minute.
+
+   .. method:: month()
+
+      Return the time stamp's month.
+
+   .. method:: raw()
+
+      Get an 8-byte representatin of the time stamp for use in APIs
+      that require a time stamp.
+
+   .. method:: second()
+
+      Return the time stamp's second.
+
+   .. method:: timeTime()
+
+      Return the time stamp as seconds since the epoc, as used by the
+      ``time`` module.
+
+   .. method:: year()
+
+      Return the time stamp's year.

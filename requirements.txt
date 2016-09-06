@@ -1,0 +1,4 @@
+Sphinx
+docutils
+ZODB
+j1m.sphinxautointerface
