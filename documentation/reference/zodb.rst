@@ -31,6 +31,8 @@ Databases
              supportsUndo, undoLog, undoInfo, undoMultiple, undo,
              transaction, storage
 
+.. _database-text-configuration:
+
 Database text configuration
 ---------------------------
 
@@ -38,7 +40,7 @@ Databases are configured with ``zodb`` sections::
 
   <zodb>
     cache-size-bytes 100MB
-    <mappingstorage
+    <mappingstorage>
     </mappingstorage>
   </zodb>
 
@@ -46,6 +48,8 @@ A ``zodb`` section must have a storage sub-section specifying a
 storage and any of the following options:
 
 .. zconfigsectionkeys:: ZODB component.xml zodb
+
+.. _multidatabase-text-configuration:
 
 For a multi-database configuration, use multiple ``zodb`` sections and
 give the sections names::
@@ -136,3 +140,10 @@ TimeStamp (transaction ids)
    .. method:: year()
 
       Return the time stamp's year.
+
+Loading configuration
+=====================
+
+.. automodule:: ZODB.config
+   :members: databaseFromString, databaseFromFile, databaseFromURL,
+             storageFromString, storageFromFile, storageFromURL

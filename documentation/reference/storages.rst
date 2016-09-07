@@ -89,6 +89,8 @@ MappingStorage
 .. autoclass:: ZODB.MappingStorage.MappingStorage
    :members: __init__
 
+.. _mappingstorage-text-configuration:
+
 MappingStorage text configuration
 ---------------------------------
 

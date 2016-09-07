@@ -157,7 +157,7 @@ record from the book record and is managed by ZODB independent of the
 management of the book.
 
 In addition to ``PersistentList`` and ``PersistentMapping``, general
-persistent data structures are provided by the ``BTrees`` package,
+persistent data structures are provided by the BTrees_ package,
 most notably ``BTree`` and ``TreeSet`` objects.  Unlike
 ``PersistentList`` and ``PersistentMapping``, ``BTree`` and
 ``TreeSet`` objects are scalable and can easily hold millions of
@@ -566,3 +566,5 @@ framework for managing schema-migration scripts.
    <https://pypi.python.org/pypi/zope.cachedescriptors>`_ package
    provides some descriptors that help implement attributes that cache
    data.
+
+.. _BTrees: https://pythonhosted.org/BTrees/
