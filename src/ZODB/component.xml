@@ -231,7 +231,7 @@
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
                implements="ZODB.storage">
-    <key name="name" default="Mapping Storage">
+    <key name="name">
       <description>
         The storage name, used by the
         :meth:`~ZODB.interfaces.IStorage.getName` and
