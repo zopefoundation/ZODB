@@ -18,7 +18,7 @@
       <description>
         If supplied, the file storage will provide blob support and this
         is the name of a directory to hold blob data.  The directory will
-        be created if it doeesn't exist.  If no value (or an empty value)
+        be created if it doesn't exist.  If no value (or an empty value)
         is provided, then no blob support will be provided. (You can still
         use a BlobStorage to provide blob support.)
       </description>
@@ -193,14 +193,14 @@
     <key name="read-only-fallback" datatype="boolean" default="off">
       <description>
         A flag indicating whether a read-only remote storage should be
-        acceptable as a fallback when no writable storages are
+        acceptable as a fall-back when no writable storages are
         available.  Defaults to false.  At most one of read_only and
         read_only_fallback should be true.
       </description>
     </key>
     <key name="username" required="no">
       <description>
-        The authentication username of the server.
+        The authentication user name of the server.
       </description>
     </key>
     <key name="password" required="no">
@@ -211,7 +211,7 @@
     <key name="realm" required="no">
       <description>
         The authentication realm of the server.  Some authentication
-        schemes use a realm to identify the logic set of usernames
+        schemes use a realm to identify the logic set of user names
         that are accepted by this server.
       </description>
     </key>
@@ -308,12 +308,12 @@
     </key>
     <key name="database-name">
       <description>
-        When multidatabases are in use, this is the name given to this
+        When multi-databases are in use, this is the name given to this
         database in the collection.  The name must be unique across all
         databases in the collection.  The collection must also be given
         a mapping from its databases' names to their databases, but that
         cannot be specified in a ZODB config file.  Applications using
-        multidatabases typical supply a way to configure the mapping in
+        multi-databases typical supply a way to configure the mapping in
         their own config files, using the "databases" parameter of a DB
         constructor.
       </description>
