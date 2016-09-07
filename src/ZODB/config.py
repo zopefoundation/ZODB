@@ -42,13 +42,33 @@ def getStorageSchema():
     return _s_schema
 
 def databaseFromString(s):
+    """Create a database from a database-configuration string.
+
+    The string must contain one or more :ref:`zodb
+    <database-text-configuration>` sections.
+
+    The database defined by the first section is returned.
+
+    If :ref:`more than one zodb section is provided
+    <multidatabase-text-configuration>`, a multi-database
+    configuration will be created and all of the databases will be
+    available in the returned database's ``databases`` attribute.
+    """
     return databaseFromFile(StringIO(s))
 
 def databaseFromFile(f):
+    """Create a database from a file object that provides configuration.
+
+    See :func:`databaseFromString`.
+    """
     config, handle = ZConfig.loadConfigFile(getDbSchema(), f)
     return databaseFromConfig(config.database)
 
 def databaseFromURL(url):
+    """Load a database from URL (or file name) that provides configuration.
+
+    See :func:`databaseFromString`.
+    """
     config, handler = ZConfig.loadConfig(getDbSchema(), url)
     return databaseFromConfig(config.database)
 
@@ -63,13 +83,20 @@ def databaseFromConfig(database_factories):
     return first
 
 def storageFromString(s):
+    """Create a storage from a storage-configuration string.
+    """
     return storageFromFile(StringIO(s))
 
 def storageFromFile(f):
+    """Create a storage from a file object providing storage-configuration.
+    """
     config, handle = ZConfig.loadConfigFile(getStorageSchema(), f)
     return storageFromConfig(config.storage)
 
 def storageFromURL(url):
+    """\
+    Create a storage from a URL (or file name) providing storage-configuration.
+    """
     config, handler = ZConfig.loadConfig(getStorageSchema(), url)
     return storageFromConfig(config.storage)
 
