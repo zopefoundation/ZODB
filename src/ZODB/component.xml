@@ -69,7 +69,13 @@
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
                implements="ZODB.storage">
-    <key name="name" default="Mapping Storage"/>
+    <key name="name" default="Mapping Storage">
+      <description>
+        The storage name, used by the
+        :meth:`~ZODB.interfaces.IStorage.getName` and
+        :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+      </description>
+    </key>
   </sectiontype>
 
   <!-- The BDB storages probably need to be revised somewhat still.
@@ -225,7 +231,13 @@
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
                implements="ZODB.storage">
-    <key name="name" />
+    <key name="name" default="Mapping Storage">
+      <description>
+        The storage name, used by the
+        :meth:`~ZODB.interfaces.IStorage.getName` and
+        :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+      </description>
+    </key>
     <multisection type="ZODB.storage" name="*" attribute="factories" />
   </sectiontype>
 
@@ -233,11 +245,12 @@
   <sectiontype name="zodb" datatype=".ZODBDatabase"
                implements="ZODB.database">
     <section type="ZODB.storage" name="*" attribute="storage"/>
-    <key name="cache-size" datatype="integer" default="5000"/>
+    <key name="cache-size" datatype="integer" default="5000">
       <description>
         Target size, in number of objects, of each connection's
         object cache.
       </description>
+    </key>
     <key name="cache-size-bytes" datatype="byte-size" default="0">
       <description>
         Target size, in total estimated size for objects, of each connection's
@@ -245,8 +258,14 @@
         "0" means no limit.
       </description>
     </key>
-    <key name="large-record-size" datatype="byte-size" />
-    <key name="pool-size" datatype="integer" default="7"/>
+    <key name="large-record-size" datatype="byte-size" default="16MB">
+      <description>
+        When object records are saved
+        that are larger than this, a warning is issued,
+        suggesting that blobs should be used instead.
+      </description>
+    </key>
+    <key name="pool-size" datatype="integer" default="7">
       <description>
         The expected maximum number of simultaneously open connections.
         There is no hard limit (as many connections as are requested
@@ -255,21 +274,25 @@
         and exceeding twice pool-size connections causes a critical
         message to be logged.
       </description>
-    <key name="pool-timeout" datatype="time-interval"/>
+    </key>
+    <key name="pool-timeout" datatype="time-interval">
       <description>
         The minimum interval that an unused (non-historical)
         connection should be kept.
       </description>
-    <key name="historical-pool-size" datatype="integer" default="3"/>
+    </key>
+    <key name="historical-pool-size" datatype="integer" default="3">
       <description>
         The expected maximum total number of historical connections
         simultaneously open.
       </description>
-    <key name="historical-cache-size" datatype="integer" default="1000"/>
+    </key>
+    <key name="historical-cache-size" datatype="integer" default="1000">
       <description>
         Target size, in number of objects, of each historical connection's
         object cache.
       </description>
+    </key>
     <key name="historical-cache-size-bytes" datatype="byte-size" default="0">
       <description>
         Target size, in total estimated size of objects, of each historical connection's
