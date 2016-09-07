@@ -70,6 +70,18 @@ FileStorage
 
 .. autointerface:: ZODB.FileStorage.interfaces.IFileStoragePacker
 
+FileStorage text configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+File storages are configured using the ``filestorage`` section::
+
+  <filestorage>
+    path Data.fs
+  </filestorage>
+
+which accepts the following options:
+
+.. zconfigsectionkeys:: ZODB component.xml filestorage
 
 MappingStorage
 --------------
@@ -77,11 +89,55 @@ MappingStorage
 .. autoclass:: ZODB.MappingStorage.MappingStorage
    :members: __init__
 
+MappingStorage text configuration
+---------------------------------
+
+File storages are configured using the ``mappingstorage`` section::
+
+  <mappingstorage>
+  </mappingstorage>
+
+Options:
+
+.. zconfigsectionkeys:: ZODB component.xml mappingstorage
+
 DemoStorage
 -----------
 
 .. autoclass:: ZODB.DemoStorage.DemoStorage
    :members: __init__, push, pop
+
+DemoStorage text configuration
+------------------------------
+
+Demo storages are configured using the ``demostorage`` section::
+
+  <demostorage>
+    <filestorage base>
+      path base.fs
+    </filestorage>
+    <mappingstorage changes>
+      name Changes
+    </mappingstorage>
+  </demostorage>
+
+.. -> src
+
+   >>> import ZODB.config
+   >>> storage = ZODB.config.storageFromString(src)
+   >>> storage.base.getName()
+   'base.fs'
+   >>> storage.changes.getName()
+   'Changes'
+
+``demostorage`` sections can contain up to 2 storage subsections,
+named ``base`` and ``changes``, specifying the demo storage's base and
+changes storages.  See :meth:`ZODB.DemoStorage.DemoStorage.__init__`
+for more on the base anc changes storages.
+
+Options:
+
+.. zconfigsectionkeys:: ZODB component.xml demostorage
 
 Noteworthy non-included storages
 ================================
@@ -98,9 +154,10 @@ RelStorage
   For more imformation, see http://relstorage.readthedocs.io/en/latest/.
 
 ZEO
-  `ZEO <https://github.com/zopefoundation/ZEO>`_
-  is a client-server database implementation for ZODB.  To use
-  ZEO, you run a ZEO server, and use ZEO clients in your application.
+  `ZEO <https://github.com/zopefoundation/ZEO>`_ is a client-server
+  database implementation for ZODB.  To use ZEO, you run a ZEO server,
+  and use ZEO clients in your application.  Unlike the included
+  storages, multiple processes can share the same database.
 
   For more imformation, see https://github.com/zopefoundation/ZEO.
 

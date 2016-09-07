@@ -31,6 +31,48 @@ Databases
              supportsUndo, undoLog, undoInfo, undoMultiple, undo,
              transaction, storage
 
+Database text configuration
+---------------------------
+
+Databases are configured with ``zodb`` sections::
+
+  <zodb>
+    cache-size-bytes 100MB
+    <mappingstorage
+    </mappingstorage>
+  </zodb>
+
+A ``zodb`` section must have a storage sub-section specifying a
+storage and any of the following options:
+
+.. zconfigsectionkeys:: ZODB component.xml zodb
+
+For a multi-database configuration, use multiple ``zodb`` sections and
+give the sections names::
+
+  <zodb first>
+    cache-size-bytes 100MB
+    <mappingstorage>
+    </mappingstorage>
+  </zodb>
+
+  <zodb second>
+    <mappingstorage>
+    </mappingstorage>
+  </zodb>
+
+.. -> src
+
+   >>> import ZODB.config
+   >>> db = ZODB.config.databaseFromString(src)
+   >>> sorted(db.databases)
+   ['first', 'second']
+   >>> db._cache_size_bytes
+   104857600
+
+When the configuration is loaded, a single database will be returned,
+but all of the databases will be available through the returned
+database's ``databases`` attribute.
 
 Connections
 ===========
