@@ -379,10 +379,10 @@ class DemoStorage(ConflictResolvingStorage):
             self.changes.storeBlob(
                 oid, oldserial, data, blobfilename, '', transaction)
         except AttributeError:
-            if self._blobify():
-                self.changes.storeBlob(
-                    oid, oldserial, data, blobfilename, '', transaction)
-            raise
+            if not self._blobify():
+                raise
+            self.changes.storeBlob(
+                oid, oldserial, data, blobfilename, '', transaction)
 
     checkCurrentSerialInTransaction = (
         ZODB.BaseStorage.checkCurrentSerialInTransaction)

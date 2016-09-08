@@ -2,6 +2,13 @@
  Change History
 ================
 
+5.0.1 (unreleased)
+==================
+
+- Fix an AttributeError that DemoStorage could raise if it was asked
+  to store a blob into a temporary changes before reading a blob. See
+  `issue 103 <https://github.com/zopefoundation/ZODB/issues/103>`_.
+
 5.0.0 (2016-09-06)
 ==================
 
