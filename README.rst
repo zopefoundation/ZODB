@@ -16,53 +16,32 @@ use ZoneAlarm.
 Compatibility
 =============
 
-ZODB 4.3 requires Python 2.7 or Python >= 3.3.
+ZODB 5 requires Python 2.7 (>= 2.7.9) or Python >= 3.4.
 
 Travis: |buildstatus|_
 winbot: |winbotstatus|_
 
-Prerequisites
+Documentation
 =============
 
-You must have Python installed. If you're using a system Python
-install, make sure development support is installed too.
+See http://zodb-docs.readthedocs.io/en/latest/
 
-You also need the transaction, BTrees, persistent, six, zc.lockfile, ZConfig,
-zodbpickle, zope.interface packages, and optionally manuel and zope.testing.
-If you don't have them and you can connect to the Python Package Index,
-then these will be installed for you if you don't have them.
-
-Installation
-============
-
-ZODB is released as a distutils package.  The easiest ways to build
-and install it are to use `easy_install
-<http://peak.telecommunity.com/DevCenter/EasyInstall>`_, or
-`zc.buildout <http://www.python.org/pypi/zc.buildout>`_.
-
-To install by hand, first install the dependencies listed in `Prerequisites`_.
-These can be found in the `Python Package Index <http://www.python.org/pypi>`_.
-
-To run the tests, use the test setup command::
-
-  python setup.py test
-
-It will download dependencies if needed.  If this happens, ou may get
-an import error when the test command gets to looking for tests.  Try
-running the test command a second time and you should see the tests
-run.
-
-::
-
-  python setup.py test
-
-To install, use the install command::
-
-  python setup.py install
-
-
-Testing for Developers
+For developers of ZODB
 ======================
+
+Building
+---------
+
+Bootstrap buildout, if necessary using ``bootstrap.py``::
+
+  python bootstrap.py
+
+Run the buildout::
+
+  bin/buildout
+
+Testing
+-------
 
 The ZODB checkouts are `buildouts <http://www.python.org/pypi/zc.buildout>`_.
 When working from a ZODB checkout, first run the bootstrap.py script
@@ -97,6 +76,19 @@ Running all the tests takes much longer.::
 
     OK
 
+Generating docs
+---------------
+
+cd to the doc directory and::
+
+  make html
+
+Contributing
+------------
+
+Almost any code change should include tests.
+
+Any change that changes features should include documentation updates.
 
 Maintenance scripts
 -------------------
@@ -117,32 +109,3 @@ More information
 ================
 
 See http://zodb.org/
-
-There is a Mailman mailing list in place to discuss all issues related
-to ZODB.  You can send questions to
-
-    zodb-dev@zope.org
-
-or subscribe at
-
-    http://lists.zope.org/mailman/listinfo/zodb-dev
-
-and view its archives at
-
-    http://lists.zope.org/pipermail/zodb-dev
-
-Note that Zope Corp mailing lists have a subscriber-only posting policy.
-
-Bugs and Patches
-================
-
-Bug reports and patches should be added to the Launchpad:
-
-    https://launchpad.net/zodb
-
-
-.. |buildstatus| image:: https://api.travis-ci.org/zopefoundation/ZODB.png?branch=master
-.. _buildstatus: https://travis-ci.org/zopefoundation/ZODB
-
-.. |winbotstatus| image:: http://winbot.zope.org/buildstatusimage?builder=ZODB_dev%20py_270_win64&number=-1
-.. _winbotstatus: http://winbot.zope.org/builders/ZODB_dev%20py_270_win64/builds/-1
