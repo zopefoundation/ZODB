@@ -8,6 +8,7 @@ python:
     - 3.4
     - 3.5
 install:
+    - env
     - pip install zc.buildout
     - buildout
 script:
