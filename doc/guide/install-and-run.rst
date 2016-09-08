@@ -160,7 +160,7 @@ db.transaction()
 
       >>> exec(src)
       >>> with db.transaction() as connection:
-      ...     print connection.root.foo
+      ...     print(connection.root.foo)
       1
 
       >>> _ = conn.transaction_manager.begin() # get updates on conn
