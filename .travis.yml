@@ -8,12 +8,11 @@ python:
     - 3.4
     - 3.5
 install:
-    - env
     - pip install zc.buildout
     - buildout
 script:
     - bin/test -v1j99
-    - cd doc; make html
+    - if [[ $TRAVIS_PYTHON_VERSION != 'pypy3' ]]; then cd doc; make html; fi
 notifications:
     email: false
 cache:
