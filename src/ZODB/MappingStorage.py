@@ -35,7 +35,7 @@ class MappingStorage(object):
     """In-memory storage implementation
 
     Note that this implementation is somewhat naive and inefficient
-    with regard to locking.  It's implementation is primarily meant to
+    with regard to locking.  Its implementation is primarily meant to
     be a simple illustration of storage implementation. It's also
     useful for testing and exploration where scalability and efficiency
     are unimportant.

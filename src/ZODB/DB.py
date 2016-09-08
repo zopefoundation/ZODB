@@ -379,16 +379,16 @@ class DB(object):
              When a connection has remained unused in a connection
              pool for more than pool_timeout seconds, it will be
              discarded and it's resources released.
-        :param objects cache_size`: target maximum number of non-ghost
+        :param objects cache_size: target maximum number of non-ghost
              objects in each connection object cache.
-        :param int cache_size_bytes`: target total memory usage of non-ghost
+        :param int cache_size_bytes: target total memory usage of non-ghost
              objects in each connection object cache.
-        :param int historical_pool_size`: expected maximum number of total
+        :param int historical_pool_size: expected maximum number of total
             historical connections
-        :param objects historical_cache_size`: target maximum number
+        :param objects historical_cache_size: target maximum number
              of non-ghost objects in each historical connection object
              cache.
-        :param int historical_cache_size_bytes`: target total memory
+        :param int historical_cache_size_bytes: target total memory
              usage of non-ghost objects in each historical connection
              object cache.
         :param seconds historical_timeout: Maximum age of inactive
