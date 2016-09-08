@@ -199,13 +199,14 @@ make it possible to search objects in large collections.
 
 .. [#caches-are-expensive] ZODB can be very efficient at caching data
    in memory, especially if your `working set
-   <https://en.wikipedia.org/wiki/Working_set>`_, because the cache is
-   simply an object tree and accessing a cached object typically
-   requires no database interaction.  Because each connection has it's
-   own cache, connections can be expensive, depending on their cache
-   sizes.  For this reason, you'll generally want to limit the number
-   of open connections you have at any one time.  Connections are
-   pooled, so opening a connection is inexpensive.
+   <https://en.wikipedia.org/wiki/Working_set>`_ is small enough to
+   fit in memory, because the cache is simply an object tree and
+   accessing a cached object typically requires no database
+   interaction.  Because each connection has its own cache,
+   connections can be expensive, depending on their cache sizes.  For
+   this reason, you'll generally want to limit the number of open
+   connections you have at any one time.  Connections are pooled, so
+   opening a connection is inexpensive.
 
 .. [#amongst] https://www.youtube.com/watch?v=7WJXHY2OXGE
 
