@@ -34,11 +34,15 @@ def tearDown(test):
 def test_suite():
     here = os.path.dirname(__file__)
     guide = join(here, '..', 'documentation', 'guide')
+    reference = join(here, '..', 'documentation', 'reference')
 
     return unittest.TestSuite((
         manuel.testing.TestSuite(
             manuel.doctest.Manuel() + manuel.capture.Manuel(),
             join(guide, 'writing-persistent-objects.rst'),
+            join(guide, 'install-and-run.rst'),
+            join(reference, 'zodb.rst'),
+            join(reference, 'storages.rst'),
             setUp=setUp, tearDown=tearDown,
             ),
         ))

@@ -198,6 +198,7 @@ Learning more
 
    documentation/tutorial
    documentation/guide/index
+   documentation/reference/index
    documentation/articles/index
 
 * `The ZODB Book (in progress) <http://zodb.readthedocs.org/en/latest/>`_ 

@@ -12,7 +12,11 @@ If you haven't yet, you should read the :ref:`Tutorial <tutorial-label>`.
 .. toctree::
    :maxdepth: 2
 
+   install-and-run
    writing-persistent-objects.rst
+
+.. todo:
+
    transaction.rst
    storages.rst
    configuration.rst
