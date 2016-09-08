@@ -78,9 +78,13 @@ def className(obj):
              IPersistentDataManager,
              ISynchronizer)
 class Connection(ExportImport, object):
-    """Connection to ZODB for loading and storing objects."""
+    """Connection to ZODB for loading and storing objects.
 
-
+    Connections manage object state in collaboration with transaction
+    managers.  They're created by calling the
+    :meth:`~ZODB.DB.open` method on :py:class:`database
+    <ZODB.DB>` objects.
+    """
 
     _code_timestamp = 0
 

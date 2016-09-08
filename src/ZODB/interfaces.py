@@ -437,7 +437,6 @@ class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
 
     Consistency and locking
-    -----------------------
 
     When transactions are committed, a storage assigns monotonically
     increasing transaction identifiers (tids) to the transactions and
@@ -472,6 +471,9 @@ class IStorage(Interface):
 
         Finalize the storage, releasing any external resources.  The
         storage should not be used after this method is called.
+
+        Note that databses close their storages when they're closed, so
+        this method isn't generally called from application code.
         """
 
     def getName():

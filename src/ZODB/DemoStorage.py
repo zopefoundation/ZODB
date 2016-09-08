@@ -40,10 +40,52 @@ from .utils import load_current, maxtid
         ZODB.interfaces.IStorageIteration,
         )
 class DemoStorage(ConflictResolvingStorage):
+    """A storage that stores changes against a read-only base database
 
+    This storage was originally meant to support distribution of
+    application demonstrations with populated read-only databases (on
+    CDROM) and writable in-memory databases.
+
+    Demo storages are extemely convenient for testing where setup of a
+    base database can be shared by many tests.
+
+    Demo storages are also handy for staging appplications where a
+    read-only snapshot of a production database (often accomplished
+    using a `beforestorage
+    <https://pypi.python.org/pypi/zc.beforestorage>`_) is combined
+    with a changes database implemented with a
+    :class:`~ZODB.FileStorage.FileStorage.FileStorage`.
+    """
 
     def __init__(self, name=None, base=None, changes=None,
                  close_base_on_close=None, close_changes_on_close=None):
+        """Create a demo storage
+
+        :param str name: The storage name used by the
+            :meth:`~ZODB.interfaces.IStorage.getName` and
+            :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+        :param object base: base storage
+        :param object changes: changes storage
+        :param bool close_base_on_close: A Flag indicating whether the base
+           database should be closed when the demo storage is closed.
+        :param bool close_changes_on_close: A Flag indicating whether the
+           changes database should be closed when the demo storage is closed.
+
+        If a base database isn't provided, a
+        :class:`~ZODB.MappingStorage.MappingStorage` will be
+        constructed and used.
+
+        If ``close_base_on_close`` isn't specified, it will be ``True`` if
+        a base database was provided and ``False`` otherwise.
+
+        If a changes database isn't provided, a
+        :class:`~ZODB.MappingStorage.MappingStorage` will be
+        constructed and used and blob support will be provided using a
+        temporary blob directory.
+
+        If ``close_changes_on_close`` isn't specified, it will be ``True`` if
+        a changes database was provided and ``False`` otherwise.
+        """
 
         if close_base_on_close is None:
             if base is None:
@@ -51,6 +93,8 @@ class DemoStorage(ConflictResolvingStorage):
                 close_base_on_close = False
             else:
                 close_base_on_close = True
+        elif base is None:
+            base = ZODB.MappingStorage.MappingStorage()
 
         self.base = base
         self.close_base_on_close = close_base_on_close
@@ -285,10 +329,17 @@ class DemoStorage(ConflictResolvingStorage):
             raise
 
     def pop(self):
+        """Close the changes database and return the base.
+        """
         self.changes.close()
         return self.base
 
     def push(self, changes=None):
+        """Create a new demo storage using the storage as a base.
+
+        The given changes are used as the changes for the returned
+        storage and ``False`` is passed as ``close_base_on_close``.
+        """
         return self.__class__(base=self, changes=changes,
                               close_base_on_close=False)
 

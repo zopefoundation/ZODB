@@ -18,7 +18,7 @@
       <description>
         If supplied, the file storage will provide blob support and this
         is the name of a directory to hold blob data.  The directory will
-        be created if it doeesn't exist.  If no value (or an empty value)
+        be created if it doesn't exist.  If no value (or an empty value)
         is provided, then no blob support will be provided. (You can still
         use a BlobStorage to provide blob support.)
       </description>
@@ -69,7 +69,13 @@
 
   <sectiontype name="mappingstorage" datatype=".MappingStorage"
                implements="ZODB.storage">
-    <key name="name" default="Mapping Storage"/>
+    <key name="name" default="Mapping Storage">
+      <description>
+        The storage name, used by the
+        :meth:`~ZODB.interfaces.IStorage.getName` and
+        :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+      </description>
+    </key>
   </sectiontype>
 
   <!-- The BDB storages probably need to be revised somewhat still.
@@ -187,14 +193,14 @@
     <key name="read-only-fallback" datatype="boolean" default="off">
       <description>
         A flag indicating whether a read-only remote storage should be
-        acceptable as a fallback when no writable storages are
+        acceptable as a fall-back when no writable storages are
         available.  Defaults to false.  At most one of read_only and
         read_only_fallback should be true.
       </description>
     </key>
     <key name="username" required="no">
       <description>
-        The authentication username of the server.
+        The authentication user name of the server.
       </description>
     </key>
     <key name="password" required="no">
@@ -205,7 +211,7 @@
     <key name="realm" required="no">
       <description>
         The authentication realm of the server.  Some authentication
-        schemes use a realm to identify the logic set of usernames
+        schemes use a realm to identify the logic set of user names
         that are accepted by this server.
       </description>
     </key>
@@ -225,7 +231,13 @@
 
   <sectiontype name="demostorage" datatype=".DemoStorage"
                implements="ZODB.storage">
-    <key name="name" />
+    <key name="name">
+      <description>
+        The storage name, used by the
+        :meth:`~ZODB.interfaces.IStorage.getName` and
+        :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+      </description>
+    </key>
     <multisection type="ZODB.storage" name="*" attribute="factories" />
   </sectiontype>
 
@@ -233,11 +245,12 @@
   <sectiontype name="zodb" datatype=".ZODBDatabase"
                implements="ZODB.database">
     <section type="ZODB.storage" name="*" attribute="storage"/>
-    <key name="cache-size" datatype="integer" default="5000"/>
+    <key name="cache-size" datatype="integer" default="5000">
       <description>
         Target size, in number of objects, of each connection's
         object cache.
       </description>
+    </key>
     <key name="cache-size-bytes" datatype="byte-size" default="0">
       <description>
         Target size, in total estimated size for objects, of each connection's
@@ -245,8 +258,14 @@
         "0" means no limit.
       </description>
     </key>
-    <key name="large-record-size" datatype="byte-size" />
-    <key name="pool-size" datatype="integer" default="7"/>
+    <key name="large-record-size" datatype="byte-size" default="16MB">
+      <description>
+        When object records are saved
+        that are larger than this, a warning is issued,
+        suggesting that blobs should be used instead.
+      </description>
+    </key>
+    <key name="pool-size" datatype="integer" default="7">
       <description>
         The expected maximum number of simultaneously open connections.
         There is no hard limit (as many connections as are requested
@@ -255,21 +274,25 @@
         and exceeding twice pool-size connections causes a critical
         message to be logged.
       </description>
-    <key name="pool-timeout" datatype="time-interval"/>
+    </key>
+    <key name="pool-timeout" datatype="time-interval">
       <description>
         The minimum interval that an unused (non-historical)
         connection should be kept.
       </description>
-    <key name="historical-pool-size" datatype="integer" default="3"/>
+    </key>
+    <key name="historical-pool-size" datatype="integer" default="3">
       <description>
         The expected maximum total number of historical connections
         simultaneously open.
       </description>
-    <key name="historical-cache-size" datatype="integer" default="1000"/>
+    </key>
+    <key name="historical-cache-size" datatype="integer" default="1000">
       <description>
         Target size, in number of objects, of each historical connection's
         object cache.
       </description>
+    </key>
     <key name="historical-cache-size-bytes" datatype="byte-size" default="0">
       <description>
         Target size, in total estimated size of objects, of each historical connection's
@@ -285,12 +308,12 @@
     </key>
     <key name="database-name">
       <description>
-        When multidatabases are in use, this is the name given to this
+        When multi-databases are in use, this is the name given to this
         database in the collection.  The name must be unique across all
         databases in the collection.  The collection must also be given
         a mapping from its databases' names to their databases, but that
         cannot be specified in a ZODB config file.  Applications using
-        multidatabases typical supply a way to configure the mapping in
+        multi-databases typical supply a way to configure the mapping in
         their own config files, using the "databases" parameter of a DB
         constructor.
       </description>

@@ -16,18 +16,27 @@ import zope.interface
 class IFileStoragePacker(zope.interface.Interface):
 
     def __call__(storage, referencesf, stop, gc):
-        """Pack the file storage into a new file
+        r"""Pack the file storage into a new file
+
+        :param FileStorage storage: The storage object to be packed
+        :param callable referencesf: A function that extracts object
+            references from a pickle bytes string.  This is usually
+            ``ZODB.serialize.referencesf``.
+        :param bytes stop: A transaction id representing the time at
+            which to stop packing.
+        :param bool gc: A flag indicating whether garbage collection
+            should be performed.
 
         The new file will have the same name as the old file with
-        '.pack' appended. (The packer can get the old file name via
+        ``.pack`` appended. (The packer can get the old file name via
         storage._file.name.) If blobs are supported, if the storages
         blob_dir attribute is not None or empty, then a .removed file
-        most be created in the blob directory. This file contains of
-        the form:
+        must be created in the blob directory. This file contains records of
+        the form::
 
            (oid+serial).encode('hex')+'\n'
 
-        or, of the form:
+        or, of the form::
 
            oid.encode('hex')+'\n'
 
