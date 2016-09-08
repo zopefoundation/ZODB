@@ -22,6 +22,7 @@ install:
 script:
     - zope-testrunner -u --test-path=src --auto-color --auto-progress
     - zope-testrunner -f --test-path=src --auto-color --auto-progress
+    - cd doc; make html
 notifications:
     email: false
 # cache: pip seems not to work if `install` is replaced (https://github.com/travis-ci/travis-ci/issues/3239)
