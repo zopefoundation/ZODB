@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from os.path import join
 import os
 import doctest
 import unittest
@@ -19,10 +20,9 @@ import manuel.doctest
 import manuel.testing
 import zope.testing.module
 
-from os.path import join
+import ZODB
 
 def setUp(test):
-    import ZODB
     test.globs.update(
         ZODB=ZODB,
         )
@@ -32,9 +32,11 @@ def tearDown(test):
     zope.testing.module.tearDown(test)
 
 def test_suite():
-    here = os.path.dirname(__file__)
-    guide = join(here, '..', 'documentation', 'guide')
-    reference = join(here, '..', 'documentation', 'reference')
+    base, src = os.path.split(os.path.dirname(os.path.dirname(ZODB.__file__)))
+    assert src == 'src'
+    base = join(base, 'doc')
+    guide = join(base, 'guide')
+    reference = join(base, 'reference')
 
     return unittest.TestSuite((
         manuel.testing.TestSuite(

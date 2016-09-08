@@ -14,7 +14,7 @@ Because ZODB is an object database:
 
 - almost no seam between code and database.
 
-Check out the :doc:`documentation/tutorial`!
+Check out the :doc:`tutorial`!
 
 Transactions
 ============
@@ -196,10 +196,10 @@ Learning more
 .. toctree::
    :maxdepth: 1
 
-   documentation/tutorial
-   documentation/guide/index
-   documentation/reference/index
-   documentation/articles/index
+   tutorial
+   guide/index
+   reference/index
+   articles/index
 
 * `The ZODB Book (in progress) <http://zodb.readthedocs.org/en/latest/>`_ 
 
