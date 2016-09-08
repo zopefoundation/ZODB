@@ -2,3 +2,4 @@ Sphinx
 docutils
 ZODB
 j1m.sphinxautointerface
+j1m.sphinxautozconfig
