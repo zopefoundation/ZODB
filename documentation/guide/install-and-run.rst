@@ -111,6 +111,15 @@ To create a database from a string, use
 To load databases from file names or URLs, use
 :func:`ZODB.config.databaseFromURL`.
 
+URI-based configuration
+-----------------------
+
+Another database configuration option is provided by the `zodburi
+<https://pypi.python.org/pypi/zodburi>`_ package. See:
+http://docs.pylonsproject.org/projects/zodburi.  It's less powerful
+than the Python or text configuration options, but allows
+configuration to be reduced to a single URI and handles most cases.
+
 Using databases: connections
 ============================
 
