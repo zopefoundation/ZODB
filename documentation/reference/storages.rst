@@ -1,6 +1,6 @@
-============
+=============
 Storage APIs
-============
+=============
 
 .. contents::
 
@@ -189,3 +189,11 @@ beforestorage
   production database for use with a :class:`~ZODB.DemoStorage.DemoStorage`.
 
   For more imformation, see https://pypi.python.org/pypi/zc.beforestorage.
+
+cipher.encryptingstorage
+  `cipher.encryptingstorage
+  <https://pypi.python.org/pypi/cipher.encryptingstorage/>`_ provided
+  compression and encryption of database records.
+
+  For more informayion see,
+  https://pypi.python.org/pypi/cipher.encryptingstorage/.
