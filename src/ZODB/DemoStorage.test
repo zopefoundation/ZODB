@@ -286,6 +286,36 @@ storage wrapped around it when necessary:
 
     >>> db.close()
 
+This works even if we first write a blob rather than read a blob:
+
+    >>> base = ZODB.blob.BlobStorage('base',
+    ...                               FileStorage('base.fs', read_only=True))
+    >>> storage = DemoStorage(base=base)
+
+    >>> type(storage.changes).__name__
+    'MappingStorage'
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob'] = ZODB.blob.Blob()
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     _ = file.write(b'state 2')
+    >>> transaction.commit()
+
+    >>> type(storage.changes).__name__
+    'BlobStorage'
+
+    >>> with conn.root()['blob'].open() as fp: fp.read()
+    'state 2'
+
+    >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
+    True
+
+    >>> db.close()
+
+
 .. Check that the temporary directory is gone
 
    For now, it won't go until the storage does.
