@@ -64,7 +64,7 @@ To set up a database with Python, you'll construct a storage using the
 storage to the :class:`~ZODB.DB` class to create a database, as shown
 in the examples in the previous section.
 
-The :class:`~ZODB.DB` class also accepts a string path name as it's
+The :class:`~ZODB.DB` class also accepts a string path name as its
 storage argument to automatically create a file storage.  You can also
 pass ``None`` as the storage to automatically use a
 :class:`~ZODB.MappingStorage.MappingStorage`, which is convenient when
@@ -80,7 +80,7 @@ similar to Apache configuration files.  The syntax was chosen to be
 familiar to site administrators.
 
 ZODB's text configuration uses `ZConfig
-<https://pypi.python.org/pypi/ZConfig/3.1.0>`_. You can use ZConfig to
+<https://pypi.python.org/pypi/ZConfig>`_. You can use ZConfig to
 create your application's configuration, but it's more common to
 include ZODB configuration strings in their own files or embedded in
 simpler configuration files, such as `configarser
@@ -137,7 +137,8 @@ db.open()
    If changes are made, the application :ref:`commits transactions
    <commit-transactions>` to make them permanent.
 
-db.transaction() The database :meth:`~ZODB.DB.transaction` method
+db.transaction()
+   The database :meth:`~ZODB.DB.transaction` method
    returns a context manager that can be used with the `python with
    statement
    <https://docs.python.org/3/reference/compound_stmts.html#grammar-token-with_stmt>`_
@@ -168,11 +169,11 @@ Getting objects
 ---------------
 
 Once you have a connection, you access objects by traversing the
-object graph form the root object.
+object graph from the root object.
 
 The database root object is a mapping object that holds the top level
 objects in the database.  There should only be a small number of
-top-level (often only one).  You can get the root object by calling a
+top-level objects (often only one).  You can get the root object by calling a
 connection's ``root`` attribute::
 
     >>> root = conn.root()
@@ -187,7 +188,7 @@ objects by accessing attributes of the connection root object:
     >>> conn.root.foo
     1
 
-Once you have a top-level object, you use it's methods, attributes, or
+Once you have a top-level object, you use its methods, attributes, or
 operations to access other objects and so on to get the objects you
 need.  Often indexing data structures like BTrees_ are used to
 make it possible to search objects in large collections.
