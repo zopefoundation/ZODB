@@ -10,6 +10,8 @@ python:
 install:
     - pip install zc.buildout
     - buildout
+script:
+    - bin/test -v1j99
     - cd doc; make html
 notifications:
     email: false
