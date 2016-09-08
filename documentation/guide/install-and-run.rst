@@ -1,4 +1,4 @@
-===========================
+==========================
 Installing and running ZODB
 ===========================
 
@@ -54,8 +54,7 @@ we want to save space, we could layer a ``ZlibStorage``
     db = ZODB.DB(compressed_storage)
 
 `ZlibStorage <https://pypi.python.org/pypi/zc.zlibstorage>`_
-compresses database records using the compression algorithm used by
-`gzip <http://www.gzip.org/>`_.
+compresses database records [#zlib]_.
 
 Python configuration
 --------------------
@@ -196,6 +195,9 @@ make it possible to search objects in large collections.
 .. [#zlibstoragefn] `zc.zlibstorage
    <https://pypi.python.org/pypi/zc.zlibstorage>`_ is an optional
    package that you need to install separately.
+
+.. [#zlib] ZlibStorage uses the :mod:`zlib` standard module, which
+   uses the `zlib library <http://www.zlib.net/>`_.
 
 .. [#caches-are-expensive] ZODB can be very efficient at caching data
    in memory, especially if your `working set
