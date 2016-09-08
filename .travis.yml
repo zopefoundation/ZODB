@@ -1,15 +1,23 @@
 language: python
 sudo: false
-python:
-    - pypy
-    - pypy3
-    - 2.7
-    - 3.3
-    - 3.4
-    - 3.5
+matrix:
+    include:
+        - os: linux
+          python: pypy
+        - os: linux
+          python: pypy3
+          env: BUILOUT_OPTIONS=sphinx:eggs=
+        - os: linux
+          python: 2.7
+        - os: linux
+          python: 3.3
+        - os: linux
+          python: 3.4
+        - os: linux
+          python: 3.5
 install:
     - pip install zc.buildout
-    - buildout
+    - buildout $BUILOUT_OPTIONS
 script:
     - bin/test -v1j99
     - if [[ $TRAVIS_PYTHON_VERSION != 'pypy3' ]]; then cd doc; make html; fi
