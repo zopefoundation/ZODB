@@ -1,9 +1,0 @@
-language: python
-install:
-    - python bootstrap.py
-    - bin/buildout
-script:
-    - make html
-    - bin/test -v1
-notifications:
-    email: false
