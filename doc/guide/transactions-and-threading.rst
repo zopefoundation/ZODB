@@ -320,12 +320,12 @@ transaction::
       savepoint.rollback()
 
   with db.transaction() as conn:
-      print(conn.root.x, conn.root.y) # prints 1 0
+      print([conn.root.x, conn.root.y]) # prints 1 0
 
 .. -> src
 
    >>> exec(src)
-   1 0
+   [1, 0]
 
 If we executed this code, it would print 1 and 0, because while the
 initial changes were committed, the changes in the savepoint were
