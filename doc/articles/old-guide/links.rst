@@ -1,0 +1,17 @@
+.. % links.tex
+.. % Collection of relevant links
+
+
+Resources
+=========
+
+Introduction to the Zope Object Database, by Jim Fulton:  ---  Goes into much
+greater detail, explaining advanced uses of the ZODB and  how it's actually
+implemented.  A definitive reference, and highly recommended.  ---
+`<http://www.python.org/workshops/2000-01/proceedings/papers/fulton/zodb3.html>`_
+
+Persistent Programing with ZODB, by Jeremy Hylton and Barry Warsaw:  ---  Slides
+for a tutorial presented at the 10th Python conference.  Covers much of the same
+ground as this guide, with more details in some areas and less in others.  ---
+`<http://www.zope.org/Members/bwarsaw/ipc10-slides>`_
+

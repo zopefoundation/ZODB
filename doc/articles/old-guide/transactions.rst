@@ -1,0 +1,188 @@
+.. % Transactions and Versioning
+.. % Committing and Aborting
+.. % Subtransactions
+.. % Undoing
+.. % Versions
+.. % Multithreaded ZODB Programs
+
+
+Transactions and Versioning
+===========================
+
+
+Committing and Aborting
+-----------------------
+
+Changes made during a transaction don't appear in the database until the
+transaction commits.  This is done by calling the :meth:`commit` method of the
+current :class:`Transaction` object, where the latter is obtained from the
+:meth:`get` method of the current transaction manager.  If the default thread
+transaction manager is being used, then ``transaction.commit()`` suffices.
+
+Similarly, a transaction can be explicitly aborted (all changes within the
+transaction thrown away) by invoking the :meth:`abort` method of the current
+:class:`Transaction` object, or simply ``transaction.abort()`` if using the
+default thread transaction manager.
+
+Prior to ZODB 3.3, if a commit failed (meaning the ``commit()`` call raised an
+exception), the transaction was implicitly aborted and a new transaction was
+implicitly started.  This could be very surprising if the exception was
+suppressed, and especially if the failing commit was one in a sequence of
+subtransaction commits.
+
+So, starting with ZODB 3.3, if a commit fails, all further attempts to commit,
+join, or register with the transaction raise
+:exc:`ZODB.POSException.TransactionFailedError`.  You must explicitly start a
+new transaction then, either by calling the :meth:`abort` method of the current
+transaction, or by calling the :meth:`begin` method of the current transaction's
+transaction manager.
+
+
+Subtransactions
+---------------
+
+Subtransactions can be created within a transaction.  Each subtransaction can be
+individually committed and aborted, but the changes within a subtransaction are
+not truly committed until the containing transaction is committed.
+
+The primary purpose of subtransactions is to decrease the memory usage of
+transactions that touch a very large number of objects.  Consider a transaction
+during which 200,000 objects are modified.  All the objects that are modified in
+a single transaction have to remain in memory until the transaction is
+committed, because the ZODB can't discard them from the object cache.  This can
+potentially make the memory usage quite large.  With subtransactions, a commit
+can be be performed at intervals, say, every 10,000 objects.  Those 10,000
+objects are then written to permanent storage and can be purged from the cache
+to free more space.
+
+To commit a subtransaction instead of a full transaction, pass a true value to
+the :meth:`commit` or :meth:`abort` method of the :class:`Transaction` object.
+::
+
+   # Commit a subtransaction
+   transaction.commit(True)
+
+   # Abort a subtransaction
+   transaction.abort(True)
+
+A new subtransaction is automatically started upon successful committing or
+aborting the previous subtransaction.
+
+
+Undoing Changes
+---------------
+
+Some types of :class:`Storage` support undoing a transaction even after it's
+been committed.  You can tell if this is the case by calling the
+:meth:`supportsUndo` method of the :class:`DB` instance, which returns true if
+the underlying storage supports undo.  Alternatively you can call the
+:meth:`supportsUndo` method on the underlying storage instance.
+
+If a database supports undo, then the :meth:`undoLog(start, end[, func])` method
+on the :class:`DB` instance returns the log of past transactions, returning
+transactions between the times *start* and *end*, measured in seconds from the
+epoch. If present, *func* is a function that acts as a filter on the
+transactions to be returned; it's passed a dictionary representing each
+transaction, and only transactions for which *func* returns true will be
+included in the list of transactions returned to the caller of :meth:`undoLog`.
+The dictionary contains keys for various properties of the transaction.  The
+most important keys are ``id``, for the transaction ID, and ``time``, for the
+time at which the transaction was committed. ::
+
+   >>> print storage.undoLog(0, sys.maxint)
+   [{'description': '',
+     'id': 'AzpGEGqU/0QAAAAAAAAGMA',
+     'time': 981126744.98,
+     'user_name': ''},
+    {'description': '',
+     'id': 'AzpGC/hUOKoAAAAAAAAFDQ',
+     'time': 981126478.202,
+     'user_name': ''}
+     ...
+
+To store a description and a user name on a commit, get the current transaction
+and call the :meth:`note(text)` method to store a description, and the
+:meth:`setUser(user_name)` method to store the user name. While :meth:`setUser`
+overwrites the current user name and replaces it with the new value, the
+:meth:`note` method always adds the text to the transaction's description, so it
+can be called several times to log several different changes made in the course
+of a single transaction. ::
+
+   transaction.get().setUser('amk')
+   transaction.get().note('Change ownership')
+
+To undo a transaction, call the :meth:`DB.undo(id)` method, passing it the ID of
+the transaction to undo.  If the transaction can't be undone, a
+:exc:`ZODB.POSException.UndoError` exception will be raised, with the message
+"non-undoable transaction".  Usually this will happen because later transactions
+modified the objects affected by the transaction you're trying to undo.
+
+After you call :meth:`undo` you must commit the transaction for the undo to
+actually be applied.  [#]_  There is one glitch in the undo process.  The thread
+that calls undo may not see the changes to the object until it calls
+:meth:`Connection.sync` or commits another transaction.
+
+
+Versions
+--------
+
+.. warning::
+
+   Versions should be avoided.  They're going to be deprecated, replaced by better
+   approaches to long-running transactions.
+
+While many subtransactions can be contained within a single regular transaction,
+it's also possible to contain many regular transactions within a long-running
+transaction, called a version in ZODB terminology.  Inside a version, any number
+of transactions can be created and committed or rolled back, but the changes
+within a version are not made visible to other connections to the same ZODB.
+
+Not all storages support versions, but you can test for versioning ability by
+calling :meth:`supportsVersions` method of the :class:`DB` instance, which
+returns true if the underlying storage supports versioning.
+
+A version can be selected when creating the :class:`Connection` instance using
+the :meth:`DB.open([*version*])` method. The *version* argument must be a string
+that will be used as the name of the version. ::
+
+   vers_conn = db.open(version='Working version')
+
+Transactions can then be committed and aborted using this versioned connection.
+Other connections that don't specify a version, or provide a different version
+name, will not see changes committed within the version named ``Working
+version``.  To commit or abort a version, which will either make the changes
+visible to all clients or roll them back, call the :meth:`DB.commitVersion` or
+:meth:`DB.abortVersion` methods. XXX what are the source and dest arguments for?
+
+The ZODB makes no attempt to reconcile changes between different versions.
+Instead, the first version which modifies an object will gain a lock on that
+object.  Attempting to modify the object from a different version or from an
+unversioned connection will cause a :exc:`ZODB.POSException.VersionLockError` to
+be raised::
+
+   from ZODB.POSException import VersionLockError
+
+   try:
+       transaction.commit()
+   except VersionLockError, (obj_id, version):
+       print ('Cannot commit; object %s '
+              'locked by version %s' % (obj_id, version))
+
+The exception provides the ID of the locked object, and the name of the version
+having a lock on it.
+
+
+Multithreaded ZODB Programs
+---------------------------
+
+ZODB databases can be accessed from multithreaded Python programs. The
+:class:`Storage` and :class:`DB` instances can be shared among several threads,
+as long as individual :class:`Connection` instances are created for each thread.
+
+.. rubric:: Footnotes
+
+.. [#] There are actually two different ways a storage can implement the undo feature.
+   Most of the storages that ship with ZODB use the transactional form of undo
+   described in the main text.  Some storages may use a non-transactional undo
+   makes changes visible immediately.
+
