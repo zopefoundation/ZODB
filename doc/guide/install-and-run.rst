@@ -128,6 +128,8 @@ much of anything.  Connections take care of loading and saving objects
 and manage object caches. Each connection has it's own cache
 [#caches-are-expensive]_.
 
+.. _getting-connections:
+
 Getting connections
 -------------------
 
@@ -144,7 +146,7 @@ db.open()
    done using the connection.
 
    If changes are made, the application :ref:`commits transactions
-   <commit-transactions>` to make them permanent.
+   <using-transactions-label>` to make them permanent.
 
 db.transaction()
    The database :meth:`~ZODB.DB.transaction` method

@@ -50,6 +50,8 @@ import six
 
 from .mvccadapter import HistoricalStorageAdapter
 
+from . import valuedoc
+
 global_reset_counter = 0
 
 noop = lambda : None
@@ -87,6 +89,9 @@ class Connection(ExportImport, object):
     """
 
     _code_timestamp = 0
+
+    #: Transaction manager associated with the connection when it was opened.
+    transaction_manager = valuedoc.ValueDoc('current transaction manager')
 
     ##########################################################################
     # Connection methods, ZODB.IConnection

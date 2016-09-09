@@ -14,13 +14,11 @@ If you haven't yet, you should read the :ref:`Tutorial <tutorial-label>`.
 
    install-and-run
    writing-persistent-objects.rst
+   transactions-and-threading
 
 .. todo:
 
-   transaction.rst
-   storages.rst
-   configuration.rst
-   threading.rst
-   packing-and-garbage-collection.rst
-   blobs.rst
-   multi-databases.rst
+   blobs
+   packing-and-garbage-collection
+   multi-databases
+   blobs

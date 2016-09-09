@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.0.1 (unreleased)
+5.0.1 (2016-09-09)
 ==================
 
 - Fix an AttributeError that DemoStorage could raise if it was asked
@@ -11,6 +11,8 @@
 
 - Call _p_resolveConflict() even if a conflicting change doesn't change the
   state. This reverts to the behaviour of 3.10.3 and older.
+
+- Many docstrings have been improved.
 
 5.0.0 (2016-09-06)
 ==================
