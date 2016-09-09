@@ -269,13 +269,6 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         if not committedData:
             committedData  = self.loadSerial(oid, committedSerial)
 
-        if newpickle == oldData:
-            # old -> new diff is empty, so merge is trivial
-            return committedData
-        if committedData == oldData:
-            # old -> committed diff is empty, so merge is trivial
-            return newpickle
-
         newstate = unpickler.load()
         old       = state(self, oid, oldSerial, prfactory, oldData)
         committed = state(self, oid, committedSerial, prfactory, committedData)

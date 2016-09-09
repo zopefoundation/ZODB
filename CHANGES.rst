@@ -9,6 +9,9 @@
   to store a blob into a temporary changes before reading a blob. See
   `issue 103 <https://github.com/zopefoundation/ZODB/issues/103>`_.
 
+- Call _p_resolveConflict() even if a conflicting change doesn't change the
+  state. This reverts to the behaviour of 3.10.3 and older.
+
 5.0.0 (2016-09-06)
 ==================
 
