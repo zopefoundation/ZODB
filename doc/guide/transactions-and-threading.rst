@@ -6,7 +6,7 @@ Transactions and concurrency
 
 `Transactions <https://en.wikipedia.org/wiki/Database_transaction>`_
 are a core feature of ZODB.  Much has been written about transactions,
-and we won't go into much detail here.  Transactions provide 2 core
+and we won't go into much detail here.  Transactions provide two core
 benefits:
 
 Atomicity
@@ -21,7 +21,7 @@ Concurrency
   Transactions provide a way of managing concurrent updates to data.
   Different programs operate on the data independently, without having
   to use low-level techniques to moderate their access. Coordination
-  and synchronization happens via transactions.
+  and synchronization happen via transactions.
 
 
 .. _using-transactions-label:
@@ -51,7 +51,7 @@ If we decide we don't want to commit a transaction, we can use
 ``abort``::
 
   conn.root.x = 2
-  transaction.abort()
+  transaction.abort() # conn.root.x goes back to 1
 
 .. -> src
 
@@ -68,8 +68,8 @@ explanation.  When using transactions, there are three kinds of
 objects involved:
 
 Transaction
-   Transactions represent units of work.  They have beginnings and
-   ends. They provide the
+   Transactions represent units of work.  Each transaction has a beginning and
+   an end. Transaction provide the
    :interface:`~transaction.interfaces.ITransaction` interface.
 
 Transaction manager
@@ -83,7 +83,7 @@ Transaction manager
 Data manager
    Data managers manage data associated with transactions.  ZODB
    connections are data managers.  The details of how they interact
-   with transactions isn't important here.
+   with transactions aren't important here.
 
 Explicit transaction managers
 -----------------------------
@@ -91,7 +91,7 @@ Explicit transaction managers
 ZODB connections have transaction managers associated with them when
 they're opened. When we call the database :meth:`~ZODB.DB.open` method
 without an argument, a thread-local transaction manager is used. Each
-thread has it's own transaction manager.  When we called
+thread has its own transaction manager.  When we called
 ``transaction.commit()`` above we were calling commit on the
 thread-local transaction manager.
 
@@ -99,15 +99,16 @@ Because we used a thread-local transaction manager, all of the work in
 the transaction needs to happen in the same thread.  Similarly, only
 one transaction can be active in a thread.
 
-If we want to have transactions who's work is spread over multiple
-threads, or if we wanted to run multiple simultaneous transactions in
-a single thread, then we can create transaction managers ourselves and
-pass them to :meth:`~ZODB.DB.open`::
+If we want to run multiple simultaneous transactions in a single
+thread, or if we want to spread the work of a transaction over
+multiple threads [#bad-idea-using-multiple-threads-per-transaction]_,
+then we can create transaction managers ourselves and pass them to
+:meth:`~ZODB.DB.open`::
 
-  tm = transaction.TransactionManager()
-  conn = db.open(tm)
+  my_transaction_manager = transaction.TransactionManager()
+  conn = db.open(my_transaction_manager)
   conn.root.x = 2
-  tm.commit()
+  my_transaction_manager.commit()
 
 .. -> src
 
@@ -116,17 +117,17 @@ pass them to :meth:`~ZODB.DB.open`::
 In this example, to commit our work, we called ``commit()`` on the
 transaction manager we created and passed to :meth:`~ZODB.DB.open`.
 
-context managers
+Context managers
 ----------------
 
 In the examples above, the transaction beginnings were
-implicit. Transaction's were effectively
+implicit. Transactions were effectively
 [#implicit-transaction-creation]_ created when the transaction
 managers were created and when previous transactions were committed.
 We can create transactions explicitly using
 :meth:`~transaction.interfaces.ITransactionManager.begin`::
 
-  tm.begin()
+  my_transaction_manager.begin()
 
 .. -> src
 
@@ -137,7 +138,7 @@ boundaries is to use context managers and the Python ``with``
 statement. Transaction managers are context managers, so we can use
 them with the ``with`` statement directly::
 
-  with tm as trans:
+  with my_transaction_manager as trans:
      trans.note("incrementing x")
      conn.root.x += 1
 
@@ -209,7 +210,7 @@ This is because it's still in the same transaction that was implicitly
 begun when a change was last committed against it.  If we want to see
 changes, we have to begin a new transaction:
 
-  >>> trans = tm.begin()
+  >>> trans = my_transaction_manager.begin()
   >>> conn.root.x
   5
 
@@ -232,7 +233,7 @@ connections will get a conflict error when it tries to commit::
      conn2.root.x += 1
 
   conn.root.x = 9
-  tm.commit() # will raise a conflict error
+  my_transaction_manager.commit() # will raise a conflict error
 
 .. -> src
 
@@ -246,7 +247,7 @@ last line.  After a conflict error is raised, we'd need to abort the
 transaction, or begin a new one, at which point we'd see the data as
 written by the other connection:
 
-    >>> tm.abort()
+    >>> my_transaction_manager.abort()
     >>> conn.root.x
     6
 
@@ -260,25 +261,23 @@ This isn't always easy.
 
 Sometimes you may need to queue some operations that update shared
 data structures, like indexes, so the updates can be made by a
-dedicated thread or process.
+dedicated thread or process, without simultaneous updates.
 
 Conflict resolution
 ~~~~~~~~~~~~~~~~~~~
 
 ZODB provides a conflict-resolution framework for merging conflicting
-changes. This is implemented by `BTree
-<https://pythonhosted.org/BTrees/>`_ buckets and ``Length`` objects.
+changes.  Commonly used objects that implement conflict resolution are
+buckets and ``Length`` objects provided by the `BTree
+<https://pythonhosted.org/BTrees/>`_ package.
 
 The main data structures provided by BTrees: BTrees and TreeSets,
 spread their data over multiple objects.  The leaf-level objects,
 called *buckets* allow distinct keys to be updated without causing
 conflicts [#usually-avoids-conflicts]_.
 
-``Length`` objects are conflict key counters, that merge changes by
+``Length`` objects are conflict-free counters, that merge changes by
 simply accumulating changes.
-
-The use of BTree buckets, and to a lesser degree ``Length`` objects
-is a very common technique.
 
 .. caution::
    Conflict resolution weakens consistency.  Resist the temptation to
@@ -338,12 +337,12 @@ be freed if they aren't used later in the transaction.
 Concurrency, threads and processes
 ==================================
 
-ZODB supports concurrency through transactions.  Multiple programs can
-operate independently in separate transactions.  They synchronize at
-transaction boundaries.
+ZODB supports concurrency through transactions.  Multiple programs
+[#wtf-program]_ can operate independently in separate transactions.
+They synchronize at transaction boundaries.
 
 The most common way to run ZODB is with each program running in it's
-own thread.  Usually using the thread-local transaction manager is used.
+own thread.  Usually the thread-local transaction manager is used.
 
 You can use multiple threads per transaction and you can run multiple
 transactions in a single thread. To do this, you need to instantiate
@@ -356,7 +355,7 @@ To spread a transaction over multiple threads, you need to keep in
 mind that database connections, transaction managers and transactions
 are **not thread-safe**.  You have to prevent simultaneous access from
 multiple threads.  For this reason, **using multiple threads with a
-single connection is not recommended**, but it is possible with care.
+single transaction is not recommended**, but it is possible with care.
 
 Using multiple processes
 ------------------------
@@ -385,10 +384,18 @@ Some things to keep in mind when utilizing multiple processes:
    in some cases, especially of subsequent transactions
    haven't modified the same objects.
 
+.. [#bad-idea-using-multiple-threads-per-transaction] While it's
+   possible to spread transaction work over multiple threads, **it's
+   not a good idea**. See `Concurrency, threads and processes`_
+
 .. [#implicit-transaction-creation] Transactions are implicitly
    created when needed, such as when data are first modified.
 
 .. [#context-managers-are-new] ZODB and the transaction package
    predate context managers and the Python ``with`` statement.
+
+.. [#wtf-program] We're using *program* here in a fairly general
+   sense, meaning some logic that we want to run to
+   perform some function, as opposed to an operating system program.
 
 .. [#cant-share-now] at least not now.
