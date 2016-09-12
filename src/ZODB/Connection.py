@@ -290,7 +290,9 @@ class Connection(ExportImport, object):
 
         self._debug_info = ()
 
-        if self.opened:
+        if self.opened and self.transaction_manager is not None:
+            # transaction_manager could be None if one of the __onCloseCallbacks
+            # closed the DB already, .e.g, ZODB.connection() does this.
             self.transaction_manager.unregisterSynch(self)
 
         if primary:
@@ -312,6 +314,9 @@ class Connection(ExportImport, object):
         am = self._db._activity_monitor
         if am is not None:
             am.closedConnection(self)
+
+        # Drop transaction manager to release resources and help prevent errors
+        self.transaction_manager = None
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
@@ -906,6 +911,7 @@ class Connection(ExportImport, object):
                 c._storage.release()
             c._storage = c._normal_storage = None
             c._cache = PickleCache(self, 0, 0)
+            c.transaction_manager = None
 
     ##########################################################################
     # Python protocol
