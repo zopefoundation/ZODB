@@ -8,7 +8,7 @@ Storage interfaces
 ==================
 
 There are various storage implementations that implement standard
-storage interfaces. Thet differ primarily in their constructors.
+storage interfaces. They differ primarily in their constructors.
 
 Application code rarely calls storage methods, and those it calls are
 generally called indirectly through databases.  There are
@@ -144,7 +144,7 @@ Options:
 Noteworthy non-included storages
 ================================
 
-A number of important ZODB storages are distriubuted separately, including:
+A number of important ZODB storages are distributed separately, including:
 
 RelStorage
   `RelStorage <http://relstorage.readthedocs.io/en/latest/>`_
@@ -153,7 +153,7 @@ RelStorage
   storing data in relational databases.  Unlike the included storages,
   multiple processes can share the same database.
 
-  For more imformation, see http://relstorage.readthedocs.io/en/latest/.
+  For more information, see http://relstorage.readthedocs.io/en/latest/.
 
 ZEO
   `ZEO <https://github.com/zopefoundation/ZEO>`_ is a client-server
@@ -161,7 +161,7 @@ ZEO
   and use ZEO clients in your application.  Unlike the included
   storages, multiple processes can share the same database.
 
-  For more imformation, see https://github.com/zopefoundation/ZEO.
+  For more information, see https://github.com/zopefoundation/ZEO.
 
 ZRS
   `ZRS <https://github.com/zc/zrs>`_
@@ -173,14 +173,14 @@ ZRS
   committed on the primary, they're copied asynchronously to
   secondaries.
 
-  For more imformation, see https://github.com/zc/zrs.
+  For more information, see https://github.com/zc/zrs.
 
 zlibstorage
   `zlibstorage <https://pypi.python.org/pypi/zc.zlibstorage>`_
   compresses database records using the compression
   algorithm used by `gzip <http://www.gzip.org/>`_.
 
-  For more imformation, see https://pypi.python.org/pypi/zc.zlibstorage.
+  For more information, see https://pypi.python.org/pypi/zc.zlibstorage.
 
 beforestorage
   `beforestorage <https://pypi.python.org/pypi/zc.beforestorage>`_
@@ -188,12 +188,12 @@ beforestorage
   be changing.  This can be useful to provide a non-changing view of a
   production database for use with a :class:`~ZODB.DemoStorage.DemoStorage`.
 
-  For more imformation, see https://pypi.python.org/pypi/zc.beforestorage.
+  For more information, see https://pypi.python.org/pypi/zc.beforestorage.
 
 cipher.encryptingstorage
   `cipher.encryptingstorage
   <https://pypi.python.org/pypi/cipher.encryptingstorage/>`_ provided
   compression and encryption of database records.
 
-  For more informayion see,
+  For more information, see
   https://pypi.python.org/pypi/cipher.encryptingstorage/.

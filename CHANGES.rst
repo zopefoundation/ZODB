@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.0.1 (2016-09-09)
+5.0.1 (unreleased)
 ==================
 
 - Fix an AttributeError that DemoStorage could raise if it was asked
@@ -11,6 +11,11 @@
 
 - Call _p_resolveConflict() even if a conflicting change doesn't change the
   state. This reverts to the behaviour of 3.10.3 and older.
+
+- Closing a Connection now reverts its ``transaction_manager`` to
+  None. This helps prevent errors and release resources when the
+  ``transaction_manager`` was the (default) thread-local manager. See
+  `issue 114 <https://github.com/zopefoundation/ZODB/issues/114>`_.
 
 - Many docstrings have been improved.
 
