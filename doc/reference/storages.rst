@@ -152,6 +152,14 @@ Base storages
 Unlike the included storages, all the implementations listed in this section
 allow multiple processes to share the same database.
 
+NEO
+  `NEO <https://lab.nexedi.com/nexedi/neoppod>`_ can spread data among several
+  computers for load-balancing and multi-master replication. It also supports
+  asynchronous replication to off-site NEO databases for further disaster
+  resistance without affecting local operation latency.
+
+  For more information, see https://lab.nexedi.com/nexedi/neoppod.
+
 RelStorage
   `RelStorage <http://relstorage.readthedocs.io/en/latest/>`_
   stores data in relational databases.  This is especially
