@@ -637,7 +637,8 @@ class DB(object):
 
         @self._connectionMap
         def _(c):
-            c.transaction_manager.abort()
+            if c.transaction_manager is not None:
+                c.transaction_manager.abort()
             c.afterCompletion = c.newTransaction = c.close = noop
             c._release_resources()
 
