@@ -166,10 +166,10 @@ block as a transaction::
 
    >>> exec(src)
 
-This opens a connection, assignes it it's own context manager, and
+This opens a connection, assignes it its own context manager, and
 executes the nested code in a transaction.  We used ``as conn2`` to
-get the connection.  The transaction boundaries are defined ``with``
-statement.
+get the connection.  The transaction boundaries are defined by the
+``with`` statement.
 
 Getting a connection's transaction manager
 ------------------------------------------
@@ -272,7 +272,7 @@ something like this::
 
   max_attempts = 3
   attempts = 0
-  while 1:
+  while True:
       try:
           with transaction.manager:
               ... code that updates a database
@@ -311,7 +311,7 @@ transient errors.
 For applications like queue workers or `cron jobs
 <https://en.wikipedia.org/wiki/Cron>`_, conflicts can sometimes be
 allowed to fail, letting other queue workers or subsequent cron-job
-runs retry the work,
+runs retry the work.
 
 Conflict resolution
 ~~~~~~~~~~~~~~~~~~~
