@@ -17,6 +17,8 @@
   ``transaction_manager`` was the (default) thread-local manager. See
   `issue 114 <https://github.com/zopefoundation/ZODB/issues/114>`_.
 
+- Many docstrings have been improved.
+
 5.0.0 (2016-09-06)
 ==================
 

@@ -40,9 +40,12 @@ def test_suite():
 
     return unittest.TestSuite((
         manuel.testing.TestSuite(
-            manuel.doctest.Manuel() + manuel.capture.Manuel(),
+            manuel.doctest.Manuel(
+                optionflags=doctest.IGNORE_EXCEPTION_DETAIL,
+                ) + manuel.capture.Manuel(),
             join(guide, 'writing-persistent-objects.rst'),
             join(guide, 'install-and-run.rst'),
+            join(guide, 'transactions-and-threading.rst'),
             join(reference, 'zodb.rst'),
             join(reference, 'storages.rst'),
             setUp=setUp, tearDown=tearDown,

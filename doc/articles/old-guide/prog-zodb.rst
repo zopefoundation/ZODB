@@ -435,7 +435,7 @@ new schema.  This can be easy if your network of object references is quite
 structured, making it easy to find all the instances of the class being
 modified.  For example, if all :class:`User` objects can be found inside a
 single dictionary or BTree, then it would be a simple matter to loop over every
-:class:`User` instance with a :keyword:`for` statement. This is more difficult
+:class:`User` instance with a ``for`` statement. This is more difficult
 if your object graph is less structured; if :class:`User` objects can be found
 as attributes of any number of different class instances, then there's no longer
 any easy way to find them all, short of writing a generalized object traversal
