@@ -69,7 +69,7 @@ objects involved:
 
 Transaction
    Transactions represent units of work.  Each transaction has a beginning and
-   an end. Transaction provide the
+   an end. Transactions provide the
    :interface:`~transaction.interfaces.ITransaction` interface.
 
 Transaction manager
@@ -156,8 +156,8 @@ error.
 
 We used ``as trans`` above to get the transaction.
 
-Databases provide the :meth:`~ZODB.DB.transaction` to execute a code
-block in a transaction::
+Databases provide the :meth:`~ZODB.DB.transaction` method to execute a code
+block as a transaction::
 
   with db.transaction() as conn2:
      conn2.root.x += 1
@@ -166,10 +166,10 @@ block in a transaction::
 
    >>> exec(src)
 
-Here, when we used ``as``, we got a connection, not a transaction.
-This is because a new connection is opened by the
-:meth:`~ZODB.DB.transaction`` method.  A new transaction manager was
-used as well.
+This opens a connection, assignes it it's own context manager, and
+executes the nested code in a transaction.  We used ``as conn2`` to
+get the connection.  The transaction boundaries are defined ``with``
+statement.
 
 Getting a connection's transaction manager
 ------------------------------------------
@@ -206,9 +206,9 @@ same value for ``x`` that we set earlier:
   >>> conn.root.x
   3
 
-This is because it's still in the same transaction that was implicitly
-begun when a change was last committed against it.  If we want to see
-changes, we have to begin a new transaction:
+This is because it's still in the same transaction that was begun when
+a change was last committed against it.  If we want to see changes, we
+have to begin a new transaction:
 
   >>> trans = my_transaction_manager.begin()
   >>> conn.root.x
@@ -261,19 +261,73 @@ This isn't always easy.
 
 Sometimes you may need to queue some operations that update shared
 data structures, like indexes, so the updates can be made by a
-dedicated thread or process, without simultaneous updates.
+dedicated thread or process, without making simultaneous updates.
+
+Retrying transactions
+~~~~~~~~~~~~~~~~~~~~~
+
+The most common way to deal with conflict errors is to catch them and
+retry transactions.  To do this manually, involves code that looks
+something like this::
+
+  max_attempts = 3
+  attempts = 0
+  while 1:
+      try:
+          with transaction.manager:
+              ... code that updates a database
+      except transaction.interfaces.TransientError:
+          attempts += 1
+          if attempts == max_attempts:
+              raise
+      else:
+          break
+
+In the example above, we used ``transaction.manager`` to refer to the
+thread-local transaction manager, which we then used used with the
+``with`` statement.  When a conflict error occurs, the transaction
+must be aborted before retrying the update. Using the transaction
+manager as a context manager in the ``with`` statement takes care of this
+for us.
+
+The example above is rather tedious.  There are a number of tools to
+automate transaction retry.  The `transaction
+<http://zodb.readthedocs.io/en/latest/transactions.html#retrying-transactions>`_
+package provides a context-manager-based mechanism for retrying
+transactions::
+
+  for attempt in transaction.manager.attempts():
+      with attempt:
+          ... code that updates a database
+
+Which is shorter and simpler [#but-obscure]_.
+
+For Python web frameworks, there are WSGI [#wtf-wsgi]_ middle-ware
+components, such as `repoze.tm2
+<https://pypi.python.org/pypi/repoze.tm2>`_ that align transaction
+boundaries with HTTP requests and retry transactions when there are
+transient errors.
+
+For applications like queue workers or `cron jobs
+<https://en.wikipedia.org/wiki/Cron>`_, conflicts can sometimes be
+allowed to fail, letting other queue workers or subsequent cron-job
+runs retry the work,
 
 Conflict resolution
 ~~~~~~~~~~~~~~~~~~~
 
 ZODB provides a conflict-resolution framework for merging conflicting
-changes.  Commonly used objects that implement conflict resolution are
+changes.  When conflicts occur, conflict resolution is used, when
+possible, to resolve the conflicts without raising a ConflictError to
+the application.
+
+Commonly used objects that implement conflict resolution are
 buckets and ``Length`` objects provided by the `BTree
 <https://pythonhosted.org/BTrees/>`_ package.
 
 The main data structures provided by BTrees: BTrees and TreeSets,
 spread their data over multiple objects.  The leaf-level objects,
-called *buckets* allow distinct keys to be updated without causing
+called *buckets*, allow distinct keys to be updated without causing
 conflicts [#usually-avoids-conflicts]_.
 
 ``Length`` objects are conflict-free counters, that merge changes by
@@ -376,6 +430,12 @@ Some things to keep in mind when utilizing multiple processes:
   <http://relstorage.readthedocs.io/en/latest/>`_, or `NEO
   <http://www.neoppod.org/>`_, that supports multiple processes.  None
   of the included storages do.
+
+.. [#but-obscure] But also a bit obscure.  The Python context-manager
+   mechanism isn't a great fit for the transaction-retry use case.
+
+.. [#wtf-wsgi] `Web Server Gateway Interface
+   <http://wsgi.readthedocs.io/en/latest/>`_
 
 .. [#usually-avoids-conflicts] Conflicts can still occur when buckets
    split due to added objects causing them to exceed their maximum size.
