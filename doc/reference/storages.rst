@@ -144,24 +144,31 @@ Options:
 Noteworthy non-included storages
 ================================
 
-A number of important ZODB storages are distributed separately, including:
+A number of important ZODB storages are distributed separately.
+
+Base storages
+-------------
+
+Unlike the included storages, all the implementations listed in this section
+allow multiple processes to share the same database.
 
 RelStorage
   `RelStorage <http://relstorage.readthedocs.io/en/latest/>`_
   stores data in relational databases.  This is especially
   useful when you have requirements or existing infrastructure for
-  storing data in relational databases.  Unlike the included storages,
-  multiple processes can share the same database.
+  storing data in relational databases.
 
   For more information, see http://relstorage.readthedocs.io/en/latest/.
 
 ZEO
   `ZEO <https://github.com/zopefoundation/ZEO>`_ is a client-server
   database implementation for ZODB.  To use ZEO, you run a ZEO server,
-  and use ZEO clients in your application.  Unlike the included
-  storages, multiple processes can share the same database.
+  and use ZEO clients in your application.
 
   For more information, see https://github.com/zopefoundation/ZEO.
+
+Optional layers
+---------------
 
 ZRS
   `ZRS <https://github.com/zc/zrs>`_
