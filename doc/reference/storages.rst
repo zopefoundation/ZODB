@@ -135,7 +135,7 @@ Demo storages are configured using the ``demostorage`` section::
 ``demostorage`` sections can contain up to 2 storage subsections,
 named ``base`` and ``changes``, specifying the demo storage's base and
 changes storages.  See :meth:`ZODB.DemoStorage.DemoStorage.__init__`
-for more on the base anc changes storages.
+for more on the base and changes storages.
 
 Options:
 
@@ -168,7 +168,7 @@ ZRS
   provides replication from one database to another.  It's most
   commonly used with ZEO.  With ZRS, you create a ZRS primary database
   around a :class:`~ZODB.FileStorage.FileStorage.FileStorage` and in a
-  separate process, you creatre a ZRS secondary storage around any
+  separate process, you create a ZRS secondary storage around any
   :interface:`storage <ZODB.interfaces.IStorage>`. As transactions are
   committed on the primary, they're copied asynchronously to
   secondaries.

@@ -9,7 +9,7 @@ ZODB module functions
 
 .. method:: DB(storage, *args, **kw)
 
-      Create a databse. See :py:class:`ZODB.DB`.
+      Create a database. See :py:class:`ZODB.DB`.
 
 .. autofunction:: ZODB.connection
 
@@ -125,7 +125,7 @@ TimeStamp (transaction ids)
 
    .. method:: raw()
 
-      Get an 8-byte representatin of the time stamp for use in APIs
+      Get an 8-byte representation of the time stamp for use in APIs
       that require a time stamp.
 
    .. method:: second()
