@@ -197,7 +197,7 @@ class PersistenceTest(unittest.TestCase):
         self.assertEqual(Derived.myattr1.__get__(obj), 'value1')
         self.assertEqual(Derived.myattr2.__get__(obj), 'value2')
         obj._p_invalidate()
-        self.assertIs(obj._p_changed, None)
+        self.assertEqual(obj._p_changed, None)
         self.assertEqual(list(jar._loaded), [])
         self.assertRaises(AttributeError, lambda: Derived.myattr1.__get__(obj))
         self.assertRaises(AttributeError, lambda: Derived.myattr2.__get__(obj))
