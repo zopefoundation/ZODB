@@ -135,7 +135,7 @@ Demo storages are configured using the ``demostorage`` section::
 ``demostorage`` sections can contain up to 2 storage subsections,
 named ``base`` and ``changes``, specifying the demo storage's base and
 changes storages.  See :meth:`ZODB.DemoStorage.DemoStorage.__init__`
-for more on the base anc changes storages.
+for more on the base and changes storages.
 
 Options:
 
@@ -144,31 +144,46 @@ Options:
 Noteworthy non-included storages
 ================================
 
-A number of important ZODB storages are distributed separately, including:
+A number of important ZODB storages are distributed separately.
+
+Base storages
+-------------
+
+Unlike the included storages, all the implementations listed in this section
+allow multiple processes to share the same database.
+
+NEO
+  `NEO <https://lab.nexedi.com/nexedi/neoppod>`_ can spread data among several
+  computers for load-balancing and multi-master replication. It also supports
+  asynchronous replication to off-site NEO databases for further disaster
+  resistance without affecting local operation latency.
+
+  For more information, see https://lab.nexedi.com/nexedi/neoppod.
 
 RelStorage
   `RelStorage <http://relstorage.readthedocs.io/en/latest/>`_
   stores data in relational databases.  This is especially
   useful when you have requirements or existing infrastructure for
-  storing data in relational databases.  Unlike the included storages,
-  multiple processes can share the same database.
+  storing data in relational databases.
 
   For more information, see http://relstorage.readthedocs.io/en/latest/.
 
 ZEO
   `ZEO <https://github.com/zopefoundation/ZEO>`_ is a client-server
   database implementation for ZODB.  To use ZEO, you run a ZEO server,
-  and use ZEO clients in your application.  Unlike the included
-  storages, multiple processes can share the same database.
+  and use ZEO clients in your application.
 
   For more information, see https://github.com/zopefoundation/ZEO.
+
+Optional layers
+---------------
 
 ZRS
   `ZRS <https://github.com/zc/zrs>`_
   provides replication from one database to another.  It's most
   commonly used with ZEO.  With ZRS, you create a ZRS primary database
   around a :class:`~ZODB.FileStorage.FileStorage.FileStorage` and in a
-  separate process, you creatre a ZRS secondary storage around any
+  separate process, you create a ZRS secondary storage around any
   :interface:`storage <ZODB.interfaces.IStorage>`. As transactions are
   committed on the primary, they're copied asynchronously to
   secondaries.
