@@ -2,6 +2,15 @@
  Change History
 ================
 
+3.10.7 (2016-09-14)
+===================
+
+Bugs Fixed
+----------
+
+- FileStorage: stop looking for revision when past it.
+  https://github.com/zopefoundation/ZODB/pull/15
+
 3.10.6 (2016-09-13)
 ===================
 
