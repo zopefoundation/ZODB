@@ -1,6 +1,6 @@
-==========================
-Writing persistent objects
-==========================
+============================
+ Writing persistent objects
+============================
 
 In the :ref:`Tutorial <tutorial-label>`, we discussed the basics of
 implementing persistent objects by subclassing
@@ -11,7 +11,7 @@ of writing persistent classes you should be aware of.
 Access and modification
 =======================
 
-Two of the main jobs of the ``Persistent`` base class is to detect
+Two of the main jobs of the ``Persistent`` base class are to detect
 when an object has been accessed and when it has been modified.  When
 an object is accessed, its state may need to be loaded from the
 database.  When an object is modified, the modification needs to be
@@ -214,6 +214,15 @@ Here's a version of the example that uses a ``TreeSet``::
    >>> bool(book.authors._p_changed)
    True
    >>> db.close()
+
+If you're going to use custom classes as keys in a ``BTree`` or
+entries in a ``TreeSet``, they must provide a `total ordering
+<https://pythonhosted.org/BTrees/#total-ordering-and-persistence>`_.
+The builtin python `str` class is always safe to use as BTree key. You
+can use `zope.keyreference
+<https://pypi.python.org/pypi/zope.keyreference>`_ to treat arbitrary
+persistent objects as totally orderable based on their persistent
+object identity.
 
 Scalable sequences are a bit more challenging. The `zc.blist
 <https://pypi.python.org/pypi/zc.blist/>`_ package provides a scalable
@@ -503,6 +512,121 @@ ghost:
     >>> book._p_changed, bool(book._p_oid)
     (None, True)
 
+Things you can do, but need to carefully consider (advanced)
+============================================================
+
+While you can do anything with a persistent subclass that you can with
+a normal subclass, certain things have additional implications for
+persistent objects. These often show up as performance issues.
+
+Implement ``__eq__`` and ``__hash__``
+-------------------------------------
+
+When you store an entry into a Python ``dict`` (or the persistent
+variant ``PersistentMapping``) the key's ``__eq__`` and
+``__hash__`` methods are used to determine where to store the value.
+Later they are used to look it up via ``in`` or ``__getitem__``.
+
+When that ``dict`` is later loaded from the database, the internal
+storage is rebuild from scratch. This means that every key has its
+``__hash__`` method called at least once, and may have its ``__eq__``
+method called many times.
+
+By default, every object, including persistent objects, inherits an
+implementation of ``__eq__`` and ``__hash__`` from :class:`object`.
+These default implementations are based on the object's *identity*,
+that is, its unique identifier within the current Python process.
+Calling, them, therefore is very fast, even on ghosts, and doesn't
+cause a ghost to load its state.
+
+If you override ``__eq__`` and ``__hash__`` in a custom persistent
+subclass, however, when you use that instances of that class as a key
+in a ``dict``, then the instance will have to be a unghosted before it
+can be put in the dictionary. If you're building a large dictionary
+with many such keys that are ghosts, you may find that loading all the
+object states takes a considerable amount of time. If you were to
+store that dictionary in the database and load it later, *all* the
+keys will have to be unghosted at the same time before the dictionary
+can be accessed, again, possibly taking a long time.
+
+For example, a class that defines ``__eq__`` and ``__hash__`` like this::
+
+  class BookEq(persistent.Persistent):
+
+     def __init__(self, title):
+         self.title = title
+         self.authors = ()
+
+     def add_author(self, author):
+         self.authors += (author, )
+
+     def __eq__(self, other):
+         return self.title == other.title and self.authors == other.authors
+
+     def __hash__(self):
+         return hash((self.title, self.authors))
+
+.. -> src
+
+   >>> exec(src)
+
+is going to be much slower to use as a key in a persistent dictionary,
+or in a new dictionary when the key is a ghost, than the class that
+inherits identity-based ``__eq__`` and ``__hash__``::
+
+  class Book(persistent.Persistent):
+
+     def __init__(self, title):
+         self.title = title
+         self.authors = ()
+
+     def add_author(self, author):
+         self.authors += (author, )
+
+Lets see an example of how these classes behave when stored in a
+dictionary. First, lets store some dictionaries::
+
+
+    >>> import ZODB
+    >>> db = ZODB.DB(None)
+    >>> conn1 = db.open()
+    >>> conn1.root.with_hashes = {BookEq(str(i)) for i in range(5000)}
+    >>> conn1.root.with_ident =  {Book(str(i)) for i in range(5000)}
+    >>> transaction.commit()
+
+Now, in a new connection (so we don't have any objects cached), lets
+load the dictionaries::
+
+    >>> conn2 = db.open()
+    >>> all((book._p_status == 'ghost' for book in conn2.root.with_ident))
+    True
+    >>> all((book._p_status == 'ghost' for book in conn2.root.with_hashes))
+    False
+
+
+We can see that all the objects that did have a custom ``__eq__``
+and ``__hash__`` were loaded into memory, while those that did weren't.
+
+There are two possible solutions:
+
+- If your application can tolerate identity based comparisons, simply
+  don't implement the two methods. This means that objects will be
+  compared only by identity, but because persistent objects are
+  persistent, the same object will have the same identity in each
+  connection, so that often works out.
+
+  It is safe to remove ``__eq__`` and ``__hash__`` methods from a
+  class even if you already have dictionaries in a database using
+  instances of those classes as keys.
+
+- Make your classes `orderable
+  <https://pythonhosted.org/BTrees/#total-ordering-and-persistence>`_ and
+  use them as keys in a BTree instead of a dictionary. Even though
+  your custom comparison methods will have to unghost the objects, the
+  nature of a BTree means that only a small number of objects will
+  have to be loaded in most cases.
+
+
 Other things you can do, but shouldn't (advanced)
 =================================================
 
@@ -535,6 +659,7 @@ This is something extremely clever people might attempt, but it's
 probably never worth the bother. It's possible, but it requires such
 deep understanding of persistence and internals that we're not even
 going to document it. :)
+
 
 Links
 =====
