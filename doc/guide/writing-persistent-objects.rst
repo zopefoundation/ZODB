@@ -517,15 +517,17 @@ Things you can do, but need to carefully consider (advanced)
 
 While you can do anything with a persistent subclass that you can with
 a normal subclass, certain things have additional implications for
-persistent objects. These often show up as performance issues.
+persistent objects. These often show up as performance issues, or the
+result may become hard to maintain.
 
 Implement ``__eq__`` and ``__hash__``
 -------------------------------------
 
 When you store an entry into a Python ``dict`` (or the persistent
-variant ``PersistentMapping``) the key's ``__eq__`` and
-``__hash__`` methods are used to determine where to store the value.
-Later they are used to look it up via ``in`` or ``__getitem__``.
+variant ``PersistentMapping``, or a ``set`` or ``frozenset``), the
+key's ``__eq__`` and ``__hash__`` methods are used to determine where
+to store the value. Later they are used to look it up via ``in`` or
+``__getitem__``.
 
 When that ``dict`` is later loaded from the database, the internal
 storage is rebuild from scratch. This means that every key has its
@@ -536,12 +538,12 @@ By default, every object, including persistent objects, inherits an
 implementation of ``__eq__`` and ``__hash__`` from :class:`object`.
 These default implementations are based on the object's *identity*,
 that is, its unique identifier within the current Python process.
-Calling, them, therefore is very fast, even on ghosts, and doesn't
-cause a ghost to load its state.
+Calling, them, therefore is very fast, even on :ref:`ghosts
+<ghost-label>`, and doesn't cause a ghost to load its state.
 
 If you override ``__eq__`` and ``__hash__`` in a custom persistent
-subclass, however, when you use that instances of that class as a key
-in a ``dict``, then the instance will have to be a unghosted before it
+subclass, however, when you use instances of that class as a key
+in a ``dict``, then the instance will have to be unghosted before it
 can be put in the dictionary. If you're building a large dictionary
 with many such keys that are ghosts, you may find that loading all the
 object states takes a considerable amount of time. If you were to
@@ -583,8 +585,12 @@ inherits identity-based ``__eq__`` and ``__hash__``::
      def add_author(self, author):
          self.authors += (author, )
 
-Lets see an example of how these classes behave when stored in a
-dictionary. First, lets store some dictionaries::
+.. -> src
+
+    >>> exec(src)
+
+    Lets see an example of how these classes behave when stored in a
+    dictionary. First, lets store some dictionaries::
 
 
     >>> import ZODB
@@ -594,8 +600,8 @@ dictionary. First, lets store some dictionaries::
     >>> conn1.root.with_ident =  {Book(str(i)) for i in range(5000)}
     >>> transaction.commit()
 
-Now, in a new connection (so we don't have any objects cached), lets
-load the dictionaries::
+    Now, in a new connection (so we don't have any objects cached), lets
+    load the dictionaries::
 
     >>> conn2 = db.open()
     >>> all((book._p_status == 'ghost' for book in conn2.root.with_ident))
@@ -604,10 +610,13 @@ load the dictionaries::
     False
 
 
-We can see that all the objects that did have a custom ``__eq__``
-and ``__hash__`` were loaded into memory, while those that did weren't.
+   We can see that all the objects that did have a custom ``__eq__``
+   and ``__hash__`` were loaded into memory, while those that did weren't.
 
-There are two possible solutions:
+There are some alternatives:
+
+- Avoiding the use of persistent objects as keys in dictionaries or
+  entries in sets sidesteps the issue.
 
 - If your application can tolerate identity based comparisons, simply
   don't implement the two methods. This means that objects will be
@@ -620,21 +629,21 @@ There are two possible solutions:
   instances of those classes as keys.
 
 - Make your classes `orderable
-  <https://pythonhosted.org/BTrees/#total-ordering-and-persistence>`_ and
-  use them as keys in a BTree instead of a dictionary. Even though
-  your custom comparison methods will have to unghost the objects, the
-  nature of a BTree means that only a small number of objects will
-  have to be loaded in most cases.
+  <https://pythonhosted.org/BTrees/#total-ordering-and-persistence>`_
+  and use them as keys in a BTree or entries in a TreeSet instead of a
+  dictionary or set. Even though your custom comparison methods will
+  have to unghost the objects, the nature of a BTree means that only a
+  small number of objects will have to be loaded in most cases.
+
+- Any persistent object can be wrapped in a ``zope.keyreferenece`` to
+  make it orderable and hashable based on persistent identity. This
+  can be an alternative for some dictionaries if you can't alter the
+  class definition but can accept identity comparisons in some
+  dictionaries or sets. You must remember to wrap all keys, though.
 
 
-Other things you can do, but shouldn't (advanced)
-=================================================
-
-The first rule here is don't be clever!!!  It's very tempting to be
-clever, but it's almost never worth it.
-
-Overriding ``__getstate__`` and ``__setstate__``
-------------------------------------------------
+Implement ``__getstate__`` and ``__setstate__``
+-----------------------------------------------
 
 When an object is saved in a database, its ``__getstate__`` method is
 called without arguments to get the object's state.  The default
@@ -652,8 +661,8 @@ tasks like providing more efficient state representations or for
 the result was to make object implementations brittle and/or complex
 and the benefit usually wasn't worth it.
 
-Overriding ``__getattr__``, ``__getattribute__``, or ``__setattribute__``
--------------------------------------------------------------------------
+Implement ``__getattr__``, ``__getattribute__``, or ``__setattribute__``
+------------------------------------------------------------------------
 
 This is something extremely clever people might attempt, but it's
 probably never worth the bother. It's possible, but it requires such
