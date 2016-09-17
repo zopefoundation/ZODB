@@ -574,24 +574,22 @@ For example, a class that defines ``__eq__`` and ``__hash__`` like this::
 
 is going to be much slower to use as a key in a persistent dictionary,
 or in a new dictionary when the key is a ghost, than the class that
-inherits identity-based ``__eq__`` and ``__hash__``::
+inherits identity-based ``__eq__`` and ``__hash__``.
 
-  class Book(persistent.Persistent):
+.. Example of the above.
 
-     def __init__(self, title):
-         self.title = title
-         self.authors = ()
+    Here's what that class would look like::
 
-     def add_author(self, author):
-         self.authors += (author, )
-
-.. -> src
-
-    >>> exec(src)
+    >>> class Book(persistent.Persistent):
+    ...    def __init__(self, title):
+    ...        self.title = title
+    ...        self.authors = ()
+    ...
+    ...    def add_author(self, author):
+    ...        self.authors += (author, )
 
     Lets see an example of how these classes behave when stored in a
     dictionary. First, lets store some dictionaries::
-
 
     >>> import ZODB
     >>> db = ZODB.DB(None)
