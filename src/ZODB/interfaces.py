@@ -472,7 +472,7 @@ class IStorage(Interface):
         Finalize the storage, releasing any external resources.  The
         storage should not be used after this method is called.
 
-        Note that databses close their storages when they're closed, so
+        Note that databases close their storages when they're closed, so
         this method isn't generally called from application code.
         """
 
