@@ -1,8 +1,9 @@
 [run]
-# source = ...
-# omit = ...
-# cover_pylib = False
-# branch = True
+source = src/ZODB/
+parallel = true
+omit =
+	 src/ZODB/tests/*
+	 src/ZODB/scripts/tests/*
 
 [report]
 exclude_lines =

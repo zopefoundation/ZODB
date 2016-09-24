@@ -18,3 +18,5 @@ dist
 testing.log
 .eggs/
 .dir-locals.el
+htmlcov
+tmp
