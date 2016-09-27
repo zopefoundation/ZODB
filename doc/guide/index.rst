@@ -3,7 +3,7 @@ ZODB programming guide
 ======================
 
 This guide consists of a collection of topics that should be of
-interest to most developers.  They're provuded in order of importance,
+interest to most developers.  They're provided in order of importance,
 which is also an order from least to most advanced, but they can be
 read in any order.
 
