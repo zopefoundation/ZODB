@@ -530,7 +530,7 @@ to store the value. Later they are used to look it up via ``in`` or
 ``__getitem__``.
 
 When that ``dict`` is later loaded from the database, the internal
-storage is rebuild from scratch. This means that every key has its
+storage is rebuilt from scratch. This means that every key has its
 ``__hash__`` method called at least once, and may have its ``__eq__``
 method called many times.
 
@@ -538,7 +538,7 @@ By default, every object, including persistent objects, inherits an
 implementation of ``__eq__`` and ``__hash__`` from :class:`object`.
 These default implementations are based on the object's *identity*,
 that is, its unique identifier within the current Python process.
-Calling, them, therefore is very fast, even on :ref:`ghosts
+Calling them, therefore, is very fast, even on :ref:`ghosts
 <ghost-label>`, and doesn't cause a ghost to load its state.
 
 If you override ``__eq__`` and ``__hash__`` in a custom persistent
