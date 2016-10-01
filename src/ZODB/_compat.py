@@ -82,7 +82,7 @@ def PersistentPickler(persistent_id, *args, **kwargs):
     This covers the differences between Python 2 and 3 and PyPy/zodbpickle.
     """
     p = Pickler(*args, **kwargs)
-    if sys.version_info[0] < 3:
+    if not PY3:
         p.inst_persistent_id = persistent_id
 
     # PyPy uses a python implementation of cPickle/zodbpickle in both Python 2

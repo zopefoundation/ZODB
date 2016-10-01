@@ -28,6 +28,8 @@ from ZODB._compat import Unpickler
 from ZODB._compat import BytesIO
 from ZODB._compat import ascii_bytes
 
+from six import PY2
+
 __all__ = ['z64',
            'p64',
            'u64',
@@ -71,7 +73,7 @@ def deprecated38(msg):
                   DeprecationWarning, stacklevel=3)
 
 
-if sys.version_info[0] < 3:
+if PY2:
     def as_bytes(obj):
         "Convert obj into bytes"
         return str(obj)
