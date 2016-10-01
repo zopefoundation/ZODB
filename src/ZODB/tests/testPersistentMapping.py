@@ -23,20 +23,12 @@ old code, developers will have a hard time testing the new code.
 import unittest
 import sys
 
-import transaction
 from transaction import Transaction
 
 import ZODB
 from ZODB.MappingStorage import MappingStorage
-from ZODB._compat import Unpickler
 
-try:
-    import cStringIO
-except ImportError:
-    # Py3
-    import io as cStringIO
-
-PY2 = sys.version_info[0] == 2
+from six import PY2
 
 # This pickle contains a persistent mapping pickle created from the
 # old code.
@@ -67,35 +59,6 @@ class PMTests(unittest.TestCase):
         # But make sure it looks like a new mapping
         self.assertTrue(hasattr(r, 'data'))
         self.assertTrue(not hasattr(r, '_container'))
-
-    # TODO:  This test fails in ZODB 3.3a1.  It's making some assumption(s)
-    # about pickles that aren't true.  Hard to say when it stopped working,
-    # because this entire test suite hasn't been run for a long time, due to
-    # a mysterious "return None" at the start of the test_suite() function
-    # below.  I noticed that when the new checkBackwardCompat() test wasn't
-    # getting run.
-    def TODO_checkNewPicklesAreSafe(self):
-        s = MappingStorage()
-        db = ZODB.DB(s)
-        r = db.open().root()
-        r[1] = 1
-        r[2] = 2
-        r[3] = r
-        transaction.commit()
-        # MappingStorage stores serialno + pickle in its _index.
-        root_pickle = s._index['\000' * 8][8:]
-
-        # XXX not BytesIO really?
-        f = cStringIO.StringIO(root_pickle)
-        u = Unpickler(f)
-        klass_info = u.load()
-        klass = find_global(*klass_info[0])
-        inst = klass.__new__(klass)
-        state = u.load()
-        inst.__setstate__(state)
-
-        self.assertTrue(hasattr(inst, '_container'))
-        self.assertTrue(not hasattr(inst, 'data'))
 
     def checkBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.

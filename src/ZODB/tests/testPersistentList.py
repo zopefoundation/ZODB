@@ -13,11 +13,11 @@
 ##############################################################################
 """Test the list interface to PersistentList
 """
-import sys
+
 import unittest
 from persistent.list import PersistentList
 
-PY2 = sys.version_info[0] == 2
+from six import PY2
 
 l0 = []
 l1 = [0]
@@ -84,7 +84,7 @@ class TestPList(unittest.TestCase):
         except IndexError:
             pass
         else:
-            raise TestFailed("uu2[2] shouldn't be assignable")
+            self.fail("uu2[2] shouldn't be assignable")
 
         # Test __delitem__
 
@@ -95,7 +95,7 @@ class TestPList(unittest.TestCase):
         except IndexError:
             pass
         else:
-            raise TestFailed("uu2[0] shouldn't be deletable")
+            self.fail("uu2[0] shouldn't be deletable")
 
         # Test __getslice__
 
@@ -191,7 +191,7 @@ class TestPList(unittest.TestCase):
         except ValueError:
             pass
         else:
-            raise TestFailed("expected ValueError")
+            self.fail("expected ValueError")
 
         # Test reverse
 

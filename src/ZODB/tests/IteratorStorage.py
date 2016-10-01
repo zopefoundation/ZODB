@@ -24,7 +24,6 @@ from ZODB.utils import U64, p64, load_current
 
 from transaction import Transaction
 
-import sys
 import ZODB.blob
 
 try:
@@ -159,10 +158,8 @@ class IteratorStorage(IteratorCompare):
         # We store another transaction with 1 object, the already running
         # iterator does not pick this up.
         self._dostore()
-        if sys.version_info[0] < 3:
-            self.assertRaises(StopIteration, iterator.next)
-        else:
-            self.assertRaises(StopIteration, iterator.__next__)
+        with self.assertRaises(StopIteration):
+            next(iterator)
 
 
 class ExtendedIteratorStorage(IteratorCompare):
