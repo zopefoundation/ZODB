@@ -17,7 +17,6 @@ import struct
 import sys
 import time
 import threading
-import warnings
 from binascii import hexlify, unhexlify
 from struct import pack, unpack
 from tempfile import mkstemp
@@ -42,35 +41,9 @@ __all__ = ['z64',
            'tid_repr',
            'positive_id',
            'readable_tid_repr',
-           'DEPRECATED_ARGUMENT',
-           'deprecated37',
-           'deprecated38',
            'get_pickle_metadata',
            'locked',
           ]
-
-# A unique marker to give as the default value for a deprecated argument.
-# The method should then do a
-#
-#     if that_arg is not DEPRECATED_ARGUMENT:
-#         complain
-#
-# dance.
-DEPRECATED_ARGUMENT = object()
-
-# Raise DeprecationWarning, noting that the deprecated thing will go
-# away in ZODB 3.7.  Point to the caller of our caller (i.e., at the
-# code using the deprecated thing).
-def deprecated37(msg):
-    warnings.warn("This will be removed in ZODB 3.7:\n%s" % msg,
-                  DeprecationWarning, stacklevel=3)
-
-# Raise DeprecationWarning, noting that the deprecated thing will go
-# away in ZODB 3.8.  Point to the caller of our caller (i.e., at the
-# code using the deprecated thing).
-def deprecated38(msg):
-    warnings.warn("This will be removed in ZODB 3.8:\n%s" % msg,
-                  DeprecationWarning, stacklevel=3)
 
 
 if PY2:
@@ -187,7 +160,7 @@ tid_repr = serial_repr
 # for 8-byte string tid b'\x03D\x14"\x94\x8bC\x99'.
 def readable_tid_repr(tid):
     result = tid_repr(tid)
-    if isinstance(tid, str) and len(tid) == 8:
+    if isinstance(tid, bytes) and len(tid) == 8:
         result = "%s %s" % (result, TimeStamp(tid))
     return result
 
@@ -318,7 +291,8 @@ class locked(object):
         return Locked(func, preconditions=self.preconditions)
 
 
-if os.environ.get('DEBUG_LOCKING'):
+if os.environ.get('DEBUG_LOCKING'): # pragma: no cover
+    # NOTE: This only works on Python 3.
     class Lock:
 
         lock_class = threading.Lock
