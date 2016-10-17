@@ -645,6 +645,15 @@ class DB(object):
         self._mvcc_storage.close()
         del self.storage
         del self._mvcc_storage
+        # clean up references to other DBs
+        self.databases.clear()
+        # clean up the connection pool
+        while self.pool.pop():
+            pass
+        for pool in self.historical_pool.pools.values():
+            while pool.pop():
+                pass
+        self.historical_pool.pools.clear()
 
     def getCacheSize(self):
         """Get the configured cache size (objects).
