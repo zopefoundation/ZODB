@@ -363,6 +363,31 @@ def minimally_test_connection_timeout():
 
     """
 
+def cleanup_on_close():
+    """Verify that various references are cleared on close
+
+    >>> db = ZODB.DB(None)
+
+    >>> conn = db.open()
+    >>> conn.root.x = 'x'
+    >>> transaction.commit()
+    >>> conn.close()
+
+    >>> historical_conn = db.open(at=db.lastTransaction())
+    >>> historical_conn.close()
+
+    >>> db.close()
+
+    >>> db.databases
+    {}
+
+    >>> db.pool.pop() is None
+    True
+
+    >>> [pool is None for pool in db.historical_pool.pools.values()]
+    []
+"""
+
 def test_suite():
     s = unittest.makeSuite(DBTests)
     s.addTest(doctest.DocTestSuite(
