@@ -85,11 +85,10 @@
 
 import logging
 import struct
-import sys
 
 from ZODB.POSException import POSKeyError
 from ZODB.utils import u64, oid_repr, as_bytes
-
+from ZODB._compat import PY3
 
 class CorruptedError(Exception):
     pass
@@ -245,7 +244,7 @@ class DataHeader(object):
         if vlen:
             raise ValueError(
                 "Non-zero version length. Versions aren't supported.")
-        
+
         self.oid = oid
         self.tid = tid
         self.prev = prev
@@ -262,7 +261,7 @@ class DataHeader(object):
 
 def TxnHeaderFromString(s):
     res = TxnHeader(*struct.unpack(TRANS_HDR, s))
-    if sys.version_info[0] >= 3:
+    if PY3:
         res.status = res.status.decode('ascii')
     return res
 

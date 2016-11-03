@@ -109,3 +109,8 @@ More information
 ================
 
 See http://zodb.org/
+
+
+.. image:: https://badges.gitter.im/zopefoundation/ZODB.svg
+   :alt: Join the chat at https://gitter.im/zopefoundation/ZODB
+   :target: https://gitter.im/zopefoundation/ZODB?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge

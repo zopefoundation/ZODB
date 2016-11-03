@@ -33,7 +33,6 @@ import ZODB
 import ZODB.MappingStorage
 import ZODB.tests.util
 
-PY2 = sys.version_info[0] == 2
 
 class CacheTestBase(ZODB.tests.util.TestCase):
 

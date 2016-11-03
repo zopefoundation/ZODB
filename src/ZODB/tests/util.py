@@ -19,7 +19,6 @@ import atexit
 import os
 import persistent
 import re
-import sys
 import tempfile
 import time
 import transaction
@@ -136,9 +135,6 @@ class AAAA_Test_Runner_Hack(unittest.TestCase):
         pass
 
 def assert_warning(category, func, warning_text=''):
-    if sys.version_info < (2, 6):
-        return func() # Can't use catch_warnings :(
-
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter('default')
         result = func()
@@ -154,7 +150,7 @@ def assert_deprecated(func, warning_text=''):
 def wait(func=None, timeout=30):
     if func is None:
         return lambda f: wait(f, timeout)
-    for i in range(int(timeout*100)):
+    for _ in range(int(timeout*100)):
         if func():
             return
         time.sleep(.01)

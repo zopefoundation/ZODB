@@ -36,9 +36,10 @@ from ZODB._compat import PersistentUnpickler
 from ZODB._compat import decodebytes
 from ZODB._compat import ascii_bytes
 from ZODB._compat import INT_TYPES
+from ZODB._compat import PY3
 
 
-if sys.version_info[0] >= 3:
+if PY3:
     from io import FileIO as file
 
 
