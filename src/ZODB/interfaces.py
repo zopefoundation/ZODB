@@ -450,7 +450,10 @@ class IStorageTransactionMetaDataExtensionBytes(IStorageTransactionMetaData):
     and ``description`` attributes are bytes, not text.
     """
     extension_bytes = Attribute(
-        "A bytes carrying a transaction's serialized extended_info data")
+        """A bytes carrying a transaction's serialized extended_info data
+
+        This will be an empty bytes if there are no extension data.
+        """)
 
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
