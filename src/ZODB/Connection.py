@@ -49,6 +49,7 @@ from ZODB import utils
 import six
 
 from .mvccadapter import HistoricalStorageAdapter
+from ._compat import dumps, loads, _protocol
 
 from . import valuedoc
 
@@ -458,14 +459,21 @@ class Connection(ExportImport, object):
     def tpc_begin(self, transaction):
         """Begin commit of a transaction, starting the two-phase commit."""
         self._modified = []
+        meta_data = TransactionMetaData(
+            transaction.user,
+            transaction.description,
+            transaction.extended_info)
+        transaction.set_data(self, meta_data)
 
         # _creating is a list of oids of new objects, which is used to
         # remove them from the cache if a transaction aborts.
         self._creating.clear()
-        self._normal_storage.tpc_begin(transaction)
+        self._normal_storage.tpc_begin(meta_data)
 
     def commit(self, transaction):
         """Commit changes to an object"""
+
+        transaction = transaction.data(self)
 
         if self._savepoint_storage is not None:
 
@@ -611,6 +619,8 @@ class Connection(ExportImport, object):
                 obj._p_serial = s
 
     def tpc_abort(self, transaction):
+        transaction = transaction.data(self)
+
         if self._import:
             self._import = None
 
@@ -667,6 +677,9 @@ class Connection(ExportImport, object):
             vote = self._storage.tpc_vote
         except AttributeError:
             return
+
+        transaction = transaction.data(self)
+
         try:
             s = vote(transaction)
         except ReadConflictError as v:
@@ -683,6 +696,8 @@ class Connection(ExportImport, object):
     def tpc_finish(self, transaction):
         """Indicate confirmation that the transaction is done.
         """
+        transaction = transaction.data(self)
+
         serial = self._storage.tpc_finish(transaction)
         assert type(serial) is bytes, repr(serial)
         for oid_iterator in self._modified, self._creating:
@@ -1270,3 +1285,54 @@ large_record_size option of the ZODB.DB constructor (or the
 large-record-size option in a configuration file) to specify a larger
 size.
 """
+
+class TransactionMetaData:
+
+    def __init__(self, user=u'', description=u'', extension=b''):
+        self.user = user
+        self.description = description
+        if isinstance(extension, bytes):
+            self.extension_bytes = extension
+        else:
+            self.extension = extension
+
+    @property
+    def user(self):
+        return self.__user
+
+    @user.setter
+    def user(self, user):
+        if not isinstance(user, bytes):
+            user = user.encode('utf-8')
+        self.__user = user
+
+    @property
+    def description(self):
+        return self.__description
+
+    @description.setter
+    def description(self, description):
+        if not isinstance(description, bytes):
+            description = description.encode('utf-8')
+        self.__description = description
+
+    @property
+    def extension(self):
+        return self.__extension
+
+    @extension.setter
+    def extension(self, v):
+        self.__extension = v
+        self.__extension_bytes = dumps(v, _protocol) if v else b''
+
+    _extension = extension
+
+    @property
+    def extension_bytes(self):
+        return self.__extension_bytes
+
+    @extension_bytes.setter
+    def extension_bytes(self, v):
+        d = loads(v) if v else {}
+        self.__extension_bytes = v if d else b''
+        self.__extension = d

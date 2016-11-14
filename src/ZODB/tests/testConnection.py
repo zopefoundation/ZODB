@@ -21,6 +21,8 @@ import sys
 import unittest
 
 import transaction
+from transaction import Transaction
+
 import ZODB.tests.util
 from ZODB.config import databaseFromString
 from ZODB.utils import p64, u64, z64
@@ -52,7 +54,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.db = StubDatabase()
         self.datamgr = Connection(self.db)
         self.datamgr.open()
-        self.transaction = StubTransaction()
+        self.transaction = Transaction()
 
     def test_add(self):
         from ZODB.POSException import InvalidObjectReference
@@ -700,7 +702,6 @@ def doctest_readCurrent():
     >>> bad = set()
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     six.print_('checkCurrentSerialInTransaction', repr(oid))
-    ...     if trans != transaction.get(): print('oops')
     ...     if oid in bad:
     ...         raise ReadConflictError(oid=oid)
 
@@ -1190,9 +1191,6 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
 # ---- stubs
 
 class StubObject(Persistent):
-    pass
-
-class StubTransaction:
     pass
 
 class ErrorOnGetstateException(Exception):
