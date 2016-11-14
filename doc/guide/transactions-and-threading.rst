@@ -187,8 +187,9 @@ So, for example, if we wanted to set a transaction note::
 .. -> src
 
    >>> exec(src)
-   >>> db.history(conn.root()._p_oid)[0]['description']
-   'incrementing x again'
+   >>> (db.history(conn.root()._p_oid)[0]['description'] ==
+   ...  b'incrementing x again')
+   True
 
 Here, we used the
 :meth:`~transaction.interfaces.ITransactionManager.get` method to get
