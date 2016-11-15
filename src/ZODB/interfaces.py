@@ -443,18 +443,6 @@ class IStorageTransactionMetaData(Interface):
     extension = Attribute(
         "A dictionary carrying a transaction's extended_info data")
 
-class IStorageTransactionMetaDataExtensionBytes(IStorageTransactionMetaData):
-    """Provide storage transaction meta data.
-
-    Note that unlike transaction.interfaces.ITransaction, the ``user``
-    and ``description`` attributes are bytes, not text.
-    """
-    extension_bytes = Attribute(
-        """A bytes carrying a transaction's serialized extended_info data
-
-        This will be an empty bytes if there are no extension data.
-        """)
-
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
 
@@ -467,7 +455,7 @@ class IStorage(Interface):
     implement multi-version concurrency control.
 
     There are methods in IStorage and in derived interfaces that
-    provide information about the current revisions (tids) for objects
+    provide information babout the current revisions (tids) for objects
     or for the database as a whole.  It is critical for the proper
     working of ZODB that the resulting tids are increasing with
     respect to the object identifier given or to the databases.  That
