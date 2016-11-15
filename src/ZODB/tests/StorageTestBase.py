@@ -21,8 +21,8 @@ single object revision.
 from __future__ import print_function
 import sys
 import time
-import transaction
 
+from ZODB.Connection import TransactionMetaData
 from ZODB.utils import u64, z64
 from ZODB.tests.MinPO import MinPO
 from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
@@ -144,7 +144,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         if not already_pickled:
             data = zodb_pickle(data)
         # Begin the transaction
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         if user is not None:
             t.user = user
         if description is not None:
@@ -170,7 +170,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
     def _undo(self, tid, expected_oids=None, note=None):
         # Undo a tid that affects a single object (oid).
         # This is very specialized.
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         t.note(note or "undo")
         self._storage.tpc_begin(t)
         undo_result = self._storage.undo(tid, t)

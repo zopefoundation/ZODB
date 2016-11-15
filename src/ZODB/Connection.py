@@ -49,9 +49,9 @@ from ZODB import utils
 import six
 
 from .mvccadapter import HistoricalStorageAdapter
-from ._compat import dumps, loads, _protocol
 
 from . import valuedoc
+from . import _compat
 
 global_reset_counter = 0
 
@@ -1291,10 +1291,9 @@ class TransactionMetaData:
     def __init__(self, user=u'', description=u'', extension=b''):
         self.user = user
         self.description = description
-        if isinstance(extension, bytes):
-            self.extension_bytes = extension
-        else:
-            self.extension = extension
+        if not isinstance(extension, dict):
+            extension = _compat.loads(extension) if extension else {}
+        self.extension = extension
 
     @property
     def user(self):
@@ -1316,6 +1315,16 @@ class TransactionMetaData:
             description = description.encode('utf-8')
         self.__description = description
 
+    def note(self, text): # for tests
+        text = text.strip()
+        if not isinstance(text, bytes):
+            text = text.encode('utf-8')
+        if self.description:
+            self.description = self.description.strip() + b' ' + text
+        else:
+            self.description = text
+
+
     @property
     def extension(self):
         return self.__extension
@@ -1323,16 +1332,5 @@ class TransactionMetaData:
     @extension.setter
     def extension(self, v):
         self.__extension = v
-        self.__extension_bytes = dumps(v, _protocol) if v else b''
 
     _extension = extension
-
-    @property
-    def extension_bytes(self):
-        return self.__extension_bytes
-
-    @extension_bytes.setter
-    def extension_bytes(self, v):
-        d = loads(v) if v else {}
-        self.__extension_bytes = v if d else b''
-        self.__extension = d

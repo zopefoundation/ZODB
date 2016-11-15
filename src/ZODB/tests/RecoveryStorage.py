@@ -14,7 +14,7 @@
 """More recovery and iterator tests."""
 
 import transaction
-from transaction import Transaction
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
 from ZODB.tests.StorageTestBase import MinPO, snooze
 from ZODB import DB
@@ -147,7 +147,7 @@ class RecoveryStorage(IteratorDeepCompare):
         # Undo the attribute creation.
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
@@ -171,7 +171,7 @@ class RecoveryStorage(IteratorDeepCompare):
         # Undo the undo (restore the attributes).
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)

@@ -16,6 +16,7 @@ import unittest
 
 from persistent.mapping import PersistentMapping
 import transaction
+from ZODB.Connection import TransactionMetaData
 from ZODB.DB import DB
 from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
 import ZODB.blob
@@ -161,7 +162,7 @@ class MVCCMappingStorageTests(
         import time
         from ZODB.utils import newTid
         from ZODB.TimeStamp import TimeStamp
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -173,7 +174,7 @@ class MVCCMappingStorageTests(
         transactions[fake_timestamp] = transactions.values()[0]
 
         # Verify the next transaction comes after the fake transaction
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertEqual(self._storage._tid, b'zzzzzzzz')
 

@@ -22,6 +22,7 @@ import transaction
 from transaction import Transaction
 
 from ZODB import POSException
+from ZODB.Connection import TransactionMetaData
 from ZODB.serialize import referencesf
 from ZODB.utils import p64, load_current
 from ZODB import DB
@@ -53,7 +54,7 @@ def listeq(L1, L2):
 class TransactionalUndoStorage:
 
     def _multi_obj_transaction(self, objs):
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         for oid, rev, data in objs:
             self._storage.store(oid, rev, data, '', t)
@@ -82,7 +83,7 @@ class TransactionalUndoStorage:
         return oids
 
     def undo(self, tid, note=None):
-        t = Transaction()
+        t = TransactionMetaData()
         if note is not None:
             t.note(note)
         oids = self._begin_undos_vote(t, tid)
@@ -182,7 +183,7 @@ class TransactionalUndoStorage:
         oid2 = self._storage.new_oid()
         revid1 = revid2 = ZERO
         # Store two objects in the same transaction
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p31, '', t)
         self._storage.store(oid2, revid2, p51, '', t)
@@ -190,7 +191,7 @@ class TransactionalUndoStorage:
         self._storage.tpc_vote(t)
         tid = self._storage.tpc_finish(t)
         # Update those same two objects
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, tid, p32, '', t)
         self._storage.store(oid2, tid, p52, '', t)
@@ -242,7 +243,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[0]['id']
         tid1 = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         oids = self._begin_undos_vote(t, tid, tid1)
         serial = self._storage.tpc_finish(t)
         # We may get the finalization stuff called an extra time,
@@ -275,7 +276,7 @@ class TransactionalUndoStorage:
         revid1 = self._dostore(oid1, data=p31, already_pickled=1)
         revid2 = self._dostore(oid2, data=p51, already_pickled=1)
         # Update those same two objects
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p32, '', t)
         self._storage.store(oid2, revid2, p52, '', t)
@@ -291,7 +292,7 @@ class TransactionalUndoStorage:
         eq(zodb_unpickle(data), MinPO(51))
         # Like the above, but this time, the second transaction contains only
         # one object.
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p33, '', t)
         self._storage.store(oid2, revid2, p53, '', t)
@@ -320,7 +321,7 @@ class TransactionalUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(POSException.UndoError,
                           self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
@@ -334,7 +335,7 @@ class TransactionalUndoStorage:
         p81, p82, p91, p92 = map(zodb_pickle,
                                  map(MinPO, (81, 82, 91, 92)))
 
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p81, '', t)
         self._storage.store(oid2, revid2, p91, '', t)
@@ -352,7 +353,7 @@ class TransactionalUndoStorage:
         self.assertNotEqual(tid, revid2)
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(POSException.UndoError,
                           self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
@@ -570,7 +571,7 @@ class TransactionalUndoStorage:
 
         orig = []
         for i in range(BATCHES):
-            t = Transaction()
+            t = TransactionMetaData()
             tid = p64(i + 1)
             s.tpc_begin(t, tid)
             for j in range(OBJECTS):
@@ -593,7 +594,7 @@ class TransactionalUndoStorage:
 
         def undo(i):
             info = s.undoInfo()
-            t = Transaction()
+            t = TransactionMetaData()
             s.tpc_begin(t)
             base = i * OBJECTS + i
             for j in range(OBJECTS):

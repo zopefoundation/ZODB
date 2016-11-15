@@ -13,11 +13,10 @@
 ##############################################################################
 """Check loadSerial() on storages that support historical revisions."""
 
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
 from ZODB.utils import p64, u64, load_current
-
-import transaction
 
 ZERO = '\0'*8
 
@@ -142,7 +141,7 @@ class RevisionStorage:
         oid = self._storage.new_oid()
         def helper(tid, revid, x):
             data = zodb_pickle(MinPO(x))
-            t = transaction.Transaction()
+            t = TransactionMetaData()
             try:
                 self._storage.tpc_begin(t, p64(tid))
                 self._storage.store(oid, revid, data, '', t)
