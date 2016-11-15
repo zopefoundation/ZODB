@@ -49,7 +49,7 @@ Let's add a BTree:
 
 >>> root = db.open().root()
 >>> root['tree'] = OOBTree()
->>> txn.get().note('added an OOBTree')
+>>> txn.get().note(u'added an OOBTree')
 >>> txn.get().commit()
 >>> fsdump(path) #doctest: +ELLIPSIS
 Trans #00000 tid=... time=... offset=<OFFSET>

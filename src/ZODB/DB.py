@@ -469,7 +469,7 @@ class DB(object):
         self.large_record_size = large_record_size
 
         # Make sure we have a root:
-        with self.transaction('initial database creation') as conn:
+        with self.transaction(u'initial database creation') as conn:
             try:
                 conn.get(z64)
             except KeyError:

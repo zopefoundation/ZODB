@@ -1286,7 +1286,7 @@ large-record-size option in a configuration file) to specify a larger
 size.
 """
 
-class TransactionMetaData:
+class TransactionMetaData(object):
 
     def __init__(self, user=u'', description=u'', extension=b''):
         self.user = user

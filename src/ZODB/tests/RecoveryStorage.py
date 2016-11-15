@@ -73,15 +73,15 @@ class RecoveryStorage(IteratorDeepCompare):
         root = conn.root()
         root.obj = obj1 = MinPO(1)
         txn = transaction.get()
-        txn.note('root -> obj')
+        txn.note(u'root -> obj')
         txn.commit()
         root.obj.obj = obj2 = MinPO(2)
         txn = transaction.get()
-        txn.note('root -> obj -> obj')
+        txn.note(u'root -> obj -> obj')
         txn.commit()
         del root.obj
         txn = transaction.get()
-        txn.note('root -X->')
+        txn.note(u'root -X->')
         txn.commit()
         # Now copy the transactions to the destination
         self._dst.copyTransactionsFrom(self._storage)

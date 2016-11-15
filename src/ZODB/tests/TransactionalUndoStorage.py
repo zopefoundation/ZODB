@@ -17,6 +17,8 @@ Any storage that supports undo() must pass these tests.
 """
 import time
 
+from six import PY3
+
 from persistent import Persistent
 import transaction
 from transaction import Transaction
@@ -412,7 +414,7 @@ class TransactionalUndoStorage:
         root['obj'] = o1
         o1.obj = o2
         txn = transaction.get()
-        txn.note('o1 -> o2')
+        txn.note(u'o1 -> o2')
         txn.commit()
         now = packtime = time.time()
         while packtime <= now:
@@ -421,12 +423,12 @@ class TransactionalUndoStorage:
         o3 = C()
         o2.obj = o3
         txn = transaction.get()
-        txn.note('o1 -> o2 -> o3')
+        txn.note(u'o1 -> o2 -> o3')
         txn.commit()
 
         o1.obj = o3
         txn = transaction.get()
-        txn.note('o1 -> o3')
+        txn.note(u'o1 -> o3')
         txn.commit()
 
         log = self._storage.undoLog()
@@ -444,7 +446,7 @@ class TransactionalUndoStorage:
         tid = log[0]['id']
         db.undo(tid)
         txn = transaction.get()
-        txn.note('undo')
+        txn.note(u'undo')
         txn.commit()
         # undo does a txn-undo, but doesn't invalidate
         conn.sync()
@@ -471,14 +473,14 @@ class TransactionalUndoStorage:
         root["key1"] = MinPO(1)
         root["key2"] = MinPO(2)
         txn = transaction.get()
-        txn.note("create 3 keys")
+        txn.note(u"create 3 keys")
         txn.commit()
 
         set_pack_time()
 
         del root["key1"]
         txn = transaction.get()
-        txn.note("delete 1 key")
+        txn.note(u"delete 1 key")
         txn.commit()
 
         set_pack_time()
@@ -490,7 +492,7 @@ class TransactionalUndoStorage:
         L = db.undoInfo()
         db.undo(L[0]["id"])
         txn = transaction.get()
-        txn.note("undo deletion")
+        txn.note(u"undo deletion")
         txn.commit()
 
         set_pack_time()
@@ -522,7 +524,7 @@ class TransactionalUndoStorage:
         transaction.commit()
         rt["test"] = MinPO(3)
         txn = transaction.get()
-        txn.note("root of undo")
+        txn.note(u"root of undo")
         txn.commit()
 
         packtimes = []
@@ -530,7 +532,7 @@ class TransactionalUndoStorage:
             L = db.undoInfo()
             db.undo(L[0]["id"])
             txn = transaction.get()
-            txn.note("undo %d" % i)
+            txn.note(u"undo %d" % i)
             txn.commit()
             rt._p_deactivate()
             cn.sync()
@@ -647,9 +649,9 @@ class TransactionalUndoStorage:
     def checkUndoLogMetadata(self):
         # test that the metadata is correct in the undo log
         t = transaction.get()
-        t.note('t1')
+        t.note(u't1')
         t.setExtendedInfo('k2', 'this is transaction metadata')
-        t.setUser('u3',path='p3')
+        t.setUser(u'u3',path=u'p3')
         db = DB(self._storage)
         conn = db.open()
         root = conn.root()
@@ -734,7 +736,8 @@ class TransactionalUndoStorage:
 
         for i in range(4):
             with db.transaction() as conn:
-                conn.transaction_manager.get().note(str(i))
+                conn.transaction_manager.get().note(
+                    (str if PY3 else unicode)(i))
                 conn.root.x.inc()
 
         ids = [l['id'] for l in db.undoLog(1, 3)]

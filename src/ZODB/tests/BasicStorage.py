@@ -182,7 +182,7 @@ class BasicStorage:
         oid = self._storage.new_oid()
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        t.note('this is a test')
+        t.note(u'this is a test')
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)

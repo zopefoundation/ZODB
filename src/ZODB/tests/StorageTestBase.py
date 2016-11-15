@@ -171,7 +171,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         # Undo a tid that affects a single object (oid).
         # This is very specialized.
         t = TransactionMetaData()
-        t.note(note or "undo")
+        t.note(note or u"undo")
         self._storage.tpc_begin(t)
         undo_result = self._storage.undo(tid, t)
         vote_result = self._storage.tpc_vote(t)

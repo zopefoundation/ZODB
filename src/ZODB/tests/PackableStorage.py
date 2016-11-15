@@ -150,7 +150,7 @@ class PackableStorageBase:
             p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
             t=Transaction()
-            t.description='initial database creation'
+            t.description = u'initial database creation'
             self._storage.tpc_begin(t)
             self._storage.store(ZERO, None, file.getvalue(), '', t)
             self._storage.tpc_vote(t)
@@ -575,7 +575,7 @@ class PackableUndoStorage(PackableStorageBase):
         root = conn.root()
 
         txn = transaction.get()
-        txn.note('root')
+        txn.note(u'root')
         txn.commit()
 
         now = packtime = time.time()
@@ -587,12 +587,12 @@ class PackableUndoStorage(PackableStorageBase):
 
         root['obj'] = obj
         txn = transaction.get()
-        txn.note('root -> o1')
+        txn.note(u'root -> o1')
         txn.commit()
 
         del root['obj']
         txn = transaction.get()
-        txn.note('root -x-> o1')
+        txn.note(u'root -x-> o1')
         txn.commit()
 
         self._storage.pack(packtime, referencesf)
@@ -601,7 +601,7 @@ class PackableUndoStorage(PackableStorageBase):
         tid = log[0]['id']
         db.undo(tid)
         txn = transaction.get()
-        txn.note('undo root -x-> o1')
+        txn.note(u'undo root -x-> o1')
         txn.commit()
 
         conn.sync()
