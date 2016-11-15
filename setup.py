@@ -155,6 +155,7 @@ setup(name="ZODB",
       fsrefs = ZODB.scripts.fsrefs:main
       fstail = ZODB.scripts.fstail:Main
       repozo = ZODB.scripts.repozo:main
+      zodbcmp = ZODB.scripts.zodbcmp:main
       """,
       include_package_data = True,
       )
