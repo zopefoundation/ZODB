@@ -2,8 +2,14 @@
  Change History
 ================
 
-5.0.1 (unreleased)
-==================
+- ZODB now translates transaction meta data, ``user`` and
+  ``description`` from text to bytes before passing them to storages,
+  and converts them back to text when retrieving them from storages in
+  the ``history``, ``undoLog`` and ``undoInfo`` methods.
+
+  The ``IDatabase`` interface was updated to reflect that ``history``,
+  ``undoLog`` and ``undoInfo`` are available on database objects.
+  (They were always available, but not documented in the interface.)
 
 - Fix an AttributeError that DemoStorage could raise if it was asked
   to store a blob into a temporary changes before reading a blob. See
