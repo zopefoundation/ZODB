@@ -228,8 +228,8 @@ class BasicStorage:
             self._storage.checkCurrentSerialInTransaction(oid, tid, t)
             self._storage.tpc_vote(t)
         except POSException.ReadConflictError as v:
-            self.assertTrue(v.oid) == oid
-            self.assertTrue(v.serials == (tid2, tid))
+            self.assertEqual(v.oid, oid)
+            self.assertEqual(v.serials, (tid2, tid))
         else:
             if 0: self.assertTrue(False, "No conflict error")
 
