@@ -901,7 +901,7 @@ class DB(object):
 
         See :meth:`ZODB.interfaces.IStorage.history`.
         """
-        return self.storage.history(oid, size)
+        return text_transaction_info(self.storage.history(oid, size))
 
     def supportsUndo(self):
         """Return whether the database supports undo.
@@ -920,7 +920,7 @@ class DB(object):
 
         if not self.supportsUndo():
             return ()
-        return self.storage.undoLog(*args, **kw)
+        return text_transaction_info(self.storage.undoLog(*args, **kw))
 
     def undoInfo(self, *args, **kw):
         """Return a sequence of descriptions for transactions.
@@ -929,7 +929,7 @@ class DB(object):
         """
         if not self.supportsUndo():
             return ()
-        return self.storage.undoInfo(*args, **kw)
+        return text_transaction_info(self.storage.undoInfo(*args, **kw))
 
     def undoMultiple(self, ids, txn=None):
         """Undo multiple transactions identified by ids.
@@ -1064,3 +1064,12 @@ def connection(*args, **kw):
     managing a separate database object.
     """
     return DB(*args, **kw).open_then_close_db_when_connection_closes()
+
+transaction_meta_data_text_variables = 'user_name', 'description'
+def text_transaction_info(info):
+    for d in info:
+        for name in transaction_meta_data_text_variables:
+            if name in d:
+                d[name] = d[name].decode('utf-8')
+
+    return info

@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from six import PY2
 
 from ZODB.tests.MinPO import MinPO
 import doctest
@@ -75,6 +76,39 @@ class DBTests(ZODB.tests.util.TestCase):
         import ZODB.serialize
         self.assertTrue(self.db.references is ZODB.serialize.referencesf)
 
+    def test_history_and_undo_meta_data_text_handlinf(self):
+        db = self.db
+        conn = db.open()
+        for i in range(3):
+            with conn.transaction_manager as t:
+                t.note(u'work %s' % i)
+                t.setUser(u'user%s' % i)
+                conn.root()[i] = 42
+
+        conn.close()
+
+        from ZODB.utils import z64
+
+        def check(info, text):
+            for i, h in enumerate(reversed(info)):
+                for (name, expect) in (('description', 'work %s'),
+                                       ('user_name', '/ user%s')):
+                    expect = expect % i
+                    if not text:
+                        expect = expect.encode('ascii')
+                    self.assertEqual(h[name], expect)
+
+                if PY2:
+                    expect = unicode if text else str
+                    for name in 'description', 'user_name':
+                        self.assertTrue(isinstance(h[name], expect))
+
+        check(db.storage.history(z64, 3), False)
+        check(db.storage.undoLog(0, 3)  , False)
+        check(db.storage.undoInfo(0, 3) , False)
+        check(db.history(z64, 3), True)
+        check(db.undoLog(0, 3)  , True)
+        check(db.undoInfo(0, 3) , True)
 
 def test_invalidateCache():
     """The invalidateCache method invalidates a connection caches for all of
