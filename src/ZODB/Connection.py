@@ -1289,31 +1289,17 @@ size.
 class TransactionMetaData(object):
 
     def __init__(self, user=u'', description=u'', extension=b''):
+        if not isinstance(user, bytes):
+            user = user.encode('utf-8')
         self.user = user
+
+        if not isinstance(description, bytes):
+            description = description.encode('utf-8')
         self.description = description
+
         if not isinstance(extension, dict):
             extension = _compat.loads(extension) if extension else {}
         self.extension = extension
-
-    @property
-    def user(self):
-        return self.__user
-
-    @user.setter
-    def user(self, user):
-        if not isinstance(user, bytes):
-            user = user.encode('utf-8')
-        self.__user = user
-
-    @property
-    def description(self):
-        return self.__description
-
-    @description.setter
-    def description(self, description):
-        if not isinstance(description, bytes):
-            description = description.encode('utf-8')
-        self.__description = description
 
     def note(self, text): # for tests
         text = text.strip()
@@ -1324,13 +1310,12 @@ class TransactionMetaData(object):
         else:
             self.description = text
 
-
     @property
-    def extension(self):
-        return self.__extension
+    def _extension(self):
+        warnings.warn("_extension is deprecated, use extension",
+                      DeprecationWarning)
+        return self.extension
 
-    @extension.setter
-    def extension(self, v):
-        self.__extension = v
-
-    _extension = extension
+    @_extension.setter
+    def _extension(self, v):
+        self.extension = v
