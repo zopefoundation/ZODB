@@ -27,6 +27,7 @@ from persistent import PickleCache
 from persistent.interfaces import IPersistentDataManager
 from ZODB.interfaces import IConnection
 from ZODB.interfaces import IBlobStorage
+from ZODB.interfaces import IStorageTransactionMetaData
 from ZODB.blob import Blob, rename_or_copy_blob, remove_committed_dir
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
@@ -1286,6 +1287,7 @@ large-record-size option in a configuration file) to specify a larger
 size.
 """
 
+@implementer(IStorageTransactionMetaData)
 class TransactionMetaData(object):
 
     def __init__(self, user=u'', description=u'', extension=b''):
