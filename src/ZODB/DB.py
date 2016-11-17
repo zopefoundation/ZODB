@@ -24,7 +24,7 @@ from . import utils
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
-from ZODB.Connection import Connection
+from ZODB.Connection import Connection, TransactionMetaData
 from ZODB._compat import Pickler, _protocol, BytesIO
 import ZODB.serialize
 
@@ -901,7 +901,7 @@ class DB(object):
 
         See :meth:`ZODB.interfaces.IStorage.history`.
         """
-        return text_transaction_info(self.storage.history(oid, size))
+        return _text_transaction_info(self.storage.history(oid, size))
 
     def supportsUndo(self):
         """Return whether the database supports undo.
@@ -920,7 +920,7 @@ class DB(object):
 
         if not self.supportsUndo():
             return ()
-        return text_transaction_info(self.storage.undoLog(*args, **kw))
+        return _text_transaction_info(self.storage.undoLog(*args, **kw))
 
     def undoInfo(self, *args, **kw):
         """Return a sequence of descriptions for transactions.
@@ -929,7 +929,7 @@ class DB(object):
         """
         if not self.supportsUndo():
             return ()
-        return text_transaction_info(self.storage.undoInfo(*args, **kw))
+        return _text_transaction_info(self.storage.undoInfo(*args, **kw))
 
     def undoMultiple(self, ids, txn=None):
         """Undo multiple transactions identified by ids.
@@ -1037,19 +1037,28 @@ class TransactionalUndo(object):
         pass
 
     def tpc_begin(self, transaction):
-        self._storage.tpc_begin(transaction)
+        tdata = TransactionMetaData(
+            transaction.user,
+            transaction.description,
+            transaction.extended_info)
+        transaction.set_data(self, tdata)
+        self._storage.tpc_begin(tdata)
 
     def commit(self, transaction):
+        transaction = transaction.data(self)
         for tid in self._tids:
             self._storage.undo(tid, transaction)
 
     def tpc_vote(self, transaction):
+        transaction = transaction.data(self)
         self._storage.tpc_vote(transaction)
 
     def tpc_finish(self, transaction):
+        transaction = transaction.data(self)
         self._storage.tpc_finish(transaction)
 
     def tpc_abort(self, transaction):
+        transaction = transaction.data(self)
         self._storage.tpc_abort(transaction)
 
     def sortKey(self):
@@ -1065,10 +1074,10 @@ def connection(*args, **kw):
     """
     return DB(*args, **kw).open_then_close_db_when_connection_closes()
 
-transaction_meta_data_text_variables = 'user_name', 'description'
-def text_transaction_info(info):
+_transaction_meta_data_text_variables = 'user_name', 'description'
+def _text_transaction_info(info):
     for d in info:
-        for name in transaction_meta_data_text_variables:
+        for name in _transaction_meta_data_text_variables:
             if name in d:
                 d[name] = d[name].decode('utf-8')
 
