@@ -2,6 +2,9 @@
  Change History
 ================
 
+5.1.0 (2016-11-17)
+==================
+
 - ZODB now translates transaction meta data, ``user`` and
   ``description`` from text to bytes before passing them to storages,
   and converts them back to text when retrieving them from storages in
