@@ -19,12 +19,12 @@ http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storag
 All storages should be able to pass these tests.
 """
 from ZODB import POSException
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
 import threading
 import time
-import transaction
 import zope.interface
 import zope.interface.verify
 
@@ -36,7 +36,7 @@ class BasicStorage:
     def checkBasics(self):
         self.assertEqual(self._storage.lastTransaction(), ZERO)
 
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertRaises(POSException.StorageTransactionError,
                           self._storage.tpc_begin, t)
@@ -48,22 +48,22 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            ZERO, ZERO, b'', '', transaction.Transaction())
+            ZERO, ZERO, b'', '', TransactionMetaData())
 
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            ZERO, 1, b'2', '', transaction.Transaction())
+            ZERO, 1, b'2', '', TransactionMetaData())
 
         self.assertRaises(
             POSException.StorageTransactionError,
-            self._storage.tpc_vote, transaction.Transaction())
+            self._storage.tpc_vote, TransactionMetaData())
         self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
-        txn = transaction.Transaction()
+        txn = TransactionMetaData()
         self._storage.tpc_begin(txn)
         # Use None for serial.  Don't use _dostore() here because that coerces
         # serial=None to serial=ZERO.
@@ -106,7 +106,7 @@ class BasicStorage:
 
     def checkWriteAfterAbort(self):
         oid = self._storage.new_oid()
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
@@ -119,7 +119,7 @@ class BasicStorage:
         oid1 = self._storage.new_oid()
         revid1 = self._dostore(oid=oid1, data=MinPO(-2))
         oid = self._storage.new_oid()
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
@@ -180,9 +180,9 @@ class BasicStorage:
 
     def checkNote(self):
         oid = self._storage.new_oid()
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        t.note('this is a test')
+        t.note(u'this is a test')
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -194,18 +194,14 @@ class BasicStorage:
     def checkMultipleEmptyTransactions(self):
         # There was a bug in handling empty transactions in mapping
         # storage that caused the commit lock not to be released. :(
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        t.commit()
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)      # Hung here before
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        t.commit()
 
     def _do_store_in_separate_thread(self, oid, revid, voted):
         # We'll run the competing trans in a separate thread:
@@ -224,8 +220,7 @@ class BasicStorage:
 
         #----------------------------------------------------------------------
         # stale read
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         try:
             self._storage.store(b'\0\0\0\0\0\0\0\xf1',
@@ -243,8 +238,7 @@ class BasicStorage:
 
         #----------------------------------------------------------------------
         # non-stale read, no stress. :)
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(b'\0\0\0\0\0\0\0\xf2',
                             b'\0\0\0\0\0\0\0\0', data, '', t)
@@ -255,8 +249,7 @@ class BasicStorage:
         #----------------------------------------------------------------------
         # non-stale read, competition after vote.  The competing
         # transaction must produce a tid > this transaction's tid
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(b'\0\0\0\0\0\0\0\xf3',
                             b'\0\0\0\0\0\0\0\0', data, '', t)
@@ -275,8 +268,7 @@ class BasicStorage:
 
         #----------------------------------------------------------------------
         # non-stale competing trans after checkCurrentSerialInTransaction
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(b'\0\0\0\0\0\0\0\xf4',
                             b'\0\0\0\0\0\0\0\0', data, '', t)
@@ -312,7 +304,7 @@ class BasicStorage:
         # verify that a storage gets it right.
 
         # First, some initial data.
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(ZERO, ZERO, b'x', '', t)
         self._storage.tpc_vote(t)
@@ -322,7 +314,7 @@ class BasicStorage:
         # OK, now we'll start a new transaction, take it to finish,
         # and then block finish while we do some other operations.
 
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(ZERO, tids[0], b'y', '', t)
         self._storage.tpc_vote(t)

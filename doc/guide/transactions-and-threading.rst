@@ -139,7 +139,7 @@ statement. Transaction managers are context managers, so we can use
 them with the ``with`` statement directly::
 
   with my_transaction_manager as trans:
-     trans.note("incrementing x")
+     trans.note(u"incrementing x")
      conn.root.x += 1
 
 .. -> src
@@ -181,14 +181,15 @@ So, for example, if we wanted to set a transaction note::
 
 
   with db.transaction() as conn2:
-     conn2.transaction_manager.get().note("incrementing x again")
+     conn2.transaction_manager.get().note(u"incrementing x again")
      conn2.root.x += 1
 
 .. -> src
 
    >>> exec(src)
-   >>> str(db.history(conn.root()._p_oid)[0]['description'])
-   'incrementing x again'
+   >>> (db.history(conn.root()._p_oid)[0]['description'] ==
+   ...  u'incrementing x again')
+   True
 
 Here, we used the
 :meth:`~transaction.interfaces.ITransactionManager.get` method to get

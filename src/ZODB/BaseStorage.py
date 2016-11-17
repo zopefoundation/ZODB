@@ -191,7 +191,7 @@ class BaseStorage(UndoLogCompatible):
 
             user = transaction.user
             desc = transaction.description
-            ext = transaction._extension
+            ext = transaction.extension
             if ext:
                 ext = dumps(ext, _protocol)
             else:

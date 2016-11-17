@@ -2,6 +2,15 @@
  Change History
 ================
 
+- ZODB now translates transaction meta data, ``user`` and
+  ``description`` from text to bytes before passing them to storages,
+  and converts them back to text when retrieving them from storages in
+  the ``history``, ``undoLog`` and ``undoInfo`` methods.
+
+  The ``IDatabase`` interface was updated to reflect that ``history``,
+  ``undoLog`` and ``undoInfo`` are available on database objects.
+  (They were always available, but not documented in the interface.)
+
 5.0.1 (2016-11-17)
 ==================
 

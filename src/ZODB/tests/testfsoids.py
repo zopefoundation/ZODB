@@ -76,7 +76,7 @@ Let's add a BTree and try again:
 
 >>> root = db.open().root()
 >>> root['tree'] = OOBTree()
->>> txn.get().note('added an OOBTree')
+>>> txn.get().note(u'added an OOBTree')
 >>> txn.get().commit()
 >>> t = Tracer(path)
 >>> t.register_oids(0, 1)
@@ -104,7 +104,7 @@ One more, storing a reference in the BTree back to the root object:
 
 >>> tree = root['tree']
 >>> tree['root'] = root
->>> txn.get().note('circling back to the root')
+>>> txn.get().note(u'circling back to the root')
 >>> txn.get().commit()
 >>> t = Tracer(path)
 >>> t.register_oids(0, 1, 2)

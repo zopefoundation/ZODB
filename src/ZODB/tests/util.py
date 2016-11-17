@@ -25,6 +25,7 @@ import transaction
 import unittest
 import warnings
 import ZODB.utils
+from ZODB.Connection import TransactionMetaData
 import zope.testing.setupstack
 from zope.testing import renormalizing
 
@@ -161,7 +162,7 @@ def store(storage, oid, value='x', serial=ZODB.utils.z64):
         oid = ZODB.utils.p64(oid)
     if not isinstance(serial, bytes):
         serial = ZODB.utils.p64(serial)
-    t = transaction.get()
+    t = TransactionMetaData()
     storage.tpc_begin(t)
     storage.store(oid, serial, value, '', t)
     storage.tpc_vote(t)

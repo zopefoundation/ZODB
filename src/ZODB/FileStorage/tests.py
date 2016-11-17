@@ -20,6 +20,7 @@ import unittest
 import ZODB.blob
 import ZODB.FileStorage
 import ZODB.tests.util
+from ZODB.Connection import TransactionMetaData
 from zope.testing import renormalizing
 
 checker = renormalizing.RENormalizing([
@@ -124,7 +125,7 @@ def pack_with_repeated_blob_records():
 
     Now, create a transaction with multiple saves:
 
-    >>> trans = tm.begin()
+    >>> trans = TransactionMetaData()
     >>> fs.tpc_begin(trans)
     >>> with open('ablob', 'w') as file:
     ...     _ = file.write('some data')
@@ -151,7 +152,7 @@ _save_index can fail for large indexes.
     >>> import ZODB.utils
     >>> fs = ZODB.FileStorage.FileStorage('data.fs')
 
-    >>> t = transaction.begin()
+    >>> t = TransactionMetaData()
     >>> fs.tpc_begin(t)
     >>> oid = 0
     >>> for i in range(5000):

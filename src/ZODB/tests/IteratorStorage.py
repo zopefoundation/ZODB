@@ -18,11 +18,10 @@ all these tests.
 
 """
 
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.utils import U64, p64, load_current
-
-from transaction import Transaction
 
 import ZODB.blob
 
@@ -67,7 +66,7 @@ class IteratorStorage(IteratorCompare):
         info = self._storage.undoInfo()
         tid = info[0]['id']
         # Undo the creation of the object, rendering it a zombie
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
@@ -105,7 +104,7 @@ class IteratorStorage(IteratorCompare):
         # Then the code in FileIterator.next() hasn't yet been fixed.
         # Should automate that check.
         oid = self._storage.new_oid()
-        t = Transaction()
+        t = TransactionMetaData()
         data = zodb_pickle(MinPO(0))
         try:
             self._storage.tpc_begin(t)

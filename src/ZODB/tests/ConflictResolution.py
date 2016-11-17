@@ -14,9 +14,10 @@
 """Tests for application-level conflict resolution."""
 
 from ZODB import DB
+from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
-from transaction import Transaction, TransactionManager
+from transaction import TransactionManager
 
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
@@ -148,7 +149,7 @@ class ConflictResolvingTransUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
@@ -170,6 +171,6 @@ class ConflictResolvingTransUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(UndoError, self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)

@@ -24,6 +24,7 @@ import ZODB.tests.testblob
 import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
+from ZODB.Connection import TransactionMetaData
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import U64, p64, z64, load_current
 
@@ -182,7 +183,7 @@ class FileStorageTests(
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
         # of the largest oid in use.
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         giant_oid = b'\xee' * 8
         # Store an object.
@@ -199,7 +200,7 @@ class FileStorageTests(
         # knows about already, it's crucial that the storage bump its notion
         # of the largest oid in use.  Because copyTransactionsFrom(), and
         # ZRS recovery, use the .restore() method, this is plain critical.
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         giant_oid = b'\xee' * 8
         # Store an object.
@@ -289,7 +290,7 @@ class FileStorageTests(
     def checkFlushAfterTruncate(self, fail=False):
         r0 = self._dostore(z64)
         storage = self._storage
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         storage.tpc_begin(t)
         storage.store(z64, r0, b'foo', b'', t)
         storage.tpc_vote(t)
@@ -421,7 +422,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
             self._storage.store(oid, revid, data, "", t)
 
         for i in range(2):
-            t = transaction.Transaction()
+            t = TransactionMetaData()
             self._storage.tpc_begin(t)
 
             # sometimes data is in this format
