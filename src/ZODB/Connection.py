@@ -462,7 +462,7 @@ class Connection(ExportImport, object):
         meta_data = TransactionMetaData(
             transaction.user,
             transaction.description,
-            transaction.extended_info)
+            transaction.extension)
         transaction.set_data(self, meta_data)
 
         # _creating is a list of oids of new objects, which is used to

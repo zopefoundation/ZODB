@@ -1040,7 +1040,7 @@ class TransactionalUndo(object):
         tdata = TransactionMetaData(
             transaction.user,
             transaction.description,
-            transaction.extended_info)
+            transaction.extension)
         transaction.set_data(self, tdata)
         self._storage.tpc_begin(tdata)
 
