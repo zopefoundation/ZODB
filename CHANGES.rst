@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.0.1 (unreleased)
+5.0.1 (2016-11-17)
 ==================
 
 - Fix an AttributeError that DemoStorage could raise if it was asked
