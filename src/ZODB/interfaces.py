@@ -541,8 +541,8 @@ class IStorageTransactionMetaData(Interface):
     Note that unlike transaction.interfaces.ITransaction, the ``user``
     and ``description`` attributes are bytes, not text.
     """
-    user = Attribute("Transaction user")
-    description = Attribute("Transaction Description")
+    user = Attribute("Bytes transaction user")
+    description = Attribute("Bytes transaction Description")
     extension = Attribute(
         "A dictionary carrying a transaction's extended_info data")
 
@@ -558,7 +558,7 @@ class IStorage(Interface):
     implement multi-version concurrency control.
 
     There are methods in IStorage and in derived interfaces that
-    provide information babout the current revisions (tids) for objects
+    provide information about the current revisions (tids) for objects
     or for the database as a whole.  It is critical for the proper
     working of ZODB that the resulting tids are increasing with
     respect to the object identifier given or to the databases.  That
@@ -799,7 +799,7 @@ class IStorage(Interface):
     def tpc_begin(transaction):
         """Begin the two-phase commit process.
 
-        The argument provides IStorageTransactionMetaDataExtensionBytes.
+        The argument provides IStorageTransactionMetaData.
 
         If storage is already participating in a two-phase commit
         using the same transaction, a StorageTransactionError is raised.
@@ -910,7 +910,7 @@ class IStorageRestoreable(IStorage):
         using a different transaction, the call blocks until the
         current transaction ends (commits or aborts).
 
-        The first argument provides IStorageTransactionMetaDataExtensionBytes.
+        The first argument provides IStorageTransactionMetaData.
 
         If a transaction id is given, then the transaction will use
         the given id rather than generating a new id.  This is used
@@ -979,10 +979,6 @@ class IStorageTransactionInformation(IStorageTransactionMetaData):
     """
 
     tid = Attribute("Transaction id")
-    user = Attribute("Transaction user")
-    description = Attribute("Transaction Description")
-    extension = Attribute(
-        "A dictionary carrying the transaction's extension data")
 
     def __iter__():
         """Iterate over the transaction's records given as
