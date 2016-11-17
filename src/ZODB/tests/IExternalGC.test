@@ -41,7 +41,8 @@ Now we'll use the new deleteObject API to delete the objects. We can't
 go through the database to do this, so we'll have to manage the
 transaction ourselves.
 
-    >>> txn = transaction.begin()
+    >>> from ZODB.Connection import TransactionMetaData
+    >>> txn = TransactionMetaData()
     >>> storage.tpc_begin(txn)
     >>> storage.deleteObject(oid0, s0, txn)
     >>> storage.deleteObject(oid1, s1, txn)
@@ -116,7 +117,7 @@ isn't current:
     >>> conn.root()[0].x = 1
     >>> transaction.commit()
 
-    >>> txn = transaction.begin()
+    >>> txn = TransactionMetaData()
     >>> storage.tpc_begin(txn)
     >>> storage.deleteObject(oid, bad_serial, txn); storage.tpc_vote(txn)
     ... # doctest: +ELLIPSIS

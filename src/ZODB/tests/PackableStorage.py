@@ -144,12 +144,12 @@ class PackableStorageBase:
         try:
             load_current(self._storage, ZERO)
         except KeyError:
-            from transaction import Transaction
+            from ZODB.Connection import TransactionMetaData
             file = BytesIO()
             p = Pickler(file, _protocol)
             p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
-            t=Transaction()
+            t = TransactionMetaData()
             t.description = u'initial database creation'
             self._storage.tpc_begin(t)
             self._storage.store(ZERO, None, file.getvalue(), '', t)

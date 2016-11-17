@@ -377,7 +377,8 @@ If a transaction is aborted in the middle of 2-phase commit, any data
 stored are discarded.
 
     >>> olddata, oldserial = blob_storage.load(blob._p_oid, '')
-    >>> t = transaction.get()
+    >>> from ZODB.Connection import TransactionMetaData
+    >>> t = TransactionMetaData()
     >>> blob_storage.tpc_begin(t)
     >>> with open('blobfile', 'wb') as file:
     ...     _ = file.write(b'This data should go away')
