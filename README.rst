@@ -18,9 +18,6 @@ Compatibility
 
 ZODB 5 requires Python 2.7 (>= 2.7.9) or Python >= 3.3.
 
-Travis: |buildstatus|_
-winbot: |winbotstatus|_
-
 Documentation
 =============
 

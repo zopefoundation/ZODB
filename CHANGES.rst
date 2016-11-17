@@ -11,6 +11,9 @@
   ``undoLog`` and ``undoInfo`` are available on database objects.
   (They were always available, but not documented in the interface.)
 
+5.0.1 (2016-11-17)
+==================
+
 - Fix an AttributeError that DemoStorage could raise if it was asked
   to store a blob into a temporary changes before reading a blob. See
   `issue 103 <https://github.com/zopefoundation/ZODB/issues/103>`_.
