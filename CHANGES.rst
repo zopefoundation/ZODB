@@ -2,6 +2,9 @@
  Change History
 ================
 
+5.1.1 (2016-11-18)
+==================
+
 - Fixed: ``ZODB.Connection.TransactionMetaData`` didn't support custom data
   storage that some storages rely on.
 
