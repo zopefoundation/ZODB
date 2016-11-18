@@ -1324,13 +1324,8 @@ class TransactionMetaData(object):
 
     def data(self, ob):
         try:
-            data = self._data
-        except AttributeError:
-            raise KeyError(ob)
-
-        try:
-            return data[id(ob)]
-        except KeyError:
+            return self._data[id(ob)]
+        except (AttributeError, KeyError):
             raise KeyError(ob)
 
     def set_data(self, ob, ob_data):
