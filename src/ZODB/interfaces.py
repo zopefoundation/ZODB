@@ -546,6 +546,28 @@ class IStorageTransactionMetaData(Interface):
     extension = Attribute(
         "A dictionary carrying a transaction's extended_info data")
 
+
+    def set_data(ob, data):
+        """Hold data on behalf of an object
+
+        For objects such as storages that
+        work with multiple transactions, it's convenient to store
+        transaction-specific data on the transaction itself.  The
+        transaction knows nothing about the data, but simply holds it
+        on behalf of the object.
+
+        The object passed should be the object that needs the data, as
+        opposed to simple object like a string. (Internally, the id of
+        the object is used as the key.)
+        """
+
+    def data(ob):
+        """Retrieve data held on behalf of an object.
+
+        See set_data.
+        """
+
+
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
 

@@ -87,6 +87,23 @@ class TransactionMetaDataTests(unittest.TestCase):
         self.assertEqual(t.description, b'description\xc2\x80')
         self.assertEqual(t.extension, dict(foo='FOO'))
 
+    def test_data(self):
+        t = TransactionMetaData()
+
+        # Can't get data that wasn't set:
+        with self.assertRaises(KeyError) as c:
+            t.data(self)
+        self.assertEqual(c.exception.args, (self,))
+
+        data = dict(a=1)
+        t.set_data(self, data)
+        self.assertEqual(t.data(self), data)
+
+        # Can't get something we haven't stored.
+        with self.assertRaises(KeyError) as c:
+            t.data(data)
+        self.assertEqual(c.exception.args, (data,))
+
 def test_suite():
     return unittest.makeSuite(TransactionMetaDataTests)
 
