@@ -1321,3 +1321,22 @@ class TransactionMetaData(object):
     @_extension.setter
     def _extension(self, v):
         self.extension = v
+
+    def data(self, ob):
+        try:
+            data = self._data
+        except AttributeError:
+            raise KeyError(ob)
+
+        try:
+            return data[id(ob)]
+        except KeyError:
+            raise KeyError(ob)
+
+    def set_data(self, ob, ob_data):
+        try:
+            data = self._data
+        except AttributeError:
+            data = self._data = {}
+
+        data[id(ob)] = ob_data
