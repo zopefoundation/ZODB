@@ -48,7 +48,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         root['test'] = pm = PersistentMapping()
         for n in range(100):
             pm[n] = PersistentMapping({0: 100 - n})
-        transaction.get().note('created test data')
+        transaction.get().note(u'created test data')
         transaction.commit()
         conn.close()
 
@@ -67,7 +67,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
     def duplicate(self, conn, abort_it):
         transaction.begin()
-        transaction.get().note('duplication')
+        transaction.get().note(u'duplication')
         root = conn.root()
         ob = root['test']
         assert len(ob) > 10, 'Insufficient test data'
@@ -424,7 +424,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             for state_num in range(6):
                 transaction.begin()
                 root['state'] = state_num
-                transaction.get().note('root["state"] = %d' % state_num)
+                transaction.get().note(u'root["state"] = %d' % state_num)
                 transaction.commit()
 
             # Undo all but the first.  Note that no work is actually
@@ -433,7 +433,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             log = self._db.undoLog()
             self._db.undoMultiple([log[i]['id'] for i in range(5)])
 
-            transaction.get().note('undo states 1 through 5')
+            transaction.get().note(u'undo states 1 through 5')
 
             # Now attempt all those undo operations.
             transaction.commit()

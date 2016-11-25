@@ -484,7 +484,7 @@ def doctest_transaction_retry_convenience():
     >>> import ZODB.POSException
     >>> for attempt in transaction.manager.attempts():
     ...     with attempt as t:
-    ...         t.note('test')
+    ...         t.note(u'test')
     ...         six.print_(dm['ntry'], ntry)
     ...         ntry += 1
     ...         dm['ntry'] = ntry

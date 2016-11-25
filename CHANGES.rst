@@ -5,6 +5,8 @@
 4.4.4 (unreleased)
 ==================
 
+- Fixed to work with transaction 2.0.3.
+
 - Call _p_resolveConflict() even if a conflicting change doesn't change the
   state. This reverts to the behaviour of 3.10.3 and older.
 

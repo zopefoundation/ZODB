@@ -452,7 +452,7 @@ class DB(object):
                 p.dump((root.__class__, None))
                 p.dump(root.__getstate__())
                 t = transaction.Transaction()
-                t.description = 'initial database creation'
+                t.description = u'initial database creation'
                 temp_storage.tpc_begin(t)
                 temp_storage.store(z64, None, file.getvalue(), '', t)
                 temp_storage.tpc_vote(t)
