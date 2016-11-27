@@ -83,7 +83,7 @@ class MVCCTests:
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = 'isolation test 1'
+            t.description = u'isolation test 1'
             storage.tpc_begin(t)
             c1.commit(t)
             storage.tpc_vote(t)
@@ -109,7 +109,7 @@ class MVCCTests:
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = 'isolation test 2'
+            t.description = u'isolation test 2'
             storage.tpc_begin(t)
             c1.commit(t)
             storage.tpc_vote(t)

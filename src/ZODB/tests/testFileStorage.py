@@ -65,7 +65,7 @@ class FileStorageTests(
         self.open(create=1)
 
     def checkLongMetadata(self):
-        s = "X" * 75000
+        s = u"X" * 75000
         try:
             self._dostore(user=s)
         except POSException.StorageError:
