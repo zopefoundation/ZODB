@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.4.4 (unreleased)
+4.4.4 (2016-11-27)
 ==================
 
 - Fixed to work with transaction 2.0.3.
