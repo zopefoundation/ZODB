@@ -1326,10 +1326,28 @@ class StubDatabase:
 
     large_record_size = 1<<30
 
+class ConnectionTests(unittest.TestCase):
+    # There are too many test classes. Let's put new unit tests here
+
+    def test_get_ghost_from_pickle(self):
+        # Get accepts an optional pickle argument to create a ghost
+        # without loading data.  This is useful when external indexes
+        # are used to index objects and we want to create ghosts for
+        # results.
+        import ZODB
+        conn = ZODB.connection(None)
+
+        oid = p64(42)
+        ob = conn.get(oid, b'cpersistent.mapping\nPersistentMapping\n.')
+        self.assertEqual(ob._p_oid, oid)
+        from persistent.mapping import PersistentMapping
+        self.assertEqual(ob.__class__, PersistentMapping)
+
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd)
     s.addTest(unittest.makeSuite(SetstateErrorLoggingTests))
     s.addTest(doctest.DocTestSuite(checker=checker))
     s.addTest(unittest.makeSuite(TestConnectionInterface))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
+    s.addTest(unittest.makeSuite(ConnectionTests))
     return s

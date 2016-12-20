@@ -227,7 +227,7 @@ class Connection(ExportImport, object):
         # registered with the transaction.
         self._added[oid] = obj
 
-    def get(self, oid):
+    def get(self, oid, class_pickle=None):
         """Return the persistent object with oid 'oid'."""
         if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
@@ -242,7 +242,10 @@ class Connection(ExportImport, object):
         if obj is not None:
             return obj
 
-        p, _ = self._storage.load(oid)
+        if class_pickle is None:
+            p, _ = self._storage.load(oid)
+        else:
+            p = class_pickle
         obj = self._reader.getGhost(p)
 
         # Avoid infiniate loop if obj tries to load its state before
