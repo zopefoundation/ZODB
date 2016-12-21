@@ -136,7 +136,7 @@ class IConnection(Interface):
         Raises ConnectionStateError if the connection is closed.
         """
 
-    def get(oid):
+    def get(oid, class_pickle=None):
         """Return the persistent object with oid 'oid'.
 
         If the object was not in the cache and the object's class is
@@ -148,7 +148,20 @@ class IConnection(Interface):
         are loaded transparently during attribute lookup.
 
         Parameters:
-        oid: an object id
+
+        oid
+          The id of the object to be returned
+
+        class_pickle
+          An optional pickle used to create a ghost object.  It's
+          normally not provided, but is obtained by loading the
+          object's data record from storage.
+
+          If provided then nothing is loaded from the storage and the
+          object id and class aren't checked.
+
+          This argument is intended to support indexing of objects in
+          external indexes.
 
         Raises KeyError if oid does not exist.
 

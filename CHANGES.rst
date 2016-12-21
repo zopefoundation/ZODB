@@ -2,6 +2,10 @@
  Change History
 ================
 
+- The connection ``get`` method now accept an optional class pickle as
+  a second argument.  This is a somewhat experimental feature to
+  support index and search of objects in external indexes.
+
 5.1.1 (2016-11-18)
 ==================
 
