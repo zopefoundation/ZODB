@@ -17,11 +17,14 @@ Any storage that supports undo() must pass these tests.
 """
 import time
 
+from six import PY3
+
 from persistent import Persistent
 import transaction
 from transaction import Transaction
 
 from ZODB import POSException
+from ZODB.Connection import TransactionMetaData
 from ZODB.serialize import referencesf
 from ZODB.utils import p64, load_current
 from ZODB import DB
@@ -53,7 +56,7 @@ def listeq(L1, L2):
 class TransactionalUndoStorage:
 
     def _multi_obj_transaction(self, objs):
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         for oid, rev, data in objs:
             self._storage.store(oid, rev, data, '', t)
@@ -82,7 +85,7 @@ class TransactionalUndoStorage:
         return oids
 
     def undo(self, tid, note=None):
-        t = Transaction()
+        t = TransactionMetaData()
         if note is not None:
             t.note(note)
         oids = self._begin_undos_vote(t, tid)
@@ -182,7 +185,7 @@ class TransactionalUndoStorage:
         oid2 = self._storage.new_oid()
         revid1 = revid2 = ZERO
         # Store two objects in the same transaction
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p31, '', t)
         self._storage.store(oid2, revid2, p51, '', t)
@@ -190,7 +193,7 @@ class TransactionalUndoStorage:
         self._storage.tpc_vote(t)
         tid = self._storage.tpc_finish(t)
         # Update those same two objects
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, tid, p32, '', t)
         self._storage.store(oid2, tid, p52, '', t)
@@ -242,7 +245,7 @@ class TransactionalUndoStorage:
         info = self._storage.undoInfo()
         tid = info[0]['id']
         tid1 = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         oids = self._begin_undos_vote(t, tid, tid1)
         serial = self._storage.tpc_finish(t)
         # We may get the finalization stuff called an extra time,
@@ -275,7 +278,7 @@ class TransactionalUndoStorage:
         revid1 = self._dostore(oid1, data=p31, already_pickled=1)
         revid2 = self._dostore(oid2, data=p51, already_pickled=1)
         # Update those same two objects
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p32, '', t)
         self._storage.store(oid2, revid2, p52, '', t)
@@ -291,7 +294,7 @@ class TransactionalUndoStorage:
         eq(zodb_unpickle(data), MinPO(51))
         # Like the above, but this time, the second transaction contains only
         # one object.
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p33, '', t)
         self._storage.store(oid2, revid2, p53, '', t)
@@ -320,7 +323,7 @@ class TransactionalUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(POSException.UndoError,
                           self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
@@ -334,7 +337,7 @@ class TransactionalUndoStorage:
         p81, p82, p91, p92 = map(zodb_pickle,
                                  map(MinPO, (81, 82, 91, 92)))
 
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid1, revid1, p81, '', t)
         self._storage.store(oid2, revid2, p91, '', t)
@@ -352,7 +355,7 @@ class TransactionalUndoStorage:
         self.assertNotEqual(tid, revid2)
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(POSException.UndoError,
                           self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)
@@ -411,7 +414,7 @@ class TransactionalUndoStorage:
         root['obj'] = o1
         o1.obj = o2
         txn = transaction.get()
-        txn.note('o1 -> o2')
+        txn.note(u'o1 -> o2')
         txn.commit()
         now = packtime = time.time()
         while packtime <= now:
@@ -420,12 +423,12 @@ class TransactionalUndoStorage:
         o3 = C()
         o2.obj = o3
         txn = transaction.get()
-        txn.note('o1 -> o2 -> o3')
+        txn.note(u'o1 -> o2 -> o3')
         txn.commit()
 
         o1.obj = o3
         txn = transaction.get()
-        txn.note('o1 -> o3')
+        txn.note(u'o1 -> o3')
         txn.commit()
 
         log = self._storage.undoLog()
@@ -443,7 +446,7 @@ class TransactionalUndoStorage:
         tid = log[0]['id']
         db.undo(tid)
         txn = transaction.get()
-        txn.note('undo')
+        txn.note(u'undo')
         txn.commit()
         # undo does a txn-undo, but doesn't invalidate
         conn.sync()
@@ -470,14 +473,14 @@ class TransactionalUndoStorage:
         root["key1"] = MinPO(1)
         root["key2"] = MinPO(2)
         txn = transaction.get()
-        txn.note("create 3 keys")
+        txn.note(u"create 3 keys")
         txn.commit()
 
         set_pack_time()
 
         del root["key1"]
         txn = transaction.get()
-        txn.note("delete 1 key")
+        txn.note(u"delete 1 key")
         txn.commit()
 
         set_pack_time()
@@ -489,7 +492,7 @@ class TransactionalUndoStorage:
         L = db.undoInfo()
         db.undo(L[0]["id"])
         txn = transaction.get()
-        txn.note("undo deletion")
+        txn.note(u"undo deletion")
         txn.commit()
 
         set_pack_time()
@@ -521,7 +524,7 @@ class TransactionalUndoStorage:
         transaction.commit()
         rt["test"] = MinPO(3)
         txn = transaction.get()
-        txn.note("root of undo")
+        txn.note(u"root of undo")
         txn.commit()
 
         packtimes = []
@@ -529,7 +532,7 @@ class TransactionalUndoStorage:
             L = db.undoInfo()
             db.undo(L[0]["id"])
             txn = transaction.get()
-            txn.note("undo %d" % i)
+            txn.note(u"undo %d" % i)
             txn.commit()
             rt._p_deactivate()
             cn.sync()
@@ -570,7 +573,7 @@ class TransactionalUndoStorage:
 
         orig = []
         for i in range(BATCHES):
-            t = Transaction()
+            t = TransactionMetaData()
             tid = p64(i + 1)
             s.tpc_begin(t, tid)
             for j in range(OBJECTS):
@@ -593,7 +596,7 @@ class TransactionalUndoStorage:
 
         def undo(i):
             info = s.undoInfo()
-            t = Transaction()
+            t = TransactionMetaData()
             s.tpc_begin(t)
             base = i * OBJECTS + i
             for j in range(OBJECTS):
@@ -646,9 +649,9 @@ class TransactionalUndoStorage:
     def checkUndoLogMetadata(self):
         # test that the metadata is correct in the undo log
         t = transaction.get()
-        t.note('t1')
+        t.note(u't1')
         t.setExtendedInfo('k2', 'this is transaction metadata')
-        t.setUser('u3',path='p3')
+        t.setUser(u'u3',path=u'p3')
         db = DB(self._storage)
         conn = db.open()
         root = conn.root()
@@ -733,7 +736,8 @@ class TransactionalUndoStorage:
 
         for i in range(4):
             with db.transaction() as conn:
-                conn.transaction_manager.get().note(str(i))
+                conn.transaction_manager.get().note(
+                    (str if PY3 else unicode)(i))
                 conn.root.x.inc()
 
         ids = [l['id'] for l in db.undoLog(1, 3)]

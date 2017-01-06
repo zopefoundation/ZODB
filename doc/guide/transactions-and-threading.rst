@@ -139,7 +139,7 @@ statement. Transaction managers are context managers, so we can use
 them with the ``with`` statement directly::
 
   with my_transaction_manager as trans:
-     trans.note("incrementing x")
+     trans.note(u"incrementing x")
      conn.root.x += 1
 
 .. -> src
@@ -151,7 +151,7 @@ them with the ``with`` statement directly::
 
 When used as a context manager, a transaction manager explicitly
 begins a new transaction, executes the code block and commits the
-transaction if there isn't an error and aborts it of there is an
+transaction if there isn't an error and aborts it if there is an
 error.
 
 We used ``as trans`` above to get the transaction.
@@ -181,14 +181,15 @@ So, for example, if we wanted to set a transaction note::
 
 
   with db.transaction() as conn2:
-     conn2.transaction_manager.get().note("incrementing x again")
+     conn2.transaction_manager.get().note(u"incrementing x again")
      conn2.root.x += 1
 
 .. -> src
 
    >>> exec(src)
-   >>> db.history(conn.root()._p_oid)[0]['description']
-   'incrementing x again'
+   >>> (db.history(conn.root()._p_oid)[0]['description'] ==
+   ...  u'incrementing x again')
+   True
 
 Here, we used the
 :meth:`~transaction.interfaces.ITransactionManager.get` method to get
@@ -242,7 +243,7 @@ connections will get a conflict error when it tries to commit::
     ...
     ZODB.POSException.ConflictError: ...
 
-If we executed this code, we'd get ``ConflictError`` exception on the
+If we executed this code, we'd get a ``ConflictError`` exception on the
 last line.  After a conflict error is raised, we'd need to abort the
 transaction, or begin a new one, at which point we'd see the data as
 written by the other connection:
@@ -267,7 +268,7 @@ Retrying transactions
 ~~~~~~~~~~~~~~~~~~~~~
 
 The most common way to deal with conflict errors is to catch them and
-retry transactions.  To do this manually, involves code that looks
+retry transactions.  To do this manually involves code that looks
 something like this::
 
   max_attempts = 3
@@ -325,12 +326,12 @@ Commonly used objects that implement conflict resolution are
 buckets and ``Length`` objects provided by the `BTree
 <https://pythonhosted.org/BTrees/>`_ package.
 
-The main data structures provided by BTrees: BTrees and TreeSets,
+The main data structures provided by BTrees, BTrees and TreeSets,
 spread their data over multiple objects.  The leaf-level objects,
 called *buckets*, allow distinct keys to be updated without causing
 conflicts [#usually-avoids-conflicts]_.
 
-``Length`` objects are conflict-free counters, that merge changes by
+``Length`` objects are conflict-free counters that merge changes by
 simply accumulating changes.
 
 .. caution::
@@ -353,7 +354,7 @@ can be broken in non-obvious ways. For example a Web API that splits
 logical operations over multiple web requests, as is often done in
 `REST
 <https://en.wikipedia.org/wiki/Representational_state_transfer>`_
-APIs, violate this rule.
+APIs, violates this rule.
 
 Partial transaction error recovery using savepoints
 ---------------------------------------------------
@@ -395,7 +396,7 @@ ZODB supports concurrency through transactions.  Multiple programs
 [#wtf-program]_ can operate independently in separate transactions.
 They synchronize at transaction boundaries.
 
-The most common way to run ZODB is with each program running in it's
+The most common way to run ZODB is with each program running in its
 own thread.  Usually the thread-local transaction manager is used.
 
 You can use multiple threads per transaction and you can run multiple
@@ -441,7 +442,7 @@ Some things to keep in mind when utilizing multiple processes:
    split due to added objects causing them to exceed their maximum size.
 
 .. [#undo] Transactions can't be rolled back, but they may be undone
-   in some cases, especially of subsequent transactions
+   in some cases, especially if subsequent transactions
    haven't modified the same objects.
 
 .. [#bad-idea-using-multiple-threads-per-transaction] While it's

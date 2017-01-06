@@ -23,9 +23,8 @@ old code, developers will have a hard time testing the new code.
 import unittest
 import sys
 
-from transaction import Transaction
-
 import ZODB
+from ZODB.Connection import TransactionMetaData
 from ZODB.MappingStorage import MappingStorage
 
 from six import PY2
@@ -47,7 +46,7 @@ class PMTests(unittest.TestCase):
             return
         # insert the pickle in place of the root
         s = MappingStorage()
-        t = Transaction()
+        t = TransactionMetaData()
         s.tpc_begin(t)
         s.store('\000' * 8, None, pickle, '', t)
         s.tpc_vote(t)

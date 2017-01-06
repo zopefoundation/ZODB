@@ -383,7 +383,41 @@ class IDatabase(IStorageDB):
         include useful objects.
         """
 
-    # TODO: Should this method be moved into some subinterface?
+    def history(oid, size=1):
+        """Return a sequence of history information dictionaries.
+
+        Up to size objects (including no objects) may be returned.
+
+        The information provides a log of the changes made to the
+        object. Data are reported in reverse chronological order.
+
+        Each dictionary has the following keys:
+
+        time
+            UTC seconds since the epoch (as in time.time) that the
+            object revision was committed.
+
+        tid
+            The transaction identifier of the transaction that
+            committed the version.
+
+        user_name
+            The text (unicode) user identifier, if any (or an empty
+            string) of the user on whos behalf the revision was
+            committed.
+
+        description
+            The text (unicode) transaction description for the
+            transaction that committed the revision.
+
+        size
+            The size of the revision data record.
+
+        If the transaction had extension items, then these items are
+        also included if they don't conflict with the keys above.
+        """
+
+
     def pack(t=None, days=0):
         """Pack the storage, deleting unused object revisions.
 
@@ -400,7 +434,76 @@ class IDatabase(IStorageDB):
         time if t is not specified.
         """
 
-    # TODO: Should this method be moved into some subinterface?
+    def undoLog(first, last, filter=None):
+        """Return a sequence of descriptions for undoable transactions.
+
+        Application code should call undoLog() on a DB instance instead of on
+        the storage directly.
+
+        A transaction description is a mapping with at least these keys:
+
+            "time":  The time, as float seconds since the epoch, when
+                     the transaction committed.
+            "user_name":  The text value of the `.user` attribute on that
+                          transaction.
+            "description":  The text value of the `.description` attribute on
+                            that transaction.
+            "id`"  A bytes uniquely identifying the transaction to the
+                   storage.  If it's desired to undo this transaction,
+                   this is the `transaction_id` to pass to `undo()`.
+
+        In addition, if any name+value pairs were added to the transaction
+        by `setExtendedInfo()`, those may be added to the transaction
+        description mapping too (for example, FileStorage's `undoLog()` does
+        this).
+
+        `filter` is a callable, taking one argument.  A transaction
+        description mapping is passed to `filter` for each potentially
+        undoable transaction.  The sequence returned by `undoLog()` excludes
+        descriptions for which `filter` returns a false value.  By default,
+        `filter` always returns a true value.
+
+        ZEO note:  Arbitrary callables cannot be passed from a ZEO client
+        to a ZEO server, and a ZEO client's implementation of `undoLog()`
+        ignores any `filter` argument that may be passed.  ZEO clients
+        should use the related `undoInfo()` method instead (if they want
+        to do filtering).
+
+        Now picture a list containing descriptions of all undoable
+        transactions that pass the filter, most recent transaction first (at
+        index 0).  The `first` and `last` arguments specify the slice of this
+        (conceptual) list to be returned:
+
+            `first`:  This is the index of the first transaction description
+                      in the slice.  It must be >= 0.
+            `last`:  If >= 0, first:last acts like a Python slice, selecting
+                     the descriptions at indices `first`, first+1, ..., up to
+                     but not including index `last`.  At most last-first
+                     descriptions are in the slice, and `last` should be at
+                     least as large as `first` in this case.  If `last` is
+                     less than 0, then abs(last) is taken to be the maximum
+                     number of descriptions in the slice (which still begins
+                     at index `first`).  When `last` < 0, the same effect
+                     could be gotten by passing the positive first-last for
+                     `last` instead.
+        """
+
+    def undoInfo(first=0, last=-20, specification=None):
+        """Return a sequence of descriptions for undoable transactions.
+
+        This is like `undoLog()`, except for the `specification` argument.
+        If given, `specification` is a dictionary, and `undoInfo()`
+        synthesizes a `filter` function `f` for `undoLog()` such that
+        `f(desc)` returns true for a transaction description mapping
+        `desc` if and only if `desc` maps each key in `specification` to
+        the same value `specification` maps that key to.  In other words,
+        only extensions (or supersets) of `specification` match.
+
+        ZEO note:  `undoInfo()` passes the `specification` argument from a
+        ZEO client to its ZEO server (while a ZEO client ignores any `filter`
+        argument passed to `undoLog()`).
+        """
+
     def undo(id, txn=None):
         """Undo a transaction identified by id.
 
@@ -430,6 +533,38 @@ class IDatabase(IStorageDB):
         connections?  Technically, they remain open, but their storage
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
+        """
+
+class IStorageTransactionMetaData(Interface):
+    """Provide storage transaction meta data.
+
+    Note that unlike transaction.interfaces.ITransaction, the ``user``
+    and ``description`` attributes are bytes, not text.
+    """
+    user = Attribute("Bytes transaction user")
+    description = Attribute("Bytes transaction Description")
+    extension = Attribute(
+        "A dictionary carrying a transaction's extended_info data")
+
+
+    def set_data(ob, data):
+        """Hold data on behalf of an object
+
+        For objects such as storages that
+        work with multiple transactions, it's convenient to store
+        transaction-specific data on the transaction itself.  The
+        transaction knows nothing about the data, but simply holds it
+        on behalf of the object.
+
+        The object passed should be the object that needs the data, as
+        opposed to simple object like a string. (Internally, the id of
+        the object is used as the key.)
+        """
+
+    def data(ob):
+        """Retrieve data held on behalf of an object.
+
+        See set_data.
         """
 
 
@@ -513,11 +648,11 @@ class IStorage(Interface):
             An alias for tid, which expected by older clients.
 
         user_name
-            The user identifier, if any (or an empty string) of the
+            The bytes user identifier, if any (or an empty string) of the
             user on whos behalf the revision was committed.
 
         description
-            The transaction description for the transaction that
+            The bytes transaction description for the transaction that
             committed the revision.
 
         size
@@ -652,8 +787,7 @@ class IStorage(Interface):
             This must be an empty string. It exists for backward compatibility.
 
         transaction
-            A transaction object.  This should match the current
-            transaction for the storage, set by tpc_begin.
+            The object passed to tpc_begin
 
         Several different exceptions may be raised when an error occurs.
 
@@ -675,6 +809,8 @@ class IStorage(Interface):
     def tpc_abort(transaction):
         """Abort the transaction.
 
+        The argument is the same object passed to tpc_begin.
+
         Any changes made by the transaction are discarded.
 
         This call is ignored is the storage is not participating in
@@ -684,6 +820,8 @@ class IStorage(Interface):
 
     def tpc_begin(transaction):
         """Begin the two-phase commit process.
+
+        The argument provides IStorageTransactionMetaData.
 
         If storage is already participating in a two-phase commit
         using the same transaction, a StorageTransactionError is raised.
@@ -703,6 +841,8 @@ class IStorage(Interface):
         a different transaction.  Failure of this method is extremely
         serious.
 
+        The first argument is the same object passed to tpc_begin.
+
         The second argument is a call-back function that must be
         called while the storage transaction lock is held.  It takes
         the new transaction id generated by the transaction.
@@ -713,6 +853,8 @@ class IStorage(Interface):
 
     def tpc_vote(transaction):
         """Provide a storage with an opportunity to veto a transaction
+
+        The argument is the same object passed to tpc_begin.
 
         This call raises a StorageTransactionError if the storage
         isn't participating in two-phase commit or if it is commiting
@@ -790,6 +932,8 @@ class IStorageRestoreable(IStorage):
         using a different transaction, the call blocks until the
         current transaction ends (commits or aborts).
 
+        The first argument provides IStorageTransactionMetaData.
+
         If a transaction id is given, then the transaction will use
         the given id rather than generating a new id.  This is used
         when copying already committed transactions from another
@@ -841,26 +985,22 @@ class IStorageRecordInformation(Interface):
     """Provide information about a single storage record
     """
 
-    oid = Attribute("The object id")
-    tid = Attribute("The transaction id")
-    data = Attribute("The data record")
-    version = Attribute("The version id")
-    data_txn = Attribute("The previous transaction id")
+    oid = Attribute("The object id, bytes")
+    tid = Attribute("The transaction id, bytes")
+    data = Attribute("The data record, bytes")
+    data_txn = Attribute("The previous transaction id, bytes")
 
-
-class IStorageTransactionInformation(Interface):
+class IStorageTransactionInformation(IStorageTransactionMetaData):
     """Provide information about a storage transaction.
 
     Can be iterated over to retrieve the records modified in the transaction.
 
+    Note that this may contain a status field used by FileStorage to
+    support packing. At some point, this will go away when FileStorage
+    has a better pack algoritm.
     """
 
     tid = Attribute("Transaction id")
-    status = Attribute("Transaction Status") # XXX what are valid values?
-    user = Attribute("Transaction user")
-    description = Attribute("Transaction Description")
-    extension = Attribute(
-        "A dictionary carrying the transaction's extension data")
 
     def __iter__():
         """Iterate over the transaction's records given as
@@ -887,7 +1027,6 @@ class IStorageIteration(Interface):
         the iterator was retrieved.
 
         """
-
 
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
@@ -922,11 +1061,11 @@ class IStorageUndoable(IStorage):
 
             "time":  The time, as float seconds since the epoch, when
                      the transaction committed.
-            "user_name":  The value of the `.user` attribute on that
+            "user_name":  The bytes value of the `.user` attribute on that
                           transaction.
-            "description":  The value of the `.description` attribute on
+            "description":  The bytes value of the `.description` attribute on
                             that transaction.
-            "id`"  A string uniquely identifying the transaction to the
+            "id`"  A bytes uniquely identifying the transaction to the
                    storage.  If it's desired to undo this transaction,
                    this is the `transaction_id` to pass to `undo()`.
 
@@ -965,7 +1104,6 @@ class IStorageUndoable(IStorage):
                      could be gotten by passing the positive first-last for
                      `last` instead.
         """
-        # DB pass through
 
     def undoInfo(first=0, last=-20, specification=None):
         """Return a sequence of descriptions for undoable transactions.
@@ -982,7 +1120,6 @@ class IStorageUndoable(IStorage):
         ZEO client to its ZEO server (while a ZEO client ignores any `filter`
         argument passed to `undoLog()`).
         """
-        # DB pass-through
 
 
 class IMVCCStorage(IStorage):

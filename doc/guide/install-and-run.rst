@@ -123,9 +123,9 @@ configuration to be reduced to a single URI and handles most cases.
 Using databases: connections
 ============================
 
-Once you have a database, you need to get a database connection to to
+Once you have a database, you need to get a database connection to do
 much of anything.  Connections take care of loading and saving objects
-and manage object caches. Each connection has it's own cache
+and manage object caches. Each connection has its own cache
 [#caches-are-expensive]_.
 
 .. _getting-connections:

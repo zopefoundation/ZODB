@@ -28,13 +28,12 @@ from persistent.TimeStamp import TimeStamp
 
 import ZODB.interfaces
 from . import POSException, utils
+from .Connection import TransactionMetaData
 from .utils import z64, oid_repr, byte_ord, byte_chr, load_current
 from .UndoLogCompatible import UndoLogCompatible
 from ._compat import dumps, _protocol, py2_hasattr
 
 log = logging.getLogger("ZODB.BaseStorage")
-
-
 
 class BaseStorage(UndoLogCompatible):
     """Base class that supports storage implementations.
@@ -191,7 +190,7 @@ class BaseStorage(UndoLogCompatible):
 
             user = transaction.user
             desc = transaction.description
-            ext = transaction._extension
+            ext = transaction.extension
             if ext:
                 ext = dumps(ext, _protocol)
             else:
@@ -359,25 +358,14 @@ def checkCurrentSerialInTransaction(self, oid, serial, transaction):
 BaseStorage.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
 
 @zope.interface.implementer(ZODB.interfaces.IStorageTransactionInformation)
-class TransactionRecord(object):
+class TransactionRecord(TransactionMetaData):
     """Abstract base class for iterator protocol"""
 
 
     def __init__(self, tid, status, user, description, extension):
         self.tid = tid
         self.status = status
-        self.user = user
-        self.description = description
-        self.extension = extension
-
-    # XXX This is a workaround to make the TransactionRecord compatible with a
-    # transaction object because it is passed to tpc_begin().
-    def _ext_set(self, value):
-        self.extension = value
-    def _ext_get(self):
-        return self.extension
-    _extension = property(fset=_ext_set, fget=_ext_get)
-
+        TransactionMetaData.__init__(self, user, description, extension)
 
 @zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
 class DataRecord(object):

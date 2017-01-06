@@ -8,6 +8,7 @@ import six
 import transaction
 
 import ZODB
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.MinPO import MinPO
 from ZODB.POSException import ConflictError
@@ -140,7 +141,7 @@ class StorageClientThread(TestThread):
 
     def dostore(self, i):
         data = zodb_pickle(MinPO((self.getName(), i)))
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         oid = self.oid()
         self.pause()
 

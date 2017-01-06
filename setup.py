@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-version = "5.0.0"
+version = "5.1.1"
 
 import os
 from setuptools import setup, find_packages
@@ -141,7 +141,7 @@ setup(name="ZODB",
         'persistent >= 4.2.0',
         'BTrees >= 4.2.0',
         'ZConfig',
-        'transaction >= 1.6.1',
+        'transaction >= 2.0.3',
         'six',
         'zc.lockfile',
         'zope.interface',

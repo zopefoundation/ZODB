@@ -201,7 +201,7 @@ Memory Management
 
 ZODB manages moving objects in and out of memory for you.  The unit of
 storage is the persistent object.  When you access attributes of a
-persistent objects, it's loaded from the database automatically, if
+persistent object, they are loaded from the database automatically, if
 necessary. If too many objects are in memory, then objects used least
 recently are evicted [#eviction]_.  The maximum number of objects or
 bytes in memory is configurable.

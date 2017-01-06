@@ -16,6 +16,7 @@ import unittest
 
 from persistent.mapping import PersistentMapping
 import transaction
+from ZODB.Connection import TransactionMetaData
 from ZODB.DB import DB
 from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
 import ZODB.blob
@@ -83,11 +84,11 @@ class MVCCTests:
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = 'isolation test 1'
-            storage.tpc_begin(t)
+            t.description = u'isolation test 1'
+            c1.tpc_begin(t)
             c1.commit(t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
+            storage.tpc_vote(t.data(c1))
+            storage.tpc_finish(t.data(c1))
 
             # The second connection will now load root['alpha'], but due to
             # MVCC, it should continue to see the old state.
@@ -109,11 +110,11 @@ class MVCCTests:
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = 'isolation test 2'
-            storage.tpc_begin(t)
+            t.description = u'isolation test 2'
+            c1.tpc_begin(t)
             c1.commit(t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
+            storage.tpc_vote(t.data(c1))
+            storage.tpc_finish(t.data(c1))
 
             # The second connection will now load root[3], but due to MVCC,
             # it should continue to see the old state.
@@ -161,7 +162,7 @@ class MVCCMappingStorageTests(
         import time
         from ZODB.utils import newTid
         from ZODB.TimeStamp import TimeStamp
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -173,7 +174,7 @@ class MVCCMappingStorageTests(
         transactions[fake_timestamp] = transactions.values()[0]
 
         # Verify the next transaction comes after the fake transaction
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertEqual(self._storage._tid, b'zzzzzzzz')
 

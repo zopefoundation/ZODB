@@ -18,9 +18,6 @@ Compatibility
 
 ZODB 5 requires Python 2.7 (>= 2.7.9) or Python >= 3.3.
 
-Travis: |buildstatus|_
-winbot: |winbotstatus|_
-
 Documentation
 =============
 
@@ -109,3 +106,8 @@ More information
 ================
 
 See http://zodb.org/
+
+
+.. image:: https://badges.gitter.im/zopefoundation/ZODB.svg
+   :alt: Join the chat at https://gitter.im/zopefoundation/ZODB
+   :target: https://gitter.im/zopefoundation/ZODB?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge

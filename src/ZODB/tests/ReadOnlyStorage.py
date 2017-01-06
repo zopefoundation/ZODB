@@ -11,8 +11,8 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import ReadOnlyError, Unsupported
-import transaction
 
 from ZODB.utils import load_current
 
@@ -48,7 +48,7 @@ class ReadOnlyStorage:
     def checkWriteMethods(self):
         self._make_readonly()
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
 
         self.assertRaises(ReadOnlyError, self._storage.store,

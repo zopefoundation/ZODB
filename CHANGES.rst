@@ -2,7 +2,25 @@
  Change History
 ================
 
-5.0.1 (unreleased)
+5.1.1 (2016-11-18)
+==================
+
+- Fixed: ``ZODB.Connection.TransactionMetaData`` didn't support custom data
+  storage that some storages rely on.
+
+5.1.0 (2016-11-17)
+==================
+
+- ZODB now translates transaction meta data, ``user`` and
+  ``description`` from text to bytes before passing them to storages,
+  and converts them back to text when retrieving them from storages in
+  the ``history``, ``undoLog`` and ``undoInfo`` methods.
+
+  The ``IDatabase`` interface was updated to reflect that ``history``,
+  ``undoLog`` and ``undoInfo`` are available on database objects.
+  (They were always available, but not documented in the interface.)
+
+5.0.1 (2016-11-17)
 ==================
 
 - Fix an AttributeError that DemoStorage could raise if it was asked

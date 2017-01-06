@@ -340,7 +340,7 @@ class TransactionRecord:
         self.tid = tid
         self.user = transaction.user
         self.description = transaction.description
-        extension = transaction._extension
+        extension = transaction.extension
         self.extension = extension
         self.data = data
 
