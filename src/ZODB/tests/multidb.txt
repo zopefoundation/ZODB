@@ -137,7 +137,7 @@ an exception:
 
 Clean up:
 
-    >>> for a_db in dbmap.values():
+    >>> for a_db in list(dbmap.values()):
     ...     a_db.close()
 
 
