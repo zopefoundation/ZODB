@@ -753,18 +753,15 @@ class DB(object):
                     result = self.pool.pop()
             assert result is not None
 
-            # open the connection.
-            result.open(transaction_manager)
-
             # A good time to do some cache cleanup.
             # (note we already have the lock)
             self.pool.availableGC()
             self.historical_pool.availableGC()
-
-            return result
-
         finally:
             self._r()
+
+        result.open(transaction_manager)
+        return result
 
     def connectionDebugInfo(self):
         result = []

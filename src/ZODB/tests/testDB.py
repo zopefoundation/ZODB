@@ -151,7 +151,7 @@ def connectionDebugInfo():
     >>> before
     [None, '\x03zY\xd8\xc0m9\xdd', None]
     >>> opened
-    ['2008-12-04T20:40:44Z (1.40s)', '2008-12-04T20:40:45Z (0.30s)', None]
+    ['2008-12-04T20:40:44Z (1.30s)', '2008-12-04T20:40:46Z (0.10s)', None]
     >>> infos
     ['test info (2)', ' (0)', ' (0)']
 
