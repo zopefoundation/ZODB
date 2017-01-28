@@ -3,7 +3,7 @@ sudo: false
 matrix:
     include:
         - os: linux
-          python: pypy
+          python: pypy-5.4.1
         - os: linux
           python: pypy3
           env: BUILOUT_OPTIONS=sphinx:eggs=
