@@ -2,6 +2,12 @@
  Change History
 ================
 
+4.4.5 (unreleased)
+==================
+
+- ``persistent`` is no longer required at setup time.
+  See `issue 119 <https://github.com/zopefoundation/ZODB/issues/119>`_.
+
 4.4.4 (2016-11-27)
 ==================
 

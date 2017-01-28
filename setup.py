@@ -119,7 +119,6 @@ tests_require = ['zope.testing', 'manuel']
 
 setup(name="ZODB",
       version=version,
-      setup_requires=['persistent'],
       author="Jim Fulton",
       author_email="jim@zope.com",
       maintainer="Zope Foundation and Contributors",
