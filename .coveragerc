@@ -8,5 +8,6 @@ omit =
 [report]
 exclude_lines =
     pragma: nocover
+    pragma: no cover
     if __name__ == ['"]__main__['"]:
     assert False
