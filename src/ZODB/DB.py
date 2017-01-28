@@ -987,7 +987,13 @@ class DB(object):
         return ContextManager(self, note)
 
     def new_oid(self):
-        return self.storage.new_oid()
+        """
+        Return a new oid from the storage.
+
+        Kept for backwards compatibility only. New oids should be
+        allocated in a transaction using an open Connection.
+        """
+        return self.storage.new_oid() # pragma: no cover
 
     def open_then_close_db_when_connection_closes(self):
         """Create and return a connection.

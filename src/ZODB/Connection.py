@@ -126,7 +126,6 @@ class Connection(ExportImport, object):
             storage = storage.new_instance()
 
         self._normal_storage = self._storage = storage
-        self.new_oid = db.new_oid
         self._savepoint_storage = None
 
         # Do we need to join a txn manager?
@@ -199,6 +198,9 @@ class Connection(ExportImport, object):
         self._import = None
 
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
+
+    def new_oid(self):
+        return self._storage.new_oid()
 
     def add(self, obj):
         """Add a new object 'obj' to the database and assign it an oid."""

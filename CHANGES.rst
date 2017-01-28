@@ -2,6 +2,13 @@
  Change History
 ================
 
+5.1.2 (unreleased)
+==================
+
+- ``Connection.new_oid`` delegates to its storage, not the DB. This is
+  helpful for improving concurrency in MVCC storages like RelStorage.
+  See `issue 139 <https://github.com/zopefoundation/ZODB/issues/139`_.
+
 5.1.1 (2016-11-18)
 ==================
 
