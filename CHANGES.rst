@@ -7,6 +7,10 @@
 
 - ``persistent`` is no longer required at setup time.
   See `issue 119 <https://github.com/zopefoundation/ZODB/issues/119>`_.
+- ``Connection.close`` and ``Connection.open`` no longer race on
+  ``self.transaction_manager``, which could lead to
+  ``AttributeError``. This was a bug introduced in 5.0.1. See `issue
+  142 <https://github.com/zopefoundation/ZODB/pull/143>`_.
 
 4.4.4 (2016-11-27)
 ==================

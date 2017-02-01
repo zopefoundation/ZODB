@@ -315,6 +315,14 @@ class Connection(ExportImport, object):
         if self._mvcc_storage:
             self._storage.sync(force=False)
 
+
+        am = self._db._activity_monitor
+        if am is not None:
+            am.closedConnection(self)
+
+        # Drop transaction manager to release resources and help prevent errors
+        self.transaction_manager = None
+
         if primary:
             for connection in self.connections.values():
                 if connection is not self:
@@ -331,12 +339,9 @@ class Connection(ExportImport, object):
         else:
             self.opened = None
 
-        am = self._db._activity_monitor
-        if am is not None:
-            am.closedConnection(self)
+        # We may have been reused by another thread at this point so
+        # we can't manipulate or check the state of `self` any more.
 
-        # Drop transaction manager to release resources and help prevent errors
-        self.transaction_manager = None
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
