@@ -2,7 +2,7 @@
  Change History
 ================
 
-4.4.5 (unreleased)
+4.4.5 (2016-02-06)
 ==================
 
 - ``persistent`` is no longer required at setup time.

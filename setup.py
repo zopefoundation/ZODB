@@ -20,7 +20,7 @@ to application logic.  ZODB includes features such as a plugable storage
 interface, rich transaction support, and undo.
 """
 
-version = "4.4.4"
+version = "4.4.5"
 
 import os
 from setuptools import setup, find_packages
