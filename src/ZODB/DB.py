@@ -363,7 +363,7 @@ class DB(object):
                  databases=None,
                  xrefs=True,
                  large_record_size=1<<24,
-                 explicit_transactions = False,
+                 explicit_transactions=False,
                  **storage_args):
         """Create an object database.
 
