@@ -363,6 +363,7 @@ class DB(object):
                  databases=None,
                  xrefs=True,
                  large_record_size=1<<24,
+                 explicit_transactions = False,
                  **storage_args):
         """Create an object database.
 
@@ -426,6 +427,7 @@ class DB(object):
         self._cache_size_bytes = cache_size_bytes
         self._historical_cache_size = historical_cache_size
         self._historical_cache_size_bytes = historical_cache_size_bytes
+        self.explicit_transactions = explicit_transactions
 
         # Setup storage
         if isinstance(storage, six.string_types):

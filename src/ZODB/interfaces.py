@@ -1243,6 +1243,16 @@ class IMVCCPrefetchStorage(IMVCCStorage):
         more than once.
         """
 
+class IMVCCAfterCompletionStorage(IMVCCStorage):
+
+    def afterCompletion():
+        """Notify a storage that a transaction has ended.
+
+        The storage may choose to use this opportunity to release resources.
+
+        See ``transaction.interfaces.ISynchronizer.afterCompletion``.
+        """
+
 class IStorageCurrentRecordIteration(IStorage):
 
     def record_iternext(next=None):

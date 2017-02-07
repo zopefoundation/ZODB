@@ -199,6 +199,15 @@ class Connection(ExportImport, object):
 
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
 
+        self.explicit_transactions = getattr(db, 'explicit_transactions', None)
+        if not self.explicit_transactions:
+            self._check_begun = lambda : None
+
+    _begun = None
+    def _check_begun(self):
+        if self._begun is None:
+            raise TypeError("Invalid operation outside of a transaction.")
+
     def new_oid(self):
         return self._storage.new_oid()
 
@@ -206,6 +215,8 @@ class Connection(ExportImport, object):
         """Add a new object 'obj' to the database and assign it an oid."""
         if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
+
+        self._check_begun()
 
         marker = object()
         oid = getattr(obj, "_p_oid", marker)
@@ -233,6 +244,8 @@ class Connection(ExportImport, object):
         """Return the persistent object with oid 'oid'."""
         if self.opened is None:
             raise ConnectionStateError("The database connection is closed")
+
+        self._check_begun()
 
         obj = self._cache.get(oid, None)
         if obj is not None:
@@ -283,6 +296,8 @@ class Connection(ExportImport, object):
             raise ConnectionStateError("Cannot close a connection joined to "
                                        "a transaction")
 
+        self._begun = None
+
         if self._cache is not None:
             self._cache.incrgc() # This is a good time to do some GC
 
@@ -311,6 +326,9 @@ class Connection(ExportImport, object):
 
         # Drop transaction manager to release resources and help prevent errors
         self.transaction_manager = None
+
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
 
         if primary:
             for connection in self.connections.values():
@@ -345,6 +363,7 @@ class Connection(ExportImport, object):
     @property
     def root(self):
         """Return the database root object."""
+        self._check_begun()
         return RootConvenience(self.get(z64))
 
     def get_connection(self, database_name):
@@ -406,7 +425,6 @@ class Connection(ExportImport, object):
 
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
-
         # The order is important here.  We want to abort registered
         # objects before we process the cache.  Otherwise, we may un-add
         # objects added in savepoints.  If they've been modified since
@@ -480,7 +498,6 @@ class Connection(ExportImport, object):
 
     def commit(self, transaction):
         """Commit changes to an object"""
-
         transaction = transaction.data(self)
 
         if self._savepoint_storage is not None:
@@ -732,6 +749,7 @@ class Connection(ExportImport, object):
         pass
 
     def newTransaction(self, transaction, sync=True):
+        self._begun = transaction
         self._readCurrent.clear()
 
         try:
@@ -757,7 +775,12 @@ class Connection(ExportImport, object):
         #    finalizing previous ones without calling begin.  We pass
         #    False to avoid possiblyt expensive sync calls to not
         #    penalize well-behaved applications that call begin.
-        self.newTransaction(transaction, False)
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+        if self.explicit_transactions:
+            self._begun = None
+        else:
+            self.newTransaction(transaction, False)
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
@@ -774,6 +797,8 @@ class Connection(ExportImport, object):
     def setstate(self, obj):
         """Turns the ghost 'obj' into a real object by loading its state from
         the database."""
+        self._check_begun()
+
         oid = obj._p_oid
 
         if self.opened is None:
@@ -816,6 +841,7 @@ class Connection(ExportImport, object):
 
         obj must be an object loaded from this Connection.
         """
+        self._check_begun()
         assert obj._p_jar is self
         if obj._p_oid is None:
             # The actual complaint here is that an object without
@@ -843,6 +869,7 @@ class Connection(ExportImport, object):
             self._registered_objects.append(obj)
 
     def readCurrent(self, ob):
+        self._check_begun()
         assert ob._p_jar is self
         assert ob._p_oid is not None and ob._p_serial is not None
         if ob._p_serial != z64:
