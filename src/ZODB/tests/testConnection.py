@@ -1330,7 +1330,7 @@ class TestConnection(unittest.TestCase):
         with self.assertRaises(TypeError):
             conn.root
 
-        from MinPO import MinPO
+        from .MinPO import MinPO
 
         with self.assertRaises(TypeError):
             conn.add(MinPO())
@@ -1350,7 +1350,7 @@ class TestConnection(unittest.TestCase):
         with self.assertRaises(TypeError):
             conn.readCurrent(m)
 
-        m._p_deactivate()
+        m._p_invalidate()
         with self.assertRaises(TypeError):
             m.value
 
