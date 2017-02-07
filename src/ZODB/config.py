@@ -154,6 +154,7 @@ class ZODBDatabase(BaseConfig):
                 historical_timeout=section.historical_timeout,
                 database_name=section.database_name or self.name or '',
                 databases=databases,
+                explicit_transactions=section.explicit_transactions,
                 **options)
         except:
             storage.close()
