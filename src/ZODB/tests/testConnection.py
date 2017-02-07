@@ -1060,6 +1060,7 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     >>> conn.close()
     """
 
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
@@ -1301,14 +1302,94 @@ class StubStorage:
         return z64
 
 
-class TestConnectionInterface(unittest.TestCase):
+class TestConnection(unittest.TestCase):
 
     def test_connection_interface(self):
         from ZODB.interfaces import IConnection
         db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         cn = db.open()
         verifyObject(IConnection, cn)
+        db.close()
 
+    def test_storage_afterCompletionCalled(self):
+        db = ZODB.DB(None)
+        conn = db.open()
+        data = []
+        conn._storage.afterCompletion = lambda : data.append(None)
+        conn.transaction_manager.commit()
+        self.assertEqual(len(data), 1)
+        conn.close()
+        self.assertEqual(len(data), 2)
+        db.close()
+
+    def test_explicit_transactions_seatbelts(self):
+        db = ZODB.DB(None, explicit_transactions=True)
+        conn = db.open()
+
+        # Can't do things outside of a transaction:
+        with self.assertRaises(TypeError):
+            conn.root
+
+        from .MinPO import MinPO
+
+        with self.assertRaises(TypeError):
+            conn.add(MinPO())
+
+        from ZODB.utils import z64
+        with self.assertRaises(TypeError):
+            conn.get(z64)
+
+        # But can in:
+        conn.transaction_manager.begin()
+        conn.root.m = m = MinPO()
+        conn.transaction_manager.commit()
+
+        # But can't out:
+        with self.assertRaises(TypeError):
+            m.value = 1
+        with self.assertRaises(TypeError):
+            conn.readCurrent(m)
+
+        m._p_invalidate()
+        with self.assertRaises(TypeError):
+            m.value
+
+        # But can in:
+        conn.transaction_manager.begin()
+        self.assertEqual(m.value, None)
+        m.value = 1
+        conn.readCurrent(m)
+
+        # But can't out:
+        conn.transaction_manager.abort()
+        with self.assertRaises(TypeError):
+            m.value = 2
+
+        db.close()
+
+    def test_explicit_transactions_no_newTransactuon_on_afterCompletion(self):
+        db = ZODB.DB(None, explicit_transactions=True)
+        conn = db.open()
+        syncs = []
+        conn._storage.sync = syncs.append
+        conn.transaction_manager.begin()
+        self.assertEqual(len(syncs), 1)
+        conn.transaction_manager.commit()
+        self.assertEqual(len(syncs), 1)
+        conn.transaction_manager.begin()
+        self.assertEqual(len(syncs), 2)
+        conn.transaction_manager.abort()
+        self.assertEqual(len(syncs), 2)
+        db.close()
+
+        # For reference, in non-explicit mode:
+        db = ZODB.DB(None)
+        conn = db.open()
+        conn._storage.sync = syncs.append
+        conn.transaction_manager.begin()
+        self.assertEqual(len(syncs), 3)
+        conn.transaction_manager.abort()
+        self.assertEqual(len(syncs), 4)
 
 class StubDatabase:
 
@@ -1330,6 +1411,6 @@ def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd)
     s.addTest(unittest.makeSuite(SetstateErrorLoggingTests))
     s.addTest(doctest.DocTestSuite(checker=checker))
-    s.addTest(unittest.makeSuite(TestConnectionInterface))
+    s.addTest(unittest.makeSuite(TestConnection))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
     return s

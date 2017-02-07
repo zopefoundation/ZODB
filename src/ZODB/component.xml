@@ -324,6 +324,18 @@
         currently possible) are disallowed.
       </description>
     </key>
+    <key name="explicit-transactions" datatype="boolean" default="false">
+      <description>
+        If set to true, then applications *must* explicitly begin
+        transactions by calling a transaction manager ``begin``
+        method, or use one of the various context managers that call
+        ``begin/commit/abort`` or the transaction-manager ``run``
+        method.
+
+        This helps prevent certain kinds of errors and also allows
+        storage implementations to manage transactions more efficiently.
+      </description>
+    </key>
 
   </sectiontype>
 

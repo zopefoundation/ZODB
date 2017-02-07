@@ -31,15 +31,25 @@ class ConfigTestBase(ZODB.tests.util.TestCase):
         if getattr(self, "storage", None) is not None:
             self.storage.cleanup()
 
-    def _test(self, s):
+    def _test(self, s, assertion=None):
         db = self._opendb(s)
+        if assertion is not None:
+            assertion(db)
         self.storage = db._storage
         # Do something with the database to make sure it works
         cn = db.open()
+        transaction.begin()
         rt = cn.root()
         rt["test"] = 1
         transaction.commit()
         db.close()
+
+    def attr_assertion(self, **kw):
+        def assertion(db):
+            for name, v in kw.items():
+                self.assertEqual(getattr(db, name), v)
+
+        return assertion
 
 
 class ZODBConfigTest(ConfigTestBase):
@@ -94,6 +104,24 @@ class ZODBConfigTest(ConfigTestBase):
         </zodb>
         """
         self._test(cfg)
+
+    def test_explicit_transactions(self):
+        self._test(
+            """
+            <zodb>
+              <mappingstorage/>
+            </zodb>
+            """,
+            self.attr_assertion(explicit_transactions=False))
+
+        self._test(
+            """
+            <zodb>
+              explicit-transactions true
+              <mappingstorage/>
+            </zodb>
+            """,
+            self.attr_assertion(explicit_transactions=True))
 
 
 def database_xrefs_config():
