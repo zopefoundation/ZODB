@@ -1341,6 +1341,7 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(len(syncs), 2)
         conn.transaction_manager.abort()
         self.assertEqual(len(syncs), 2)
+        conn.close()
         db.close()
 
         # For reference, in non-explicit mode:
@@ -1351,6 +1352,8 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(len(syncs), 3)
         conn.transaction_manager.abort()
         self.assertEqual(len(syncs), 4)
+        conn.close()
+        db.close()
 
 class StubDatabase:
 
