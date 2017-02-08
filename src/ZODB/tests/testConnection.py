@@ -1323,7 +1323,25 @@ class TestConnection(unittest.TestCase):
         db.close()
 
     def test_explicit_transactions_no_newTransactuon_on_afterCompletion(self):
-        db = ZODB.DB(None)
+        syncs = []
+        from .MVCCMappingStorage import MVCCMappingStorage
+        storage = MVCCMappingStorage()
+
+        new_instance = storage.new_instance
+        def new_instance2():
+            inst = new_instance()
+            sync = inst.sync
+            def sync2(*args):
+                sync()
+                syncs.append(1)
+            inst.sync = sync2
+            return inst
+
+        storage.new_instance = new_instance2
+
+        db = ZODB.DB(storage)
+        del syncs[:] # Need to do this to clear effect of getting the
+                     # root object
 
         # We don't want to depend on latest transaction package, so
         # just set attr for test:
@@ -1331,8 +1349,7 @@ class TestConnection(unittest.TestCase):
         tm.explicit = True
 
         conn = db.open(tm)
-        syncs = []
-        conn._storage.sync = syncs.append
+        self.assertEqual(len(syncs), 0)
         conn.transaction_manager.begin()
         self.assertEqual(len(syncs), 1)
         conn.transaction_manager.commit()
@@ -1342,17 +1359,18 @@ class TestConnection(unittest.TestCase):
         conn.transaction_manager.abort()
         self.assertEqual(len(syncs), 2)
         conn.close()
-        db.close()
+        self.assertEqual(len(syncs), 2)
 
         # For reference, in non-explicit mode:
-        db = ZODB.DB(None)
         conn = db.open()
+        self.assertEqual(len(syncs), 3)
         conn._storage.sync = syncs.append
         conn.transaction_manager.begin()
-        self.assertEqual(len(syncs), 3)
-        conn.transaction_manager.abort()
         self.assertEqual(len(syncs), 4)
+        conn.transaction_manager.abort()
+        self.assertEqual(len(syncs), 5)
         conn.close()
+
         db.close()
 
 class StubDatabase:

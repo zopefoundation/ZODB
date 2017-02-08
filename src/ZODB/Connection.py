@@ -902,22 +902,25 @@ class Connection(ExportImport, object):
             # New code is in place.  Start a new cache.
             self._resetCache()
 
-        # This newTransaction is to deal with some pathalogical cases:
-        #
-        # a) Someone opens a connection when a transaction isn't
-        #    active and proceeeds without calling begin on a
-        #    transaction manager. We initialize the transaction for
-        #    the connection, but we don't do a storage sync, since
-        #    this will be done if a well-nehaved application calls
-        #    begin, and we don't want to penalize well-behaved
-        #    transactions by syncing twice, as storage syncs might be
-        #    expensive.
-        # b) Lots of tests assume that connection transaction
-        #    information is set on open.
-        #
-        # Fortunately, this is a cheap operation.  It doesn't really
-        # cost much, if anything.
-        self.newTransaction(None, False)
+        if not self.explicit_transactions:
+            # This newTransaction is to deal with some pathalogical cases:
+            #
+            # a) Someone opens a connection when a transaction isn't
+            #    active and proceeeds without calling begin on a
+            #    transaction manager. We initialize the transaction for
+            #    the connection, but we don't do a storage sync, since
+            #    this will be done if a well-nehaved application calls
+            #    begin, and we don't want to penalize well-behaved
+            #    transactions by syncing twice, as storage syncs might be
+            #    expensive.
+            # b) Lots of tests assume that connection transaction
+            #    information is set on open.
+            #
+            # Fortunately, this is a cheap operation.  It doesn't
+            # really cost much, if anything.  Well, except for
+            # RelStorage, in which case it adds a server round
+            # trip.
+            self.newTransaction(None, False)
 
         transaction_manager.registerSynch(self)
 
