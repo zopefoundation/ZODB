@@ -312,6 +312,9 @@ class Connection(ExportImport, object):
         # Drop transaction manager to release resources and help prevent errors
         self.transaction_manager = None
 
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+
         if primary:
             for connection in self.connections.values():
                 if connection is not self:
@@ -406,7 +409,6 @@ class Connection(ExportImport, object):
 
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
-
         # The order is important here.  We want to abort registered
         # objects before we process the cache.  Otherwise, we may un-add
         # objects added in savepoints.  If they've been modified since
@@ -480,7 +482,6 @@ class Connection(ExportImport, object):
 
     def commit(self, transaction):
         """Commit changes to an object"""
-
         transaction = transaction.data(self)
 
         if self._savepoint_storage is not None:
@@ -757,7 +758,11 @@ class Connection(ExportImport, object):
         #    finalizing previous ones without calling begin.  We pass
         #    False to avoid possiblyt expensive sync calls to not
         #    penalize well-behaved applications that call begin.
-        self.newTransaction(transaction, False)
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+
+        if not self.explicit_transactions:
+            self.newTransaction(transaction, False)
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
@@ -772,8 +777,9 @@ class Connection(ExportImport, object):
         return self._reader.getState(p)
 
     def setstate(self, obj):
-        """Turns the ghost 'obj' into a real object by loading its state from
-        the database."""
+        """Load the state for an (ghost) object
+        """
+
         oid = obj._p_oid
 
         if self.opened is None:
@@ -886,6 +892,9 @@ class Connection(ExportImport, object):
             transaction_manager = transaction.manager
 
         self.transaction_manager = transaction_manager
+
+        self.explicit_transactions = getattr(transaction_manager,
+                                             'explicit', False)
 
         self.opened = time.time()
 
