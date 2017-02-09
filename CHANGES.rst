@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.2.0 (unreleased)
+5.2.0 (2017-02-09)
 ==================
 
 - Call new afterCompletion API on storages to allow them to free
