@@ -312,6 +312,9 @@ class Connection(ExportImport, object):
         # Drop transaction manager to release resources and help prevent errors
         self.transaction_manager = None
 
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+
         if primary:
             for connection in self.connections.values():
                 if connection is not self:
@@ -406,7 +409,6 @@ class Connection(ExportImport, object):
 
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
-
         # The order is important here.  We want to abort registered
         # objects before we process the cache.  Otherwise, we may un-add
         # objects added in savepoints.  If they've been modified since
@@ -480,7 +482,6 @@ class Connection(ExportImport, object):
 
     def commit(self, transaction):
         """Commit changes to an object"""
-
         transaction = transaction.data(self)
 
         if self._savepoint_storage is not None:
@@ -745,9 +746,6 @@ class Connection(ExportImport, object):
         except AttributeError:
             assert self._storage is None
 
-        # Now is a good time to collect some garbage.
-        self._cache.incrgc()
-
     def afterCompletion(self, transaction):
         # Note that we we call newTransaction here for 2 reasons:
         # a) Applying invalidations early frees up resources
@@ -757,7 +755,14 @@ class Connection(ExportImport, object):
         #    finalizing previous ones without calling begin.  We pass
         #    False to avoid possiblyt expensive sync calls to not
         #    penalize well-behaved applications that call begin.
-        self.newTransaction(transaction, False)
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+
+        if not self.explicit_transactions:
+            self.newTransaction(transaction, False)
+
+        # Now is a good time to collect some garbage.
+        self._cache.incrgc()
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
@@ -772,8 +777,9 @@ class Connection(ExportImport, object):
         return self._reader.getState(p)
 
     def setstate(self, obj):
-        """Turns the ghost 'obj' into a real object by loading its state from
-        the database."""
+        """Load the state for an (ghost) object
+        """
+
         oid = obj._p_oid
 
         if self.opened is None:
@@ -887,28 +893,34 @@ class Connection(ExportImport, object):
 
         self.transaction_manager = transaction_manager
 
+        self.explicit_transactions = getattr(transaction_manager,
+                                             'explicit', False)
+
         self.opened = time.time()
 
         if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
 
-        # This newTransaction is to deal with some pathalogical cases:
-        #
-        # a) Someone opens a connection when a transaction isn't
-        #    active and proceeeds without calling begin on a
-        #    transaction manager. We initialize the transaction for
-        #    the connection, but we don't do a storage sync, since
-        #    this will be done if a well-nehaved application calls
-        #    begin, and we don't want to penalize well-behaved
-        #    transactions by syncing twice, as storage syncs might be
-        #    expensive.
-        # b) Lots of tests assume that connection transaction
-        #    information is set on open.
-        #
-        # Fortunately, this is a cheap operation.  It doesn't really
-        # cost much, if anything.
-        self.newTransaction(None, False)
+        if not self.explicit_transactions:
+            # This newTransaction is to deal with some pathalogical cases:
+            #
+            # a) Someone opens a connection when a transaction isn't
+            #    active and proceeeds without calling begin on a
+            #    transaction manager. We initialize the transaction for
+            #    the connection, but we don't do a storage sync, since
+            #    this will be done if a well-nehaved application calls
+            #    begin, and we don't want to penalize well-behaved
+            #    transactions by syncing twice, as storage syncs might be
+            #    expensive.
+            # b) Lots of tests assume that connection transaction
+            #    information is set on open.
+            #
+            # Fortunately, this is a cheap operation.  It doesn't
+            # really cost much, if anything.  Well, except for
+            # RelStorage, in which case it adds a server round
+            # trip.
+            self.newTransaction(None, False)
 
         transaction_manager.registerSynch(self)
 

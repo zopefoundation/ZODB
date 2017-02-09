@@ -2,14 +2,23 @@
  Change History
 ================
 
-5.1.2 (unreleased)
+5.2.0 (unreleased)
 ==================
+
+- Call new afterCompletion API on storages to allow them to free
+  resources after transaction complete.  See:
+  https://github.com/zodb/relstorage/issues/147
+
+- Take advantage of the new transaction-manager explicit mode to avoid
+  starting transactions unnecessarily when transactions end.
 
 - ``Connection.new_oid`` delegates to its storage, not the DB. This is
   helpful for improving concurrency in MVCC storages like RelStorage.
   See `issue 139 <https://github.com/zopefoundation/ZODB/issues/139`_.
+
 - ``persistent`` is no longer required at setup time.
   See `issue 119 <https://github.com/zopefoundation/ZODB/issues/119>`_.
+
 - ``Connection.close`` and ``Connection.open`` no longer race on
   ``self.transaction_manager``, which could lead to
   ``AttributeError``. This was a bug introduced in 5.0.1. See `issue
