@@ -746,9 +746,6 @@ class Connection(ExportImport, object):
         except AttributeError:
             assert self._storage is None
 
-        # Now is a good time to collect some garbage.
-        self._cache.incrgc()
-
     def afterCompletion(self, transaction):
         # Note that we we call newTransaction here for 2 reasons:
         # a) Applying invalidations early frees up resources
@@ -763,6 +760,9 @@ class Connection(ExportImport, object):
 
         if not self.explicit_transactions:
             self.newTransaction(transaction, False)
+
+        # Now is a good time to collect some garbage.
+        self._cache.incrgc()
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
