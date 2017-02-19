@@ -12,9 +12,8 @@
 ==================
 
 - Call new afterCompletion API on storages to allow them to free
-  resources after transaction complete.  See:
-  https://github.com/zodb/relstorage/issues/147
-
+  resources after transaction complete.  
+  See `issue 147 <https://github.com/zodb/relstorage/issues/147>`__.
 - Take advantage of the new transaction-manager explicit mode to avoid
   starting transactions unnecessarily when transactions end.
 
