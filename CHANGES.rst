@@ -20,7 +20,7 @@
 
 - ``Connection.new_oid`` delegates to its storage, not the DB. This is
   helpful for improving concurrency in MVCC storages like RelStorage.
-  See `issue 139 <https://github.com/zopefoundation/ZODB/issues/139`_.
+  See `issue 139 <https://github.com/zopefoundation/ZODB/issues/139>`_.
 
 - ``persistent`` is no longer required at setup time.
   See `issue 119 <https://github.com/zopefoundation/ZODB/issues/119>`_.
