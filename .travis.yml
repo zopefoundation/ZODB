@@ -10,6 +10,7 @@ matrix:
         - os: linux
           python: 2.7
         - os: linux
+          env: BUILOUT_OPTIONS=sphinx:eggs=
           python: 3.3
         - os: linux
           python: 3.4
