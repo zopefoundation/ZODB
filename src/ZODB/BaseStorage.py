@@ -31,7 +31,7 @@ from . import POSException, utils
 from .Connection import TransactionMetaData
 from .utils import z64, oid_repr, byte_ord, byte_chr, load_current
 from .UndoLogCompatible import UndoLogCompatible
-from ._compat import dumps, _protocol, py2_hasattr
+from ._compat import py2_hasattr
 
 log = logging.getLogger("ZODB.BaseStorage")
 
@@ -190,11 +190,7 @@ class BaseStorage(UndoLogCompatible):
 
             user = transaction.user
             desc = transaction.description
-            ext = transaction.extension
-            if ext:
-                ext = dumps(ext, _protocol)
-            else:
-                ext = ""
+            ext = transaction.extension_bytes
 
             self._ude = user, desc, ext
 

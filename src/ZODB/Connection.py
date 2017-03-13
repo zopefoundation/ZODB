@@ -49,10 +49,10 @@ from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 import six
 
+from ._compat import dumps, loads, _protocol
 from .mvccadapter import HistoricalStorageAdapter
 
 from . import valuedoc
-from . import _compat
 
 global_reset_counter = 0
 
@@ -1303,10 +1303,24 @@ large-record-size option in a configuration file) to specify a larger
 size.
 """
 
+class overridable_property(object):
+    """
+    Same as property() with only a getter, except that setting a
+    value overrides the property rather than raising AttributeError.
+    """
+
+    def __init__(self, func):
+        self.__doc__ = func.__doc__
+        self.func = func
+
+    def __get__(self, obj, cls):
+        return self if obj is None else self.func(obj)
+
+
 @implementer(IStorageTransactionMetaData)
 class TransactionMetaData(object):
 
-    def __init__(self, user=u'', description=u'', extension=b''):
+    def __init__(self, user=u'', description=u'', extension=None):
         if not isinstance(user, bytes):
             user = user.encode('utf-8')
         self.user = user
@@ -1315,9 +1329,20 @@ class TransactionMetaData(object):
             description = description.encode('utf-8')
         self.description = description
 
-        if not isinstance(extension, dict):
-            extension = _compat.loads(extension) if extension else {}
-        self.extension = extension
+        if isinstance(extension, bytes):
+            self.extension_bytes = extension
+        else:
+            self.extension = {} if extension is None else extension
+
+    @overridable_property
+    def extension(self):
+        extension_bytes = self.extension_bytes
+        return loads(extension_bytes) if extension_bytes else {}
+
+    @overridable_property
+    def extension_bytes(self):
+        extension = self.extension
+        return dumps(extension, _protocol) if extension else b''
 
     def note(self, text): # for tests
         text = text.strip()

@@ -18,6 +18,12 @@
   rolled back. See `issue 268
   <https://github.com/zopefoundation/ZODB/issues/268>`_.
 
+- Make TransactionMetaData in charge of (de)serializing extension data.
+  A new ``extension_bytes`` attribute converts automatically from
+  ``extension``, or vice-versa. During storage iteration, ``extension_bytes``
+  holds bytes as they are stored (i.e. no deserialization happens).
+  See `issue 207 <https://github.com/zopefoundation/ZODB/pull/207>`_.
+
 5.5.1 (2018-10-25)
 ==================
 

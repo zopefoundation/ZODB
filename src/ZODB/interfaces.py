@@ -540,12 +540,19 @@ class IStorageTransactionMetaData(Interface):
 
     Note that unlike transaction.interfaces.ITransaction, the ``user``
     and ``description`` attributes are bytes, not text.
+
+    If either 'extension' or 'extension_bytes' is unset, it is automatically
+    converted for the other, which is set during __init__ depending of the
+    passed extension is of types bytes or not (the default value None sets {}).
+    The 2 attributes should not be set at the same time.
     """
     user = Attribute("Bytes transaction user")
     description = Attribute("Bytes transaction Description")
     extension = Attribute(
         "A dictionary carrying a transaction's extended_info data")
-
+    extension_bytes = Attribute(
+        "Serialization of 'extension' attribute"
+        " (verbatim bytes in case of storage iteration)")
 
     def set_data(ob, data):
         """Hold data on behalf of an object

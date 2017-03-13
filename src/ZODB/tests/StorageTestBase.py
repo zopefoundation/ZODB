@@ -124,7 +124,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.tearDown(self)
 
     def _dostore(self, oid=None, revid=None, data=None,
-                 already_pickled=0, user=None, description=None):
+                 already_pickled=0, user=None, description=None, extension=None):
         """Do a complete storage transaction.  The defaults are:
 
          - oid=None, ask the storage for a new oid
@@ -144,7 +144,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         if not already_pickled:
             data = zodb_pickle(data)
         # Begin the transaction
-        t = TransactionMetaData()
+        t = TransactionMetaData(extension=extension)
         if user is not None:
             t.user = user
         if description is not None:
