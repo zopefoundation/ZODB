@@ -22,6 +22,8 @@ from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.utils import U64, p64, load_current
+from ZODB.interfaces import IStorageTransactionMetaDataRaw
+from ZODB._compat import loads
 
 import ZODB.blob
 
@@ -48,6 +50,10 @@ class IteratorCompare(object):
 
 
 class IteratorStorage(IteratorCompare):
+
+    # override this in tests for storages that have support for
+    # .extension_bytes in iterated transactions.
+    supports_extension_bytes = False
 
     def checkSimpleIteration(self):
         # Store a bunch of revisions of a single object
@@ -86,11 +92,22 @@ class IteratorStorage(IteratorCompare):
 
     def checkTransactionExtensionFromIterator(self):
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=MinPO(1))
+        ext_dict = {"hello": "world"}
+        revid = self._dostore(oid, data=MinPO(1), extension=ext_dict)
         iter = self._storage.iterator()
         count = 0
         for txn in iter:
-            self.assertEqual(txn.extension, {})
+            self.assertEqual(txn.extension, ext_dict)
+            # missing: not None - something unique - not to allow
+            # implementations to erroneously return None in .extension_bytes .
+            missing = object()
+            ext_bytes = getattr(txn, "extension_bytes", missing)
+            self.assertEqual(self.supports_extension_bytes, ext_bytes is not missing)
+            self.assertEqual(self.supports_extension_bytes,
+                    IStorageTransactionMetaDataRaw.providedBy(txn))
+            if ext_bytes is not missing:
+                ext_dict_fromraw = loads(ext_bytes)
+                self.assertEqual(ext_dict_fromraw, ext_dict)
             count +=1
         self.assertEqual(count, 1)
 
@@ -207,6 +224,7 @@ class IteratorDeepCompare(object):
 
     def compare(self, storage1, storage2):
         eq = self.assertEqual
+        missing = object()
         iter1 = storage1.iterator()
         iter2 = storage2.iterator()
         for txn1, txn2 in zip(iter1, iter2):
@@ -215,6 +233,9 @@ class IteratorDeepCompare(object):
             eq(txn1.user,        txn2.user)
             eq(txn1.description, txn2.description)
             eq(txn1.extension,  txn2.extension)
+            rawext1 = getattr(txn1, "extension_bytes", missing)
+            rawext2 = getattr(txn2, "extension_bytes", missing)
+            eq(rawext1, rawext2)
             itxn1 = iter(txn1)
             itxn2 = iter(txn2)
             for rec1, rec2 in zip(itxn1, itxn2):

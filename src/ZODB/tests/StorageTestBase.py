@@ -124,7 +124,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.tearDown(self)
 
     def _dostore(self, oid=None, revid=None, data=None,
-                 already_pickled=0, user=None, description=None):
+                 already_pickled=0, user=None, description=None, extension=None):
         """Do a complete storage transaction.  The defaults are:
 
          - oid=None, ask the storage for a new oid
@@ -149,6 +149,8 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             t.user = user
         if description is not None:
             t.description = description
+        if extension is not None:
+            t.extension = extension
         try:
             self._storage.tpc_begin(t)
             # Store an object

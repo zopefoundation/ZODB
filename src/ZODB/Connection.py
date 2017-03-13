@@ -32,7 +32,7 @@ from ZODB.blob import Blob, rename_or_copy_blob, remove_committed_dir
 from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
 from transaction.interfaces import ISynchronizer
-from zope.interface import implementer
+from zope.interface import implementer, alsoProvides
 
 import transaction
 
@@ -1311,6 +1311,13 @@ class TransactionMetaData(object):
         if not isinstance(description, bytes):
             description = description.encode('utf-8')
         self.description = description
+
+        # Provide .extension_bytes if we are given extension in its raw form.
+        # If not - leave created TransactionMetaData instance without
+        # .extension_bytes attribute at all.
+        if isinstance(extension, bytes):
+            self.extension_bytes = extension
+            alsoProvides(self, ZODB.interfaces.IStorageTransactionMetaDataRaw)
 
         if not isinstance(extension, dict):
             extension = _compat.loads(extension) if extension else {}

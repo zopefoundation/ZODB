@@ -143,12 +143,14 @@ def read_txn_header(f, pos, file_size, outp, ltid):
     pos = tpos+(23+ul+dl+el)
     user = f.read(ul)
     description = f.read(dl)
-    if el:
-        try: e = loads(f.read(el))
-        except: e = {}
-    else: e = {}
+    ext = f.read(el)
+    # reset extension to {} if it cannot be unpickled
+    try:
+        loads(ext)
+    except:
+        ext = b''
 
-    result = TransactionRecord(tid, status, user, description, e, pos, tend,
+    result = TransactionRecord(tid, status, user, description, ext, pos, tend,
                                f, tpos)
     pos = tend
 

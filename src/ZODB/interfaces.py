@@ -540,6 +540,9 @@ class IStorageTransactionMetaData(Interface):
 
     Note that unlike transaction.interfaces.ITransaction, the ``user``
     and ``description`` attributes are bytes, not text.
+
+    An instance of IStorageTransactionMetaData may also optionally provide
+    IStorageTransactionMetaDataRaw with raw form of transaction meta data.
     """
     user = Attribute("Bytes transaction user")
     description = Attribute("Bytes transaction Description")
@@ -566,6 +569,21 @@ class IStorageTransactionMetaData(Interface):
 
         See set_data.
         """
+
+class IStorageTransactionMetaDataRaw(IStorageTransactionMetaData):
+    """Provide storage transaction meta data in raw form.
+
+    IStorageTransactionMetaDataRaw is additional interface which may
+    be optionally provided by an instance of IStorageTransactionMetaData.
+    If so, it provides information about raw form of transaction's meta data as
+    saved on storage.
+
+    NOTE as IStorageTransactionMetaData already provides ``user`` and
+    ``description`` as raw bytes, not text, IStorageTransactionMetaDataRaw
+    amends it only for ``extension`` part.
+    """
+
+    extension_bytes = Attribute("Transaction's extension data as raw bytes.")
 
 
 class IStorage(Interface):
