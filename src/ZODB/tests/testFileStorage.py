@@ -56,6 +56,8 @@ class FileStorageTests(
     ReadOnlyStorage.ReadOnlyStorage
     ):
 
+    use_extension_bytes = True
+
     def open(self, **kwargs):
         self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
                                                      **kwargs)
@@ -77,7 +79,14 @@ class FileStorageTests(
         except POSException.StorageError:
             pass
         else:
-            self.fail("expect long user field to raise error")
+            self.fail("expect long description field to raise error")
+        try:
+            self._dostore(extension={s: 1})
+        except POSException.StorageError:
+            pass
+        else:
+            self.fail("expect long extension field to raise error")
+
 
     def check_use_fsIndex(self):
 

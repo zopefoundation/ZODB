@@ -49,10 +49,10 @@ from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 import six
 
+from ._compat import dumps, loads, _protocol
 from .mvccadapter import HistoricalStorageAdapter
 
 from . import valuedoc
-from . import _compat
 
 global_reset_counter = 0
 
@@ -1300,6 +1300,23 @@ large-record-size option in a configuration file) to specify a larger
 size.
 """
 
+def _extension_property(func):
+    import inspect
+    name = func.__name__
+    alt, = inspect.getargspec(func).args
+    def fget(self):
+        try:
+            return self.__dict__[name]
+        except KeyError:
+            d = self.__dict__
+            value = d[name] = func(d[alt])
+            return value
+    def fset(self, value):
+        d = self.__dict__
+        d.pop(alt, None)
+        d[name] = value
+    return property(fget, fset)
+
 @implementer(IStorageTransactionMetaData)
 class TransactionMetaData(object):
 
@@ -1312,9 +1329,18 @@ class TransactionMetaData(object):
             description = description.encode('utf-8')
         self.description = description
 
-        if not isinstance(extension, dict):
-            extension = _compat.loads(extension) if extension else {}
-        self.extension = extension
+        if isinstance(extension, bytes):
+            self.extension_bytes = extension
+        else:
+            self.extension = extension
+
+    @_extension_property
+    def extension(extension_bytes):
+        return loads(extension_bytes) if extension_bytes else {}
+
+    @_extension_property
+    def extension_bytes(extension):
+        return dumps(extension, _protocol) if extension else b''
 
     def note(self, text): # for tests
         text = text.strip()

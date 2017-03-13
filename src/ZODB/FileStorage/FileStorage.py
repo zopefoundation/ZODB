@@ -1988,15 +1988,8 @@ class FileIterator(FileStorageFormatter):
 
             if h.status != "u":
                 pos = tpos + h.headerlen()
-                e = {}
-                if h.elen:
-                    try:
-                        e = loads(h.ext)
-                    except:
-                        pass
-
                 result = TransactionRecord(h.tid, h.status, h.user, h.descr,
-                                           e, pos, tend, self._file, tpos)
+                                           h.ext, pos, tend, self._file, tpos)
 
             # Read the (intentionally redundant) transaction length
             self._file.seek(tend)
