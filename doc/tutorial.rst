@@ -166,7 +166,10 @@ faster than search.
 You can use BTrees to build indexes for efficient search, when
 necessary.  If your application is search centric, or if you prefer to
 approach data access that way, then ZODB might not be the best
-technology for you.
+technology for you. Before you turn your back on the ZODB, it
+may be worth checking out the up-and-coming Newt DB [#newtdb]_ project, 
+which combines the ZODB with Postgresql for indexing, search and access 
+from non-Python applications.
 
 Transactions
 ============
@@ -245,3 +248,6 @@ individual topics.
    Objects aren't actually evicted, but their state is released, so
    they take up much less memory and any objects they referenced can
    be removed from memory.
+
+.. [#newtdb]
+   Here is an overview of the Newt DB architecture: http://www.newtdb.org/en/latest/how-it-works.html
