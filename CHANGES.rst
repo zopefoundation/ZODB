@@ -161,7 +161,7 @@ Concurrency Control (MVCC) implementation:
   layer. This underlying layer works by calling ``loadBefore``. The
   low-level storage ``load`` method isn't used any more.
 
-  This change allows server-nased storages like ZEO and NEO to be
+  This change allows server-based storages like ZEO and NEO to be
   implemented more simply and cleanly.
 
 4.4.3 (2016-08-04)
