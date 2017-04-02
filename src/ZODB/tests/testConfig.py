@@ -73,6 +73,16 @@ class ZODBConfigTest(ConfigTestBase):
 
     def test_file_config2(self):
         path = tempfile.mktemp()
+        # first pass to actually create database file
+        self._test(
+            """
+            <zodb>
+              <filestorage>
+                path %s
+              </filestorage>
+            </zodb>
+            """ % path)
+        # write operations must be disallowed on read-only access
         cfg = """
         <zodb>
           <filestorage>

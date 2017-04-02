@@ -189,6 +189,10 @@ class FileStorage(
                 if exc.errno == errno.EFBIG:
                     # The file is too big to open.  Fail visibly.
                     raise
+                if read_only:
+                    # When open request is read-only we do not want to create
+                    # the file
+                    raise
                 if exc.errno == errno.ENOENT:
                     # The file doesn't exist.  Create it.
                     create = 1

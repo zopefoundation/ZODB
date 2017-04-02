@@ -711,6 +711,19 @@ def pack_with_open_blob_files():
     >>> db.close()
     """
 
+def readonly_open_nonexistent_file():
+    """
+    Make sure error is reported when non-existent file is tried to be opened
+    read-only.
+
+    >>> try:
+    ...     fs = ZODB.FileStorage.FileStorage('nonexistent.fs', read_only=True)
+    ... except Exception as e:
+    ...     # Python2 raises IOError; Python3 - FileNotFoundError
+    ...     print("error: %s" % str(e)) # doctest: +ELLIPSIS
+    error: ... No such file or directory: 'nonexistent.fs'
+    """
+
 def test_suite():
     suite = unittest.TestSuite()
     for klass in [
