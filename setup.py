@@ -11,15 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""Zope Object Database: object database and persistence
-
-The Zope Object Database provides an object-oriented database for
-Python that provides a high-degree of transparency. Applications can
-take advantage of object database features with few, if any, changes
-to application logic.  ZODB includes features such as a plugable storage
-interface, rich transaction support, and undo.
-"""
-
 version = '5.2.1.dev0'
 
 import os
@@ -100,19 +91,11 @@ def alltests():
             _unittests_only(suite, mod.test_suite())
     return suite
 
-doclines = __doc__.split("\n")
-
-def read_file(*path):
-    base_dir = os.path.dirname(__file__)
-    file_path = (base_dir, ) + tuple(path)
-    with open(os.path.join(*file_path), 'rb') as file:
-        return file.read()
-
-long_description = str(
-    ("\n".join(doclines[2:]) + "\n\n" +
-     ".. contents::\n\n" +
-     read_file("README.rst").decode('latin-1')  + "\n\n" +
-     read_file("CHANGES.rst").decode('latin-1')))
+long_description = (
+    open("README.rst").read()  +
+    "\n\n" +
+    open("CHANGES.rst").read()
+    )
 
 tests_require = ['zope.testing', 'manuel']
 
@@ -128,7 +111,7 @@ setup(name="ZODB",
       url = 'http://www.zodb.org/',
       license = "ZPL 2.1",
       platforms = ["any"],
-      description = doclines[0],
+      description = long_description[1],
       classifiers = list(filter(None, classifiers.split("\n"))),
       long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
