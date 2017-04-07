@@ -5,14 +5,15 @@
 5.2.1 (unreleased)
 ==================
 
-- Nothing changed yet.
-
+- Fixed: When opening FileStorages in read-only mode, non-existent
+  files were silently created.  Creating a file-storage against a
+  non-existent file errors.
 
 5.2.0 (2017-02-09)
 ==================
 
 - Call new afterCompletion API on storages to allow them to free
-  resources after transaction complete.  
+  resources after transaction complete.
   See `issue 147 <https://github.com/zodb/relstorage/issues/147>`__.
 - Take advantage of the new transaction-manager explicit mode to avoid
   starting transactions unnecessarily when transactions end.
