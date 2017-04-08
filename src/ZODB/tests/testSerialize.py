@@ -18,6 +18,8 @@ import unittest
 from persistent import Persistent
 from persistent.wref import WeakRef
 
+import zope.testing.setupstack
+
 import ZODB.tests.util
 from ZODB import serialize
 from ZODB._compat import Pickler, PersistentUnpickler, BytesIO, _protocol, IS_JYTHON
