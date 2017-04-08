@@ -478,49 +478,6 @@ def packing_with_uncommitted_data_undoing():
     >>> database.close()
     """
 
-
-def secure_blob_directory():
-    """
-    This is a test for secure creation and verification of secure settings of
-    blob directories.
-
-    >>> blob_storage = create_storage(blob_dir='blobs')
-
-    Two directories are created:
-
-    >>> os.path.isdir('blobs')
-    True
-    >>> tmp_dir = os.path.join('blobs', 'tmp')
-    >>> os.path.isdir(tmp_dir)
-    True
-
-    They are only accessible by the owner:
-
-    >>> oct(os.stat('blobs').st_mode)[-5:]
-    '40700'
-    >>> oct(os.stat(tmp_dir).st_mode)[-5:]
-    '40700'
-
-    These settings are recognized as secure:
-
-    >>> blob_storage.fshelper.isSecure('blobs')
-    True
-    >>> blob_storage.fshelper.isSecure(tmp_dir)
-    True
-
-    After making the permissions of tmp_dir more liberal, the directory is
-    recognized as insecure:
-
-    >>> os.chmod(tmp_dir, 0o40711)
-    >>> blob_storage.fshelper.isSecure(tmp_dir)
-    False
-
-    Clean up:
-
-    >>> blob_storage.close()
-
-    """
-
 # On windows, we can't create secure blob directories, at least not
 # with APIs in the standard library, so there's no point in testing
 # this.

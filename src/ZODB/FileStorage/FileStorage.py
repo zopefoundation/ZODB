@@ -1312,14 +1312,14 @@ class FileStorage(
 
         if self.pack_keep_old:
             # Helpers that move oid dir or revision file to the old dir.
-            os.mkdir(old, 0o777)
+            os.mkdir(old)
             link_or_copy(os.path.join(self.blob_dir, '.layout'),
                          os.path.join(old, '.layout'))
             def handle_file(path):
                 newpath = old+path[lblob_dir:]
                 dest = os.path.dirname(newpath)
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0o700)
+                    os.makedirs(dest)
                 os.rename(path, newpath)
             handle_dir = handle_file
         else:
@@ -1368,7 +1368,7 @@ class FileStorage(
                 file_path = os.path.join(path, file_name)
                 dest = os.path.dirname(old+file_path[lblob_dir:])
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0o700)
+                    os.makedirs(dest)
                 link_or_copy(file_path, old+file_path[lblob_dir:])
 
     def iterator(self, start=None, stop=None):
