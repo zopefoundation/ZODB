@@ -6,8 +6,8 @@
 ==================
 
 - Fixed: When opening FileStorages in read-only mode, non-existent
-  files were silently created.  Creating a file-storage against a
-  non-existent file errors.
+  files were silently created.  Creating a read-only file-storage
+  against a non-existent file errors.
 
 5.2.0 (2017-02-09)
 ==================
