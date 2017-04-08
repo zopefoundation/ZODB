@@ -482,7 +482,7 @@ def test_blob_file_permissions():
     """
     >>> blob_storage = create_storage()
     >>> conn = ZODB.connection(blob_storage)
-    >>> conn.root.x = ZODB.blob.Blob('test')
+    >>> conn.root.x = ZODB.blob.Blob(b'test')
     >>> conn.transaction_manager.commit()
 
     Blobs have the readability of their parent directories:
