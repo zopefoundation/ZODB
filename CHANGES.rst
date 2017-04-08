@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.2.1 (unreleased)
+5.2.1 (2017-04-08)
 ==================
 
 - Fixed: When opening FileStorages in read-only mode, non-existent
