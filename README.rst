@@ -1,6 +1,6 @@
-====
-ZODB
-====
+=======================================
+ZODB, a Python object-oriented database
+=======================================
 
 ZODB provides an object-oriented database for Python that provides a
 high-degree of transparency.
