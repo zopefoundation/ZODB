@@ -4,20 +4,18 @@ import threading
 import time
 
 from persistent.mapping import PersistentMapping
+import six
 import transaction
 
 import ZODB
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
-from ZODB.tests.StorageTestBase import handle_serials
 from ZODB.tests.MinPO import MinPO
 from ZODB.POSException import ConflictError
 
-SHORT_DELAY = 0.01
+from ZODB.utils import load_current
 
-def sort(l):
-    "Sort a list in place and return it."
-    l.sort()
-    return l
+SHORT_DELAY = 0.01
 
 class TestThread(threading.Thread):
     """Base class for defining threads that run from unittest.
@@ -43,7 +41,8 @@ class TestThread(threading.Thread):
     def join(self, timeout=None):
         threading.Thread.join(self, timeout)
         if self._exc_info:
-            raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
+            raise six.reraise(
+                self._exc_info[0], self._exc_info[1], self._exc_info[2])
 
 class ZODBClientThread(TestThread):
 
@@ -67,7 +66,8 @@ class ZODBClientThread(TestThread):
         else:
             for i in range(self.commits):
                 self.commit(d, i)
-        self.test.assertEqual(sort(d.keys()), range(self.commits))
+        self.test.assertEqual(sorted(d.keys()), list(range(self.commits)))
+        conn.close()
 
     def commit(self, d, num):
         d[num] = time.time()
@@ -126,7 +126,7 @@ class StorageClientThread(TestThread):
 
     def check(self):
         for oid, revid in self.oids.items():
-            data, serial = self.storage.load(oid, '')
+            data, serial = load_current(self.storage, oid)
             self.test.assertEqual(serial, revid)
             obj = zodb_unpickle(data)
             self.test.assertEqual(obj.value[0], self.getName())
@@ -141,7 +141,7 @@ class StorageClientThread(TestThread):
 
     def dostore(self, i):
         data = zodb_pickle(MinPO((self.getName(), i)))
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         oid = self.oid()
         self.pause()
 
@@ -149,16 +149,14 @@ class StorageClientThread(TestThread):
         self.pause()
 
         # Always create a new object, signified by None for revid
-        r1 = self.storage.store(oid, None, data, '', t)
+        self.storage.store(oid, None, data, '', t)
         self.pause()
 
-        r2 = self.storage.tpc_vote(t)
+        self.storage.tpc_vote(t)
         self.pause()
 
-        self.storage.tpc_finish(t)
+        revid = self.storage.tpc_finish(t)
         self.pause()
-
-        revid = handle_serials(oid, r1, r2)
         self.oids[oid] = revid
 
 class ExtStorageClientThread(StorageClientThread):
@@ -190,11 +188,11 @@ class ExtStorageClientThread(StorageClientThread):
         self.check()
 
     def pick_oid(self):
-        return random.choice(self.oids.keys())
+        return random.choice(tuple(self.oids))
 
     def do_load(self):
         oid = self.pick_oid()
-        self.storage.load(oid, '')
+        load_current(self.storage, oid)
 
     def do_loadSerial(self):
         oid = self.pick_oid()
@@ -223,7 +221,8 @@ class MTStorage:
         for t in threads:
             t.join(60)
         for t in threads:
-            self.failIf(t.isAlive(), "thread failed to finish in 60 seconds")
+            self.assertFalse(t.isAlive(),
+                             "thread failed to finish in 60 seconds")
 
     def check2ZODBThreads(self):
         db = ZODB.DB(self._storage)

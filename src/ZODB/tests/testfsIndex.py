@@ -18,7 +18,13 @@ import unittest
 from ZODB.fsIndex import fsIndex
 from ZODB.utils import p64, z64
 from ZODB.tests.util import setUp, tearDown
+import six
 
+try:
+    xrange
+except NameError:
+    # Py3: No xrange.
+    xrange = range
 
 class Test(unittest.TestCase):
 
@@ -26,31 +32,31 @@ class Test(unittest.TestCase):
         self.index = fsIndex()
 
         for i in range(200):
-            self.index[p64(i * 1000)] = (i * 1000L + 1)
+            self.index[p64(i * 1000)] = (i * 1000 + 1)
 
     def test__del__(self):
         index = self.index
-        self.assert_(p64(1000) in index)
-        self.assert_(p64(100*1000) in index)
+        self.assertTrue(p64(1000) in index)
+        self.assertTrue(p64(100*1000) in index)
 
         del self.index[p64(1000)]
         del self.index[p64(100*1000)]
 
-        self.assert_(p64(1000) not in index)
-        self.assert_(p64(100*1000) not in index)
+        self.assertTrue(p64(1000) not in index)
+        self.assertTrue(p64(100*1000) not in index)
 
         for key in list(self.index):
             del index[key]
-        self.assert_(not index)
+        self.assertTrue(not index)
 
         # Whitebox. Make sure empty buckets are removed
-        self.assert_(not index._data)
+        self.assertTrue(not index._data)
 
     def testInserts(self):
         index = self.index
 
         for i in range(0,200):
-            self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000L+1)))
+            self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000+1)))
 
         self.assertEqual(len(index), 200)
 
@@ -62,24 +68,24 @@ class Test(unittest.TestCase):
         self.assertEqual(index.get(key), None)
         self.assertEqual(index.get(key, ''), '')
 
-        # self.failUnless(len(index._data) > 1)
+        # self.assertTrue(len(index._data) > 1)
 
     def testUpdate(self):
         index = self.index
         d={}
 
         for i in range(200):
-            d[p64(i*1000)]=(i*1000L+1)
+            d[p64(i*1000)]=(i*1000+1)
 
         index.update(d)
 
         for i in range(400,600):
-            d[p64(i*1000)]=(i*1000L+1)
+            d[p64(i*1000)]=(i*1000+1)
 
         index.update(d)
 
         for i in range(100, 500):
-            d[p64(i*1000)]=(i*1000L+2)
+            d[p64(i*1000)]=(i*1000+2)
 
         index.update(d)
 
@@ -95,7 +101,7 @@ class Test(unittest.TestCase):
         for i, k in enumerate(keys):
             self.assertEqual(k, p64(i * 1000))
 
-        keys = list(self.index.iterkeys())
+        keys = list(six.iterkeys(self.index))
         keys.sort()
 
         for i, k in enumerate(keys):
@@ -108,30 +114,30 @@ class Test(unittest.TestCase):
             self.assertEqual(k, p64(i * 1000))
 
     def testValues(self):
-        values = list(self.index.itervalues())
+        values = list(six.itervalues(self.index))
         values.sort()
 
         for i, v in enumerate(values):
-            self.assertEqual(v, (i * 1000L + 1))
+            self.assertEqual(v, (i * 1000 + 1))
 
         values = self.index.values()
         values.sort()
 
         for i, v in enumerate(values):
-            self.assertEqual(v, (i * 1000L + 1))
+            self.assertEqual(v, (i * 1000 + 1))
 
     def testItems(self):
-        items = list(self.index.iteritems())
+        items = list(six.iteritems(self.index))
         items.sort()
 
         for i, item in enumerate(items):
-            self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
+            self.assertEqual(item, (p64(i * 1000), (i * 1000 + 1)))
 
         items = self.index.items()
         items.sort()
 
         for i, item in enumerate(items):
-            self.assertEqual(item, (p64(i * 1000), (i * 1000L + 1)))
+            self.assertEqual(item, (p64(i * 1000), (i * 1000 + 1)))
 
     def testMaxKey(self):
         index = self.index
@@ -142,7 +148,7 @@ class Test(unittest.TestCase):
 
         # Now build up a tree with random values, and check maxKey at each
         # step.
-        correct_max = ""   # smaller than anything we'll add
+        correct_max = b""   # smaller than anything we'll add
         for i in range(1000):
             key = p64(random.randrange(100000000))
             index[key] = i
@@ -151,10 +157,10 @@ class Test(unittest.TestCase):
             self.assertEqual(index_max, correct_max)
 
         index.clear()
-        a = '\000\000\000\000\000\001\000\000'
-        b = '\000\000\000\000\000\002\000\000'
-        c = '\000\000\000\000\000\003\000\000'
-        d = '\000\000\000\000\000\004\000\000'
+        a = b'\000\000\000\000\000\001\000\000'
+        b = b'\000\000\000\000\000\002\000\000'
+        c = b'\000\000\000\000\000\003\000\000'
+        d = b'\000\000\000\000\000\004\000\000'
         index[a] = 1
         index[c] = 2
         self.assertEqual(index.maxKey(b), a)
@@ -170,7 +176,7 @@ class Test(unittest.TestCase):
 
         # Now build up a tree with random values, and check minKey at each
         # step.
-        correct_min = "\xff" * 8   # bigger than anything we'll add
+        correct_min = b"\xff" * 8   # bigger than anything we'll add
         for i in range(1000):
             key = p64(random.randrange(100000000))
             index[key] = i
@@ -179,10 +185,10 @@ class Test(unittest.TestCase):
             self.assertEqual(index_min, correct_min)
 
         index.clear()
-        a = '\000\000\000\000\000\001\000\000'
-        b = '\000\000\000\000\000\002\000\000'
-        c = '\000\000\000\000\000\003\000\000'
-        d = '\000\000\000\000\000\004\000\000'
+        a = b'\000\000\000\000\000\001\000\000'
+        b = b'\000\000\000\000\000\002\000\000'
+        c = b'\000\000\000\000\000\003\000\000'
+        d = b'\000\000\000\000\000\004\000\000'
         index[a] = 1
         index[c] = 2
         self.assertEqual(index.minKey(b), c)
@@ -214,8 +220,10 @@ Note that we pass a file position, which gets saved with the index data.
 
 If we save the data in the old format, we can still read it:
 
-    >>> import cPickle
-    >>> cPickle.dump(dict(pos=42, index=index), open('old', 'wb'), 1)
+    >>> from ZODB._compat import dump
+    >>> from ZODB._compat import _protocol
+    >>> with open('old', 'wb') as fp:
+    ...     dump(dict(pos=42, index=index), fp, _protocol)
     >>> info = fsIndex.load('old')
     >>> info['pos']
     42

@@ -1,2 +1,0 @@
-The ZODB/ZEO Programming Guide has been moved into it's own package
-(zodbguide) and published at http://docs.zope.org/zodb.

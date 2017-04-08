@@ -13,19 +13,19 @@
 ##############################################################################
 """Database objects
 """
-
-import cPickle
-import cStringIO
+from __future__ import print_function
 import sys
-import threading
 import logging
 import datetime
 import time
 import warnings
 
+from . import utils
+
 from ZODB.broken import find_global
 from ZODB.utils import z64
-from ZODB.Connection import Connection
+from ZODB.Connection import Connection, TransactionMetaData
+from ZODB._compat import Pickler, _protocol, BytesIO
 import ZODB.serialize
 
 import transaction.weakset
@@ -37,7 +37,9 @@ from ZODB.interfaces import IMVCCStorage
 import transaction
 
 from persistent.TimeStamp import TimeStamp
+import six
 
+from . import POSException, valuedoc
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -146,7 +148,7 @@ class ConnectionPool(AbstractConnectionPool):
         n = len(self.all)
         limit = self.size
         if n > limit:
-            reporter = logger.warn
+            reporter = logger.warning
             if n > 2 * limit:
                 reporter = logger.critical
             reporter("DB.open() has %s open connections with a pool_size "
@@ -180,6 +182,7 @@ class ConnectionPool(AbstractConnectionPool):
             (available and available[0][0] < threshhold)
             ):
             t, c = available.pop(0)
+            assert not c.opened
             self.all.remove(c)
             c._release_resources()
 
@@ -209,11 +212,13 @@ class ConnectionPool(AbstractConnectionPool):
         """Perform garbage collection on available connections.
 
         If a connection is no longer viable because it has timed out, it is
-        garbage collected."""
+        garbage collected.
+        """
         threshhold = time.time() - self.timeout
 
         to_remove = ()
         for (t, c) in self.available:
+            assert not c.opened
             if t < threshhold:
                 to_remove += (c,)
                 self.all.remove(c)
@@ -271,11 +276,11 @@ class KeyedConnectionPool(AbstractConnectionPool):
             return pool.pop()
 
     def map(self, f):
-        for pool in self.pools.itervalues():
+        for pool in six.itervalues(self.pools):
             pool.map(f)
 
     def availableGC(self):
-        for key, pool in self.pools.items():
+        for key, pool in list(self.pools.items()):
             pool.availableGC()
             if not pool.all:
                 del self.pools[key]
@@ -283,14 +288,14 @@ class KeyedConnectionPool(AbstractConnectionPool):
     @property
     def test_all(self):
         result = set()
-        for pool in self.pools.itervalues():
+        for pool in six.itervalues(self.pools):
             result.update(pool.all)
         return frozenset(result)
 
     @property
     def test_available(self):
         result = []
-        for pool in self.pools.itervalues():
+        for pool in six.itervalues(self.pools):
             result.extend(pool.available)
         return tuple(result)
 
@@ -310,19 +315,17 @@ def getTID(at, before):
             at = toTimeStamp(at)
         else:
             at = TimeStamp(at)
-        before = repr(at.laterThan(at))
+        before = at.laterThan(at).raw()
     elif before is not None:
         if isinstance(before, datetime.datetime):
-            before = repr(toTimeStamp(before))
+            before = toTimeStamp(before).raw()
         else:
-            before = repr(TimeStamp(before))
+            before = TimeStamp(before).raw()
     return before
-
 
 @implementer(IDatabase)
 class DB(object):
     """The Object Database
-    -------------------
 
     The DB class coordinates the activities of multiple database
     Connection instances.  Most of the work is done by the
@@ -335,36 +338,19 @@ class DB(object):
     connections are opened, a warning is logged, and if more than twice
     that many, a critical problem is logged.
 
-    The class variable 'klass' is used by open() to create database
-    connections.  It is set to Connection, but a subclass could override
-    it to provide a different connection implementation.
-
     The database provides a few methods intended for application code
     -- open, close, undo, and pack -- and a large collection of
     methods for inspecting the database and its connections' caches.
-
-    :Cvariables:
-      - `klass`: Class used by L{open} to create database connections
-
-    :Groups:
-      - `User Methods`: __init__, open, close, undo, pack, classFactory
-      - `Inspection Methods`: getName, getSize, objectCount,
-        getActivityMonitor, setActivityMonitor
-      - `Connection Pool Methods`: getPoolSize, getHistoricalPoolSize,
-        setPoolSize, setHistoricalPoolSize, getHistoricalTimeout,
-        setHistoricalTimeout
-      - `Transaction Methods`: invalidate
-      - `Other Methods`: lastTransaction, connectionDebugInfo
-      - `Cache Inspection Methods`: cacheDetail, cacheExtremeDetail,
-        cacheFullSweep, cacheLastGCTime, cacheMinimize, cacheSize,
-        cacheDetailSize, getCacheSize, getHistoricalCacheSize, setCacheSize,
-        setHistoricalCacheSize
     """
 
     klass = Connection  # Class to use for connections
     _activity_monitor = next = previous = None
 
-    def __init__(self, storage,
+    #: Database storage, implementing :interface:`~ZODB.interfaces.IStorage`
+    storage = valuedoc.ValueDoc('storage object')
+
+    def __init__(self,
+                 storage,
                  pool_size=7,
                  pool_timeout=1<<31,
                  cache_size=400,
@@ -380,35 +366,57 @@ class DB(object):
                  **storage_args):
         """Create an object database.
 
-        :Parameters:
-          - `storage`: the storage used by the database, e.g. FileStorage
-          - `pool_size`: expected maximum number of open connections
-          - `cache_size`: target size of Connection object cache
-          - `cache_size_bytes`: target size measured in total estimated size
-               of objects in the Connection object cache.
-               "0" means unlimited.
-          - `historical_pool_size`: expected maximum number of total
+        :param storage: the storage used by the database, such as a
+             :class:`~ZODB.FileStorage.FileStorage.FileStorage`.
+             This can be a string path name to use a constructed
+             :class:`~ZODB.FileStorage.FileStorage.FileStorage`
+             storage or ``None`` to use a constructed
+             :class:`~ZODB.MappingStorage.MappingStorage`.
+        :param int pool_size: expected maximum number of open connections.
+             Warnings are logged when this is exceeded and critical
+             messages are logged if twice the pool size is exceeded.
+        :param seconds pool_timeout: Maximum age of inactive connections
+             When a connection has remained unused in a connection
+             pool for more than pool_timeout seconds, it will be
+             discarded and it's resources released.
+        :param objects cache_size: target maximum number of non-ghost
+             objects in each connection object cache.
+        :param int cache_size_bytes: target total memory usage of non-ghost
+             objects in each connection object cache.
+        :param int historical_pool_size: expected maximum number of total
             historical connections
-          - `historical_cache_size`: target size of Connection object cache for
-            historical (`at` or `before`) connections
-          - `historical_cache_size_bytes` -- similar to `cache_size_bytes` for
-            the historical connection.
-          - `historical_timeout`: minimum number of seconds that
-            an unused historical connection will be kept, or None.
-          - `xrefs` - Boolian flag indicating whether implicit cross-database
-            references are allowed
+        :param objects historical_cache_size: target maximum number
+             of non-ghost objects in each historical connection object
+             cache.
+        :param int historical_cache_size_bytes: target total memory
+             usage of non-ghost objects in each historical connection
+             object cache.
+        :param seconds historical_timeout: Maximum age of inactive
+             historical connections.  When a connection has remained
+             unused in a historical connection pool for more than pool_timeout
+             seconds, it will be discarded and it's resources
+             released.
+        :param str database_name: The name of this database in a
+             multi-database configuration.  The name is used when
+             constructing cross-database references ans when accessing
+             database connections fron other databases.
+        :param dict databases: dictionary of database name to
+             databases in a multi-database configuration. The new
+             database will add itself to this dictionary. The
+             dictionary is used when getting connections in other databases.
+        :param boolean xrefs: Flag indicating whether cross-database
+            references are allowed from this database to other
+            databases in a multi-database configuration.
+        :param int large_record_size: When object records are saved
+             that are larger than this, a warning is issued,
+             suggesting that blobs should be used instead.
+        :param storage_args: Extra keywork arguments passed to a
+             storage constructor if a path name or None is passed as
+             the storage argument.
         """
-        if isinstance(storage, basestring):
-            from ZODB import FileStorage
-            storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
-        elif storage is None:
-            from ZODB import MappingStorage
-            storage = ZODB.MappingStorage.MappingStorage(**storage_args)
 
         # Allocate lock.
-        x = threading.RLock()
-        self._a = x.acquire
-        self._r = x.release
+        self._lock = utils.RLock()
 
         # pools and cache sizes
         self.pool = ConnectionPool(pool_size, pool_timeout)
@@ -420,12 +428,24 @@ class DB(object):
         self._historical_cache_size_bytes = historical_cache_size_bytes
 
         # Setup storage
+        if isinstance(storage, six.string_types):
+            from ZODB import FileStorage
+            storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
+        elif storage is None:
+            from ZODB import MappingStorage
+            storage = ZODB.MappingStorage.MappingStorage(**storage_args)
+        else:
+            assert not storage_args
+
         self.storage = storage
+
+        if IMVCCStorage.providedBy(storage):
+            self._mvcc_storage = storage
+        else:
+            from .mvccadapter import MVCCAdapter
+            self._mvcc_storage = MVCCAdapter(storage)
+
         self.references = ZODB.serialize.referencesf
-        try:
-            storage.registerDB(self)
-        except TypeError:
-            storage.registerDB(self, None) # Backward compat
 
         if (not hasattr(storage, 'tpc_vote')) and not storage.isReadOnly():
             warnings.warn(
@@ -434,33 +454,6 @@ class DB(object):
                 "tpc_vote.",
                 DeprecationWarning, 2)
             storage.tpc_vote = lambda *args: None
-
-        if IMVCCStorage.providedBy(storage):
-            temp_storage = storage.new_instance()
-        else:
-            temp_storage = storage
-        try:
-            try:
-                temp_storage.load(z64, '')
-            except KeyError:
-                # Create the database's root in the storage if it doesn't exist
-                from persistent.mapping import PersistentMapping
-                root = PersistentMapping()
-                # Manually create a pickle for the root to put in the storage.
-                # The pickle must be in the special ZODB format.
-                file = cStringIO.StringIO()
-                p = cPickle.Pickler(file, 1)
-                p.dump((root.__class__, None))
-                p.dump(root.__getstate__())
-                t = transaction.Transaction()
-                t.description = 'initial database creation'
-                temp_storage.tpc_begin(t)
-                temp_storage.store(z64, None, file.getvalue(), '', t)
-                temp_storage.tpc_vote(t)
-                temp_storage.tpc_finish(t)
-        finally:
-            if IMVCCStorage.providedBy(temp_storage):
-                temp_storage.release()
 
         # Multi-database setup.
         if databases is None:
@@ -475,6 +468,15 @@ class DB(object):
 
         self.large_record_size = large_record_size
 
+        # Make sure we have a root:
+        with self.transaction(u'initial database creation') as conn:
+            try:
+                conn.get(z64)
+            except KeyError:
+                from persistent.mapping import PersistentMapping
+                root = PersistentMapping()
+                conn._add(root, z64)
+
     @property
     def _storage(self):      # Backward compatibility
         return self.storage
@@ -486,8 +488,7 @@ class DB(object):
         connection._db must be self on entry.
         """
 
-        self._a()
-        try:
+        with self._lock:
             assert connection._db is self
             connection.opened = None
 
@@ -495,23 +496,16 @@ class DB(object):
                 self.historical_pool.repush(connection, connection.before)
             else:
                 self.pool.repush(connection)
-        finally:
-            self._r()
 
     def _connectionMap(self, f):
         """Call f(c) for all connections c in all pools, live and historical.
         """
-        self._a()
-        try:
+        with self._lock:
             self.pool.map(f)
             self.historical_pool.map(f)
-        finally:
-            self._r()
 
     def cacheDetail(self):
-        """Return information on objects in the various caches
-
-        Organized by class.
+        """Return object counts by class accross all connections.
         """
 
         detail = {}
@@ -526,23 +520,31 @@ class DB(object):
                     detail[c] = 1
 
         self._connectionMap(f)
-        detail = detail.items()
-        detail.sort()
-        return detail
+        return sorted(detail.items())
 
     def cacheExtremeDetail(self):
+        """Return information about all of the objects in the object caches.
+
+        Information includes a connection number, class, object id,
+        reference count and state.  The reference count returned
+        excludes references help by ZODB itself.
+        """
         detail = []
         conn_no = [0]  # A mutable reference to a counter
-        def f(con, detail=detail, rc=sys.getrefcount, conn_no=conn_no):
+        # sys.getrefcount is a CPython implementation detail
+        # not required to exist on, e.g., PyPy.
+        rc = getattr(sys, 'getrefcount', None)
+
+        def f(con, detail=detail, rc=rc, conn_no=conn_no):
             conn_no[0] += 1
             cn = conn_no[0]
             for oid, ob in con._cache_items():
                 id = ''
                 if hasattr(ob, '__dict__'):
                     d = ob.__dict__
-                    if d.has_key('id'):
+                    if 'id' in d:
                         id = d['id']
-                    elif d.has_key('__name__'):
+                    elif '__name__' in d:
                         id = d['__name__']
 
                 module = getattr(ob.__class__, '__module__', '')
@@ -558,12 +560,17 @@ class DB(object):
                 # sys.getrefcount(ob) returns.  But, in addition to that,
                 # the cache holds an extra reference on non-ghost objects,
                 # and we also want to pretend that doesn't exist.
+                # If we have no way to get a refcount, we return False
+                # to symbolize that. As opposed to None, this has the
+                # advantage of being usable as a number (0) in case
+                # clients depended on that.
                 detail.append({
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
                     'klass': "%s%s" % (module, ob.__class__.__name__),
-                    'rc': rc(ob) - 3 - (ob._p_changed is not None),
+                    'rc': (rc(ob) - 3 - (ob._p_changed is not None)
+                           if rc else False),
                     'state': ob._p_changed,
                     #'references': con.references(oid),
                     })
@@ -571,7 +578,7 @@ class DB(object):
         self._connectionMap(f)
         return detail
 
-    def cacheFullSweep(self):
+    def cacheFullSweep(self): # XXX this is the same as cacheMinimize
         self._connectionMap(lambda c: c._cache.full_sweep())
 
     def cacheLastGCTime(self):
@@ -585,9 +592,13 @@ class DB(object):
         return m[0]
 
     def cacheMinimize(self):
+        """Minimize cache sizes for all connections
+        """
         self._connectionMap(lambda c: c._cache.minimize())
 
     def cacheSize(self):
+        """Return the total count of non-ghost objects in all object caches
+        """
         m = [0]
         def f(con, m=m):
             m[0] += con._cache.cache_non_ghost_count
@@ -596,14 +607,17 @@ class DB(object):
         return m[0]
 
     def cacheDetailSize(self):
+        """Return non-ghost counts sizes for all connections.
+        """
         m = []
         def f(con, m=m):
             m.append({'connection': repr(con),
                       'ngsize': con._cache.cache_non_ghost_count,
                       'size': len(con._cache)})
         self._connectionMap(f)
-        m.sort()
-        return m
+        # Py3: Simulate Python 2 m.sort() functionality.
+        return sorted(
+            m, key=lambda x: (x['connection'], x['ngsize'], x['size']))
 
     def close(self):
         """Close the database and its underlying storage.
@@ -623,67 +637,70 @@ class DB(object):
 
         @self._connectionMap
         def _(c):
-            c.transaction_manager.abort()
+            if c.transaction_manager is not None:
+                c.transaction_manager.abort()
             c.afterCompletion = c.newTransaction = c.close = noop
             c._release_resources()
 
-        self.storage.close()
+        self._mvcc_storage.close()
         del self.storage
+        del self._mvcc_storage
 
     def getCacheSize(self):
+        """Get the configured cache size (objects).
+        """
         return self._cache_size
 
     def getCacheSizeBytes(self):
+        """Get the configured cache size in bytes.
+        """
         return self._cache_size_bytes
 
     def lastTransaction(self):
+        """Get the storage last transaction id.
+        """
         return self.storage.lastTransaction()
 
     def getName(self):
+        """Get the storage name
+        """
         return self.storage.getName()
 
     def getPoolSize(self):
+        """Get the configured pool size
+        """
         return self.pool.size
 
     def getSize(self):
+        """Get the approximate database size, in bytes
+        """
         return self.storage.getSize()
 
     def getHistoricalCacheSize(self):
+        """Get the configured historical cache size (objects).
+        """
         return self._historical_cache_size
 
     def getHistoricalCacheSizeBytes(self):
+        """Get the configured historical cache size in bytes.
+        """
         return self._historical_cache_size_bytes
 
     def getHistoricalPoolSize(self):
+        """Get the configured historical pool size
+        """
         return self.historical_pool.size
 
     def getHistoricalTimeout(self):
+        """Get the configured historical pool timeout
+        """
         return self.historical_pool.timeout
-
-    def invalidate(self, tid, oids, connection=None, version=''):
-        """Invalidate references to a given oid.
-
-        This is used to indicate that one of the connections has committed a
-        change to the object.  The connection commiting the change should be
-        passed in to prevent useless (but harmless) messages to the
-        connection.
-        """
-        # Storages, esp. ZEO tests, need the version argument still. :-/
-        assert version==''
-        # Notify connections.
-        def inval(c):
-            if c is not connection:
-                c.invalidate(tid, oids)
-        self._connectionMap(inval)
-
-    def invalidateCache(self):
-        """Invalidate each of the connection caches
-        """
-        self._connectionMap(lambda c: c.invalidateCache())
 
     transform_record_data = untransform_record_data = lambda self, data: data
 
     def objectCount(self):
+        """Get the approximate object count
+        """
         return len(self.storage)
 
     def open(self, transaction_manager=None, at=None, before=None):
@@ -713,7 +730,7 @@ class DB(object):
             raise ValueError(
                 'cannot open an historical connection in the future.')
 
-        if isinstance(transaction_manager, basestring):
+        if isinstance(transaction_manager, six.string_types):
             if transaction_manager:
                 raise TypeError("Versions aren't supported.")
             warnings.warn(
@@ -722,8 +739,7 @@ class DB(object):
                 DeprecationWarning, 2)
             transaction_manager = None
 
-        self._a()
-        try:
+        with self._lock:
             # result <- a connection
             if before is not None:
                 result = self.historical_pool.pop(before)
@@ -747,20 +763,25 @@ class DB(object):
                     result = self.pool.pop()
             assert result is not None
 
-            # open the connection.
-            result.open(transaction_manager)
-
             # A good time to do some cache cleanup.
             # (note we already have the lock)
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
-            return result
 
-        finally:
-            self._r()
+        result.open(transaction_manager)
+        return result
 
     def connectionDebugInfo(self):
+        """Get debugging information about connections
+
+        This is especially useful to debug connections that seem to be
+        leaking or open too long.  Information includes connection
+        info, the connection before setting, and, if a connection is
+        open, the time it was opened.  The info is the result of
+        calling :meth:`~ZODB.Connection.Connection.getDebugInfo` on
+        the connection, and the connection's cache size.
+        """
         result = []
         t = time.time()
 
@@ -811,7 +832,7 @@ class DB(object):
         try:
             self.storage.pack(t, self.references)
         except:
-            logger.error("packing", exc_info=True)
+            logger.exception("packing")
             raise
 
     def setActivityMonitor(self, am):
@@ -822,70 +843,69 @@ class DB(object):
         return find_global(modulename, globalname)
 
     def setCacheSize(self, size):
-        self._a()
-        try:
+        """Reconfigure the cache size (non-ghost object count)
+        """
+        with self._lock:
             self._cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
             self.pool.map(setsize)
-        finally:
-            self._r()
 
     def setCacheSizeBytes(self, size):
-        self._a()
-        try:
+        """Reconfigure the cache total size in bytes
+        """
+        with self._lock:
             self._cache_size_bytes = size
             def setsize(c):
                 c._cache.cache_size_bytes = size
             self.pool.map(setsize)
-        finally:
-            self._r()
 
     def setHistoricalCacheSize(self, size):
-        self._a()
-        try:
+        """Reconfigure the historical cache size (non-ghost object count)
+        """
+        with self._lock:
             self._historical_cache_size = size
             def setsize(c):
                 c._cache.cache_size = size
             self.historical_pool.map(setsize)
-        finally:
-            self._r()
 
     def setHistoricalCacheSizeBytes(self, size):
-        self._a()
-        try:
+        """Reconfigure the historical cache total size in bytes
+        """
+        with self._lock:
             self._historical_cache_size_bytes = size
             def setsize(c):
                 c._cache.cache_size_bytes = size
             self.historical_pool.map(setsize)
-        finally:
-            self._r()
 
     def setPoolSize(self, size):
-        self._a()
-        try:
+        """Reconfigure the connection pool size
+        """
+        with self._lock:
             self.pool.size = size
-        finally:
-            self._r()
 
     def setHistoricalPoolSize(self, size):
-        self._a()
-        try:
+        """Reconfigure the connection historical pool size
+        """
+        with self._lock:
             self.historical_pool.size = size
-        finally:
-            self._r()
 
     def setHistoricalTimeout(self, timeout):
-        self._a()
-        try:
+        """Reconfigure the connection historical pool timeout
+        """
+        with self._lock:
             self.historical_pool.timeout = timeout
-        finally:
-            self._r()
 
-    def history(self, *args, **kw):
-        return self.storage.history(*args, **kw)
+    def history(self, oid, size=1):
+        """Get revision history information for an object.
+
+        See :meth:`ZODB.interfaces.IStorage.history`.
+        """
+        return _text_transaction_info(self.storage.history(oid, size))
 
     def supportsUndo(self):
+        """Return whether the database supports undo.
+        """
         try:
             f = self.storage.supportsUndo
         except AttributeError:
@@ -893,14 +913,23 @@ class DB(object):
         return f()
 
     def undoLog(self, *args, **kw):
+        """Return a sequence of descriptions for transactions.
+
+        See :meth:`ZODB.interfaces.IStorageUndoable.undoLog`.
+        """
+
         if not self.supportsUndo():
             return ()
-        return self.storage.undoLog(*args, **kw)
+        return _text_transaction_info(self.storage.undoLog(*args, **kw))
 
     def undoInfo(self, *args, **kw):
+        """Return a sequence of descriptions for transactions.
+
+        See :meth:`ZODB.interfaces.IStorageUndoable.undoInfo`.
+        """
         if not self.supportsUndo():
             return ()
-        return self.storage.undoInfo(*args, **kw)
+        return _text_transaction_info(self.storage.undoInfo(*args, **kw))
 
     def undoMultiple(self, ids, txn=None):
         """Undo multiple transactions identified by ids.
@@ -923,7 +952,7 @@ class DB(object):
             raise NotImplementedError
         if txn is None:
             txn = transaction.get()
-        if isinstance(ids, basestring):
+        if isinstance(ids, six.string_types):
             ids = [ids]
         txn.join(TransactionalUndo(self, ids))
 
@@ -946,11 +975,25 @@ class DB(object):
         """
         self.undoMultiple([id], txn)
 
-    def transaction(self):
-        return ContextManager(self)
+    def transaction(self, note=None):
+        """Execute a block of code as a transaction.
+
+        If a note is given, it will be added to the transaction's
+        description.
+
+        The ``transaction`` method returns a context manager that can
+        be used with the ``with`` statement.
+        """
+        return ContextManager(self, note)
 
     def new_oid(self):
-        return self.storage.new_oid()
+        """
+        Return a new oid from the storage.
+
+        Kept for backwards compatibility only. New oids should be
+        allocated in a transaction using an open Connection.
+        """
+        return self.storage.new_oid() # pragma: no cover
 
     def open_then_close_db_when_connection_closes(self):
         """Create and return a connection.
@@ -966,12 +1009,16 @@ class ContextManager:
     """PEP 343 context manager
     """
 
-    def __init__(self, db):
+    def __init__(self, db, note=None):
         self.db = db
+        self.note = note
 
     def __enter__(self):
-        self.tm = transaction.TransactionManager()
+        self.tm = tm = transaction.TransactionManager()
         self.conn = self.db.open(self.tm)
+        t = tm.begin()
+        if self.note:
+            t.note(self.note)
         return self.conn
 
     def __exit__(self, t, v, tb):
@@ -981,44 +1028,63 @@ class ContextManager:
             self.tm.abort()
         self.conn.close()
 
-resource_counter_lock = threading.Lock()
+resource_counter_lock = utils.Lock()
 resource_counter = 0
 
 class TransactionalUndo(object):
 
     def __init__(self, db, tids):
         self._db = db
-        self._storage = db.storage
+        self._storage = getattr(
+            db._mvcc_storage, 'undo_instance', db._mvcc_storage.new_instance)()
         self._tids = tids
-        self._oids = set()
 
     def abort(self, transaction):
         pass
 
     def tpc_begin(self, transaction):
-        self._storage.tpc_begin(transaction)
+        tdata = TransactionMetaData(
+            transaction.user,
+            transaction.description,
+            transaction.extension)
+        transaction.set_data(self, tdata)
+        self._storage.tpc_begin(tdata)
 
     def commit(self, transaction):
+        transaction = transaction.data(self)
         for tid in self._tids:
-            result = self._storage.undo(tid, transaction)
-            if result:
-                self._oids.update(result[1])
+            self._storage.undo(tid, transaction)
 
     def tpc_vote(self, transaction):
-        for oid, _ in  self._storage.tpc_vote(transaction) or ():
-            self._oids.add(oid)
+        transaction = transaction.data(self)
+        self._storage.tpc_vote(transaction)
 
     def tpc_finish(self, transaction):
-        self._storage.tpc_finish(
-            transaction,
-            lambda tid: self._db.invalidate(tid, self._oids)
-            )
+        transaction = transaction.data(self)
+        self._storage.tpc_finish(transaction)
 
     def tpc_abort(self, transaction):
+        transaction = transaction.data(self)
         self._storage.tpc_abort(transaction)
 
     def sortKey(self):
         return "%s:%s" % (self._storage.sortKey(), id(self))
 
 def connection(*args, **kw):
+    """Create a database :class:`connection <ZODB.Connection.Connection>`.
+
+    A database is created using the given arguments and opened to
+    create the returned connection. The database will be closed when
+    the connection is closed.  This is a convenience function to avoid
+    managing a separate database object.
+    """
     return DB(*args, **kw).open_then_close_db_when_connection_closes()
+
+_transaction_meta_data_text_variables = 'user_name', 'description'
+def _text_transaction_info(info):
+    for d in info:
+        for name in _transaction_meta_data_text_variables:
+            if name in d:
+                d[name] = d[name].decode('utf-8')
+
+    return info

@@ -11,21 +11,22 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import cPickle
 import doctest
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing import doctest
+import sys
 import unittest
 import transaction
 import ZODB.FileStorage
 import ZODB.tests.hexstorage
 import ZODB.tests.testblob
-import ZODB.tests.util
 import zope.testing.setupstack
 from ZODB import POSException
 from ZODB import DB
+from ZODB.Connection import TransactionMetaData
 from ZODB.fsIndex import fsIndex
+from ZODB.utils import U64, p64, z64, load_current
 
 from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
 from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
@@ -33,6 +34,9 @@ from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
 from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
 from ZODB.tests import ReadOnlyStorage, RecoveryStorage
 from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
+from ZODB._compat import dump, dumps, _protocol
+
+from . import util
 
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
@@ -90,7 +94,8 @@ class FileStorageTests(
         newindex = dict(index)
         data['index'] = newindex
 
-        cPickle.dump(data, open('FileStorageTests.fs.index', 'wb'), 1)
+        with open('FileStorageTests.fs.index', 'wb') as fp:
+            dump(data, fp, _protocol)
         return index
 
     def check_conversion_to_fsIndex(self, read_only=False):
@@ -106,13 +111,13 @@ class FileStorageTests(
 
         # Convert it to a dict.
         old_index = self.convert_index_to_dict()
-        self.assert_(isinstance(old_index, fsIndex))
+        self.assertTrue(isinstance(old_index, fsIndex))
         new_index = self.convert_index_to_dict()
-        self.assert_(isinstance(new_index, dict))
+        self.assertTrue(isinstance(new_index, dict))
 
         # Verify it's converted to fsIndex in memory upon open.
         self.open(read_only=read_only)
-        self.assert_(isinstance(self._storage._index, fsIndex))
+        self.assertTrue(isinstance(self._storage._index, fsIndex))
 
         # Verify it has the right content.
         newindex_as_dict = dict(self._storage._index)
@@ -122,9 +127,9 @@ class FileStorageTests(
         self._storage.close()
         current_index = self.convert_index_to_dict()
         if read_only:
-            self.assert_(isinstance(current_index, dict))
+            self.assertTrue(isinstance(current_index, dict))
         else:
-            self.assert_(isinstance(current_index, fsIndex))
+            self.assertTrue(isinstance(current_index, fsIndex))
 
     def check_conversion_to_fsIndex_readonly(self):
         # Same thing, but the disk .index should continue to hold a
@@ -154,8 +159,8 @@ class FileStorageTests(
 
         # Verify it's converted to fsIndex in memory upon open.
         self.open()
-        self.assert_(isinstance(self._storage._index, fsIndex))
-        self.assert_(isinstance(self._storage._index._data, OOBTree))
+        self.assertTrue(isinstance(self._storage._index, fsIndex))
+        self.assertTrue(isinstance(self._storage._index._data, OOBTree))
 
         # Verify it has the right content.
         new_data_dict = dict(self._storage._index._data)
@@ -178,12 +183,12 @@ class FileStorageTests(
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
         # of the largest oid in use.
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        giant_oid = '\xee' * 8
+        giant_oid = b'\xee' * 8
         # Store an object.
         # oid, serial, data, version, transaction
-        r1 = self._storage.store(giant_oid, '\0'*8, 'data', '', t)
+        r1 = self._storage.store(giant_oid, b'\0'*8, b'data', b'', t)
         # Finish the transaction.
         r2 = self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -195,12 +200,12 @@ class FileStorageTests(
         # knows about already, it's crucial that the storage bump its notion
         # of the largest oid in use.  Because copyTransactionsFrom(), and
         # ZRS recovery, use the .restore() method, this is plain critical.
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        giant_oid = '\xee' * 8
+        giant_oid = b'\xee' * 8
         # Store an object.
         # oid, serial, data, version, prev_txn, transaction
-        r1 = self._storage.restore(giant_oid, '\0'*8, 'data', '', None, t)
+        r1 = self._storage.restore(giant_oid, b'\0'*8, b'data', b'', None, t)
         # Finish the transaction.
         r2 = self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -215,7 +220,6 @@ class FileStorageTests(
         # global.
         import time
 
-        from ZODB.utils import U64, p64
         from ZODB.FileStorage.format import CorruptedError
         from ZODB.serialize import referencesf
 
@@ -232,27 +236,26 @@ class FileStorageTests(
         self.open()
 
         # Open .fs directly, and damage content.
-        f = open('FileStorageTests.fs', 'r+b')
-        f.seek(0, 2)
-        pos2 = f.tell() - 8
-        f.seek(pos2)
-        tlen2 = U64(f.read(8))  # length-8 of the last transaction
-        pos1 = pos2 - tlen2 + 8 # skip over the tid at the start
-        f.seek(pos1)
-        tlen1 = U64(f.read(8))  # should be redundant length-8
-        self.assertEqual(tlen1, tlen2)  # verify that it is redundant
+        with open('FileStorageTests.fs', 'r+b') as f:
+            f.seek(0, 2)
+            pos2 = f.tell() - 8
+            f.seek(pos2)
+            tlen2 = U64(f.read(8))  # length-8 of the last transaction
+            pos1 = pos2 - tlen2 + 8 # skip over the tid at the start
+            f.seek(pos1)
+            tlen1 = U64(f.read(8))  # should be redundant length-8
+            self.assertEqual(tlen1, tlen2)  # verify that it is redundant
 
-        # Now damage the second copy.
-        f.seek(pos2)
-        f.write(p64(tlen2 - 1))
-        f.close()
+            # Now damage the second copy.
+            f.seek(pos2)
+            f.write(p64(tlen2 - 1))
 
         # Try to pack.  This used to yield
         #     NameError: global name 's' is not defined
         try:
             self._storage.pack(time.time(), referencesf)
-        except CorruptedError, detail:
-            self.assert_("redundant transaction length does not match "
+        except CorruptedError as detail:
+            self.assertTrue("redundant transaction length does not match "
                          "initial transaction length" in str(detail))
         else:
             self.fail("expected CorruptedError")
@@ -272,17 +275,48 @@ class FileStorageTests(
         self.open()
 
         key = None
-        for x in ('\000', '\001', '\002'):
+        for x in (b'\000', b'\001', b'\002'):
             oid, tid, data, next_oid = self._storage.record_iternext(key)
-            self.assertEqual(oid, ('\000' * 7) + x)
+            self.assertEqual(oid, (b'\000' * 7) + x)
             key = next_oid
-            expected_data, expected_tid = self._storage.load(oid, '')
+            expected_data, expected_tid = load_current(self._storage, oid)
             self.assertEqual(expected_data, data)
             self.assertEqual(expected_tid, tid)
-            if x == '\002':
+            if x == b'\002':
                 self.assertEqual(next_oid, None)
             else:
                 self.assertNotEqual(next_oid, None)
+
+    def checkFlushAfterTruncate(self, fail=False):
+        r0 = self._dostore(z64)
+        storage = self._storage
+        t = TransactionMetaData()
+        storage.tpc_begin(t)
+        storage.store(z64, r0, b'foo', b'', t)
+        storage.tpc_vote(t)
+        # Read operations are done with separate 'file' objects with their
+        # own buffers: here, the buffer also includes voted data.
+        load_current(storage, z64)
+        # This must invalidate all read buffers.
+        storage.tpc_abort(t)
+        self._dostore(z64, r0, b'bar', 1)
+        # In the case that read buffers were not invalidated, return value
+        # is based on what was cached during the first load.
+        self.assertEqual(load_current(storage, z64)[0],
+                         b'foo' if fail else b'bar')
+
+    # We want to be sure that the above test detects any regression
+    # in the code it checks, because any bug here is like a time bomb: not
+    # obvious, hard to reproduce, with possible data corruption.
+    # It's even more important that FilePool.flush() is quite aggressive and
+    # we'd like to optimize it when Python gets an API to flush read buffers.
+    # Therefore, 'checkFlushAfterTruncate' is tested in turn by another unit
+    # test.
+    # On Windows, flushing explicitely is not (always?) necessary.
+    if sys.platform != 'win32':
+        def checkFlushNeededAfterTruncate(self):
+            self._storage._files.flush = lambda: None
+            self.checkFlushAfterTruncate(True)
 
 class FileStorageHexTests(FileStorageTests):
 
@@ -299,6 +333,7 @@ class FileStorageTestsWithBlobsEnabled(FileStorageTests):
             kwargs['blob_dir'] = 'blobs'
         FileStorageTests.open(self, **kwargs)
 
+
 class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
 
     def open(self, **kwargs):
@@ -307,6 +342,7 @@ class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
             kwargs['blob_dir'] = 'blobs'
         FileStorageTests.open(self, **kwargs)
         self._storage = ZODB.tests.hexstorage.HexStorage(self._storage)
+
 
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
@@ -367,13 +403,13 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
 
     def checkanalyze(self):
-        import new, sys, pickle
+        import types
         from BTrees.OOBTree import OOBTree
         from ZODB.scripts import analyze
 
         # Set up a module to act as a broken import
         module_name = 'brokenmodule'
-        module = new.module(module_name)
+        module = types.ModuleType(module_name)
         sys.modules[module_name] = module
 
         class Broken(MinPO):
@@ -381,33 +417,25 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         module.Broken = Broken
 
         oids = [[self._storage.new_oid(), None] for i in range(3)]
+        def store(i, data):
+            oid, revid = oids[i]
+            self._storage.store(oid, revid, data, "", t)
+
         for i in range(2):
-            t = transaction.Transaction()
+            t = TransactionMetaData()
             self._storage.tpc_begin(t)
 
             # sometimes data is in this format
-            j = 0
-            oid, revid = oids[j]
-            serial = self._storage.store(
-                oid, revid, pickle.dumps(OOBTree, 1), "", t)
-            oids[j][1] = serial
-
+            store(0, dumps(OOBTree, _protocol))
             # and it could be from a broken module
-            j = 1
-            oid, revid = oids[j]
-            serial = self._storage.store(
-                oid, revid, pickle.dumps(Broken, 1), "", t)
-            oids[j][1] = serial
-
+            store(1, dumps(Broken, _protocol))
             # but mostly it looks like this
-            j = 2
-            o = MinPO(j)
-            oid, revid = oids[j]
-            serial = self._storage.store(oid, revid, zodb_pickle(o), "", t)
-            oids[j][1] = serial
+            store(2, zodb_pickle(MinPO(2)))
 
             self._storage.tpc_vote(t)
-            self._storage.tpc_finish(t)
+            tid = self._storage.tpc_finish(t)
+            for oid_revid in oids:
+                oid_revid[1] = tid
 
         # now break the import of the Broken class
         del sys.modules[module_name]
@@ -419,8 +447,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
             analyze.analyze_trans(rep, txn)
 
         # from ZODB.scripts.analyze.report
-        typemap = rep.TYPEMAP.keys()
-        typemap.sort()
+        typemap = sorted(rep.TYPEMAP.keys())
         cumpct = 0.0
         for t in typemap:
             pct = rep.TYPESIZE[t] * 100.0 / rep.DBYTES
@@ -432,7 +459,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
 def checkIncreasingTids(fs):
-    lasttid = '\0' * 8
+    lasttid = b'\0' * 8
     for txn in fs.iterator():
         if lasttid >= txn.tid:
             raise ValueError("tids out of order %r >= %r" % (lasttid, txn.tid))
@@ -598,19 +625,19 @@ def deal_with_finish_failures():
     >>> import zope.testing.loggingsupport
     >>> handler = zope.testing.loggingsupport.InstalledHandler(
     ...     'ZODB.FileStorage')
-    >>> transaction.commit()
+    >>> transaction.commit() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: <lambda>() takes no arguments (1 given)
+    TypeError: <lambda>() takes ...
 
 
-    >>> print handler
+    >>> print(handler)
     ZODB.FileStorage CRITICAL
       Failure in _finish. Closing.
 
     >>> handler.uninstall()
 
-    >>> fs.load('\0'*8, '') # doctest: +ELLIPSIS
+    >>> load_current(fs, b'\0'*8) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     ValueError: ...
@@ -637,7 +664,8 @@ def pack_with_open_blob_files():
     >>> import ZODB.blob
     >>> conn1.root()[1] = ZODB.blob.Blob()
     >>> conn1.add(conn1.root()[1])
-    >>> conn1.root()[1].open('w').write('some data')
+    >>> with conn1.root()[1].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> tm1.commit()
 
     >>> tm2 = transaction.TransactionManager()
@@ -645,7 +673,8 @@ def pack_with_open_blob_files():
     >>> f = conn1.root()[1].open()
     >>> conn1.root()[2] = ZODB.blob.Blob()
     >>> conn1.add(conn1.root()[2])
-    >>> conn1.root()[2].open('w').write('some more data')
+    >>> with conn1.root()[2].open('w') as file:
+    ...     _ = file.write(b'some more data')
 
     >>> db.pack()
     >>> f.read()
@@ -654,10 +683,23 @@ def pack_with_open_blob_files():
 
     >>> tm1.commit()
     >>> conn2.sync()
-    >>> conn2.root()[2].open().read()
+    >>> with conn2.root()[2].open() as fp: fp.read()
     'some more data'
 
     >>> db.close()
+    """
+
+def readonly_open_nonexistent_file():
+    """
+    Make sure error is reported when non-existent file is tried to be opened
+    read-only.
+
+    >>> try:
+    ...     fs = ZODB.FileStorage.FileStorage('nonexistent.fs', read_only=True)
+    ... except Exception as e:
+    ...     # Python2 raises IOError; Python3 - FileNotFoundError
+    ...     print("error: %s" % str(e)) # doctest: +ELLIPSIS
+    error: ... No such file or directory: 'nonexistent.fs'
     """
 
 def test_suite():
@@ -673,7 +715,8 @@ def test_suite():
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
-        tearDown=zope.testing.setupstack.tearDown))
+        tearDown=util.tearDown,
+        checker=util.checker))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'BlobFileStorage',
         lambda name, blob_dir, blob_dir_permissions=None:
@@ -694,7 +737,7 @@ def test_suite():
     suite.addTest(PackableStorage.IExternalGC_suite(
         lambda : ZODB.FileStorage.FileStorage(
             'data.fs', blob_dir='blobs', pack_gc=False)))
-    suite.layer = ZODB.tests.util.MininalTestLayer('testFileStorage')
+    suite.layer = util.MininalTestLayer('testFileStorage')
     return suite
 
 if __name__=='__main__':

@@ -30,7 +30,8 @@ Open one more, and we get a warning:
     >>> len(handler.records)
     1
     >>> msg = handler.records[0]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> import six
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB WARNING DB.open() has 8 open connections with a pool_size of 7
 
 Open 6 more, and we get 6 more warnings:
@@ -41,7 +42,7 @@ Open 6 more, and we get 6 more warnings:
     >>> len(handler.records)
     7
     >>> msg = handler.records[-1]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB WARNING DB.open() has 14 open connections with a pool_size of 7
 
 Add another, so that it's more than twice the default, and the level
@@ -53,14 +54,14 @@ rises to critical:
     >>> len(handler.records)
     8
     >>> msg = handler.records[-1]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB CRITICAL DB.open() has 15 open connections with a pool_size of 7
 
 While it's boring, it's important to verify that the same relationships
 hold if the default pool size is overridden.
 
     >>> handler.clear()
-    >>> st.close()
+    >>> db.close()
     >>> st = Storage()
     >>> PS = 2 # smaller pool size
     >>> db = DB(st, pool_size=PS)
@@ -74,7 +75,7 @@ A warning for opening one more:
     >>> len(handler.records)
     1
     >>> msg = handler.records[0]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB WARNING DB.open() has 3 open connections with a pool_size of 2
 
 More warnings through 4 connections:
@@ -85,7 +86,7 @@ More warnings through 4 connections:
     >>> len(handler.records)
     2
     >>> msg = handler.records[-1]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB WARNING DB.open() has 4 open connections with a pool_size of 2
 
 And critical for going beyond that:
@@ -96,7 +97,7 @@ And critical for going beyond that:
     >>> len(handler.records)
     3
     >>> msg = handler.records[-1]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB CRITICAL DB.open() has 5 open connections with a pool_size of 2
 
 We can change the pool size on the fly:
@@ -110,13 +111,13 @@ We can change the pool size on the fly:
     >>> len(handler.records)
     1
     >>> msg = handler.records[0]
-    >>> print msg.name, msg.levelname, msg.getMessage()
+    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
     ZODB.DB WARNING DB.open() has 7 open connections with a pool_size of 6
 
 Enough of that.
 
     >>> handler.clear()
-    >>> st.close()
+    >>> db.close()
 
 More interesting is the stack-like nature of connection reuse.  So long as
 we keep opening new connections, and keep them alive, all connections
@@ -125,6 +126,7 @@ returned are distinct:
     >>> st = Storage()
     >>> db = DB(st)
     >>> c1 = db.open()
+    >>> c1.cacheMinimize()
     >>> c2 = db.open()
     >>> c3 = db.open()
     >>> c1 is c2 or c1 is c3 or c2 is c3
@@ -227,17 +229,18 @@ that are still alive.
     3
 
 If a connection object is abandoned (it becomes unreachable), then it
-will vanish from pool.all automatically.  However, connections are
-involved in cycles, so exactly when a connection vanishes from pool.all
-isn't predictable.  It can be forced by running gc.collect():
+will vanish from pool.all automatically. However, connections are
+involved in cycles, so exactly when a connection vanishes from
+pool.all isn't predictable. It can be forced (on most platforms but
+not Jython) by running gc.collect():
 
-    >>> import gc
+    >>> import gc, sys
     >>> dummy = gc.collect()
     >>> len(pool.all)
     3
     >>> c3 = None
     >>> dummy = gc.collect()  # removes c3 from pool.all
-    >>> len(pool.all)
+    >>> len(pool.all) if not sys.platform.startswith("java") else 2
     2
 
 Note that c3 is really gone; in particular it didn't get added back to
@@ -254,10 +257,11 @@ Nothing in that last block should have logged any msgs:
 If "too many" connections are open, then closing one may kick an older
 closed one out of the available connection stack.
 
-    >>> st.close()
+    >>> db.close()
     >>> st = Storage()
     >>> db = DB(st, pool_size=3)
     >>> conns = [db.open() for dummy in range(6)]
+    >>> conns[0].cacheMinimize()
     >>> len(handler.records)  # 3 warnings for the "excess" connections
     3
     >>> pool = db.pool
@@ -322,10 +326,11 @@ gc to reclaim the Connection and its cache eventually works, but that can
 take "a long time" and caches can hold on to many objects, and limited
 resources (like RDB connections), for the duration.
 
-    >>> st.close()
+    >>> db.close()
     >>> st = Storage()
     >>> db = DB(st, pool_size=2)
     >>> conn0 = db.open()
+    >>> conn0.cacheMinimize(); import gc; _ = gc.collect() # See fix84.rst
     >>> len(conn0._cache)  # empty now
     0
     >>> import transaction

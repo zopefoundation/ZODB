@@ -66,9 +66,11 @@ use:
             class PCounter(Persistent):
                 '`value` is readonly; increment it with `inc`.'
 
+                # Fool BTree checks for sane comparison :/
                 def __cmp__(self, other):
-                    'Fool BTree checks for sane comparison :/'
                     return object.__cmp__(self, other)
+                def __lt__(self, other):
+                    return object.__lt__(self, other)
 
                 _val = 0
                 def inc(self):
@@ -86,7 +88,7 @@ use:
         .. -> src
 
             >>> import ConflictResolution_txt
-            >>> exec src in ConflictResolution_txt.__dict__
+            >>> exec(src, ConflictResolution_txt.__dict__)
             >>> PCounter = ConflictResolution_txt.PCounter
             >>> PCounter.__module__ = 'ConflictResolution_txt'
 
@@ -198,7 +200,7 @@ Here's an example of a broken _p_resolveConflict method::
 
 .. -> src
 
-    >>> exec src in ConflictResolution_txt.__dict__
+    >>> exec(src, ConflictResolution_txt.__dict__)
     >>> PCounter2 = ConflictResolution_txt.PCounter2
     >>> PCounter2.__module__ = 'ConflictResolution_txt'
 
@@ -293,11 +295,11 @@ and newState [#get_persistent_reference]_.  They have an oid, `weak` is
 False, and `database_name` is None.  `klass` happens to be set but this is
 not always the case.
 
-    >>> isinstance(new.oid, str)
+    >>> isinstance(new.oid, bytes)
     True
     >>> new.weak
     False
-    >>> print new.database_name
+    >>> print(new.database_name)
     None
     >>> new.klass is PCounter
     True
@@ -431,7 +433,7 @@ integrity issues.
 
     .. -> src
 
-        >>> exec src in ConflictResolution_txt.__dict__
+        >>> exec(src, ConflictResolution_txt.__dict__)
         >>> PCounter3 = ConflictResolution_txt.PCounter3
         >>> PCounter3.__module__ = 'ConflictResolution_txt'
 
@@ -475,47 +477,47 @@ integrity issues.
 
     >>> from ZODB.ConflictResolution import PersistentReference
 
-    >>> ref1 = PersistentReference('my_oid')
+    >>> ref1 = PersistentReference(b'my_oid')
     >>> ref1.oid
     'my_oid'
-    >>> print ref1.klass
+    >>> print(ref1.klass)
     None
-    >>> print ref1.database_name
+    >>> print(ref1.database_name)
     None
     >>> ref1.weak
     False
 
-    >>> ref2 = PersistentReference(('my_oid', 'my_class'))
+    >>> ref2 = PersistentReference((b'my_oid', 'my_class'))
     >>> ref2.oid
     'my_oid'
     >>> ref2.klass
     'my_class'
-    >>> print ref2.database_name
+    >>> print(ref2.database_name)
     None
     >>> ref2.weak
     False
 
-    >>> ref3 = PersistentReference(['w', ('my_oid',)])
+    >>> ref3 = PersistentReference(['w', (b'my_oid',)])
     >>> ref3.oid
     'my_oid'
-    >>> print ref3.klass
+    >>> print(ref3.klass)
     None
-    >>> print ref3.database_name
+    >>> print(ref3.database_name)
     None
     >>> ref3.weak
     True
 
-    >>> ref3a = PersistentReference(['w', ('my_oid', 'other_db')])
+    >>> ref3a = PersistentReference(['w', (b'my_oid', 'other_db')])
     >>> ref3a.oid
     'my_oid'
-    >>> print ref3a.klass
+    >>> print(ref3a.klass)
     None
     >>> ref3a.database_name
     'other_db'
     >>> ref3a.weak
     True
 
-    >>> ref4 = PersistentReference(['m', ('other_db', 'my_oid', 'my_class')])
+    >>> ref4 = PersistentReference(['m', ('other_db', b'my_oid', 'my_class')])
     >>> ref4.oid
     'my_oid'
     >>> ref4.klass
@@ -525,22 +527,22 @@ integrity issues.
     >>> ref4.weak
     False
 
-    >>> ref5 = PersistentReference(['n', ('other_db', 'my_oid')])
+    >>> ref5 = PersistentReference(['n', ('other_db', b'my_oid')])
     >>> ref5.oid
     'my_oid'
-    >>> print ref5.klass
+    >>> print(ref5.klass)
     None
     >>> ref5.database_name
     'other_db'
     >>> ref5.weak
     False
 
-    >>> ref6 = PersistentReference(['my_oid']) # legacy
+    >>> ref6 = PersistentReference([b'my_oid']) # legacy
     >>> ref6.oid
     'my_oid'
-    >>> print ref6.klass
+    >>> print(ref6.klass)
     None
-    >>> print ref6.database_name
+    >>> print(ref6.database_name)
     None
     >>> ref6.weak
     True

@@ -19,7 +19,6 @@ storage without distracting storage details.
 
 import BTrees
 import time
-import threading
 import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
@@ -33,17 +32,29 @@ import zope.interface
         ZODB.interfaces.IStorageIteration,
         )
 class MappingStorage(object):
+    """In-memory storage implementation
+
+    Note that this implementation is somewhat naive and inefficient
+    with regard to locking.  Its implementation is primarily meant to
+    be a simple illustration of storage implementation. It's also
+    useful for testing and exploration where scalability and efficiency
+    are unimportant.
+    """
 
     def __init__(self, name='MappingStorage'):
+        """Create a mapping storage
+
+        The name parameter is used by the
+        :meth:`~ZODB.interfaces.IStorage.getName` and
+        :meth:`~ZODB.interfaces.IStorage.sortKey` methods.
+        """
         self.__name__ = name
         self._data = {}                               # {oid->{tid->pickle}}
         self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
         self._ltid = ZODB.utils.z64
         self._last_pack = None
-        _lock = threading.RLock()
-        self._lock_acquire = _lock.acquire
-        self._lock_release = _lock.release
-        self._commit_lock = threading.Lock()
+        self._lock = ZODB.utils.RLock()
+        self._commit_lock = ZODB.utils.Lock()
         self._opened = True
         self._transaction = None
         self._oid = 0
@@ -106,7 +117,7 @@ class MappingStorage(object):
         tids.reverse()
         return [
             dict(
-                time = ZODB.TimeStamp.TimeStamp(tid),
+                time = ZODB.TimeStamp.TimeStamp(tid).timeTime(),
                 tid = tid,
                 serial = tid,
                 user_name = self._transactions[tid].user,
@@ -135,15 +146,7 @@ class MappingStorage(object):
     def __len__(self):
         return len(self._data)
 
-    # ZODB.interfaces.IStorage
-    @ZODB.utils.locked(opened)
-    def load(self, oid, version=''):
-        assert not version, "Versions are not supported"
-        tid_data = self._data.get(oid)
-        if tid_data:
-            tid = tid_data.maxKey()
-            return tid_data[tid], tid
-        raise ZODB.POSException.POSKeyError(oid)
+    load = ZODB.utils.load_current
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
@@ -189,7 +192,7 @@ class MappingStorage(object):
         if not self._data:
             return
 
-        stop = `ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
+        stop = ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
         if self._last_pack is not None and self._last_pack >= stop:
             if self._last_pack == stop:
                 return
@@ -258,8 +261,6 @@ class MappingStorage(object):
 
         self._tdata[oid] = data
 
-        return self._tid
-
     checkCurrentSerialInTransaction = (
         ZODB.BaseStorage.checkCurrentSerialInTransaction)
 
@@ -272,24 +273,28 @@ class MappingStorage(object):
         self._commit_lock.release()
 
     # ZODB.interfaces.IStorage
-    @ZODB.utils.locked(opened)
     def tpc_begin(self, transaction, tid=None):
-        # The tid argument exists to support testing.
-        if transaction is self._transaction:
-            raise ZODB.POSException.StorageTransactionError(
-                "Duplicate tpc_begin calls for same transaction")
-        self._lock_release()
+        with self._lock:
+
+            ZODB.utils.check_precondition(self.opened)
+
+            # The tid argument exists to support testing.
+            if transaction is self._transaction:
+                raise ZODB.POSException.StorageTransactionError(
+                    "Duplicate tpc_begin calls for same transaction")
+
         self._commit_lock.acquire()
-        self._lock_acquire()
-        self._transaction = transaction
-        self._tdata = {}
-        if tid is None:
-            if self._transactions:
-                old_tid = self._transactions.maxKey()
-            else:
-                old_tid = None
-            tid = ZODB.utils.newTid(old_tid)
-        self._tid = tid
+
+        with self._lock:
+            self._transaction = transaction
+            self._tdata = {}
+            if tid is None:
+                if self._transactions:
+                    old_tid = self._transactions.maxKey()
+                else:
+                    old_tid = None
+                tid = ZODB.utils.newTid(old_tid)
+            self._tid = tid
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
@@ -314,6 +319,7 @@ class MappingStorage(object):
         self._transaction = None
         del self._tdata
         self._commit_lock.release()
+        return tid
 
     # ZEO.interfaces.IServeable
     @ZODB.utils.locked(opened)
@@ -334,7 +340,7 @@ class TransactionRecord:
         self.tid = tid
         self.user = transaction.user
         self.description = transaction.description
-        extension = transaction._extension
+        extension = transaction.extension
         self.extension = extension
         self.data = data
 

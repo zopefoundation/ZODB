@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.3
+#!/usr/bin/python
 
 ##############################################################################
 #
@@ -37,13 +37,14 @@ is not recommended (spurious error messages may result).
 
 See testfsoids.py for a tutorial doctest.
 """
+from __future__ import print_function
 
 import sys
 
 from ZODB.FileStorage.fsoids import Tracer
 
 def usage():
-    print __doc__
+    print(__doc__)
 
 def main():
     import getopt

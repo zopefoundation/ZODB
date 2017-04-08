@@ -13,6 +13,8 @@
 ##############################################################################
 """Test that a storage's values persist across open and close."""
 
+from ZODB.utils import load_current
+
 class PersistentStorage:
 
     def checkUpdatesPersist(self):
@@ -36,7 +38,7 @@ class PersistentStorage:
         # keep copies of all the objects
         objects = []
         for oid in oids:
-            p, s = self._storage.load(oid, '')
+            p, s = load_current(self._storage, oid)
             objects.append((oid, '', p, s))
 
         self._storage.close()
@@ -44,6 +46,6 @@ class PersistentStorage:
 
         # keep copies of all the objects
         for oid, ver, p, s in objects:
-            _p, _s = self._storage.load(oid, ver)
-            self.assertEquals(p, _p)
-            self.assertEquals(s, _s)
+            _p, _s = load_current(self._storage, oid)
+            self.assertEqual(p, _p)
+            self.assertEqual(s, _s)

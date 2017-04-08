@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2002 Zope Foundation and Contributors.
@@ -62,16 +61,14 @@ of objects, it does not attempt to load objects in versions, or non-current
 revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
-
+from __future__ import print_function
 import traceback
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr, get_pickle_metadata
+from ZODB.utils import u64, oid_repr, get_pickle_metadata, load_current
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
-
-VERBOSE = 0
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
@@ -83,18 +80,19 @@ def report(oid, data, serial, missing):
     else:
         plural = ""
     ts = TimeStamp(serial)
-    print "oid %s %s.%s" % (hex(u64(oid)), from_mod, from_class)
-    print "last updated: %s, tid=%s" % (ts, hex(u64(serial)))
-    print "refers to invalid object%s:" % plural
+    print("oid %s %s.%s" % (hex(u64(oid)), from_mod, from_class))
+    print("last updated: %s, tid=%s" % (ts, hex(u64(serial))))
+    print("refers to invalid object%s:" % plural)
     for oid, info, reason in missing:
         if isinstance(info, tuple):
             description = "%s.%s" % info
         else:
             description = str(info)
-        print "\toid %s %s: %r" % (oid_repr(oid), reason, description)
-    print
+        print("\toid %s %s: %r" % (oid_repr(oid), reason, description))
+    print()
 
 def main(path=None):
+    verbose = 0
     if path is None:
         import sys
         import getopt
@@ -102,11 +100,11 @@ def main(path=None):
         opts, args = getopt.getopt(sys.argv[1:], "v")
         for k, v in opts:
             if k == "-v":
-                VERBOSE += 1
+                verbose += 1
 
         path, = args
 
-    
+
     fs = FileStorage(path, read_only=1)
 
     # Set of oids in the index that failed to load due to POSKeyError.
@@ -122,13 +120,13 @@ def main(path=None):
 
     for oid in fs._index.keys():
         try:
-            data, serial = fs.load(oid, "")
+            data, serial = load_current(fs, oid)
         except (KeyboardInterrupt, SystemExit):
             raise
         except POSKeyError:
             undone[oid] = 1
         except:
-            if VERBOSE:
+            if verbose:
                 traceback.print_exc()
             noload[oid] = 1
 
@@ -137,7 +135,7 @@ def main(path=None):
     for oid in fs._index.keys():
         if oid in inactive:
             continue
-        data, serial = fs.load(oid, "")
+        data, serial = load_current(fs, oid)
         refs = get_refs(data)
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for ref, klass in refs:

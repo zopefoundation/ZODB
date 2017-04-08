@@ -63,7 +63,7 @@ entries:
     True
     >>> len(db2.databases)
     2
-    >>> names = dbmap.keys(); names.sort(); print names
+    >>> names = sorted(dbmap.keys()); print(names)
     ['notroot', 'root']
 
 It's an error to try to insert a database with a name already in use:
@@ -112,7 +112,7 @@ Now there are two connections in that collection:
     True
     >>> len(cn2.connections)
     2
-    >>> names = cn.connections.keys(); names.sort(); print names
+    >>> names = sorted(cn.connections.keys()); print(names)
     ['notroot', 'root']
 
 So long as this database group remains open, the same ``Connection`` objects
@@ -155,9 +155,9 @@ ZODB 3.6:
     ... </zodb>
     ... """
     >>> db = databaseFromString(config)
-    >>> print db.database_name
+    >>> print(db.database_name)
     this_is_the_name
-    >>> db.databases.keys()
+    >>> sorted(db.databases.keys())
     ['this_is_the_name']
 
 However, the ``.databases`` attribute cannot be configured from file.  It
@@ -166,7 +166,12 @@ to test that here; this is ugly:
 
     >>> from ZODB.config import getDbSchema
     >>> import ZConfig
-    >>> from cStringIO import StringIO
+    >>> try:
+    ...     from cStringIO import StringIO
+    ... except ImportError:
+    ...     # Py3
+    ...     from io import StringIO
+
 
 Derive a new `config2` string from the `config` string, specifying a
 different database_name:
@@ -182,12 +187,11 @@ Now get a `ZConfig` factory from `config2`:
 The desired ``databases`` mapping can be passed to this factory:
 
     >>> db2 = factory[0].open(databases=db.databases)
-    >>> print db2.database_name   # has the right name
+    >>> print(db2.database_name)   # has the right name
     another_name
     >>> db.databases is db2.databases # shares .databases with `db`
     True
-    >>> all = db2.databases.keys()
-    >>> all.sort()
+    >>> all = sorted(db2.databases.keys())
     >>> all   # and db.database_name & db2.database_name are the keys
     ['another_name', 'this_is_the_name']
 

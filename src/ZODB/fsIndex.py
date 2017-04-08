@@ -31,21 +31,24 @@
 # Because
 #  - the mapping from suffix to data contains at most 65535 entries,
 #  - this is an in-memory data structure
-#  - new keys are inserted sequentially, 
+#  - new keys are inserted sequentially,
 # we use a BTree bucket instead of a full BTree to store the results.
 #
 # We use p64 to convert integers to 8-byte strings and lop off the two
 # high-order bytes when saving. On loading data, we add the leading
 # bytes back before using u64 to convert the data back to (long)
 # integers.
-
-from __future__ import with_statement
-
-import cPickle
 import struct
 
-from BTrees._fsBTree import fsBucket
+from BTrees.fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
+import six
+
+from ZODB._compat import INT_TYPES
+from ZODB._compat import Pickler
+from ZODB._compat import Unpickler
+from ZODB._compat import _protocol
+
 
 # convert between numbers and six-byte strings
 
@@ -53,7 +56,7 @@ def num2str(n):
     return struct.pack(">Q", n)[2:]
 
 def str2num(s):
-    return struct.unpack(">Q", "\000\000" + s)[0]
+    return struct.unpack(">Q", b"\000\000" + s)[0]
 
 def prefix_plus_one(s):
     num = str2num(s)
@@ -62,6 +65,11 @@ def prefix_plus_one(s):
 def prefix_minus_one(s):
     num = str2num(s)
     return num2str(num - 1)
+
+def ensure_bytes(s):
+    # on Python 3 we might pickle bytes and unpickle unicode strings
+    return s.encode('ascii') if not isinstance(s, bytes) else s
+
 
 class fsIndex(object):
 
@@ -74,7 +82,7 @@ class fsIndex(object):
         return dict(
             state_version = 1,
             _data = [(k, v.toString())
-                     for (k, v) in self._data.iteritems()
+                     for (k, v) in six.iteritems(self._data)
                      ]
             )
 
@@ -85,31 +93,40 @@ class fsIndex(object):
     def _setstate_0(self, state):
         self.__dict__.clear()
         self.__dict__.update(state)
+        self._data = OOBTree([
+            (ensure_bytes(k), v)
+            for (k, v) in self._data.items()
+            ])
 
     def _setstate_1(self, state):
-        self._data =  OOBTree([
-            (k, fsBucket().fromString(v))
+        self._data = OOBTree([
+            (ensure_bytes(k), fsBucket().fromString(ensure_bytes(v)))
             for (k, v) in state['_data']
             ])
 
     def __getitem__(self, key):
+        assert isinstance(key, bytes)
         return str2num(self._data[key[:6]][key[6:]])
 
     def save(self, pos, fname):
         with open(fname, 'wb') as f:
-            pickler = cPickle.Pickler(f, 1)
+            pickler = Pickler(f, _protocol)
             pickler.fast = True
             pickler.dump(pos)
-            for k, v in self._data.iteritems():
+            for k, v in six.iteritems(self._data):
                 pickler.dump((k, v.toString()))
             pickler.dump(None)
 
     @classmethod
     def load(class_, fname):
         with open(fname, 'rb') as f:
-            unpickler = cPickle.Unpickler(f)
+            unpickler = Unpickler(f)
             pos = unpickler.load()
-            if not isinstance(pos, (int, long)):
+            if not isinstance(pos, INT_TYPES):
+                # NB: this might contain OIDs that got unpickled
+                # into Unicode strings on Python 3; hope the caller
+                # will pipe the result to fsIndex().update() to normalize
+                # the keys
                 return pos                  # Old format
             index = class_()
             data = index._data
@@ -118,10 +135,11 @@ class fsIndex(object):
                 if not v:
                     break
                 k, v = v
-                data[k] = fsBucket().fromString(v)
+                data[ensure_bytes(k)] = fsBucket().fromString(ensure_bytes(v))
             return dict(pos=pos, index=index)
 
     def get(self, key, default=None):
+        assert isinstance(key, bytes)
         tree = self._data.get(key[:6], default)
         if tree is default:
             return default
@@ -131,6 +149,7 @@ class fsIndex(object):
         return str2num(v)
 
     def __setitem__(self, key, value):
+        assert isinstance(key, bytes)
         value = num2str(value)
         treekey = key[:6]
         tree = self._data.get(treekey)
@@ -140,29 +159,31 @@ class fsIndex(object):
         tree[key[6:]] = value
 
     def __delitem__(self, key):
+        assert isinstance(key, bytes)
         treekey = key[:6]
         tree = self._data.get(treekey)
         if tree is None:
-            raise KeyError, key
+            raise KeyError(key)
         del tree[key[6:]]
         if not tree:
             del self._data[treekey]
 
     def __len__(self):
         r = 0
-        for tree in self._data.itervalues():
+        for tree in six.itervalues(self._data):
             r += len(tree)
         return r
 
     def update(self, mapping):
         for k, v in mapping.items():
-            self[k] = v
+            self[ensure_bytes(k)] = v
 
     def has_key(self, key):
         v = self.get(key, self)
         return v is not self
 
     def __contains__(self, key):
+        assert isinstance(key, bytes)
         tree = self._data.get(key[:6])
         if tree is None:
             return False
@@ -175,7 +196,7 @@ class fsIndex(object):
         self._data.clear()
 
     def __iter__(self):
-        for prefix, tree in self._data.iteritems():
+        for prefix, tree in six.iteritems(self._data):
             for suffix in tree:
                 yield prefix + suffix
 
@@ -185,16 +206,16 @@ class fsIndex(object):
         return list(self.iterkeys())
 
     def iteritems(self):
-        for prefix, tree in self._data.iteritems():
-            for suffix, value in tree.iteritems():
+        for prefix, tree in six.iteritems(self._data):
+            for suffix, value in six.iteritems(tree):
                 yield (prefix + suffix, str2num(value))
 
     def items(self):
         return list(self.iteritems())
 
     def itervalues(self):
-        for tree in self._data.itervalues():
-            for value in tree.itervalues():
+        for tree in six.itervalues(self._data):
+            for value in six.itervalues(tree):
                 yield str2num(value)
 
     def values(self):

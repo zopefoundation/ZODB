@@ -18,14 +18,18 @@ all these tests.
 
 """
 
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
-from ZODB.utils import U64, p64
+from ZODB.utils import U64, p64, load_current
 
-from transaction import Transaction
-
-import itertools
 import ZODB.blob
+
+try:
+    from itertools import izip as zip
+except ImportError:
+    # Py3: zip() already returns an iterable.
+    pass
 
 class IteratorCompare:
 
@@ -33,7 +37,7 @@ class IteratorCompare:
         eq = self.assertEqual
         oid = self._oid
         val = val0
-        for reciter, revid in itertools.izip(txniter, revids + [None]):
+        for reciter, revid in zip(txniter, revids + [None]):
             eq(reciter.tid, revid)
             for rec in reciter:
                 eq(rec.oid, oid)
@@ -62,7 +66,7 @@ class IteratorStorage(IteratorCompare):
         info = self._storage.undoInfo()
         tid = info[0]['id']
         # Undo the creation of the object, rendering it a zombie
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
@@ -100,7 +104,7 @@ class IteratorStorage(IteratorCompare):
         # Then the code in FileIterator.next() hasn't yet been fixed.
         # Should automate that check.
         oid = self._storage.new_oid()
-        t = Transaction()
+        t = TransactionMetaData()
         data = zodb_pickle(MinPO(0))
         try:
             self._storage.tpc_begin(t)
@@ -116,7 +120,7 @@ class IteratorStorage(IteratorCompare):
     def checkLoad_was_checkLoadEx(self):
         oid = self._storage.new_oid()
         self._dostore(oid, data=42)
-        data, tid = self._storage.load(oid, "")
+        data, tid = load_current(self._storage, oid)
         self.assertEqual(zodb_unpickle(data), MinPO(42))
         match = False
         for txn in self._storage.iterator():
@@ -130,27 +134,31 @@ class IteratorStorage(IteratorCompare):
     def checkIterateRepeatedly(self):
         self._dostore()
         transactions = self._storage.iterator()
-        self.assertEquals(1, len(list(transactions)))
+        self.assertEqual(1, len(list(transactions)))
         # The iterator can only be consumed once:
-        self.assertEquals(0, len(list(transactions)))
+        self.assertEqual(0, len(list(transactions)))
 
     def checkIterateRecordsRepeatedly(self):
         self._dostore()
-        tinfo = self._storage.iterator().next()
-        self.assertEquals(1, len(list(tinfo)))
-        self.assertEquals(1, len(list(tinfo)))
+        it = self._storage.iterator()
+        tinfo = next(it)
+        self.assertEqual(1, len(list(tinfo)))
+        self.assertEqual(1, len(list(tinfo)))
+        if hasattr(it, 'close'):
+            it.close()
 
     def checkIterateWhileWriting(self):
         self._dostore()
         iterator = self._storage.iterator()
         # We have one transaction with 1 modified object.
-        txn_1 = iterator.next()
-        self.assertEquals(1, len(list(txn_1)))
+        txn_1 = next(iterator)
+        self.assertEqual(1, len(list(txn_1)))
 
         # We store another transaction with 1 object, the already running
         # iterator does not pick this up.
         self._dostore()
-        self.assertRaises(StopIteration, iterator.next)
+        with self.assertRaises(StopIteration):
+            next(iterator)
 
 
 class ExtendedIteratorStorage(IteratorCompare):
@@ -176,14 +184,14 @@ class ExtendedIteratorStorage(IteratorCompare):
         txniter = self._storage.iterator(revid2, revid3)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify an upper bound somewhere in between values
-        revid3a = p64((U64(revid3) + U64(revid4)) / 2)
+        revid3a = p64((U64(revid3) + U64(revid4)) // 2)
         txniter = self._storage.iterator(revid2, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
         # Specify a lower bound somewhere in between values.
         # revid2 == revid1+1 is very likely on Windows.  Adding 1 before
         # dividing ensures that "the midpoint" we compute is strictly larger
         # than revid1.
-        revid1a = p64((U64(revid1) + 1 + U64(revid2)) / 2)
+        revid1a = p64((U64(revid1) + 1 + U64(revid2)) // 2)
         assert revid1 < revid1a
         txniter = self._storage.iterator(revid1a, revid3a)
         self.iter_verify(txniter, [revid2, revid3], 12)
@@ -201,7 +209,7 @@ class IteratorDeepCompare:
         eq = self.assertEqual
         iter1 = storage1.iterator()
         iter2 = storage2.iterator()
-        for txn1, txn2 in itertools.izip(iter1, iter2):
+        for txn1, txn2 in zip(iter1, iter2):
             eq(txn1.tid,         txn2.tid)
             eq(txn1.status,      txn2.status)
             eq(txn1.user,        txn2.user)
@@ -209,7 +217,7 @@ class IteratorDeepCompare:
             eq(txn1.extension,  txn2.extension)
             itxn1 = iter(txn1)
             itxn2 = iter(txn2)
-            for rec1, rec2 in itertools.izip(itxn1, itxn2):
+            for rec1, rec2 in zip(itxn1, itxn2):
                 eq(rec1.oid,     rec2.oid)
                 eq(rec1.tid,  rec2.tid)
                 eq(rec1.data,    rec2.data)
@@ -222,16 +230,18 @@ class IteratorDeepCompare:
                             storage2.loadBlob, rec1.oid, rec1.tid)
                     else:
                         fn2 = storage2.loadBlob(rec1.oid, rec1.tid)
-                        self.assert_(fn1 != fn2)
-                        eq(open(fn1, 'rb').read(), open(fn2, 'rb').read())
-                
+                        self.assertTrue(fn1 != fn2)
+                        with open(fn1, 'rb') as fp1:
+                            with open(fn2, 'rb') as fp2:
+                                eq(fp1.read(), fp2.read())
+
             # Make sure there are no more records left in rec1 and rec2,
             # meaning they were the same length.
             # Additionally, check that we're backwards compatible to the
             # IndexError we used to raise before.
-            self.assertRaises(StopIteration, itxn1.next)
-            self.assertRaises(StopIteration, itxn2.next)
+            self.assertRaises(StopIteration, next, itxn1)
+            self.assertRaises(StopIteration, next, itxn2)
         # Make sure ther are no more records left in txn1 and txn2, meaning
         # they were the same length
-        self.assertRaises(StopIteration, iter1.next)
-        self.assertRaises(StopIteration, iter2.next)
+        self.assertRaises(StopIteration, next, iter1)
+        self.assertRaises(StopIteration, next, iter2)

@@ -23,7 +23,7 @@ if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing.doctest import DocTestSuite
 else:
     from doctest import DocTestSuite
-from ZODB.tests.util import DB
+from ZODB.tests.util import DB, checker
 
 def test_integration():
     r"""Test the integration of broken object support with the databse:
@@ -67,7 +67,7 @@ def test_integration():
     >>> conn3 = db.open()
     >>> a3 = conn3.root()['a']
     >>> a3  # doctest: +NORMALIZE_WHITESPACE
-    <persistent broken ZODB.not.there.Atall instance 
+    <persistent broken ZODB.not.there.Atall instance
         '\x00\x00\x00\x00\x00\x00\x00\x01'>
 
     >>> a3.__Broken_state__
@@ -92,8 +92,8 @@ def test_integration():
 
 def test_suite():
     return unittest.TestSuite((
-        DocTestSuite('ZODB.broken'),
-        DocTestSuite(),
+        DocTestSuite('ZODB.broken', checker=checker),
+        DocTestSuite(checker=checker),
         ))
 
 if __name__ == '__main__': unittest.main()

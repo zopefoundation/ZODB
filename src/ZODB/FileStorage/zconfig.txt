@@ -64,7 +64,7 @@ create
 
     Because the file was truncated, we no-longer have object 0:
 
-    >>> fs.load('\0'*8)
+    >>> fs.load(b'\0'*8)
     Traceback (most recent call last):
     ...
     POSKeyError: 0x00
@@ -116,8 +116,9 @@ packer
     To demonstrate this, we'll create a null packer that just prints
     some information about it's arguments:
 
+    >>> import six
     >>> def packer(storage, referencesf, stop, gc):
-    ...     print referencesf, storage is fs, gc, storage.pack_keep_old
+    ...     six.print_(referencesf, storage is fs, gc, storage.pack_keep_old)
     >>> ZODB.FileStorage.config_demo_printing_packer = packer
 
     >>> fs = ZODB.config.storageFromString("""
@@ -140,8 +141,8 @@ packer
 
     >>> def packer_factory(name):
     ...     def packer(storage, referencesf, stop, gc):
-    ...         print repr(name), referencesf, storage is fs, gc,
-    ...         print storage.pack_keep_old
+    ...         six.print_(repr(name), referencesf, storage is fs,
+    ...                    gc, storage.pack_keep_old)
     ...     return packer
     >>> ZODB.FileStorage.config_demo_printing_packer_factory = packer_factory
 

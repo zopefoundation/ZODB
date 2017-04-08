@@ -14,9 +14,6 @@
 """Blobs
 """
 
-import cPickle
-import cStringIO
-import base64
 import binascii
 import logging
 import os
@@ -29,12 +26,23 @@ import tempfile
 import weakref
 
 import zope.interface
+import persistent
 
 import ZODB.interfaces
 from ZODB.interfaces import BlobError
 from ZODB import utils
 from ZODB.POSException import POSKeyError
-import persistent
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentUnpickler
+from ZODB._compat import decodebytes
+from ZODB._compat import ascii_bytes
+from ZODB._compat import INT_TYPES
+from ZODB._compat import PY3
+
+
+if PY3:
+    from io import FileIO as file
+
 
 logger = logging.getLogger('ZODB.blob')
 
@@ -51,6 +59,15 @@ valid_modes = 'r', 'w', 'r+', 'a', 'c'
 # This introduces a threading issue, since a blob file may be destroyed
 # via GC in any thread.
 
+# PyPy 2.5 doesn't properly call the cleanup function
+# of a weakref when the weakref object dies at the same time
+# as the object it refers to. In other words, this doesn't work:
+#    self._ref = weakref.ref(self, lambda ref: ...)
+# because the function never gets called (https://bitbucket.org/pypy/pypy/issue/2030).
+# The Blob class used to use that pattern to clean up uncommitted
+# files; now we use this module-level global (but still keep a
+# reference in the Blob in case we need premature cleanup).
+_blob_close_refs = []
 
 @zope.interface.implementer(ZODB.interfaces.IBlob)
 class Blob(persistent.Persistent):
@@ -59,6 +76,7 @@ class Blob(persistent.Persistent):
 
     _p_blob_uncommitted = None  # Filename of the uncommitted (dirty) data
     _p_blob_committed = None    # Filename of the committed data
+    _p_blob_ref = None          # weakreference to self; also in _blob_close_refs
 
     readers = writers = None
 
@@ -69,7 +87,8 @@ class Blob(persistent.Persistent):
             raise TypeError('Blobs do not support subclassing.')
         self.__setstate__()
         if data is not None:
-            self.open('w').write(data)
+            with self.open('w') as f:
+                f.write(data)
 
     def __setstate__(self, state=None):
         # we use lists here because it will allow us to add and remove
@@ -174,7 +193,8 @@ class Blob(persistent.Persistent):
                     self._create_uncommitted_file()
                     result = BlobFile(self._p_blob_uncommitted, mode, self)
                     if self._p_blob_committed:
-                        utils.cp(open(self._p_blob_committed), result)
+                        with open(self._p_blob_committed, 'rb') as fp:
+                            utils.cp(fp, result)
                         if mode == 'r+':
                             result.seek(0)
                 else:
@@ -269,14 +289,19 @@ class Blob(persistent.Persistent):
             tempdir = self._p_jar.db()._storage.temporaryDirectory()
         else:
             tempdir = tempfile.gettempdir()
-        filename = utils.mktemp(dir=tempdir)
+        filename = utils.mktemp(dir=tempdir, prefix="BUC")
         self._p_blob_uncommitted = filename
 
         def cleanup(ref):
             if os.path.exists(filename):
                 os.remove(filename)
-
+            try:
+                _blob_close_refs.remove(ref)
+            except ValueError:
+                pass
         self._p_blob_ref = weakref.ref(self, cleanup)
+        _blob_close_refs.append(self._p_blob_ref)
+
         return filename
 
     def _uncommitted(self):
@@ -285,6 +310,10 @@ class Blob(persistent.Persistent):
         filename = self._p_blob_uncommitted
         if filename is None and self._p_blob_committed is None:
             filename = self._create_uncommitted_file()
+        try:
+            _blob_close_refs.remove(self._p_blob_ref)
+        except ValueError:
+            pass
         self._p_blob_uncommitted = self._p_blob_ref = None
         return filename
 
@@ -307,7 +336,7 @@ class BlobFile(file):
 
     def close(self):
         self.blob.closed(self)
-        file.close(self)
+        super(BlobFile, self).close()
 
 _pid = str(os.getpid())
 
@@ -368,13 +397,13 @@ class FilesystemHelper:
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
-        if not os.path.exists(os.path.join(self.base_dir, LAYOUT_MARKER)):
-            layout_marker = open(
-                os.path.join(self.base_dir, LAYOUT_MARKER), 'wb')
-            layout_marker.write(self.layout_name)
+        layout_marker_path = os.path.join(self.base_dir, LAYOUT_MARKER)
+        if not os.path.exists(layout_marker_path):
+            with open(layout_marker_path, 'w') as layout_marker:
+                layout_marker.write(self.layout_name)
         else:
-            layout = open(os.path.join(self.base_dir, LAYOUT_MARKER), 'rb'
-                          ).read().strip()
+            with open(layout_marker_path, 'r') as layout_marker:
+                layout = layout_marker.read().strip()
             if layout != self.layout_name:
                 raise ValueError(
                     "Directory layout `%s` selected for blob directory %s, but "
@@ -383,7 +412,7 @@ class FilesystemHelper:
 
     def isSecure(self, path):
         """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 077) == 0
+        return (os.stat(path).st_mode & 0o77) == 0
 
     def checkSecure(self):
         if not (self.blob_dir_permissions or self.isSecure(self.base_dir)):
@@ -458,7 +487,8 @@ class FilesystemHelper:
 
         """
         oidpath = self.getPathForOID(oid)
-        fd, name = tempfile.mkstemp(suffix='.tmp', prefix=utils.tid_repr(tid),
+        fd, name = tempfile.mkstemp(suffix='.tmp',
+                                    prefix=utils.tid_repr(tid),
                                     dir=oidpath)
         return fd, name
 
@@ -525,8 +555,8 @@ def auto_layout_select(path):
     # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
     if os.path.exists(layout_marker):
-        layout = open(layout_marker, 'rb').read()
-        layout = layout.strip()
+        with open(layout_marker, 'r') as fp:
+            layout = fp.read().strip()
         log('Blob directory `%s` has layout marker set. '
             'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
     elif not os.path.exists(path):
@@ -566,17 +596,23 @@ class BushyLayout(object):
         directories = []
         # Create the bushy directory structure with the least significant byte
         # first
-        for byte in str(oid):
-            directories.append('0x%s' % binascii.hexlify(byte))
+        for byte in ascii_bytes(oid):
+            if isinstance(byte,INT_TYPES): # Py3k iterates byte strings as ints
+                hex_segment_bytes = b'0x' + binascii.hexlify(bytes([byte]))
+                hex_segment_string = hex_segment_bytes.decode('ascii')
+            else:
+                hex_segment_string = '0x%s' % binascii.hexlify(byte)
+            directories.append(hex_segment_string)
+
         return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
             raise ValueError("Not a valid OID path: `%s`" % path)
-        path = path.split(os.path.sep)
+        path = [ascii_bytes(x) for x in path.split(os.path.sep)]
         # Each path segment stores a byte in hex representation. Turn it into
         # an int and then get the character for our byte string.
-        oid = ''.join(binascii.unhexlify(byte[2:]) for byte in path)
+        oid = b''.join(binascii.unhexlify(byte[2:]) for byte in path)
         return oid
 
     def getBlobFilePath(self, oid, tid):
@@ -607,7 +643,7 @@ class LawnLayout(BushyLayout):
                 # OID z64.
                 raise TypeError()
             return utils.repr_to_oid(path)
-        except TypeError:
+        except (TypeError, binascii.Error):
             raise ValueError('Not a valid OID path: `%s`' % path)
 
 LAYOUTS['lawn'] = LawnLayout()
@@ -665,7 +701,7 @@ class BlobStorageMixin(object):
         """
         filename = self.fshelper.getBlobFilename(oid, serial)
         if not os.path.exists(filename):
-            raise POSKeyError("No blob file", oid, serial)
+            raise POSKeyError("No blob file at %s" % filename, oid, serial)
         return filename
 
     def openCommittedBlobFile(self, oid, serial, blob=None):
@@ -685,8 +721,7 @@ class BlobStorageMixin(object):
         return self._tid
 
     def _blob_storeblob(self, oid, serial, blobfilename):
-        self._lock_acquire()
-        try:
+        with self._lock:
             self.fshelper.getPathForOID(oid, create=True)
             targetname = self.fshelper.getBlobFilename(oid, serial)
             rename_or_copy_blob(blobfilename, targetname)
@@ -694,17 +729,13 @@ class BlobStorageMixin(object):
             # if oid already in there, something is really hosed.
             # The underlying storage should have complained anyway
             self.dirty_oids.append((oid, serial))
-        finally:
-            self._lock_release()
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
         """Stores data that has a BLOB attached."""
         assert not version, "Versions aren't supported."
-        serial = self.store(oid, oldserial, data, '', transaction)
-        self._blob_storeblob(oid, serial, blobfilename)
-
-        return self._tid
+        self.store(oid, oldserial, data, '', transaction)
+        self._blob_storeblob(oid, self._tid, blobfilename)
 
     def temporaryDirectory(self):
         return self.fshelper.temp_dir
@@ -754,8 +785,9 @@ class BlobStorage(BlobStorageMixin):
         # We need to override the base storage's tpc_finish instead of
         # providing a _finish method because methods found on the proxied
         # object aren't rebound to the proxy
-        self.__storage.tpc_finish(*arg, **kw)
+        tid = self.__storage.tpc_finish(*arg, **kw)
         self._blob_tpc_finish()
+        return tid
 
     def tpc_abort(self, *arg, **kw):
         # We need to override the base storage's abort instead of
@@ -786,7 +818,7 @@ class BlobStorage(BlobStorageMixin):
         for oid, oid_path in self.fshelper.listOIDs():
             exists = True
             try:
-                self.load(oid, None) # no version support
+                utils.load_current(self, oid)
             except (POSKeyError, KeyError):
                 exists = False
 
@@ -795,8 +827,8 @@ class BlobStorage(BlobStorageMixin):
                 files.sort()
                 latest = files[-1] # depends on ever-increasing tids
                 files.remove(latest)
-                for file in files:
-                    remove_committed(os.path.join(oid_path, file))
+                for f in files:
+                    remove_committed(os.path.join(oid_path, f))
             else:
                 remove_committed_dir(oid_path)
                 continue
@@ -806,13 +838,10 @@ class BlobStorage(BlobStorageMixin):
 
     def pack(self, packtime, referencesf):
         """Remove all unused OID/TID combinations."""
-        self._lock_acquire()
-        try:
+        with self._lock:
             if self._blobs_pack_is_in_progress:
                 raise BlobStorageError('Already packing')
             self._blobs_pack_is_in_progress = True
-        finally:
-            self._lock_release()
 
         try:
             # Pack the underlying storage, which will allow us to determine
@@ -826,9 +855,8 @@ class BlobStorage(BlobStorageMixin):
             else:
                 self._packNonUndoing(packtime, referencesf)
         finally:
-            self._lock_acquire()
-            self._blobs_pack_is_in_progress = False
-            self._lock_release()
+            with self._lock:
+                self._blobs_pack_is_in_progress = False
 
         return result
 
@@ -841,11 +869,9 @@ class BlobStorage(BlobStorageMixin):
 
         # The serial_id is assumed to be given to us base-64 encoded
         # (belying the web UI legacy of the ZODB code :-()
-        serial_id = base64.decodestring(serial_id+'\n')
+        serial_id = decodebytes(serial_id + b'\n')
 
-        self._lock_acquire()
-
-        try:
+        with self._lock:
             # we get all the blob oids on the filesystem related to the
             # transaction we want to undo.
             for oid in self.fshelper.getOIDsForSerial(serial_id):
@@ -872,15 +898,11 @@ class BlobStorage(BlobStorageMixin):
                     data, serial_before, serial_after = load_result
                     orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
                     new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
-                orig = open(orig_fn, "r")
-                new = open(new_fn, "wb")
-                utils.cp(orig, new)
-                orig.close()
-                new.close()
+                with open(orig_fn, "rb") as orig:
+                    with open(new_fn, "wb") as new:
+                        utils.cp(orig, new)
                 self.dirty_oids.append((oid, undo_serial))
 
-        finally:
-            self._lock_release()
         return undo_serial, keys
 
     def new_instance(self):
@@ -907,13 +929,9 @@ def rename_or_copy_blob(f1, f2, chmod=True):
         os.rename(f1, f2)
     except OSError:
         copied("Copied blob file %r to %r.", f1, f2)
-        file1 = open(f1, 'rb')
-        file2 = open(f2, 'wb')
-        try:
-            utils.cp(file1, file2)
-        finally:
-            file1.close()
-            file2.close()
+        with open(f1, 'rb') as file1:
+            with open(f2, 'wb') as file2:
+                utils.cp(file1, file2)
         remove_committed(f1)
     if chmod:
         os.chmod(f2, stat.S_IREAD)
@@ -951,9 +969,8 @@ def is_blob_record(record):
     storage to another.
 
     """
-    if record and ('ZODB.blob' in record):
-        unpickler = cPickle.Unpickler(cStringIO.StringIO(record))
-        unpickler.find_global = find_global_Blob
+    if record and (b'ZODB.blob' in record):
+        unpickler = PersistentUnpickler(find_global_Blob, None, BytesIO(record))
 
         try:
             return unpickler.load() is Blob
@@ -976,9 +993,12 @@ def copyTransactionsFromTo(source, destination):
                     pass
             if blobfilename is not None:
                 fd, name = tempfile.mkstemp(
+                    prefix='CTFT',
                     suffix='.tmp', dir=destination.fshelper.temp_dir)
                 os.close(fd)
-                utils.cp(open(blobfilename, 'rb'), open(name, 'wb'))
+                with open(blobfilename, 'rb') as sf:
+                    with open(name, 'wb') as df:
+                        utils.cp(sf, df)
                 destination.restoreBlob(record.oid, record.tid, record.data,
                                  name, record.data_txn, trans)
             else:

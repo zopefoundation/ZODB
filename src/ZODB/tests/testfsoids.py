@@ -56,10 +56,10 @@ Create a root object and try again:
 >>> t.register_oids(0, 1)
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 1 revision
-    tid 0x... offset=4 ...
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='initial database creation'
-        new revision persistent.mapping.PersistentMapping at 52
+        new revision persistent.mapping.PersistentMapping at <OFFSET>
 oid 0x01 <unknown> 0 revisions
     this oid was not defined (no data record for it found)
 
@@ -76,27 +76,27 @@ Let's add a BTree and try again:
 
 >>> root = db.open().root()
 >>> root['tree'] = OOBTree()
->>> txn.get().note('added an OOBTree')
+>>> txn.get().note(u'added an OOBTree')
 >>> txn.get().commit()
 >>> t = Tracer(path)
 >>> t.register_oids(0, 1)
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
-    tid 0x... offset=4 ...
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='initial database creation'
-        new revision persistent.mapping.PersistentMapping at 52
-    tid 0x... offset=162 ...
+        new revision persistent.mapping.PersistentMapping at <OFFSET>
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='added an OOBTree'
-        new revision persistent.mapping.PersistentMapping at 201
-        references 0x01 BTrees.OOBTree.OOBTree at 201
-oid 0x01 BTrees.OOBTree.OOBTree 1 revision
-    tid 0x... offset=162 ...
+        new revision persistent.mapping.PersistentMapping at <OFFSET>
+        references 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
+oid 0x01 BTrees.OOBTree.OOBTree... 1 revision
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees.OOBTree.OOBTree at 350
-        referenced by 0x00 persistent.mapping.PersistentMapping at 201
+        new revision BTrees.OOBTree.OOBTree... at <OFFSET>
+        referenced by 0x00 persistent.mapping.PersistentMapping at <OFFSET>
 
 So there are two revisions of oid 0 now, and the second references oid 1.
 
@@ -104,36 +104,36 @@ One more, storing a reference in the BTree back to the root object:
 
 >>> tree = root['tree']
 >>> tree['root'] = root
->>> txn.get().note('circling back to the root')
+>>> txn.get().note(u'circling back to the root')
 >>> txn.get().commit()
 >>> t = Tracer(path)
 >>> t.register_oids(0, 1, 2)
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
-    tid 0x... offset=4 ...
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='initial database creation'
-        new revision persistent.mapping.PersistentMapping at 52
-    tid 0x... offset=162 ...
+        new revision persistent.mapping.PersistentMapping at <OFFSET>
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='added an OOBTree'
-        new revision persistent.mapping.PersistentMapping at 201
-        references 0x01 BTrees.OOBTree.OOBTree at 201
-    tid 0x... offset=429 ...
+        new revision persistent.mapping.PersistentMapping at <OFFSET>
+        references 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='circling back to the root'
-        referenced by 0x01 BTrees.OOBTree.OOBTree at 477
-oid 0x01 BTrees.OOBTree.OOBTree 2 revisions
-    tid 0x... offset=162 ...
+        referenced by 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
+oid 0x01 BTrees.OOBTree.OOBTree... 2 revisions
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='added an OOBTree'
-        new revision BTrees.OOBTree.OOBTree at 350
-        referenced by 0x00 persistent.mapping.PersistentMapping at 201
-    tid 0x... offset=429 ...
+        new revision BTrees.OOBTree.OOBTree... at <OFFSET>
+        referenced by 0x00 persistent.mapping.PersistentMapping at <OFFSET>
+    tid 0x... offset=<OFFSET> ...
         tid user=''
         tid description='circling back to the root'
-        new revision BTrees.OOBTree.OOBTree at 477
-        references 0x00 persistent.mapping.PersistentMapping at 477
+        new revision BTrees.OOBTree.OOBTree... at <OFFSET>
+        references 0x00 persistent.mapping.PersistentMapping at <OFFSET>
 oid 0x02 <unknown> 0 revisions
     this oid was not defined (no data record for it found)
 
@@ -168,6 +168,27 @@ Clean up.
 """
 
 import doctest
+import re
+
+from zope.testing import renormalizing
+
+from .util import checker as util_checker
+from .util import setUp
+from .util import tearDown
+
+checker = renormalizing.RENormalizing([
+    # Normalizing this makes diffs easier to read
+    (re.compile(r'\btid 0x[0-9a-f]+\b'), 'tid 0x...'),
+    (re.compile(r'\b\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d\.\d+\b'), '...'),
+    # Python 3 produces larger pickles, even when we use zodbpickle :(
+    # this changes all the offsets and sizes
+    (re.compile(r'\boffset=[0-9]+\b'), 'offset=<OFFSET>'),
+    (re.compile(r'\bat [0-9]+'), 'at <OFFSET>'),
+])
+
 
 def test_suite():
-    return doctest.DocTestSuite()
+    return doctest.DocTestSuite(setUp=setUp,
+                                tearDown=tearDown,
+                                checker=util_checker + checker,
+                                optionflags=doctest.REPORT_NDIFF)

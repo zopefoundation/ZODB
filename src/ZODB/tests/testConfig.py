@@ -73,6 +73,16 @@ class ZODBConfigTest(ConfigTestBase):
 
     def test_file_config2(self):
         path = tempfile.mktemp()
+        # first pass to actually create database file
+        self._test(
+            """
+            <zodb>
+              <filestorage>
+                path %s
+              </filestorage>
+            </zodb>
+            """ % path)
+        # write operations must be disallowed on read-only access
         cfg = """
         <zodb>
           <filestorage>
@@ -238,7 +248,9 @@ def test_blob_dir_permissions():
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocTestSuite(
-        setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown))
+        setUp=ZODB.tests.util.setUp,
+        tearDown=ZODB.tests.util.tearDown,
+        checker=ZODB.tests.util.checker))
     suite.addTest(unittest.makeSuite(ZODBConfigTest))
     return suite
 

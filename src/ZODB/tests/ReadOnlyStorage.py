@@ -11,8 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import ReadOnlyError, Unsupported
-import transaction
+
+from ZODB.utils import load_current
 
 class ReadOnlyStorage:
 
@@ -27,14 +29,14 @@ class ReadOnlyStorage:
     def _make_readonly(self):
         self._storage.close()
         self.open(read_only=True)
-        self.assert_(self._storage.isReadOnly())
+        self.assertTrue(self._storage.isReadOnly())
 
     def checkReadMethods(self):
         self._create_data()
         self._make_readonly()
         # Note that this doesn't check _all_ read methods.
         for oid in self.oids.keys():
-            data, revid = self._storage.load(oid, '')
+            data, revid = load_current(self._storage, oid)
             self.assertEqual(revid, self.oids[oid])
             # Storages without revisions may not have loadSerial().
             try:
@@ -46,11 +48,11 @@ class ReadOnlyStorage:
     def checkWriteMethods(self):
         self._make_readonly()
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self.assertRaises(ReadOnlyError, self._storage.tpc_begin, t)
 
         self.assertRaises(ReadOnlyError, self._storage.store,
-                          '\000' * 8, None, '', '', t)
+                          b'\000' * 8, None, b'', '', t)
 
         self.assertRaises(ReadOnlyError, self._storage.undo,
-                          '\000' * 8, t)
+                          b'\000' * 8, t)

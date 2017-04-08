@@ -14,11 +14,13 @@
 """More recovery and iterator tests."""
 
 import transaction
-from transaction import Transaction
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.IteratorStorage import IteratorDeepCompare
 from ZODB.tests.StorageTestBase import MinPO, snooze
 from ZODB import DB
 from ZODB.serialize import referencesf
+
+from ZODB.utils import load_current
 
 import time
 
@@ -71,15 +73,15 @@ class RecoveryStorage(IteratorDeepCompare):
         root = conn.root()
         root.obj = obj1 = MinPO(1)
         txn = transaction.get()
-        txn.note('root -> obj')
+        txn.note(u'root -> obj')
         txn.commit()
         root.obj.obj = obj2 = MinPO(2)
         txn = transaction.get()
-        txn.note('root -> obj -> obj')
+        txn.note(u'root -> obj -> obj')
         txn.commit()
         del root.obj
         txn = transaction.get()
-        txn.note('root -X->')
+        txn.note(u'root -X->')
         txn.commit()
         # Now copy the transactions to the destination
         self._dst.copyTransactionsFrom(self._storage)
@@ -88,9 +90,9 @@ class RecoveryStorage(IteratorDeepCompare):
         self._dst.pack(time.time(),  referencesf)
         # And check to see that the root object exists, but not the other
         # objects.
-        data, serial = self._dst.load(root._p_oid, '')
-        raises(KeyError, self._dst.load, obj1._p_oid, '')
-        raises(KeyError, self._dst.load, obj2._p_oid, '')
+        data, serial = load_current(self._dst, root._p_oid)
+        raises(KeyError, load_current, self._dst, obj1._p_oid)
+        raises(KeyError, load_current, self._dst, obj2._p_oid)
 
     def checkRestoreWithMultipleObjectsInUndoRedo(self):
         from ZODB.FileStorage import FileStorage
@@ -131,8 +133,8 @@ class RecoveryStorage(IteratorDeepCompare):
         transaction.commit()
 
         r = db.open().root()
-        self.assertEquals(r["obj1"].x, 'x1')
-        self.assertEquals(r["obj2"].x, 'x2')
+        self.assertEqual(r["obj1"].x, 'x1')
+        self.assertEqual(r["obj2"].x, 'x2')
 
         # Dirty tricks.
         if is_filestorage:
@@ -145,7 +147,7 @@ class RecoveryStorage(IteratorDeepCompare):
         # Undo the attribute creation.
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
@@ -160,8 +162,8 @@ class RecoveryStorage(IteratorDeepCompare):
             # transaction.  Without the patch, the second assert failed
             # (it claimed it couldn't find a data record for obj2) on my
             # box, but other failure modes were possible.
-            self.assert_(self._storage._data_find(pos, obj1_oid, '') > 0)
-            self.assert_(self._storage._data_find(pos, obj2_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj1_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj2_oid, '') > 0)
 
             # The offset of the next ("redo") transaction.
             pos = self._storage.getSize()
@@ -169,21 +171,21 @@ class RecoveryStorage(IteratorDeepCompare):
         # Undo the undo (restore the attributes).
         info = self._storage.undoInfo()
         tid = info[0]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         oids = self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
         r = db.open().root()
-        self.assertEquals(r["obj1"].x, 'x1')
-        self.assertEquals(r["obj2"].x, 'x2')
+        self.assertEqual(r["obj1"].x, 'x1')
+        self.assertEqual(r["obj2"].x, 'x2')
 
         if is_filestorage:
             # Again _data_find should find both objects in this txn, and
             # again the second assert failed on my box.
-            self.assert_(self._storage._data_find(pos, obj1_oid, '') > 0)
-            self.assert_(self._storage._data_find(pos, obj2_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj1_oid, '') > 0)
+            self.assertTrue(self._storage._data_find(pos, obj2_oid, '') > 0)
 
         # Indirectly provoke .restore().  .restore in turn indirectly
         # provokes _data_find too, but not usefully for the purposes of

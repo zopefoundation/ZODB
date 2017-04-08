@@ -64,6 +64,7 @@ Now, we'll define a validation function to validate an account:
 And a function to apply entries.  If the function fails in some unexpected
 way, it rolls back all of its changes and prints the error:
 
+    >>> import six
     >>> def apply_entries(entries):
     ...     savepoint = transaction.savepoint()
     ...     try:
@@ -72,14 +73,14 @@ way, it rolls back all of its changes and prints the error:
     ...             try:
     ...                 root[name+'-balance'] += amount
     ...                 validate_account(name)
-    ...             except ValueError, error:
+    ...             except ValueError as error:
     ...                 entry_savepoint.rollback()
-    ...                 print 'Error', str(error)
+    ...                 six.print_('Error', str(error))
     ...             else:
-    ...                 print 'Updated', name
-    ...     except Exception, error:
+    ...                 six.print_('Updated', name)
+    ...     except Exception as error:
     ...         savepoint.rollback()
-    ...         print 'Unexpected exception', error
+    ...         six.print_('Unexpected exception', error)
 
 Now let's try applying some entries:
 
@@ -111,10 +112,10 @@ If we provide entries that cause an unexpected error:
     ...     ('sally', 10.0),
     ...     ('bob',   '20.0'),
     ...     ('sally', 10.0),
-    ...     ])
+    ...     ]) #doctest: +ELLIPSIS
     Updated bob
     Updated sally
-    Unexpected exception unsupported operand type(s) for +=: 'float' and 'str'
+    Unexpected exception unsupported operand type(s) for +...: 'float' and 'str'
 
 Because the apply_entries used a savepoint for the entire function, it was
 able to rollback the partial changes without rolling back changes made in the
@@ -193,4 +194,3 @@ However, using a savepoint invalidates any savepoints that come after it:
     InvalidSavepointRollbackError: invalidated by a later savepoint
 
     >>> transaction.abort()
-

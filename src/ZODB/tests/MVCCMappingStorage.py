@@ -30,10 +30,9 @@ class MVCCMappingStorage(MappingStorage):
     def __init__(self, name="MVCC Mapping Storage"):
         MappingStorage.__init__(self, name=name)
         # _polled_tid contains the transaction ID at the last poll.
-        self._polled_tid = ''
+        self._polled_tid = b''
         self._data_snapshot = None  # {oid->(state, tid)}
-        self._main_lock_acquire = self._lock_acquire
-        self._main_lock_release = self._lock_release
+        self._main_lock = self._lock
 
     def new_instance(self):
         """Returns a storage instance that is a view of the same data.
@@ -46,8 +45,9 @@ class MVCCMappingStorage(MappingStorage):
         inst._commit_lock = self._commit_lock
         inst.new_oid = self.new_oid
         inst.pack = self.pack
-        inst._main_lock_acquire = self._lock_acquire
-        inst._main_lock_release = self._lock_release
+        inst.loadBefore = self.loadBefore
+        inst._ltid = self._ltid
+        inst._main_lock = self._lock
         return inst
 
     @ZODB.utils.locked(MappingStorage.opened)
@@ -71,13 +71,11 @@ class MVCCMappingStorage(MappingStorage):
         """Poll the storage for changes by other connections.
         """
         # prevent changes to _transactions and _data during analysis
-        self._main_lock_acquire()
-        try:
-
+        with self._main_lock:
             if self._transactions:
                 new_tid = self._transactions.maxKey()
             else:
-                new_tid = ''
+                new_tid = ZODB.utils.z64
 
             # Copy the current data into a snapshot. This is obviously
             # very inefficient for large storages, but it's good for
@@ -89,7 +87,7 @@ class MVCCMappingStorage(MappingStorage):
                     self._data_snapshot[oid] = tid_data[tid], tid
 
             if self._polled_tid:
-                if not self._transactions.has_key(self._polled_tid):
+                if self._polled_tid not in self._transactions:
                     # This connection is so old that we can no longer enumerate
                     # all the changes.
                     self._polled_tid = new_tid
@@ -109,15 +107,12 @@ class MVCCMappingStorage(MappingStorage):
                     continue
                 changed_oids.update(txn.data.keys())
 
-        finally:
-            self._main_lock_release()
-
-        self._polled_tid = new_tid
+        self._polled_tid = self._ltid = new_tid
         return list(changed_oids)
 
     def tpc_finish(self, transaction, func = lambda tid: None):
         self._data_snapshot = None
-        MappingStorage.tpc_finish(self, transaction, func)
+        return MappingStorage.tpc_finish(self, transaction, func)
 
     def tpc_abort(self, transaction):
         self._data_snapshot = None
@@ -125,8 +120,5 @@ class MVCCMappingStorage(MappingStorage):
 
     def pack(self, t, referencesf, gc=True):
         # prevent all concurrent commits during packing
-        self._commit_lock.acquire()
-        try:
+        with self._commit_lock:
             MappingStorage.pack(self, t, referencesf, gc)
-        finally:
-            self._commit_lock.release()

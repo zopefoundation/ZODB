@@ -12,16 +12,16 @@
 #
 ##############################################################################
 """Broken object support
-
-$Id$
 """
 
 import sys
-import persistent
 
+import persistent
 import zope.interface
 
 import ZODB.interfaces
+from ZODB._compat import IMPORT_MAPPING
+from ZODB._compat import NAME_MAPPING
 
 broken_cache = {}
 
@@ -34,7 +34,7 @@ class Broken(object):
 
        Broken objects don't really do much of anything, except hold their
        state.   The Broken class is used as a base class for creating
-       classes in leu of missing classes::
+       classes in lieu of missing classes::
 
          >>> Atall = type('Atall', (Broken, ), {'__module__': 'not.there'})
 
@@ -82,8 +82,10 @@ class Broken(object):
          >>> r[2]
          {'x': 1}
 
-         >>> import cPickle
-         >>> a2 = cPickle.loads(cPickle.dumps(a, 1))
+         >>> from ZODB._compat import dumps
+         >>> from ZODB._compat import loads
+         >>> from ZODB._compat import _protocol
+         >>> a2 = loads(dumps(a, _protocol))
          >>> a2
          <broken not.there.Atall instance>
          >>> a2.__Broken_newargs__
@@ -141,6 +143,9 @@ def find_global(modulename, globalname,
          >>> find_global('sys', 'path') is sys.path
          True
 
+         >>> find_global('__builtin__', 'object') is object
+         True
+
        If an object can't be found, a broken class is returned::
 
          >>> broken = find_global('ZODB.not.there', 'atall')
@@ -183,6 +188,11 @@ def find_global(modulename, globalname,
 
          >>> broken_cache.clear()
        """
+
+    if (modulename, globalname) in NAME_MAPPING:
+        modulename, globalname = NAME_MAPPING[(modulename, globalname)]
+    if modulename in IMPORT_MAPPING:
+        modulename = IMPORT_MAPPING[modulename]
 
     # short circuit common case:
     try:
@@ -297,7 +307,7 @@ class PersistentBroken(Broken, persistent.Persistent):
           >>> a.__reduce__()    # doctest: +NORMALIZE_WHITESPACE
           Traceback (most recent call last):
           ...
-          BrokenModified: 
+          BrokenModified:
           <persistent broken not.there.Atall instance '\x00\x00\x00\x00****'>
 
         but you can get their state:

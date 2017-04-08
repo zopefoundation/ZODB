@@ -28,6 +28,7 @@ from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
 from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
 from ZODB.utils import p64, u64, z64
 
+import binascii
 import logging
 import os
 import ZODB.fsIndex
@@ -53,7 +54,7 @@ class PackCopier(FileStorageFormatter):
             self._file.seek(pos - 8)
             pos = pos - u64(self._file.read(8)) - 8
             self._file.seek(pos)
-            h = self._file.read(TRANS_HDR_LEN)
+            h = self._file.read(TRANS_HDR_LEN) # XXX bytes
             _tid = h[:8]
             if _tid == tid:
                 return pos
@@ -196,7 +197,7 @@ class GC(FileStorageFormatter):
             self.reachable = self.oid2curpos
 
     def buildPackIndex(self):
-        pos = 4L
+        pos = 4
         # We make the initial assumption that the database has been
         # packed before and set unpacked to True only after seeing the
         # first record with a status == " ".  If we get to the packtime
@@ -241,8 +242,8 @@ class GC(FileStorageFormatter):
         # packed earlier and the current pack is redudant.
         try:
             th = self._read_txn_header(pos)
-        except CorruptedDataError, err:
-            if err.buf != "":
+        except CorruptedDataError as err:
+            if err.buf != b"":
                 raise
         if th.status == 'p':
             # Delayed import to cope with circular imports.
@@ -297,7 +298,7 @@ class GC(FileStorageFormatter):
                 self.checkData(th, tpos, dh, pos)
 
                 if dh.back and dh.back < self.packpos:
-                    if self.reachable.has_key(dh.oid):
+                    if dh.oid in self.reachable:
                         L = self.reach_ex.setdefault(dh.oid, [])
                         if dh.back not in L:
                             L.append(dh.back)
@@ -333,19 +334,19 @@ class FileStoragePacker(FileStorageFormatter):
 
     # path is the storage file path.
     # stop is the pack time, as a TimeStamp.
-    # la and lr are the acquire() and release() methods of the storage's lock.
-    # cla and clr similarly, for the storage's commit lock.
     # current_size is the storage's _pos.  All valid data at the start
     # lives before that offset (there may be a checkpoint transaction in
     # progress after it).
+
     def __init__(self, storage, referencesf, stop, gc=True):
         self._storage = storage
         if storage.blob_dir:
             self.pack_blobs = True
             self.blob_removed = open(
-                os.path.join(storage.blob_dir, '.removed'), 'w')
+                os.path.join(storage.blob_dir, '.removed'), 'wb')
         else:
             self.pack_blobs = False
+            self.blob_removed = None
 
         path = storage._file.name
         self._name = path
@@ -364,10 +365,8 @@ class FileStoragePacker(FileStorageFormatter):
         # The packer needs to acquire the parent's commit lock
         # during the copying stage, so the two sets of lock acquire
         # and release methods are passed to the constructor.
-        self._lock_acquire = storage._lock_acquire
-        self._lock_release = storage._lock_release
-        self._commit_lock_acquire = storage._commit_lock_acquire
-        self._commit_lock_release = storage._commit_lock_release
+        self._lock = storage._lock
+        self._commit_lock = storage._commit_lock
 
         # The packer will use several indexes.
         # index: oid -> pos
@@ -379,6 +378,15 @@ class FileStoragePacker(FileStorageFormatter):
         self.oid2tid = {}
         self.toid2tid = {}
         self.toid2tid_delete = {}
+
+        self._tfile = None
+
+    def close(self):
+        self._file.close()
+        if self._tfile is not None:
+            self._tfile.close()
+        if self.blob_removed is not None:
+            self.blob_removed.close()
 
     def pack(self):
         # Pack copies all data reachable at the pack time or later.
@@ -396,27 +404,48 @@ class FileStoragePacker(FileStorageFormatter):
 
         self.gc.findReachable()
 
+        def close_files_remove():
+            # blank except: we might be in an IOError situation/handler
+            # try our best, but don't fail
+            try:
+                self._tfile.close()
+            except:
+                pass
+            try:
+                self._file.close()
+            except:
+                pass
+            try:
+                os.remove(self._name + ".pack")
+            except:
+                pass
+            if self.blob_removed is not None:
+                self.blob_removed.close()
+
         # Setup the destination file and copy the metadata.
         # TODO:  rename from _tfile to something clearer.
         self._tfile = open(self._name + ".pack", "w+b")
-        self._file.seek(0)
-        self._tfile.write(self._file.read(self._metadata_size))
+        try:
+            self._file.seek(0)
+            self._tfile.write(self._file.read(self._metadata_size))
 
-        self._copier = PackCopier(self._tfile, self.index, self.tindex)
+            self._copier = PackCopier(self._tfile, self.index, self.tindex)
 
-        ipos, opos = self.copyToPacktime()
+            ipos, opos = self.copyToPacktime()
+        except (OSError, IOError):
+            # most probably ran out of disk space or some other IO error
+            close_files_remove()
+            raise  # don't succeed silently
+
         assert ipos == self.gc.packpos
         if ipos == opos:
             # pack didn't free any data.  there's no point in continuing.
-            self._tfile.close()
-            self._file.close()
-            os.remove(self._name + ".pack")
+            close_files_remove()
             return None
-        self._commit_lock_acquire()
+        self._commit_lock.acquire()
         self.locked = True
         try:
-            self._lock_acquire()
-            try:
+            with self._lock:
                 # Re-open the file in unbuffered mode.
 
                 # The main thread may write new transactions to the
@@ -435,8 +464,7 @@ class FileStoragePacker(FileStorageFormatter):
                 self._file = open(self._path, "rb", 0)
                 self._file.seek(0, 2)
                 self.file_end = self._file.tell()
-            finally:
-                self._lock_release()
+
             if ipos < self.file_end:
                 self.copyRest(ipos)
 
@@ -445,15 +473,23 @@ class FileStoragePacker(FileStorageFormatter):
             self._tfile.flush()
             self._tfile.close()
             self._file.close()
+            if self.blob_removed is not None:
+                self.blob_removed.close()
 
             return pos
+        except (OSError, IOError):
+            # most probably ran out of disk space or some other IO error
+            close_files_remove()
+            if self.locked:
+                self._commit_lock.release()
+            raise  # don't succeed silently
         except:
             if self.locked:
-                self._commit_lock_release()
+                self._commit_lock.release()
             raise
 
     def copyToPacktime(self):
-        offset = 0L  # the amount of space freed by packing
+        offset = 0  # the amount of space freed by packing
         pos = self._metadata_size
         new_pos = pos
 
@@ -489,7 +525,7 @@ class FileStoragePacker(FileStorageFormatter):
         If any data records are copied, also write txn header (th).
         """
         copy = 0
-        new_tpos = 0L
+        new_tpos = 0
         tend = pos + th.tlen
         pos += th.headerlen()
         while pos < tend:
@@ -515,10 +551,10 @@ class FileStoragePacker(FileStorageFormatter):
                         if not is_dup:
                             if h.oid not in self.gc.reachable:
                                 self.blob_removed.write(
-                                    h.oid.encode('hex')+'\n')
+                                    binascii.hexlify(h.oid)+b'\n')
                             else:
                                 self.blob_removed.write(
-                                    (h.oid+h.tid).encode('hex')+'\n')
+                                    binascii.hexlify(h.oid+h.tid)+b'\n')
 
                 pos += h.recordlen()
                 continue
@@ -562,7 +598,7 @@ class FileStoragePacker(FileStorageFormatter):
         # Update the header to reflect current information, then write
         # it to the output file.
         if data is None:
-            data = ""
+            data = b''
         h.prev = 0
         h.back = 0
         h.plen = len(data)
@@ -584,7 +620,7 @@ class FileStoragePacker(FileStorageFormatter):
         try:
             while 1:
                 ipos = self.copyOne(ipos)
-        except CorruptedDataError, err:
+        except CorruptedDataError as err:
             # The last call to copyOne() will raise
             # CorruptedDataError, because it will attempt to read past
             # the end of the file.  Double-check that the exception
@@ -598,7 +634,7 @@ class FileStoragePacker(FileStorageFormatter):
         # The call below will raise CorruptedDataError at EOF.
         th = self._read_txn_header(ipos)
         # Release commit lock while writing to pack file
-        self._commit_lock_release()
+        self._commit_lock.release()
         self.locked = False
         pos = self._tfile.tell()
         self._copier.setTxnPos(pos)
@@ -627,6 +663,6 @@ class FileStoragePacker(FileStorageFormatter):
 
         self.index.update(self.tindex)
         self.tindex.clear()
-        self._commit_lock_acquire()
+        self._commit_lock.acquire()
         self.locked = True
         return ipos

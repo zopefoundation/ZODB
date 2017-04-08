@@ -18,27 +18,25 @@ http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storag
 
 All storages should be able to pass these tests.
 """
-
-from __future__ import with_statement
-
 from ZODB import POSException
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
-from ZODB.tests.StorageTestBase import handle_serials
 
 import threading
 import time
-import transaction
 import zope.interface
 import zope.interface.verify
 
-ZERO = '\0'*8
+from .. import utils
+
+ZERO = b'\0'*8
 
 class BasicStorage:
     def checkBasics(self):
-        self.assertEqual(self._storage.lastTransaction(), '\0'*8)
+        self.assertEqual(self._storage.lastTransaction(), ZERO)
 
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertRaises(POSException.StorageTransactionError,
                           self._storage.tpc_begin, t)
@@ -50,31 +48,30 @@ class BasicStorage:
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            ZERO, ZERO, '', '', transaction.Transaction())
+            ZERO, ZERO, b'', '', TransactionMetaData())
 
         self.assertRaises(
             POSException.StorageTransactionError,
             self._storage.store,
-            ZERO, 1, '2', '', transaction.Transaction())
+            ZERO, 1, b'2', '', TransactionMetaData())
 
         self.assertRaises(
             POSException.StorageTransactionError,
-            self._storage.tpc_vote, transaction.Transaction())
+            self._storage.tpc_vote, TransactionMetaData())
         self._storage.tpc_abort(t)
 
     def checkSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
-        txn = transaction.Transaction()
+        txn = TransactionMetaData()
         self._storage.tpc_begin(txn)
         # Use None for serial.  Don't use _dostore() here because that coerces
         # serial=None to serial=ZERO.
-        r1 = self._storage.store(oid, None, zodb_pickle(MinPO(11)),
-                                       '', txn)
-        r2 = self._storage.tpc_vote(txn)
-        self._storage.tpc_finish(txn)
-        newrevid = handle_serials(oid, r1, r2)
-        data, revid = self._storage.load(oid, '')
+        self._storage.store(oid, None, zodb_pickle(MinPO(11)),
+                            '', txn)
+        self._storage.tpc_vote(txn)
+        newrevid = self._storage.tpc_finish(txn)
+        data, revid = utils.load_current(self._storage, oid)
         value = zodb_unpickle(data)
         eq(value, MinPO(11))
         eq(revid, newrevid)
@@ -89,14 +86,14 @@ class BasicStorage:
         eq = self.assertEqual
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(7))
-        data, revid = self._storage.load(oid, '')
+        data, revid = utils.load_current(self._storage, oid)
         value = zodb_unpickle(data)
         eq(value, MinPO(7))
         # Now do a bunch of updates to an object
         for i in range(13, 22):
             revid = self._dostore(oid, revid=revid, data=MinPO(i))
         # Now get the latest revision of the object
-        data, revid = self._storage.load(oid, '')
+        data, revid = utils.load_current(self._storage, oid)
         eq(zodb_unpickle(data), MinPO(21))
 
     def checkConflicts(self):
@@ -109,7 +106,7 @@ class BasicStorage:
 
     def checkWriteAfterAbort(self):
         oid = self._storage.new_oid()
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
@@ -122,7 +119,7 @@ class BasicStorage:
         oid1 = self._storage.new_oid()
         revid1 = self._dostore(oid=oid1, data=MinPO(-2))
         oid = self._storage.new_oid()
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         # Now abort this transaction
@@ -133,7 +130,7 @@ class BasicStorage:
         revid = self._dostore(oid=oid, data=MinPO(6))
 
         for oid, revid in [(oid1, revid1), (oid, revid)]:
-            data, _revid = self._storage.load(oid, '')
+            data, _revid = utils.load_current(self._storage, oid)
             self.assertEqual(revid, _revid)
 
     def checkStoreTwoObjects(self):
@@ -172,7 +169,7 @@ class BasicStorage:
         # of this number
         self._dostore(data=MinPO(22))
         self._dostore(data=MinPO(23))
-        self.assert_(len(self._storage) in [0,2])
+        self.assertTrue(len(self._storage) in [0,2])
 
     def checkGetSize(self):
         self._dostore(data=MinPO(25))
@@ -183,9 +180,9 @@ class BasicStorage:
 
     def checkNote(self):
         oid = self._storage.new_oid()
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        t.note('this is a test')
+        t.note(u'this is a test')
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -197,18 +194,14 @@ class BasicStorage:
     def checkMultipleEmptyTransactions(self):
         # There was a bug in handling empty transactions in mapping
         # storage that caused the commit lock not to be released. :(
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        t.commit()
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)      # Hung here before
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
-        t.commit()
 
     def _do_store_in_separate_thread(self, oid, revid, voted):
         # We'll run the competing trans in a separate thread:
@@ -220,37 +213,35 @@ class BasicStorage:
         return thread
 
     def check_checkCurrentSerialInTransaction(self):
-        oid = '\0\0\0\0\0\0\0\xf0'
+        oid = b'\0\0\0\0\0\0\0\xf0'
         tid = self._dostore(oid)
         tid2 = self._dostore(oid, revid=tid)
-        data = 'cpersistent\nPersistent\nq\x01.N.' # a simple persistent obj
+        data = b'cpersistent\nPersistent\nq\x01.N.' # a simple persistent obj
 
         #----------------------------------------------------------------------
         # stale read
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         try:
-            self._storage.store('\0\0\0\0\0\0\0\xf1',
-                                '\0\0\0\0\0\0\0\0', data, '', t)
+            self._storage.store(b'\0\0\0\0\0\0\0\xf1',
+                                b'\0\0\0\0\0\0\0\0', data, '', t)
             self._storage.checkCurrentSerialInTransaction(oid, tid, t)
             self._storage.tpc_vote(t)
-        except POSException.ReadConflictError, v:
-            self.assert_(v.oid) == oid
-            self.assert_(v.serials == (tid2, tid))
+        except POSException.ReadConflictError as v:
+            self.assertEqual(v.oid, oid)
+            self.assertEqual(v.serials, (tid2, tid))
         else:
-            if 0: self.assert_(False, "No conflict error")
+            if 0: self.assertTrue(False, "No conflict error")
 
         self._storage.tpc_abort(t)
 
 
         #----------------------------------------------------------------------
         # non-stale read, no stress. :)
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self._storage.store('\0\0\0\0\0\0\0\xf2',
-                            '\0\0\0\0\0\0\0\0', data, '', t)
+        self._storage.store(b'\0\0\0\0\0\0\0\xf2',
+                            b'\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid2, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -258,11 +249,10 @@ class BasicStorage:
         #----------------------------------------------------------------------
         # non-stale read, competition after vote.  The competing
         # transaction must produce a tid > this transaction's tid
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self._storage.store('\0\0\0\0\0\0\0\xf3',
-                            '\0\0\0\0\0\0\0\0', data, '', t)
+        self._storage.store(b'\0\0\0\0\0\0\0\xf3',
+                            b'\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid2, t)
         self._storage.tpc_vote(t)
 
@@ -271,16 +261,17 @@ class BasicStorage:
         self._storage.tpc_finish(t)
         thread.join(33)
 
-        tid3 = self._storage.load(oid)[1]
-        self.assert_(tid3 > self._storage.load('\0\0\0\0\0\0\0\xf3')[1])
+        tid3 = utils.load_current(self._storage, oid)[1]
+        self.assertTrue(tid3 >
+                        utils.load_current(
+                            self._storage, b'\0\0\0\0\0\0\0\xf3')[1])
 
         #----------------------------------------------------------------------
         # non-stale competing trans after checkCurrentSerialInTransaction
-        transaction.begin()
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self._storage.store('\0\0\0\0\0\0\0\xf4',
-                            '\0\0\0\0\0\0\0\0', data, '', t)
+        self._storage.store(b'\0\0\0\0\0\0\0\xf4',
+                            b'\0\0\0\0\0\0\0\0', data, '', t)
         self._storage.checkCurrentSerialInTransaction(oid, tid3, t)
 
         thread = self._do_store_in_separate_thread(oid, tid3, False)
@@ -297,8 +288,10 @@ class BasicStorage:
         else:
             self._storage.tpc_finish(t)
             thread.join()
-            tid4 = self._storage.load(oid)[1]
-            self.assert_(tid4 > self._storage.load('\0\0\0\0\0\0\0\xf4')[1])
+            tid4 = utils.load_current(self._storage, oid)[1]
+            self.assertTrue(
+                tid4 >
+                utils.load_current(self._storage, b'\0\0\0\0\0\0\0\xf4')[1])
 
 
     def check_tid_ordering_w_commit(self):
@@ -311,9 +304,9 @@ class BasicStorage:
         # verify that a storage gets it right.
 
         # First, some initial data.
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self._storage.store(ZERO, ZERO, 'x', '', t)
+        self._storage.store(ZERO, ZERO, b'x', '', t)
         self._storage.tpc_vote(t)
         tids = []
         self._storage.tpc_finish(t, lambda tid: tids.append(tid))
@@ -321,9 +314,9 @@ class BasicStorage:
         # OK, now we'll start a new transaction, take it to finish,
         # and then block finish while we do some other operations.
 
-        t = transaction.get()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self._storage.store(ZERO, tids[0], 'y', '', t)
+        self._storage.store(ZERO, tids[0], b'y', '', t)
         self._storage.tpc_vote(t)
 
         to_join = []
@@ -347,7 +340,7 @@ class BasicStorage:
         results = {}
         started.wait()
         attempts = []
-        attempts_cond = threading.Condition()
+        attempts_cond = utils.Condition()
 
         def update_attempts():
             with attempts_cond:
@@ -363,7 +356,7 @@ class BasicStorage:
         @run_in_thread
         def load():
             update_attempts()
-            results['load'] = self._storage.load(ZERO, '')[1]
+            results['load'] = utils.load_current(self._storage, ZERO)[1]
 
         expected_attempts = 2
 
@@ -397,4 +390,3 @@ class BasicStorage:
         self.assertEqual(results.pop('lastTransaction'), tids[1])
         for m, tid in results.items():
             self.assertEqual(tid, tids[1])
-

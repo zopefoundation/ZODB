@@ -36,7 +36,7 @@ def test_weakrefs_functional():
     >>> ref() is ob
     True
 
-    The hash of the ref if the same as the hash of the referenced object:
+    The hash of the ref is the same as the hash of the referenced object:
 
     >>> hash(ref) == hash(ob)
     True

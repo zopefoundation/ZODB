@@ -13,12 +13,10 @@
 ##############################################################################
 """Check loadSerial() on storages that support historical revisions."""
 
+from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
-from ZODB.tests.StorageTestBase import handle_serials
-from ZODB.utils import p64, u64
-
-import transaction
+from ZODB.utils import p64, u64, load_current
 
 ZERO = '\0'*8
 
@@ -52,7 +50,7 @@ class RevisionStorage:
             snooze()
             snooze()
             revid = self._dostore(oid, revid, data=MinPO(i))
-            revs.append(self._storage.load(oid, ""))
+            revs.append(load_current(self._storage, oid))
 
         prev = u64(revs[0][1])
         for i in range(1, 10):
@@ -62,7 +60,7 @@ class RevisionStorage:
             assert prev < middle < cur  # else the snooze() trick failed
             prev = cur
             t = self._storage.loadBefore(oid, p64(middle))
-            self.assert_(t is not None)
+            self.assertTrue(t is not None)
             data, start, end = t
             self.assertEqual(revs[i-1][0], data)
             self.assertEqual(tid, end)
@@ -123,7 +121,7 @@ class RevisionStorage:
             # Always undo the most recent txn, so the value will
             # alternate between 3 and 4.
             self._undo(tid, note="undo %d" % i)
-            revs.append(self._storage.load(oid, ""))
+            revs.append(load_current(self._storage, oid))
 
         prev_tid = None
         for i, (data, tid) in enumerate(revs):
@@ -131,7 +129,7 @@ class RevisionStorage:
             self.assertEqual(data, t[0])
             self.assertEqual(tid, t[1])
             if prev_tid:
-                self.assert_(prev_tid < t[1])
+                self.assertTrue(prev_tid < t[1])
             prev_tid = t[1]
             if i < 3:
                 self.assertEqual(revs[i+1][1], t[2])
@@ -143,14 +141,13 @@ class RevisionStorage:
         oid = self._storage.new_oid()
         def helper(tid, revid, x):
             data = zodb_pickle(MinPO(x))
-            t = transaction.Transaction()
+            t = TransactionMetaData()
             try:
                 self._storage.tpc_begin(t, p64(tid))
-                r1 = self._storage.store(oid, revid, data, '', t)
+                self._storage.store(oid, revid, data, '', t)
                 # Finish the transaction
-                r2 = self._storage.tpc_vote(t)
-                newrevid = handle_serials(oid, r1, r2)
-                self._storage.tpc_finish(t)
+                self._storage.tpc_vote(t)
+                newrevid = self._storage.tpc_finish(t)
             except:
                 self._storage.tpc_abort(t)
                 raise

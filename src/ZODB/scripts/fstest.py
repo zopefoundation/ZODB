@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Foundation and Contributors.
@@ -13,7 +12,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
 """Simple consistency checker for FileStorage.
 
 usage: fstest.py [-v] data.fs
@@ -32,23 +30,25 @@ Note: It does not check the consistency of the object pickles.  It is
 possible for the damage to occur only in the part of the file that
 stores object pickles.  Those errors will go undetected.
 """
+from __future__ import print_function
 
 # The implementation is based closely on the read_index() function in
 # ZODB.FileStorage.  If anything about the FileStorage layout changes,
 # this file will need to be udpated.
 
-import string
+import binascii
 import struct
 import sys
+from ZODB._compat import FILESTORAGE_MAGIC
 
 class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
 
 class Status:
-    checkpoint = 'c'
-    undone = 'u'
+    checkpoint = b'c'
+    undone = b'u'
 
-packed_version = 'FS21'
+packed_version = FILESTORAGE_MAGIC
 
 TREC_HDR_LEN = 23
 DREC_HDR_LEN = 42
@@ -56,16 +56,13 @@ DREC_HDR_LEN = 42
 VERBOSE = 0
 
 def hexify(s):
-    """Format an 8-bite string as hex"""
-    l = []
-    for c in s:
-        h = hex(ord(c))
-        if h[:2] == '0x':
-            h = h[2:]
-        if len(h) == 1:
-            l.append("0")
-        l.append(h)
-    return "0x" + string.join(l, '')
+    r"""Format an 8-bit string as hex
+
+        >>> hexify(b'\x00\xff\xaa\xcc')
+        '0x00ffaacc'
+
+    """
+    return '0x' + binascii.hexlify(s).decode()
 
 def chatter(msg, level=1):
     if VERBOSE >= level:
@@ -80,26 +77,25 @@ def U64(v):
         return l
 
 def check(path):
-    file = open(path, 'rb')
+    with open(path, 'rb') as file:
+        file.seek(0, 2)
+        file_size = file.tell()
+        if file_size == 0:
+            raise FormatError("empty file")
+        file.seek(0)
+        if file.read(4) != packed_version:
+            raise FormatError("invalid file header")
 
-    file.seek(0, 2)
-    file_size = file.tell()
-    if file_size == 0:
-        raise FormatError("empty file")
-    file.seek(0)
-    if file.read(4) != packed_version:
-        raise FormatError("invalid file header")
-
-    pos = 4L
-    tid = '\000' * 8 # lowest possible tid to start
-    i = 0
-    while pos:
-        _pos = pos
-        pos, tid = check_trec(path, file, pos, tid, file_size)
-        if tid is not None:
-            chatter("%10d: transaction tid %s #%d \n" %
-                    (_pos, hexify(tid), i))
-            i = i + 1
+        pos = 4
+        tid = b'\000' * 8 # lowest possible tid to start
+        i = 0
+        while pos:
+            _pos = pos
+            pos, tid = check_trec(path, file, pos, tid, file_size)
+            if tid is not None:
+                chatter("%10d: transaction tid %s #%d \n" %
+                        (_pos, hexify(tid), i))
+                i = i + 1
 
 
 def check_trec(path, file, pos, ltid, file_size):
@@ -110,7 +106,7 @@ def check_trec(path, file, pos, ltid, file_size):
     used for generating error messages.
     """
 
-    h = file.read(TREC_HDR_LEN)
+    h = file.read(TREC_HDR_LEN) #XXX must be bytes under Py3k
     if not h:
         return None, None
     if len(h) != TREC_HDR_LEN:
@@ -131,7 +127,7 @@ def check_trec(path, file, pos, ltid, file_size):
     if status == Status.checkpoint:
         raise FormatError("%s checkpoint flag was not cleared at %s"
                           % (path, pos))
-    if status not in ' up':
+    if status not in b' up':
         raise FormatError("%s has invalid status '%s' at %s" %
                           (path, status, pos))
 
@@ -200,8 +196,7 @@ def check_drec(path, file, pos, tpos, tid):
     return pos, oid
 
 def usage():
-    print __doc__
-    sys.exit(-1)
+    sys.exit(__doc__)
 
 def main(args=None):
     if args is None:
@@ -221,9 +216,8 @@ def main(args=None):
 
     try:
         check(args[0])
-    except FormatError, msg:
-        print msg
-        sys.exit(-1)
+    except FormatError as msg:
+        sys.exit(msg)
 
     chatter("no errors detected")
 

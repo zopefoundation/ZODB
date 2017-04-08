@@ -39,9 +39,9 @@ class TestCorruptedFS(ZODB.tests.util.TestCase):
             self._file.close()
         try:
             fstest.check(self._temp)
-        except FormatError, msg:
+        except FormatError as msg:
             mo = re.search(rx, str(msg))
-            self.failIf(mo is None, "unexpected error: %s" % msg)
+            self.assertFalse(mo is None, "unexpected error: %s" % msg)
         else:
             self.fail("fstest did not detect corruption")
 

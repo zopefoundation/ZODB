@@ -18,7 +18,10 @@ import random
 import stat
 
 import ZODB.FileStorage
-from StorageTestBase import StorageTestBase
+
+from ZODB.utils import load_current
+
+from .StorageTestBase import StorageTestBase
 
 class FileStorageCorruptTests(StorageTestBase):
 
@@ -36,7 +39,7 @@ class FileStorageCorruptTests(StorageTestBase):
 
     def _check_stores(self, oids):
         for oid, revid in oids:
-            data, s_revid = self._storage.load(oid, '')
+            data, s_revid = load_current(self._storage, oid)
             self.assertEqual(s_revid, revid)
 
     def checkTruncatedIndex(self):
@@ -44,11 +47,11 @@ class FileStorageCorruptTests(StorageTestBase):
         self._close()
 
         # truncation the index file
-        self.failUnless(os.path.exists('Data.fs.index'))
-        f = open('Data.fs.index', 'r+')
+        self.assertTrue(os.path.exists('Data.fs.index'))
+        f = open('Data.fs.index', 'rb+')
         f.seek(0, 2)
         size = f.tell()
-        f.seek(size / 2)
+        f.seek(size // 2)
         f.truncate()
         f.close()
 
@@ -60,12 +63,12 @@ class FileStorageCorruptTests(StorageTestBase):
         self._close()
 
         # truncation the index file
-        self.failUnless(os.path.exists('Data.fs.index'))
+        self.assertTrue(os.path.exists('Data.fs.index'))
         size = os.stat('Data.fs.index')[stat.ST_SIZE]
-        f = open('Data.fs.index', 'r+')
+        f = open('Data.fs.index', 'rb+')
         while f.tell() < size:
-            f.seek(random.randrange(1, size / 10), 1)
-            f.write('\000')
+            f.seek(random.randrange(1, size // 10), 1)
+            f.write(b'\000')
         f.close()
 
         self._storage = ZODB.FileStorage.FileStorage('Data.fs')

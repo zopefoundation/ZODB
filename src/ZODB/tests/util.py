@@ -13,24 +13,55 @@
 ##############################################################################
 """Conventience function for creating test databases
 """
-
-from __future__ import with_statement
-
 from ZODB.MappingStorage import DB
 
 import atexit
 import os
 import persistent
-import sys
+import re
 import tempfile
 import time
 import transaction
 import unittest
 import warnings
 import ZODB.utils
+from ZODB.Connection import TransactionMetaData
 import zope.testing.setupstack
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    (re.compile("<(.*?) object at 0x[0-9a-f]*?>"),
+     r"<\1 object at 0x000000000000>"),
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"),
+     r"\1"),
+    (re.compile('b(".*?")'),
+     r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.interfaces.BlobError"),
+     r"BlobError"),
+    (re.compile("ZODB.blob.BlobStorageError"),
+     r"BlobStorageError"),
+    (re.compile("ZODB.broken.BrokenModified"),
+     r"BrokenModified"),
+    (re.compile("ZODB.POSException.POSKeyError"),
+     r"POSKeyError"),
+    (re.compile("ZODB.POSException.ConflictError"),
+     r"ConflictError"),
+    (re.compile("ZODB.POSException.ReadConflictError"),
+     r"ReadConflictError"),
+    (re.compile("ZODB.POSException.InvalidObjectReference"),
+     r"InvalidObjectReference"),
+    (re.compile("ZODB.POSException.ReadOnlyHistoryError"),
+     r"ReadOnlyHistoryError"),
+    (re.compile("ZODB.POSException.Unsupported"),
+     r"Unsupported"),
+    (re.compile("ZConfig.ConfigurationSyntaxError"),
+     r"ConfigurationSyntaxError"),
+    ])
 
 def setUp(test, name='test'):
+    clear_transaction_syncs()
     transaction.abort()
     d = tempfile.mkdtemp(prefix=name)
     zope.testing.setupstack.register(test, zope.testing.setupstack.rmtree, d)
@@ -41,7 +72,9 @@ def setUp(test, name='test'):
     os.chdir(d)
     zope.testing.setupstack.register(test, transaction.abort)
 
-tearDown = zope.testing.setupstack.tearDown
+def tearDown(test):
+    clear_transaction_syncs()
+    zope.testing.setupstack.tearDown(test)
 
 class TestCase(unittest.TestCase):
 
@@ -103,9 +136,6 @@ class AAAA_Test_Runner_Hack(unittest.TestCase):
         pass
 
 def assert_warning(category, func, warning_text=''):
-    if sys.version_info < (2, 6):
-        return func() # Can't use catch_warnings :(
-
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter('default')
         result = func()
@@ -121,18 +151,18 @@ def assert_deprecated(func, warning_text=''):
 def wait(func=None, timeout=30):
     if func is None:
         return lambda f: wait(f, timeout)
-    for i in xrange(int(timeout*100)):
+    for _ in range(int(timeout*100)):
         if func():
             return
         time.sleep(.01)
     raise AssertionError
 
 def store(storage, oid, value='x', serial=ZODB.utils.z64):
-    if not isinstance(oid, str):
+    if not isinstance(oid, bytes):
         oid = ZODB.utils.p64(oid)
-    if not isinstance(serial, str):
+    if not isinstance(serial, bytes):
         serial = ZODB.utils.p64(serial)
-    t = transaction.get()
+    t = TransactionMetaData()
     storage.tpc_begin(t)
     storage.store(oid, serial, value, '', t)
     storage.tpc_vote(t)
@@ -152,5 +182,22 @@ def mess_with_time(test=None, globs=None, now=1278864701.5):
     import time
     zope.testing.setupstack.register(test, setattr, time, 'time', time.time)
 
-    time.time = faux_time
+    if isinstance(time,type):
+        time.time = staticmethod(faux_time) # jython
+    else:
+        time.time = faux_time
 
+def clear_transaction_syncs():
+    """Clear data managers registered with the global transaction manager
+
+    Many tests don't clean up synchronizer's registered with the
+    global transaction managers, which can wreak havoc with following
+    tests, now that connections interact with their storages at
+    transaction boundaries.  We need to make sure that we clear any
+    registered data managers.
+
+    For now, we'll use the transaction manager's
+    underware. Eventually, an transaction managers need to grow an API
+    for this.
+    """
+    transaction.manager.clearSynchs()

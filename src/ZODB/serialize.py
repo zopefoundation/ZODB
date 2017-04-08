@@ -114,7 +114,7 @@ oid
         of a database name, an object id, and class meta data.
 
 The following legacy format is also supported.
-    
+
 [oid]
     A persistent weak reference
 
@@ -133,19 +133,17 @@ A number of legacyforms are defined:
 
 
 """
-
-import cPickle
-import cStringIO
 import logging
-
 
 from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
-from ZODB.broken import Broken
 from ZODB.POSException import InvalidObjectReference
+from ZODB._compat import PersistentPickler, PersistentUnpickler, BytesIO, _protocol
 
-_oidtypes = str, type(None)
+
+_oidtypes = bytes, type(None)
+
 
 # Might to update or redo coptimizations to reflect weakrefs:
 # from ZODB.coptimizations import new_persistent_id
@@ -172,9 +170,8 @@ class ObjectWriter:
     _jar = None
 
     def __init__(self, obj=None):
-        self._file = cStringIO.StringIO()
-        self._p = cPickle.Pickler(self._file, 1)
-        self._p.inst_persistent_id = self.persistent_id
+        self._file = BytesIO()
+        self._p = PersistentPickler(self.persistent_id, self._file, _protocol)
         self._stack = []
         if obj is not None:
             self._stack.append(obj)
@@ -193,7 +190,7 @@ class ObjectWriter:
         ...     def db(self):
         ...         return self
         ...     databases = {}
-        
+
         >>> jar = DummyJar()
         >>> class O:
         ...     _p_jar = jar
@@ -237,7 +234,7 @@ class ObjectWriter:
           ...
         InvalidObjectReference:
         ('Attempt to store an object from a foreign database connection',
-        <ZODB.serialize.DummyJar instance at ...>, P(bob))
+        <ZODB.serialize.DummyJar ...>, P(bob))
 
         Constructor arguments used by __new__(), as returned by
         __getnewargs__(), can affect memory allocation, but may also
@@ -284,7 +281,7 @@ class ObjectWriter:
             # Not persistent, pickle normally
             return None
 
-        if not (oid is None or isinstance(oid, str)):
+        if not (oid is None or isinstance(oid, bytes)):
             # Deserves a closer look:
 
             # Make sure it's not a descriptor
@@ -422,7 +419,7 @@ class ObjectWriter:
         return self._dump(meta, obj.__getstate__())
 
     def _dump(self, classmeta, state):
-        # To reuse the existing cStringIO object, we must reset
+        # To reuse the existing BytesIO object, we must reset
         # the file position to 0 and truncate the file after the
         # new pickle is written.
         self._file.seek(0)
@@ -446,12 +443,14 @@ class NewObjectIterator:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self._stack:
             elt = self._stack.pop()
             return elt
         else:
             raise StopIteration
+
+    next = __next__
 
 class ObjectReader:
 
@@ -464,16 +463,14 @@ class ObjectReader:
         return self._factory(self._conn, module, name)
 
     def _get_unpickler(self, pickle):
-        file = cStringIO.StringIO(pickle)
-        unpickler = cPickle.Unpickler(file)
-        unpickler.persistent_load = self._persistent_load
+        file = BytesIO(pickle)
+
         factory = self._factory
         conn = self._conn
 
         def find_global(modulename, name):
             return factory(conn, modulename, name)
-
-        unpickler.find_global = find_global
+        unpickler = PersistentUnpickler(find_global, self._persistent_load, file)
 
         return unpickler
 
@@ -482,7 +479,7 @@ class ObjectReader:
     def _persistent_load(self, reference):
         if isinstance(reference, tuple):
             return self.load_persistent(*reference)
-        elif isinstance(reference, str):
+        elif isinstance(reference, (bytes, str)):
             return self.load_oid(reference)
         else:
             try:
@@ -497,6 +494,11 @@ class ObjectReader:
         # Quick instance reference.  We know all we need to know
         # to create the instance w/o hitting the db, so go for it!
 
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
+
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
@@ -504,7 +506,7 @@ class ObjectReader:
         if isinstance(klass, tuple):
             klass = self._get_class(*klass)
 
-        if issubclass(klass, Broken):
+        if issubclass(klass, broken.Broken):
             # We got a broken class. We might need to make it
             # PersistentBroken
             if not issubclass(klass, broken.PersistentBroken):
@@ -531,6 +533,10 @@ class ObjectReader:
 
 
     def load_persistent_weakref(self, oid, database_name=None):
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
         obj = WeakRef.__new__(WeakRef)
         obj.oid = oid
         if database_name is None:
@@ -549,6 +555,10 @@ class ObjectReader:
     loaders['w'] = load_persistent_weakref
 
     def load_oid(self, oid):
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
         obj = self._cache.get(oid, None)
         if obj is not None:
             return obj
@@ -590,7 +600,7 @@ class ObjectReader:
             # Definitely new style direct class reference
             args = ()
 
-        if issubclass(klass, Broken):
+        if issubclass(klass, broken.Broken):
             # We got a broken class. We might need to make it
             # PersistentBroken
             if not issubclass(klass, broken.PersistentBroken):
@@ -603,7 +613,7 @@ class ObjectReader:
         try:
             unpickler.load() # skip the class metadata
             return unpickler.load()
-        except EOFError, msg:
+        except EOFError as msg:
             log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
@@ -624,8 +634,7 @@ def referencesf(p, oids=None):
     """
 
     refs = []
-    u = cPickle.Unpickler(cStringIO.StringIO(p))
-    u.persistent_load = refs
+    u = PersistentUnpickler(None, refs.append, BytesIO(p))
     u.noload()
     u.noload()
 
@@ -634,18 +643,23 @@ def referencesf(p, oids=None):
 
     if oids is None:
         oids = []
-        
+
     for reference in refs:
         if isinstance(reference, tuple):
             oid = reference[0]
-        elif isinstance(reference, str):
+        elif isinstance(reference, (bytes, str)):
             oid = reference
         else:
             assert isinstance(reference, list)
             continue
 
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
+
         oids.append(oid)
-    
+
     return oids
 
 oid_klass_loaders = {
@@ -659,27 +673,31 @@ def get_refs(a_pickle):
     If the reference doesn't contain class information, then the
     klass information is None.
     """
-    
+
     refs = []
-    u = cPickle.Unpickler(cStringIO.StringIO(a_pickle))
-    u.persistent_load = refs
+    u = PersistentUnpickler(None, refs.append, BytesIO(a_pickle))
     u.noload()
     u.noload()
 
-    # Now we have a list of referencs.  Need to convert to list of
+    # Now we have a list of references.  Need to convert to list of
     # oids and class info:
 
     result = []
 
     for reference in refs:
         if isinstance(reference, tuple):
-            data = reference
-        elif isinstance(reference, str):
-            data = reference, None
+            oid, klass = reference
+        elif isinstance(reference, (bytes, str)):
+            data, klass = reference, None
         else:
             assert isinstance(reference, list)
             continue
 
-        result.append(data)
-    
+        if not isinstance(oid, bytes):
+            assert isinstance(oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            oid = oid.encode('ascii')
+
+        result.append((oid, klass))
+
     return result

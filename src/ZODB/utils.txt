@@ -7,7 +7,7 @@ The ZODB.utils module provides a number of helpful, somewhat random
     >>> import ZODB.utils
 
 This document documents a few of them. Over time, it may document
-more. 
+more.
 
 64-bit integers and strings
 ---------------------------------
@@ -22,7 +22,7 @@ Functions p64 and u64 pack and unpack integers as strings:
     >>> ZODB.utils.p64(250347764455111456)
     '\x03yi\xf7"\xa8\xfb '
 
-    >>> print ZODB.utils.u64('\x03yi\xf7"\xa8\xfb ')
+    >>> print(ZODB.utils.u64(b'\x03yi\xf7"\xa8\xfb '))
     250347764455111456
 
 The contant z64 has zero packed as a 64-bit string:
@@ -41,7 +41,12 @@ To see this work (in a predictable way), we'll first hack time.time:
 
     >>> import time
     >>> old_time = time.time
-    >>> time.time = lambda : 1224825068.12
+    >>> time_value = 1224825068.12
+    >>> faux_time = lambda: time_value
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time) # Jython
+    ... else:
+    ...     time.time = faux_time
 
 Now, if we ask for a new time stamp, we'll get one based on our faux
 time:
@@ -57,23 +62,23 @@ This time is based on the current time, which we can see by converting
 it to a time stamp.
 
     >>> import ZODB.TimeStamp
-    >>> print ZODB.TimeStamp.TimeStamp(tid)
+    >>> print(ZODB.TimeStamp.TimeStamp(tid))
     2008-10-24 05:11:08.120000
 
 To assure that we get a new tid that is later than the old, we can
 pass an existing tid.  Let's pass the tid we just got.
 
     >>> tid2 = ZODB.utils.newTid(tid)
-    >>> long(ZODB.utils.u64(tid)), long(ZODB.utils.u64(tid2))
-    (250347764454864008L, 250347764454864009L)
+    >>> ZODB.utils.u64(tid), ZODB.utils.u64(tid2)
+    (250347764454864008, 250347764454864009)
 
 Here, since we called it at the same time, we got a time stamp that
 was only slightly larger than the previos one.  Of course, at a later
 time, the time stamp we get will be based on the time:
 
-    >>> time.time = lambda : 1224825069.12
+    >>> time_value = 1224825069.12
     >>> tid = ZODB.utils.newTid(tid2)
-    >>> print ZODB.TimeStamp.TimeStamp(tid)
+    >>> print(ZODB.TimeStamp.TimeStamp(tid))
     2008-10-24 05:11:09.120000
 
 
@@ -90,9 +95,13 @@ we'll create a "lock" type that simply prints when it is called:
 
     >>> class Lock:
     ...     def acquire(self):
-    ...         print 'acquire'
+    ...         print('acquire')
     ...     def release(self):
-    ...         print 'release'
+    ...         print('release')
+    ...     def __enter__(self):
+    ...         return self.acquire()
+    ...     def __exit__(self, *ignored):
+    ...         return self.release()
 
 Now we'll demonstrate the descriptor:
 
@@ -103,7 +112,7 @@ Now we'll demonstrate the descriptor:
     ...
     ...     @ZODB.utils.locked
     ...     def meth(self, *args, **kw):
-    ...         print 'meth', args, kw
+    ...         print('meth %r %r' %(args, kw))
 
 The descriptor expects the instance it wraps to have a '_lock
 attribute.
@@ -130,11 +139,12 @@ attribute.
     ...     _lock_acquire = _lock.acquire
     ...     _lock_release = _lock.release
 
-    >>> C.meth(C2()) # doctest: +NORMALIZE_WHITESPACE
-    Traceback (most recent call last):
-    ...
-    TypeError: unbound method meth() must be called with C instance
-    as first argument (got C2 instance instead)
+    # XXX: Py3: Pytohn 3 does not have the concept of an unbound method.
+    #>>> C.meth(C2()) # doctest: +NORMALIZE_WHITESPACE
+    #Traceback (most recent call last):
+    #...
+    #TypeError: unbound method meth() must be called with C instance
+    #as first argument (got C2 instance instead)
 
 Preconditions
 -------------
@@ -144,27 +154,25 @@ supports optional method preconditions [1]_.
 
     >>> class C:
     ...     def __init__(self):
-    ...         _lock = Lock()
-    ...         self._lock_acquire = _lock.acquire
-    ...         self._lock_release = _lock.release
+    ...         self._lock = Lock()
     ...         self._opened = True
     ...         self._transaction = None
     ...
     ...     def opened(self):
     ...         """The object is open
     ...         """
-    ...         print 'checking if open'
+    ...         print('checking if open')
     ...         return self._opened
     ...
     ...     def not_in_transaction(self):
     ...         """The object is not in a transaction
     ...         """
-    ...         print 'checking if in a transaction'
+    ...         print('checking if in a transaction')
     ...         return self._transaction is None
     ...
     ...     @ZODB.utils.locked(opened, not_in_transaction)
     ...     def meth(self, *args, **kw):
-    ...         print 'meth', args, kw
+    ...         print('meth %r %r' % (args, kw))
 
     >>> c = C()
     >>> c.meth(1, 2, a=3)
@@ -193,4 +201,4 @@ supports optional method preconditions [1]_.
    locked.  Combining preconditions with locking provides both
    efficiency and concise expressions.  A more general-purpose
    facility would almost certainly provide separate descriptors for
-   preconditions. 
+   preconditions.

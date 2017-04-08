@@ -1,0 +1,16 @@
+include *.rst
+include *.txt
+include *.py
+include *.ini
+include .coveragerc
+include .travis.yml
+include buildout.cfg
+include COPYING
+
+recursive-include doc *
+recursive-include src *
+
+global-exclude *.dll
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.so

@@ -38,6 +38,8 @@ __test__ = dict(
     >>> list(conn2.root()[0].keys())
     []
 
+    >>> db2.close()
+    >>> db1.close()
     """,
     )
 

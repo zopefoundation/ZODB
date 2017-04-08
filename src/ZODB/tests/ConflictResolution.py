@@ -13,9 +13,11 @@
 ##############################################################################
 """Tests for application-level conflict resolution."""
 
+from ZODB import DB
+from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
-from transaction import Transaction
+from transaction import TransactionManager
 
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 
@@ -26,8 +28,8 @@ class PCounter(Persistent):
     def __repr__(self):
         return "<PCounter %d>" % self._value
 
-    def inc(self):
-        self._value = self._value + 1
+    def inc(self, n=1):
+        self._value = self._value + n
 
     def _p_resolveConflict(self, oldState, savedState, newState):
         savedDiff = savedState['_value'] - oldState['_value']
@@ -55,46 +57,38 @@ class PCounter4(PCounter):
 
 class ConflictResolvingStorage:
 
-    def checkResolve(self):
-        obj = PCounter()
-        obj.inc()
+    def checkResolve(self, resolvable=True):
+        db = DB(self._storage)
 
-        oid = self._storage.new_oid()
+        t1 = TransactionManager()
+        c1 = db.open(t1)
+        o1 = c1.root()['p'] = (PCounter if resolvable else PCounter2)()
+        o1.inc()
+        t1.commit()
 
-        revid1 = self._dostoreNP(oid, data=zodb_pickle(obj))
+        t2 = TransactionManager()
+        c2 = db.open(t2)
+        o2 = c2.root()['p']
+        o2.inc(2)
+        t2.commit()
 
-        obj.inc()
-        obj.inc()
-        # The effect of committing two transactions with the same
-        # pickle is to commit two different transactions relative to
-        # revid1 that add two to _value.
-        revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
-        revid3 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
+        o1.inc(3)
+        try:
+            t1.commit()
+        except ConflictError as err:
+            self.assertIn(".PCounter2,", str(err))
+            self.assertEqual(o1._value, 3)
+        else:
+            self.assertTrue(resolvable, "Expected ConflictError")
+            self.assertEqual(o1._value, 6)
 
-        data, serialno = self._storage.load(oid, '')
-        inst = zodb_unpickle(data)
-        self.assertEqual(inst._value, 5)
+        t2.begin()
+        self.assertEqual(o2._value, o1._value)
+
+        db.close()
 
     def checkUnresolvable(self):
-        obj = PCounter2()
-        obj.inc()
-
-        oid = self._storage.new_oid()
-
-        revid1 = self._dostoreNP(oid, data=zodb_pickle(obj))
-
-        obj.inc()
-        obj.inc()
-        # The effect of committing two transactions with the same
-        # pickle is to commit two different transactions relative to
-        # revid1 that add two to _value.
-        revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
-        try:
-            self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
-        except ConflictError, err:
-            self.assert_("PCounter2" in str(err))
-        else:
-            self.fail("Expected ConflictError")
+        self.checkResolve(False)
 
     def checkZClassesArentResolved(self):
         from ZODB.ConflictResolution import find_global, BadClassName
@@ -155,7 +149,7 @@ class ConflictResolvingTransUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
@@ -177,6 +171,6 @@ class ConflictResolvingTransUndoStorage:
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(UndoError, self._begin_undos_vote, t, tid)
         self._storage.tpc_abort(t)

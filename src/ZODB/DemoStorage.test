@@ -14,7 +14,10 @@ existing, base, storage without updating the storage.
     ...     return now
     >>> import time
     >>> real_time_time = time.time
-    >>> time.time = faux_time_time
+    >>> if isinstance(time,type):
+    ...    time.time = staticmethod(faux_time_time) # Jython
+    ... else:
+    ...     time.time = faux_time_time
 
 To see how this works, we'll start by creating a base storage and
 puting an object (in addition to the root object) in it:
@@ -45,6 +48,13 @@ and combine the 2 in a demofilestorage:
     >>> from ZODB.DemoStorage import DemoStorage
     >>> storage = DemoStorage(base=base, changes=changes)
 
+The storage will assign OIDs in a pseudo-random fashion, but for test
+purposes we need to control where they start (since the random seeds
+can be different on different platforms):
+
+    >>> storage._next_oid = 3553260803050964942
+
+
 If there are no transactions, the storage reports the lastTransaction
 of the base database:
 
@@ -55,8 +65,7 @@ Let's add some data:
 
     >>> db = DB(storage)
     >>> conn = db.open()
-    >>> items = conn.root()['1'].items()
-    >>> items.sort()
+    >>> items = sorted(conn.root()['1'].items())
     >>> items
     [('a', 1), ('b', 2)]
 
@@ -106,7 +115,7 @@ the new underlying storages:
 
 The object id of the new object is quite random, and typically large:
 
-    >>> print u64(conn.root()['2']._p_oid)
+    >>> print(u64(conn.root()['2']._p_oid))
     3553260803050964942
 
 Let's look at some other methods:
@@ -201,7 +210,8 @@ DemoStorage supports Blobs if the changes database supports blobs.
     >>> db = DB(base)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
-    >>> conn.root()['blob'].open('w').write('state 1')
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     _ = file.write(b'state 1')
     >>> transaction.commit()
     >>> db.close()
 
@@ -213,12 +223,13 @@ DemoStorage supports Blobs if the changes database supports blobs.
 
     >>> db = DB(storage)
     >>> conn = db.open()
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'state 1'
     >>> _ = transaction.begin()
-    >>> conn.root()['blob'].open('w').write('state 2')
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     _ = file.write(b'state 2')
     >>> transaction.commit()
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'state 2'
 
     >>> storage.temporaryDirectory() == changes.temporaryDirectory()
@@ -233,13 +244,14 @@ It isn't necessary for the base database to support blobs.
     >>> storage = DemoStorage(base=base, changes=changes)
     >>> db = DB(storage)
     >>> conn = db.open()
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'state 2'
 
     >>> _ = transaction.begin()
     >>> conn.root()['blob2'] = ZODB.blob.Blob()
-    >>> conn.root()['blob2'].open('w').write('state 1')
-    >>> conn.root()['blob2'].open().read()
+    >>> with conn.root()['blob2'].open('w') as file:
+    ...     _ = file.write(b'state 1')
+    >>> with conn.root()['blob2'].open() as fp: fp.read()
     'state 1'
 
     >>> db.close()
@@ -256,22 +268,53 @@ storage wrapped around it when necessary:
 
     >>> db = DB(storage)
     >>> conn = db.open()
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'state 1'
 
     >>> type(storage.changes).__name__
     'BlobStorage'
 
     >>> _ = transaction.begin()
-    >>> conn.root()['blob'].open('w').write('state 2')
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     _ = file.write(b'state 2')
     >>> transaction.commit()
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'state 2'
 
     >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
     True
 
     >>> db.close()
+
+This works even if we first write a blob rather than read a blob:
+
+    >>> base = ZODB.blob.BlobStorage('base',
+    ...                               FileStorage('base.fs', read_only=True))
+    >>> storage = DemoStorage(base=base)
+
+    >>> type(storage.changes).__name__
+    'MappingStorage'
+
+    >>> db = DB(storage)
+    >>> conn = db.open()
+
+    >>> _ = transaction.begin()
+    >>> conn.root()['blob'] = ZODB.blob.Blob()
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     _ = file.write(b'state 2')
+    >>> transaction.commit()
+
+    >>> type(storage.changes).__name__
+    'BlobStorage'
+
+    >>> with conn.root()['blob'].open() as fp: fp.read()
+    'state 2'
+
+    >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
+    True
+
+    >>> db.close()
+
 
 .. Check that the temporary directory is gone
 
@@ -358,7 +401,7 @@ To test this, we need to hack random.randint a bit.
 
     >>> rv = 42
     >>> def faux_randint(min, max):
-    ...     print 'called randint'
+    ...     print('called randint')
     ...     global rv
     ...     rv += 1000
     ...     return rv
@@ -372,12 +415,12 @@ Now, we create a demostorage.
 
 If we ask for an oid, we'll get 1042.
 
-    >>> u64(storage.new_oid())
+    >>> print(u64(storage.new_oid()))
     1042
 
 oids are allocated seuentially:
 
-    >>> u64(storage.new_oid())
+    >>> print(u64(storage.new_oid()))
     1043
 
 Now, we'll save 1044 in changes so that it has to pick a new one randomly.
@@ -385,7 +428,7 @@ Now, we'll save 1044 in changes so that it has to pick a new one randomly.
     >>> t = transaction.get()
     >>> ZODB.tests.util.store(storage.changes, 1044)
 
-    >>> u64(storage.new_oid())
+    >>> print(u64(storage.new_oid()))
     called randint
     2042
 
@@ -397,7 +440,7 @@ to force another attempt:
     >>> oid = storage.new_oid()
     called randint
     called randint
-    >>> u64(oid)
+    >>> print(u64(oid))
     3042
 
 DemoStorage keeps up with the issued OIDs to know when not to reissue them...
@@ -423,4 +466,3 @@ DemoStorage keeps up with the issued OIDs to know when not to reissue them...
 .. restore time
 
     >>> time.time = real_time_time
-

@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2001, 2002, 2003 Zope Foundation and Contributors.
@@ -13,7 +12,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
 """A script to gather statistics while doing a storage migration.
 
 This is very similar to a standard storage's copyTransactionsFrom() method,
@@ -74,7 +72,7 @@ Positional arguments:
         Comma separated list of arguments for the source storage, as key=val
         pairs.  E.g. "name=full;frequency=3600"
 """
-
+from __future__ import print_function
 import re
 import sys
 import time
@@ -89,28 +87,20 @@ from ZODB.TimeStamp import TimeStamp
 PROGRAM = sys.argv[0]
 ZERO = '\0'*8
 
-try:
-    True, False
-except NameError:
-    True = 1
-    False = 0
 
-
-
 def usage(code, msg=''):
-    print >> sys.stderr, __doc__ % globals()
+    print(__doc__ % globals(), file=sys.stderr)
     if msg:
-        print >> sys.stderr, msg
+        print(msg, file=sys.stderr)
     sys.exit(code)
 
 
 def error(code, msg):
-    print >> sys.stderr, msg
-    print "use --help for usage message"
+    print(msg, file=sys.stderr)
+    print("use --help for usage message")
     sys.exit(code)
 
 
-
 def main():
     try:
         opts, args = getopt.getopt(
@@ -119,7 +109,7 @@ def main():
             ['help', 'verbose',
              'output=', 'profile', 'storage_types',
              'max=', 'skip=', 'dtype=', 'stype=', 'timestamps'])
-    except getopt.error, msg:
+    except getopt.error as msg:
         error(2, msg)
 
     class Options:
@@ -188,7 +178,7 @@ def main():
         options.outclosep = True
 
     if options.verbose > 0:
-        print 'Opening source database...'
+        print('Opening source database...')
     modname, sconv = StorageTypes.storage_types[options.stype]
     kw = sconv(**srckws)
     __import__(modname)
@@ -196,7 +186,7 @@ def main():
     srcdb = sclass(**kw)
 
     if options.verbose > 0:
-        print 'Opening destination database...'
+        print('Opening destination database...')
     modname, dconv = StorageTypes.storage_types[options.dtype]
     kw = dconv(**destkws)
     __import__(modname)
@@ -208,7 +198,7 @@ def main():
         doit(srcdb, dstdb, options)
         t1 = time.time()
         if options.verbose > 0:
-            print 'Migration time:          %8.3f' % (t1-t0)
+            print('Migration time:          %8.3f' % (t1-t0))
     finally:
         # Done
         srcdb.close()
@@ -217,7 +207,6 @@ def main():
             options.outfp.close()
 
 
-
 def doit(srcdb, dstdb, options):
     outfp = options.outfp
     profilep = options.profilep
@@ -226,7 +215,7 @@ def doit(srcdb, dstdb, options):
     largest_pickle = 0
     largest_txn_in_size = 0
     largest_txn_in_objects = 0
-    total_pickle_size = 0L
+    total_pickle_size = 0
     total_object_count = 0
     # Ripped from BaseStorage.copyTransactionsFrom()
     ts = None
@@ -235,15 +224,15 @@ def doit(srcdb, dstdb, options):
     counter = 0
     skipper = 0
     if options.timestamps:
-        print "%4s. %26s %6s %8s %5s %5s %5s %5s %5s" % (
+        print("%4s. %26s %6s %8s %5s %5s %5s %5s %5s" % (
             "NUM", "TID AS TIMESTAMP", "OBJS", "BYTES",
             # Does anybody know what these times mean?
-            "t4-t0", "t1-t0", "t2-t1", "t3-t2", "t4-t3")
+            "t4-t0", "t1-t0", "t2-t1", "t3-t2", "t4-t3"))
     else:
-        print "%4s. %20s %6s %8s %6s %6s %6s %6s %6s" % (
+        print("%4s. %20s %6s %8s %6s %6s %6s %6s %6s" % (
             "NUM", "TRANSACTION ID", "OBJS", "BYTES",
             # Does anybody know what these times mean?
-            "t4-t0", "t1-t0", "t2-t1", "t3-t2", "t4-t3")
+            "t4-t0", "t1-t0", "t2-t1", "t3-t2", "t4-t3"))
     for txn in srcdb.iterator():
         skipper += 1
         if skipper <= options.skiptxn:
@@ -258,19 +247,19 @@ def doit(srcdb, dstdb, options):
             t = TimeStamp(tid)
             if t <= ts:
                 if ok:
-                    print >> sys.stderr, (
-                        'Time stamps are out of order %s, %s' % (ts, t))
+                    print((
+                        'Time stamps are out of order %s, %s' % (ts, t)), file=sys.stderr)
                     ok = False
                     ts = t.laterThan(ts)
-                    tid = `ts`
+                    tid = ts.raw()
                 else:
                     ts = t
                     if not ok:
-                        print >> sys.stderr, (
-                            'Time stamps are back in order %s' % t)
+                        print((
+                            'Time stamps are back in order %s' % t), file=sys.stderr)
                         ok = True
         if verbose > 1:
-            print ts
+            print(ts)
 
         prof = None
         if profilep and (counter % 100) == 0:
@@ -293,7 +282,7 @@ def doit(srcdb, dstdb, options):
                     vstr = 'norev'
                 else:
                     vstr = r.version
-                print utils.U64(oid), vstr, len(r.data)
+                print(utils.U64(oid), vstr, len(r.data))
             oldrevid = prevrevids.get(oid, ZERO)
             result = dstdb.store(oid, oldrevid, r.data, r.version, txn)
             newrevids.store(oid, result)
@@ -320,8 +309,8 @@ def doit(srcdb, dstdb, options):
         else:
             tidstr = utils.U64(tid)
             format = "%4d. %20s %6d %8d %6.4f %6.4f %6.4f %6.4f %6.4f"
-        print >> outfp, format % (skipper, tidstr, objects, size,
-                                  t4-t0, t1-t0, t2-t1, t3-t2, t4-t3)
+        print(format % (skipper, tidstr, objects, size,
+                                  t4-t0, t1-t0, t2-t1, t3-t2, t4-t3), file=outfp)
         total_pickle_size += size
         total_object_count += objects
 
@@ -330,14 +319,13 @@ def doit(srcdb, dstdb, options):
             fp = open('profile-%02d.txt' % (counter / 100), 'wb')
             marshal.dump(prof.stats, fp)
             fp.close()
-    print >> outfp, "Largest pickle:          %8d" % largest_pickle
-    print >> outfp, "Largest transaction:     %8d" % largest_txn_in_size
-    print >> outfp, "Largest object count:    %8d" % largest_txn_in_objects
-    print >> outfp, "Total pickle size: %14d" % total_pickle_size
-    print >> outfp, "Total object count:      %8d" % total_object_count
+    print("Largest pickle:          %8d" % largest_pickle, file=outfp)
+    print("Largest transaction:     %8d" % largest_txn_in_size, file=outfp)
+    print("Largest object count:    %8d" % largest_txn_in_objects, file=outfp)
+    print("Total pickle size: %14d" % total_pickle_size, file=outfp)
+    print("Total object count:      %8d" % total_object_count, file=outfp)
 
 
-
 # helper to deal with differences between old-style store() return and
 # new-style store() return that supports ZEO
 
@@ -366,6 +354,5 @@ class RevidAccumulator:
         return self.data
 
 
-
 if __name__ == '__main__':
     main()

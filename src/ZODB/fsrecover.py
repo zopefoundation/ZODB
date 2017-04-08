@@ -51,6 +51,7 @@ Options:
 Important:  The ZODB package must be importable.  You may need to adjust
             PYTHONPATH accordingly.
 """
+from __future__ import print_function
 
 # Algorithm:
 #
@@ -69,7 +70,6 @@ import os
 import getopt
 import time
 from struct import unpack
-from cPickle import loads
 
 try:
     import ZODB
@@ -81,17 +81,18 @@ except ImportError:
     import ZODB
 
 import ZODB.FileStorage
-from ZODB.utils import u64
+from ZODB.utils import u64, as_text
 from ZODB.FileStorage import TransactionRecord
+from ZODB._compat import loads
 
 from persistent.TimeStamp import TimeStamp
 
 
 def die(mess='', show_docstring=False):
     if mess:
-        print >> sys.stderr, mess + '\n'
+        print(mess + '\n', file=sys.stderr)
     if show_docstring:
-        print >> sys.stderr, __doc__ % sys.argv[0]
+        print(__doc__ % sys.argv[0], file=sys.stderr)
     sys.exit(1)
 
 class ErrorFound(Exception):
@@ -108,6 +109,7 @@ def read_txn_header(f, pos, file_size, outp, ltid):
         raise EOFError
 
     tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
+    status = as_text(status)
     tl = u64(stl)
 
     if pos + (tl + 8) > file_size:
@@ -142,9 +144,9 @@ def read_txn_header(f, pos, file_size, outp, ltid):
     user = f.read(ul)
     description = f.read(dl)
     if el:
-        try: e=loads(f.read(el))
-        except: e={}
-    else: e={}
+        try: e = loads(f.read(el))
+        except: e = {}
+    else: e = {}
 
     result = TransactionRecord(tid, status, user, description, e, pos, tend,
                                f, tpos)
@@ -208,7 +210,7 @@ def scan(f, pos):
 
         s = 0
         while 1:
-            l = data.find(".", s)
+            l = data.find(b".", s)
             if l < 0:
                 pos += len(data)
                 break
@@ -224,9 +226,9 @@ def scan(f, pos):
 
 def iprogress(i):
     if i % 2:
-        print ".",
+        print(".", end=' ')
     else:
-        print (i/2) % 10,
+        print((i/2) % 10, end=' ')
     sys.stdout.flush()
 
 def progress(p):
@@ -236,7 +238,7 @@ def progress(p):
 def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "fv:pP:")
-    except getopt.error, msg:
+    except getopt.error as msg:
         die(str(msg), show_docstring=True)
 
     if len(args) != 2:
@@ -259,7 +261,7 @@ def main():
     recover(inp, outp, verbose, partial, force, pack)
 
 def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
-    print "Recovering", inp, "into", outp
+    print("Recovering", inp, "into", outp)
 
     if os.path.exists(outp) and not force:
         die("%s exists" % outp)
@@ -277,7 +279,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
     prog1 = 0
     undone = 0
 
-    pos = 4L
+    pos = 4
     ltid = None
     while pos:
         try:
@@ -286,13 +288,13 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
             break
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception, err:
-            print "error reading txn header:", err
+        except Exception as err:
+            print("error reading txn header:", err)
             if not verbose:
                 progress(prog1)
             pos = scan(f, pos)
             if verbose > 1:
-                print "looking for valid txn header at", pos
+                print("looking for valid txn header at", pos)
             continue
         ltid = tid
 
@@ -311,22 +313,22 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
             t = TimeStamp(tid)
             if t <= _ts:
                 if ok:
-                    print ("Time stamps out of order %s, %s" % (_ts, t))
+                    print(("Time stamps out of order %s, %s" % (_ts, t)))
                 ok = 0
                 _ts = t.laterThan(_ts)
-                tid = `_ts`
+                tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:
-                    print ("Time stamps back in order %s" % (t))
+                    print(("Time stamps back in order %s" % (t)))
                     ok = 1
 
         ofs.tpc_begin(txn, tid, txn.status)
 
         if verbose:
-            print "begin", pos, _ts,
+            print("begin", pos, _ts, end=' ')
             if verbose > 1:
-                print
+                print()
             sys.stdout.flush()
 
         nrec = 0
@@ -338,36 +340,36 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
                     else:
                         l = len(r.data)
 
-                    print "%7d %s %s" % (u64(r.oid), l)
+                    print("%7d %s %s" % (u64(r.oid), l))
                 ofs.restore(r.oid, r.tid, r.data, '', r.data_txn,
                             txn)
                 nrec += 1
         except (KeyboardInterrupt, SystemExit):
             raise
-        except Exception, err:
+        except Exception as err:
             if partial and nrec:
                 ofs._status = "p"
                 ofs.tpc_vote(txn)
                 ofs.tpc_finish(txn)
                 if verbose:
-                    print "partial"
+                    print("partial")
             else:
                 ofs.tpc_abort(txn)
-            print "error copying transaction:", err
+            print("error copying transaction:", err)
             if not verbose:
                 progress(prog1)
             pos = scan(f, pos)
             if verbose > 1:
-                print "looking for valid txn header at", pos
+                print("looking for valid txn header at", pos)
         else:
             ofs.tpc_vote(txn)
             ofs.tpc_finish(txn)
             if verbose:
-                print "finish"
+                print("finish")
                 sys.stdout.flush()
 
         if not verbose:
-            prog = pos * 20l / file_size
+            prog = pos * 20 / file_size
             while prog > prog1:
                 prog1 = prog1 + 1
                 iprogress(prog1)
@@ -375,16 +377,17 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
 
     bad = file_size - undone - ofs._pos
 
-    print "\n%s bytes removed during recovery" % bad
+    print("\n%s bytes removed during recovery" % bad)
     if undone:
-        print "%s bytes of undone transaction data were skipped" % undone
+        print("%s bytes of undone transaction data were skipped" % undone)
 
     if pack is not None:
-        print "Packing ..."
+        print("Packing ...")
         from ZODB.serialize import referencesf
         ofs.pack(pack, referencesf)
 
     ofs.close()
+    f.close()
 
 if __name__ == "__main__":
     main()

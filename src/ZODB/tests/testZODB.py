@@ -11,13 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB.POSException import ReadConflictError
 from ZODB.POSException import TransactionFailedError
 
 import doctest
+from BTrees.OOBTree import OOBTree
 import transaction
 import unittest
 import ZODB
@@ -27,6 +27,7 @@ import ZODB.tests.util
 
 class P(Persistent):
     pass
+
 
 class ZODBTests(ZODB.tests.util.TestCase):
 
@@ -47,7 +48,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         root['test'] = pm = PersistentMapping()
         for n in range(100):
             pm[n] = PersistentMapping({0: 100 - n})
-        transaction.get().note('created test data')
+        transaction.get().note(u'created test data')
         transaction.commit()
         conn.close()
 
@@ -66,20 +67,19 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
     def duplicate(self, conn, abort_it):
         transaction.begin()
-        transaction.get().note('duplication')
+        transaction.get().note(u'duplication')
         root = conn.root()
         ob = root['test']
         assert len(ob) > 10, 'Insufficient test data'
         try:
             import tempfile
-            f = tempfile.TemporaryFile()
-            ob._p_jar.exportFile(ob._p_oid, f)
-            assert f.tell() > 0, 'Did not export correctly'
-            f.seek(0)
-            new_ob = ob._p_jar.importFile(f)
-            self.assertEqual(new_ob, ob)
-            root['dup'] = new_ob
-            f.close()
+            with tempfile.TemporaryFile(prefix="DUP") as f:
+                ob._p_jar.exportFile(ob._p_oid, f)
+                assert f.tell() > 0, 'Did not export correctly'
+                f.seek(0)
+                new_ob = ob._p_jar.importFile(f)
+                self.assertEqual(new_ob, ob)
+                root['dup'] = new_ob
             if abort_it:
                 transaction.abort()
             else:
@@ -101,21 +101,21 @@ class ZODBTests(ZODB.tests.util.TestCase):
             else:
                 raise
         else:
-            self.failUnless(not abort_it, 'Did not abort duplication')
+            self.assertTrue(not abort_it, 'Did not abort duplication')
         l1 = list(ob.items())
         l1.sort()
         l2 = list(ob2.items())
         l2.sort()
-        l1 = map(lambda (k, v): (k, v[0]), l1)
-        l2 = map(lambda (k, v): (k, v[0]), l2)
+        l1 = list(map(lambda k_v: (k_v[0], k_v[1][0]), l1))
+        l2 = list(map(lambda k_v1: (k_v1[0], k_v1[1][0]), l2))
         self.assertEqual(l1, l2)
-        self.assert_(ob._p_oid != ob2._p_oid)
+        self.assertTrue(ob._p_oid != ob2._p_oid)
         self.assertEqual(ob._p_jar, ob2._p_jar)
         oids = {}
         for v in ob.values():
             oids[v._p_oid] = 1
         for v in ob2.values():
-            assert not oids.has_key(v._p_oid), (
+            assert v._p_oid not in oids, (
                 'Did not fully separate duplicate from original')
         transaction.commit()
 
@@ -130,7 +130,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         self.populate()
         conn = self._db.open()
         conn.root()
-        self.assert_(len(conn._cache) > 0)  # Precondition
+        self.assertTrue(len(conn._cache) > 0)  # Precondition
         conn._resetCache()
         self.assertEqual(len(conn._cache), 0)
 
@@ -140,10 +140,10 @@ class ZODBTests(ZODB.tests.util.TestCase):
         self.populate()
         conn = self._db.open()
         conn.root()
-        self.assert_(len(conn._cache) > 0)  # Precondition
+        self.assertTrue(len(conn._cache) > 0)  # Precondition
         ZODB.Connection.resetCaches()
         conn.close()
-        self.assert_(len(conn._cache) > 0)  # Still not flushed
+        self.assertTrue(len(conn._cache) > 0)  # Still not flushed
         conn.open()  # simulate the connection being reopened
         self.assertEqual(len(conn._cache), 0)
 
@@ -157,7 +157,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         try:
             r1 = conn1.root()
             r2 = conn2.root()
-            if r1.has_key('item'):
+            if 'item' in r1:
                 del r1['item']
                 tm1.get().commit()
             r1.get('item')
@@ -329,6 +329,28 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
         cn.close()
 
+    def checkSavepointRollbackAndReadCurrent(self):
+        '''
+        savepoint rollback after readcurrent was called on a new object
+        should not raise POSKeyError
+        '''
+        cn = self._db.open()
+        try:
+            transaction.begin()
+            root = cn.root()
+            added_before_savepoint = P()
+            root['added_before_savepoint'] = added_before_savepoint
+            sp = transaction.savepoint()
+            added_before_savepoint.btree = new_btree = OOBTree()
+            cn.add(new_btree)
+            new_btree['change_to_trigger_read_current'] = P()
+            sp.rollback()
+            transaction.commit()
+            self.assertTrue('added_before_savepoint' in root)
+        finally:
+            transaction.abort()
+            cn.close()
+
     def checkFailingSavepointSticks(self):
         cn = self._db.open()
         rt = cn.root()
@@ -402,7 +424,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             for state_num in range(6):
                 transaction.begin()
                 root['state'] = state_num
-                transaction.get().note('root["state"] = %d' % state_num)
+                transaction.get().note(u'root["state"] = %d' % state_num)
                 transaction.commit()
 
             # Undo all but the first.  Note that no work is actually
@@ -411,7 +433,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             log = self._db.undoLog()
             self._db.undoMultiple([log[i]['id'] for i in range(5)])
 
-            transaction.get().note('undo states 1 through 5')
+            transaction.get().note(u'undo states 1 through 5')
 
             # Now attempt all those undo operations.
             transaction.commit()
@@ -518,12 +540,12 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
             self.fail("No conflict occurred")
 
         # real_data2 still ready to commit
-        self.assert_(real_data2._p_changed)
+        self.assertTrue(real_data2._p_changed)
 
         # index2 values not ready to commit
-        self.assert_(not index2._p_changed)
-        self.assert_(not index2[0]._p_changed)
-        self.assert_(not index2[1]._p_changed)
+        self.assertTrue(not index2._p_changed)
+        self.assertTrue(not index2[0]._p_changed)
+        self.assertTrue(not index2[1]._p_changed)
 
         self.assertRaises(ReadConflictError, tm.get().commit)
         self.assertRaises(TransactionFailedError, tm.get().commit)
@@ -561,8 +583,8 @@ class ReadConflictTests(ZODB.tests.util.TestCase):
         # but 3.2.3 had a bug wherein it did.
         data_conflicts = data._p_jar._conflicts
         data2_conflicts = data2._p_jar._conflicts
-        self.failIf(data_conflicts)
-        self.failIf(data2_conflicts)  # this used to fail
+        self.assertFalse(data_conflicts)
+        self.assertFalse(data2_conflicts)  # this used to fail
 
         # And because of that, we still couldn't commit a change to data2['d']
         # in the new transaction.
@@ -614,7 +636,6 @@ class PoisonedObject:
 def test_suite():
     return unittest.TestSuite((
         unittest.makeSuite(ZODBTests, 'check'),
-        doctest.DocTestSuite('ZODB.event'),
         ))
 
 if __name__ == "__main__":

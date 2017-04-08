@@ -42,14 +42,14 @@ def transact(f, note=None, retries=5):
             n -= 1
             try:
                 r = f(*args, **kwargs)
-            except ReadConflictError, msg:
+            except ReadConflictError as msg:
                 transaction.abort()
                 if not n:
                     raise
                 continue
             try:
                 _commit(note)
-            except ConflictError, msg:
+            except ConflictError as msg:
                 transaction.abort()
                 if not n:
                     raise

@@ -16,6 +16,7 @@ import unittest
 
 from persistent.mapping import PersistentMapping
 import transaction
+from ZODB.Connection import TransactionMetaData
 from ZODB.DB import DB
 from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
 import ZODB.blob
@@ -34,6 +35,15 @@ from ZODB.tests import (
 
 class MVCCTests:
 
+    def checkClosingNestedDatabasesWorks(self):
+        # This tests for the error described in
+        # https://github.com/zopefoundation/ZODB/issues/45
+        db1 = DB(self._storage)
+        db2 = DB(None, databases=db1.databases, database_name='2')
+        db1.open().get_connection('2')
+        db1.close()
+        db2.close()
+
     def checkCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.
         # This will fail if the Connection doesn't poll for changes.
@@ -44,14 +54,14 @@ class MVCCTests:
             r1['myobj'] = 'yes'
             c2 = db.open(transaction.TransactionManager())
             r2 = c2.root()
-            self.assert_('myobj' not in r2)
+            self.assertTrue('myobj' not in r2)
 
             c1.transaction_manager.commit()
-            self.assert_('myobj' not in r2)
+            self.assertTrue('myobj' not in r2)
 
             c2.sync()
-            self.assert_('myobj' in r2)
-            self.assert_(r2['myobj'] == 'yes')
+            self.assertTrue('myobj' in r2)
+            self.assertTrue(r2['myobj'] == 'yes')
         finally:
             db.close()
 
@@ -74,52 +84,52 @@ class MVCCTests:
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = 'isolation test 1'
-            storage.tpc_begin(t)
+            t.description = u'isolation test 1'
+            c1.tpc_begin(t)
             c1.commit(t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
+            storage.tpc_vote(t.data(c1))
+            storage.tpc_finish(t.data(c1))
 
             # The second connection will now load root['alpha'], but due to
             # MVCC, it should continue to see the old state.
-            self.assert_(r2['alpha']._p_changed is None)  # A ghost
-            self.assert_(not r2['alpha'])
-            self.assert_(r2['alpha']._p_changed == 0)
+            self.assertTrue(r2['alpha']._p_changed is None)  # A ghost
+            self.assertTrue(not r2['alpha'])
+            self.assertTrue(r2['alpha']._p_changed == 0)
 
             # make root['alpha'] visible to the second connection
             c2.sync()
 
             # Now it should be in sync
-            self.assert_(r2['alpha']._p_changed is None)  # A ghost
-            self.assert_(r2['alpha'])
-            self.assert_(r2['alpha']._p_changed == 0)
-            self.assert_(r2['alpha']['beta'] == 'yes')
+            self.assertTrue(r2['alpha']._p_changed is None)  # A ghost
+            self.assertTrue(r2['alpha'])
+            self.assertTrue(r2['alpha']._p_changed == 0)
+            self.assertTrue(r2['alpha']['beta'] == 'yes')
 
             # Repeat the test with root['gamma']
             r1['gamma']['delta'] = 'yes'
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = 'isolation test 2'
-            storage.tpc_begin(t)
+            t.description = u'isolation test 2'
+            c1.tpc_begin(t)
             c1.commit(t)
-            storage.tpc_vote(t)
-            storage.tpc_finish(t)
+            storage.tpc_vote(t.data(c1))
+            storage.tpc_finish(t.data(c1))
 
             # The second connection will now load root[3], but due to MVCC,
             # it should continue to see the old state.
-            self.assert_(r2['gamma']._p_changed is None)  # A ghost
-            self.assert_(not r2['gamma'])
-            self.assert_(r2['gamma']._p_changed == 0)
+            self.assertTrue(r2['gamma']._p_changed is None)  # A ghost
+            self.assertTrue(not r2['gamma'])
+            self.assertTrue(r2['gamma']._p_changed == 0)
 
             # make root[3] visible to the second connection
             c2.sync()
 
             # Now it should be in sync
-            self.assert_(r2['gamma']._p_changed is None)  # A ghost
-            self.assert_(r2['gamma'])
-            self.assert_(r2['gamma']._p_changed == 0)
-            self.assert_(r2['gamma']['delta'] == 'yes')
+            self.assertTrue(r2['gamma']._p_changed is None)  # A ghost
+            self.assertTrue(r2['gamma'])
+            self.assertTrue(r2['gamma']._p_changed == 0)
+            self.assertTrue(r2['gamma']['delta'] == 'yes')
         finally:
             db.close()
 
@@ -152,7 +162,7 @@ class MVCCMappingStorageTests(
         import time
         from ZODB.utils import newTid
         from ZODB.TimeStamp import TimeStamp
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
@@ -160,13 +170,13 @@ class MVCCMappingStorageTests(
         # Add a fake transaction
         transactions = self._storage._transactions
         self.assertEqual(1, len(transactions))
-        fake_timestamp = 'zzzzzzzy'  # the year 5735 ;-)
+        fake_timestamp = b'zzzzzzzy'  # the year 5735 ;-)
         transactions[fake_timestamp] = transactions.values()[0]
 
         # Verify the next transaction comes after the fake transaction
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self.assertEqual(self._storage._tid, 'zzzzzzzz')
+        self.assertEqual(self._storage._tid, b'zzzzzzzz')
 
 def create_blob_storage(name, blob_dir, blob_dir_permissions=None):
     s = MVCCMappingStorage(name)

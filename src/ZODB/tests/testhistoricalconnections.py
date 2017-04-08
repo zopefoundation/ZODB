@@ -18,7 +18,8 @@ import ZODB.tests.util
 
 def test_suite():
     return manuel.testing.TestSuite(
-        manuel.doctest.Manuel() + manuel.footnote.Manuel(),
+        manuel.doctest.Manuel(checker=ZODB.tests.util.checker) +
+        manuel.footnote.Manuel(),
         '../historical_connections.txt',
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
         )

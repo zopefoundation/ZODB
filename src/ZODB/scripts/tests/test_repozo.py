@@ -11,18 +11,32 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from __future__ import print_function
 import unittest
 import os
-try:
-    # the hashlib package is available from Python 2.5
-    from hashlib import md5
-except ImportError:
-    # the md5 package is deprecated in Python 2.6
-    from md5 import new as md5
+import sys
+from hashlib import md5
 
 import ZODB.tests.util  # layer used at class scope
 
+try:
+    from StringIO import StringIO
+    BytesIO = StringIO
+except ImportError:
+    from io import BytesIO, StringIO
+
+
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
+
+def _write_file(name, bits, mode='wb'):
+    with open(name, mode) as f:
+        f.write(bits)
+        f.flush()
+
+def _read_file(name, mode='rb'):
+    with open(name, mode) as f:
+        return f.read()
+
 
 class OurDB:
 
@@ -78,17 +92,165 @@ class OurDB:
         self.close()
 
 
+class Test_parseargs(unittest.TestCase):
+
+    # Python 2.6 lacks this
+    def assertIn(self, member, container, msg=None):
+        if member not in container:
+            standardMsg = '%s not found in %s' % (repr(member),
+                                                  repr(container))
+            self.fail(self._formatMessage(msg, standardMsg))
+
+    def setUp(self):
+        from ZODB.scripts import repozo
+        self._old_verbosity = repozo.VERBOSE
+        self._old_stderr = sys.stderr
+        repozo.VERBOSE = False
+        sys.stderr = StringIO()
+
+    def tearDown(self):
+        from ZODB.scripts import repozo
+        sys.stderr = self._old_stderr
+        repozo.VERBOSE = self._old_verbosity
+
+    def test_short(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-v', '-V', '-r', '/tmp/nosuchdir'])
+        self.assertTrue(repozo.VERBOSE)
+        self.assertEqual(options.mode, repozo.VERIFY)
+        self.assertEqual(options.repository, '/tmp/nosuchdir')
+
+    def test_long(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['--verbose', '--verify',
+                                    '--repository=/tmp/nosuchdir'])
+        self.assertTrue(repozo.VERBOSE)
+        self.assertEqual(options.mode, repozo.VERIFY)
+        self.assertEqual(options.repository, '/tmp/nosuchdir')
+
+    def test_help(self):
+        from ZODB.scripts import repozo
+        # Note: can't mock sys.stdout in our setUp: if a test fails,
+        # zope.testrunner will happily print the traceback and failure message
+        # into our StringIO before running our tearDown.
+        old_stdout = sys.stdout
+        sys.stdout = StringIO()
+        try:
+            self.assertRaises(SystemExit, repozo.parseargs, ['--help'])
+            self.assertIn('Usage:', sys.stdout.getvalue())
+        finally:
+            sys.stdout = old_stdout
+
+    def test_bad_option(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs,
+                          ['--crash-please'])
+        self.assertIn('option --crash-please not recognized',
+                      sys.stderr.getvalue())
+
+    def test_bad_argument(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs,
+                          ['crash', 'please'])
+        self.assertIn('Invalid arguments: crash, please',
+                      sys.stderr.getvalue())
+
+    def test_mode_selection(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir'])
+        self.assertEqual(options.mode, repozo.BACKUP)
+        options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir'])
+        self.assertEqual(options.mode, repozo.RECOVER)
+        options = repozo.parseargs(['-V', '-r', '/tmp/nosuchdir'])
+        self.assertEqual(options.mode, repozo.VERIFY)
+
+    def test_mode_selection_is_mutually_exclusive(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs, ['-B', '-R'])
+        self.assertIn('-B, -R, and -V are mutually exclusive',
+                      sys.stderr.getvalue())
+        self.assertRaises(SystemExit, repozo.parseargs, ['-R', '-V'])
+        self.assertRaises(SystemExit, repozo.parseargs, ['-V', '-B'])
+
+    def test_mode_selection_required(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs, [])
+        self.assertIn('Either --backup, --recover or --verify is required',
+                      sys.stderr.getvalue())
+
+    def test_misc_flags(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-F'])
+        self.assertTrue(options.full)
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-k'])
+        self.assertTrue(options.killold)
+
+    def test_repo_is_required(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs, ['-B'])
+        self.assertIn('--repository is required', sys.stderr.getvalue())
+
+    def test_backup_ignored_args(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-v',
+                                    '-o', '/tmp/ignored.fs',
+                                    '-D', '2011-12-13'])
+        self.assertEqual(options.date, None)
+        self.assertIn('--date option is ignored in backup mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.output, None)
+        self.assertIn('--output option is ignored in backup mode',
+                      sys.stderr.getvalue())
+
+    def test_recover_ignored_args(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir', '-v',
+                                    '-f', '/tmp/ignored.fs',
+                                    '-k'])
+        self.assertEqual(options.file, None)
+        self.assertIn('--file option is ignored in recover mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.killold, False)
+        self.assertIn('--kill-old-on-full option is ignored in recover mode',
+                      sys.stderr.getvalue())
+
+    def test_verify_ignored_args(self):
+        from ZODB.scripts import repozo
+        options = repozo.parseargs(['-V', '-r', '/tmp/nosuchdir', '-v',
+                                    '-o', '/tmp/ignored.fs',
+                                    '-D', '2011-12-13',
+                                    '-f', '/tmp/ignored.fs',
+                                    '-z', '-k', '-F'])
+        self.assertEqual(options.date, None)
+        self.assertIn('--date option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.output, None)
+        self.assertIn('--output option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.full, False)
+        self.assertIn('--full option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.gzip, False)
+        self.assertIn('--gzip option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.file, None)
+        self.assertIn('--file option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.killold, False)
+        self.assertIn('--kill-old-on-full option is ignored in verify mode',
+                      sys.stderr.getvalue())
+
+
 class FileopsBase:
 
     def _makeChunks(self):
         from ZODB.scripts.repozo import READCHUNK
-        return ['x' * READCHUNK, 'y' * READCHUNK, 'z']
+        return [b'x' * READCHUNK, b'y' * READCHUNK, b'z']
 
     def _makeFile(self, text=None):
-        from StringIO import StringIO
         if text is None:
-            text = ''.join(self._makeChunks())
-        return StringIO(text)
+            text = b''.join(self._makeChunks())
+        return BytesIO(text)
 
 
 class Test_dofile(unittest.TestCase, FileopsBase):
@@ -99,14 +261,14 @@ class Test_dofile(unittest.TestCase, FileopsBase):
 
     def test_empty_read_all(self):
         chunks = []
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         bytes = self._callFUT(chunks.append, file, None)
         self.assertEqual(bytes, 0)
         self.assertEqual(chunks, [])
 
     def test_empty_read_count(self):
         chunks = []
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         bytes = self._callFUT(chunks.append, file, 42)
         self.assertEqual(bytes, 0)
         self.assertEqual(chunks, [])
@@ -123,7 +285,7 @@ class Test_dofile(unittest.TestCase, FileopsBase):
         file = self._makeFile()
         bytes = self._callFUT(chunks.append, file, 42)
         self.assertEqual(bytes, 42)
-        self.assertEqual(chunks, ['x' * 42])
+        self.assertEqual(chunks, [b'x' * 42])
 
 
 class Test_checksum(unittest.TestCase, FileopsBase):
@@ -133,25 +295,25 @@ class Test_checksum(unittest.TestCase, FileopsBase):
         return checksum(fp, n)
 
     def test_empty_read_all(self):
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         sum = self._callFUT(file, None)
-        self.assertEqual(sum, md5('').hexdigest())
+        self.assertEqual(sum, md5(b'').hexdigest())
 
     def test_empty_read_count(self):
-        file = self._makeFile('')
+        file = self._makeFile(b'')
         sum = self._callFUT(file, 42)
-        self.assertEqual(sum, md5('').hexdigest())
+        self.assertEqual(sum, md5(b'').hexdigest())
 
     def test_nonempty_read_all(self):
         file = self._makeFile()
         sum = self._callFUT(file, None)
-        self.assertEqual(sum, md5(''.join(self._makeChunks())).hexdigest())
+        self.assertEqual(sum, md5(b''.join(self._makeChunks())).hexdigest())
 
     def test_nonempty_read_count(self):
         chunks = []
         file = self._makeFile()
         sum = self._callFUT(file, 42)
-        self.assertEqual(sum, md5('x' * 42).hexdigest())
+        self.assertEqual(sum, md5(b'x' * 42).hexdigest())
 
 
 class OptionsTestBase:
@@ -169,13 +331,13 @@ class OptionsTestBase:
 
     def _makeOptions(self, **kw):
         import tempfile
-        self._repository_directory = tempfile.mkdtemp()
+        self._repository_directory = tempfile.mkdtemp(prefix='test-repozo-')
         class Options(object):
             repository = self._repository_directory
+            date = None
             def __init__(self, **kw):
                 self.__dict__.update(kw)
         return Options(**kw)
-
 
 class Test_copyfile(OptionsTestBase, unittest.TestCase):
 
@@ -187,26 +349,23 @@ class Test_copyfile(OptionsTestBase, unittest.TestCase):
         options = self._makeOptions(gzip=False)
         source = options.file = os.path.join(self._repository_directory,
                                              'source.txt')
-        f = open(source, 'wb')
-        f.write('x' * 1000)
-        f.close()
+        _write_file(source, b'x' * 1000)
         target = os.path.join(self._repository_directory, 'target.txt')
         sum = self._callFUT(options, target, 0, 100)
-        self.assertEqual(sum, md5('x' * 100).hexdigest())
-        self.assertEqual(open(target, 'rb').read(), 'x' * 100)
+        self.assertEqual(sum, md5(b'x' * 100).hexdigest())
+        self.assertEqual(_read_file(target), b'x' * 100)
 
     def test_w_gzip(self):
-        import gzip
+        from ZODB.scripts.repozo import _GzipCloser
         options = self._makeOptions(gzip=True)
         source = options.file = os.path.join(self._repository_directory,
                                              'source.txt')
-        f = open(source, 'wb')
-        f.write('x' * 1000)
-        f.close()
+        _write_file(source, b'x' * 1000)
         target = os.path.join(self._repository_directory, 'target.txt')
         sum = self._callFUT(options, target, 0, 100)
-        self.assertEqual(sum, md5('x' * 100).hexdigest())
-        self.assertEqual(gzip.open(target, 'rb').read(), 'x' * 100)
+        self.assertEqual(sum, md5(b'x' * 100).hexdigest())
+        with _GzipCloser(target, 'rb') as f:
+            self.assertEqual(f.read(), b'x' * 100)
 
 
 class Test_concat(OptionsTestBase, unittest.TestCase):
@@ -216,36 +375,36 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         return concat(files, ofp)
 
     def _makeFile(self, name, text, gzip_file=False):
-        import gzip
+        from ZODB.scripts.repozo import _GzipCloser
         import tempfile
         if self._repository_directory is None:
             self._repository_directory = tempfile.mkdtemp()
         fqn = os.path.join(self._repository_directory, name)
         if gzip_file:
-            f = gzip.open(fqn, 'wb')
+            _opener = _GzipCloser
         else:
-            f = open(fqn, 'wb')
-        f.write(text)
-        f.flush()
-        f.close()
+            _opener = open
+        with _opener(fqn, 'wb') as f:
+            f.write(text)
+            f.flush()
         return fqn
 
     def test_empty_list_no_ofp(self):
         bytes, sum = self._callFUT([], None)
         self.assertEqual(bytes, 0)
-        self.assertEqual(sum, md5('').hexdigest())
+        self.assertEqual(sum, md5(b'').hexdigest())
 
     def test_w_plain_files_no_ofp(self):
-        files = [self._makeFile(x, x, False) for x in 'ABC']
+        files = [self._makeFile(x, x.encode(), False) for x in 'ABC']
         bytes, sum = self._callFUT(files, None)
         self.assertEqual(bytes, 3)
-        self.assertEqual(sum, md5('ABC').hexdigest())
+        self.assertEqual(sum, md5(b'ABC').hexdigest())
 
     def test_w_gzipped_files_no_ofp(self):
-        files = [self._makeFile('%s.fsz' % x, x, True) for x in 'ABC']
+        files = [self._makeFile('%s.fsz' % x, x.encode(), True) for x in 'ABC']
         bytes, sum = self._callFUT(files, None)
         self.assertEqual(bytes, 3)
-        self.assertEqual(sum, md5('ABC').hexdigest())
+        self.assertEqual(sum, md5(b'ABC').hexdigest())
 
     def test_w_ofp(self):
 
@@ -258,11 +417,11 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
             def close(self):
                 self._closed = True
 
-        files = [self._makeFile(x, x, False) for x in 'ABC']
+        files = [self._makeFile(x, x.encode(), False) for x in 'ABC']
         ofp = Faux()
         bytes, sum = self._callFUT(files, ofp)
-        self.assertEqual(ofp._written, [x for x in 'ABC'])
-        self.failUnless(ofp._closed)
+        self.assertEqual(ofp._written, [x.encode() for x in 'ABC'])
+        self.assertTrue(ofp._closed)
 
 _marker = object()
 class Test_gen_filename(OptionsTestBase, unittest.TestCase):
@@ -321,10 +480,7 @@ class Test_find_files(OptionsTestBase, unittest.TestCase):
         # call _makeOptions first!
         name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
         fqn = os.path.join(self._repository_directory, name)
-        f = open(fqn, 'wb')
-        f.write(name)
-        f.flush()
-        f.close()
+        _write_file(fqn, name.encode())
         return fqn
 
     def test_no_files(self):
@@ -389,7 +545,7 @@ class Test_scandat(OptionsTestBase, unittest.TestCase):
         options = self._makeOptions()
         fsfile = os.path.join(self._repository_directory, 'foo.fs')
         datfile = os.path.join(self._repository_directory, 'foo.dat')
-        open(datfile, 'wb').close()
+        _write_file(datfile, b'')
         fn, startpos, endpos, sum = self._callFUT([fsfile])
         self.assertEqual(fn, None)
         self.assertEqual(startpos, None)
@@ -400,10 +556,7 @@ class Test_scandat(OptionsTestBase, unittest.TestCase):
         options = self._makeOptions()
         fsfile = os.path.join(self._repository_directory, 'foo.fs')
         datfile = os.path.join(self._repository_directory, 'foo.dat')
-        f = open(datfile, 'wb')
-        f.write('foo.fs 0 123 ABC\n')
-        f.flush()
-        f.close()
+        _write_file(datfile, b'foo.fs 0 123 ABC\n')
         fn, startpos, endpos, sum = self._callFUT([fsfile])
         self.assertEqual(fn, 'foo.fs')
         self.assertEqual(startpos, 0)
@@ -414,11 +567,8 @@ class Test_scandat(OptionsTestBase, unittest.TestCase):
         options = self._makeOptions()
         fsfile = os.path.join(self._repository_directory, 'foo.fs')
         datfile = os.path.join(self._repository_directory, 'foo.dat')
-        f = open(datfile, 'wb')
-        f.write('foo.fs 0 123 ABC\n')
-        f.write('bar.deltafs 123 456 DEF\n')
-        f.flush()
-        f.close()
+        _write_file(datfile, b'foo.fs 0 123 ABC\n'
+                             b'bar.deltafs 123 456 DEF\n')
         fn, startpos, endpos, sum = self._callFUT([fsfile])
         self.assertEqual(fn, 'bar.deltafs')
         self.assertEqual(startpos, 123)
@@ -432,9 +582,7 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         options = super(Test_delete_old_backups, self)._makeOptions()
         for filename in filenames:
             fqn = os.path.join(options.repository, filename)
-            f = open(fqn, 'wb')
-            f.write('testing delete_old_backups')
-            f.close()
+            _write_file(fqn, b'testing delete_old_backups')
         return options
 
     def _callFUT(self, options=None, filenames=()):
@@ -454,7 +602,7 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(FILENAMES))
         for name in FILENAMES:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
     def test_doesnt_remove_current_repozo_files(self):
         FILENAMES = ['2009-12-20-10-08-03.fs',
@@ -466,7 +614,7 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(FILENAMES))
         for name in FILENAMES:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
     def test_removes_older_repozo_files(self):
         OLDER_FULL = ['2009-12-20-00-01-03.fs',
@@ -488,13 +636,13 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(CURRENT_FULL))
         for name in OLDER_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in DELTAS:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in CURRENT_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
     def test_removes_older_repozo_files_zipped(self):
         OLDER_FULL = ['2009-12-20-00-01-03.fsz',
@@ -516,13 +664,13 @@ class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
         self.assertEqual(len(remaining), len(CURRENT_FULL))
         for name in OLDER_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in DELTAS:
             fqn = os.path.join(self._repository_directory, name)
-            self.failIf(os.path.isfile(fqn))
+            self.assertFalse(os.path.isfile(fqn))
         for name in CURRENT_FULL:
             fqn = os.path.join(self._repository_directory, name)
-            self.failUnless(os.path.isfile(fqn))
+            self.assertTrue(os.path.isfile(fqn))
 
 
 class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
@@ -545,11 +693,8 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
                                     gzip=False,
                                     test_now = (2010, 5, 14, 10, 51, 22),
                                    )
-        f = open(os.path.join(self._repository_directory,
-                              gen_filename(options)), 'w')
-        f.write('TESTING')
-        f.flush()
-        f.close()
+        fqn = os.path.join(self._repository_directory, gen_filename(options))
+        _write_file(fqn, b'TESTING')
         self.assertRaises(WouldOverwriteFiles, self._callFUT, options)
 
     def test_empty(self):
@@ -565,11 +710,11 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
         self._callFUT(options)
         target = os.path.join(self._repository_directory,
                               gen_filename(options))
-        original = open(db._file_name, 'rb').read()
-        self.assertEqual(open(target, 'rb').read(), original)
+        original = _read_file(db._file_name)
+        self.assertEqual(_read_file(target), original)
         datfile = os.path.join(self._repository_directory,
                                gen_filename(options, '.dat'))
-        self.assertEqual(open(datfile).read(),
+        self.assertEqual(_read_file(datfile, mode='r'), #XXX 'rb'?
                          '%s 0 %d %s\n' %
                             (target, len(original), md5(original).hexdigest()))
         ndxfile = os.path.join(self._repository_directory,
@@ -605,11 +750,8 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
                                     test_now = (2010, 5, 14, 10, 51, 22),
                                     date = None,
                                    )
-        f = open(os.path.join(self._repository_directory,
-                              gen_filename(options)), 'w')
-        f.write('TESTING')
-        f.flush()
-        f.close()
+        fqn = os.path.join(self._repository_directory, gen_filename(options))
+        _write_file(fqn, b'TESTING')
         repofiles = find_files(options)
         self.assertRaises(WouldOverwriteFiles,
                           self._callFUT, options, 0, repofiles)
@@ -628,22 +770,19 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
                                    )
         fullfile = os.path.join(self._repository_directory,
                                 '2010-05-14-00-00-00.fs')
-        original = open(db._file_name, 'rb').read()
+        original = _read_file(db._file_name)
         last = len(original)
-        f = open(fullfile, 'wb')
-        f.write(original)
-        f.flush()
-        f.close()
+        _write_file(fullfile, original)
         datfile = os.path.join(self._repository_directory,
                                 '2010-05-14-00-00-00.dat')
         repofiles = [fullfile, datfile]
         self._callFUT(options, oldpos, repofiles)
         target = os.path.join(self._repository_directory,
                               gen_filename(options))
-        self.assertEqual(open(target, 'rb').read(), '')
-        self.assertEqual(open(datfile).read(),
+        self.assertEqual(_read_file(target), b'')
+        self.assertEqual(_read_file(datfile, mode='r'), #XXX mode='rb'?
                          '%s %d %d %s\n' %
-                            (target, oldpos, oldpos, md5('').hexdigest()))
+                            (target, oldpos, oldpos, md5(b'').hexdigest()))
         ndxfile = os.path.join(self._repository_directory,
                                gen_filename(options, '.index'))
         ndx_info = fsIndex.load(ndxfile)
@@ -668,11 +807,8 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
                                    )
         fullfile = os.path.join(self._repository_directory,
                                 '2010-05-14-00-00-00.fs')
-        original = open(db._file_name, 'rb').read()
-        f = open(fullfile, 'wb')
-        f.write(original)
-        f.flush()
-        f.close()
+        original = _read_file(db._file_name)
+        f = _write_file(fullfile, original)
         datfile = os.path.join(self._repository_directory,
                                 '2010-05-14-00-00-00.dat')
         repofiles = [fullfile, datfile]
@@ -681,11 +817,11 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
         self._callFUT(options, oldpos, repofiles)
         target = os.path.join(self._repository_directory,
                               gen_filename(options))
-        f = open(db._file_name, 'rb')
-        f.seek(oldpos)
-        increment = f.read()
-        self.assertEqual(open(target, 'rb').read(), increment)
-        self.assertEqual(open(datfile).read(),
+        with open(db._file_name, 'rb') as f:
+            f.seek(oldpos)
+            increment = f.read()
+        self.assertEqual(_read_file(target), increment)
+        self.assertEqual(_read_file(datfile, mode='r'), #XXX mode='rb'?
                          '%s %d %d %s\n' %
                             (target, oldpos, newpos,
                              md5(increment).hexdigest()))
@@ -711,10 +847,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         if text is None:
             text = name
         fqn = os.path.join(self._repository_directory, name)
-        f = open(fqn, 'wb')
-        f.write(text)
-        f.flush()
-        f.close()
+        f = _write_file(fqn, text.encode())
         return fqn
 
     def test_no_files(self):
@@ -750,7 +883,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'BBB')
+        self.assertEqual(_read_file(output), b'BBB')
 
     def test_w_full_backup_latest_index(self):
         import tempfile
@@ -763,8 +896,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'BBB')
-        self.assertEqual(open(index, 'rb').read(), 'CCC')
+        self.assertEqual(_read_file(output), b'BBB')
+        self.assertEqual(_read_file(index), b'CCC')
 
     def test_w_incr_backup_latest_no_index(self):
         import tempfile
@@ -776,7 +909,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'AAABBB')
+        self.assertEqual(_read_file(output), b'AAABBB')
 
     def test_w_incr_backup_latest_index(self):
         import tempfile
@@ -789,8 +922,152 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
         self._callFUT(options)
-        self.assertEqual(open(output, 'rb').read(), 'AAABBB')
-        self.assertEqual(open(index, 'rb').read(), 'CCC')
+        self.assertEqual(_read_file(output), b'AAABBB')
+        self.assertEqual(_read_file(index), b'CCC')
+
+
+class Test_do_verify(OptionsTestBase, unittest.TestCase):
+
+    def _callFUT(self, options):
+        from ZODB.scripts import repozo
+        errors = []
+        orig_error = repozo.error
+        def _error(msg, *args):
+            errors.append(msg % args)
+        repozo.error = _error
+        try:
+            repozo.do_verify(options)
+            return errors
+        finally:
+            repozo.error = orig_error
+
+    def _makeFile(self, hour, min, sec, ext, text=None):
+        from ZODB.scripts.repozo import _GzipCloser
+        assert self._repository_directory, 'call _makeOptions first!'
+        name = '2010-05-14-%02d-%02d-%02d%s' % (hour, min, sec, ext)
+        if text is None:
+            text = name
+        fqn = os.path.join(self._repository_directory, name)
+        if ext.endswith('fsz'):
+            _opener = _GzipCloser
+        else:
+            _opener = open
+        with _opener(fqn, 'wb') as f:
+            f.write(text.encode())
+            f.flush()
+        return fqn
+
+    def test_no_files(self):
+        from ZODB.scripts.repozo import NoFiles
+        options = self._makeOptions()
+        self.assertRaises(NoFiles, self._callFUT, options)
+
+    def test_all_is_fine(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options), [])
+
+    def test_all_is_fine_gzip(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options), [])
+
+    def test_missing_file(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafs is missing'])
+
+    def test_missing_file_gzip(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafsz is missing'])
+
+    def test_bad_size(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafs is 3 bytes,'
+                          ' should be 4 bytes'])
+
+    def test_bad_size_gzip(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafsz is 3 bytes (when uncompressed),'
+                          ' should be 4 bytes'])
+
+    def test_bad_checksum(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BbBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafs has checksum'
+                          ' 36486440db255f0ee6ab109d5d231406 instead of'
+                          ' f50881ced34c7d9e6bce100bf33dec60'])
+
+    def test_bad_checksum_gzip(self):
+        options = self._makeOptions(quick=False)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BbBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertEqual(self._callFUT(options),
+                         [options.repository + os.path.sep +
+                          '2010-05-14-04-05-06.deltafsz has checksum'
+                          ' 36486440db255f0ee6ab109d5d231406 (when uncompressed) instead of'
+                          ' f50881ced34c7d9e6bce100bf33dec60'])
+
+    def test_quick_ignores_checksums(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n')
+        self.assertEqual(self._callFUT(options), [])
+
+    def test_quick_ignores_checksums_gzip(self):
+        options = self._makeOptions(quick=True)
+        self._makeFile(2, 3, 4, '.fsz', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafsz', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fsz 0 3 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'
+           '/backup/2010-05-14-04-05-06.deltafsz 3 7 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n')
+        self.assertEqual(self._callFUT(options), [])
+
 
 class MonteCarloTests(unittest.TestCase):
 
@@ -831,8 +1108,8 @@ class MonteCarloTests(unittest.TestCase):
         # Verify snapshots can be reproduced exactly.
         for copyname, copytime in self.saved_snapshots:
             if _NOISY:
-                print "Checking that", copyname,
-                print "at", copytime, "is reproducible."
+                print("Checking that", copyname, end=' ')
+                print("at", copytime, "is reproducible.")
             self.assertRestored(copyname, copytime)
 
     def mutate_pack_backup(self, i):
@@ -845,7 +1122,7 @@ class MonteCarloTests(unittest.TestCase):
         # Pack about each tenth time.
         if random.random() < 0.1:
             if _NOISY:
-                print "packing"
+                print("packing")
             self.db.pack()
             self.db.close()
 
@@ -884,19 +1161,16 @@ class MonteCarloTests(unittest.TestCase):
         self._callRepozoMain(argv)
 
         # check restored file content is equal to file that was backed up
-        f = file(correctpath, 'rb')
-        g = file(restoredfile, 'rb')
-        fguts = f.read()
-        gguts = g.read()
-        f.close()
-        g.close()
+        fguts = _read_file(correctpath)
+        gguts = _read_file(restoredfile)
         msg = ("guts don't match\ncorrectpath=%r when=%r\n cmd=%r" %
             (correctpath, when, ' '.join(argv)))
-        self.assertEquals(fguts, gguts, msg)
+        self.assertEqual(fguts, gguts, msg)
 
 
 def test_suite():
     return unittest.TestSuite([
+        unittest.makeSuite(Test_parseargs),
         unittest.makeSuite(Test_dofile),
         unittest.makeSuite(Test_checksum),
         unittest.makeSuite(Test_copyfile),
@@ -909,6 +1183,7 @@ def test_suite():
         unittest.makeSuite(Test_do_incremental_backup),
         #unittest.makeSuite(Test_do_backup),  #TODO
         unittest.makeSuite(Test_do_recover),
+        unittest.makeSuite(Test_do_verify),
         # N.B.:  this test take forever to run (~40sec on a fast laptop),
         # *and* it is non-deterministic.
         unittest.makeSuite(MonteCarloTests),

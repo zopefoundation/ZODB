@@ -18,8 +18,6 @@ storage to use for unit tests.  MappingStorage isn't sufficient.
 Since even a minimal storage has some complexity, we run standard
 storage tests against the test storage.
 """
-from __future__ import with_statement
-
 import bisect
 import unittest
 
@@ -123,6 +121,9 @@ class MinimalMemoryStorage(BaseStorage, object):
                 end_tid = None
             else:
                 end_tid = tids[j]
+
+            self.hook(the_oid, self._cur[the_oid], '')
+
             return self._index[(the_oid, tid)], tid, end_tid
 
     def loadSerial(self, oid, serial):

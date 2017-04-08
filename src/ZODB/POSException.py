@@ -15,8 +15,6 @@
 
 $Id$"""
 
-import sys
-
 from ZODB.utils import oid_repr, readable_tid_repr
 
 # BBB: We moved the two transactions to the transaction package
@@ -34,32 +32,25 @@ def _recon(class_, state):
     return err
 _recon.__no_side_effects__ = True
 
-class POSError(StandardError):
+class POSError(Exception):
     """Persistent object system error."""
 
-    if sys.version_info[:2] == (2, 6):
-        # The 'message' attribute was deprecated for BaseException with
-        # Python 2.6; here we create descriptor properties to continue using it
-        def __set_message(self, v):
-            self.__dict__['message'] = v
+    def __reduce__(self):
+        # Copy extra data from internal structures
+        state = self.__dict__.copy()
+        state['args'] = self.args
 
-        def __get_message(self):
-            return self.__dict__['message']
+        return (_recon, (self.__class__, state))
 
-        def __del_message(self):
-            del self.__dict__['message']
-
-        message = property(__get_message, __set_message, __del_message)
-
-    if sys.version_info[:2] >= (2, 5):
-        def __reduce__(self):
-            # Copy extra data from internal structures
-            state = self.__dict__.copy()
-            if sys.version_info[:2] == (2, 5):
-                state['message'] = self.message
-            state['args'] = self.args
-
-            return (_recon, (self.__class__, state))
+    def __setstate__(self, state):
+        # PyPy doesn't store the 'args' attribute in an instance's
+        # __dict__; instead, it uses what amounts to a slot. Because
+        # we customize the pickled representation to just be a dictionary,
+        # the args would then get lost, leading to unprintable exceptions
+        # and worse. Manually assign to args from the state to be sure
+        # this doesn't happen.
+        super(POSError,self).__setstate__(state)
+        self.args = state['args']
 
 class POSKeyError(POSError, KeyError):
     """Key not found in database."""
@@ -116,10 +107,7 @@ class ConflictError(POSError, transaction.interfaces.TransientError):
         if data is not None:
             # avoid circular import chain
             from ZODB.utils import get_pickle_metadata
-            self.class_name = "%s.%s" % get_pickle_metadata(data)
-##        else:
-##            if message != "data read conflict error":
-##                raise RuntimeError
+            self.class_name = '.'.join(get_pickle_metadata(data))
 
         self.serials = serials
 

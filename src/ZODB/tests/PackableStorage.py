@@ -12,8 +12,11 @@
 #
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
+from __future__ import print_function
 
-from cStringIO import StringIO
+import doctest
+import time
+
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB import DB
@@ -22,15 +25,16 @@ from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-import cPickle
-import doctest
-import time
+from ZODB._compat import (loads, PersistentPickler, Pickler, Unpickler,
+                          BytesIO, _protocol)
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util
 import zope.testing.setupstack
 
-ZERO = '\0'*8
+from ZODB.utils import load_current
+
+ZERO = b'\0'*8
 
 
 # This class is for the root object.  It must not contain a getoid() method
@@ -55,6 +59,13 @@ class Object(object):
     def getoid(self):
         return self._oid
 
+    def __setstate__(self, state):
+        self.__dict__.clear()
+        self.__dict__.update(state)
+        if not isinstance(self._oid, bytes):
+            # Python 3
+            self._oid = self._oid.encode('ascii')
+
 
 class C(Persistent):
     pass
@@ -74,16 +85,15 @@ def dumps(obj):
         if hasattr(obj, 'getoid'):
             return obj.getoid()
         return None
-    s = StringIO()
-    p = cPickle.Pickler(s, 1)
-    p.inst_persistent_id = getpersid
+    s = BytesIO()
+    p = PersistentPickler(getpersid, s, _protocol)
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
 
 def pdumps(obj):
-    s = StringIO()
-    p = cPickle.Pickler(s)
+    s = BytesIO()
+    p = Pickler(s, _protocol)
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
@@ -120,27 +130,27 @@ class PackableStorageBase:
         # with an argument bound to an instance attribute method, we do it
         # this way because it makes the code in the tests more succinct.
         #
-        # BUT!  Be careful in your use of loads() vs. cPickle.loads().  loads()
+        # BUT!  Be careful in your use of loads() vs. pickle.loads().  loads()
         # should only be used on the Root object's pickle since it's the only
-        # special one.  All the Object instances should use cPickle.loads().
+        # special one.  All the Object instances should use pickle.loads().
         def loads(str, persfunc=self._cache.get):
-            fp = StringIO(str)
-            u = cPickle.Unpickler(fp)
+            fp = BytesIO(str)
+            u = Unpickler(fp)
             u.persistent_load = persfunc
             return u.load()
         return loads
 
     def _initroot(self):
         try:
-            self._storage.load(ZERO, '')
+            load_current(self._storage, ZERO)
         except KeyError:
-            from transaction import Transaction
-            file = StringIO()
-            p = cPickle.Pickler(file, 1)
+            from ZODB.Connection import TransactionMetaData
+            file = BytesIO()
+            p = Pickler(file, _protocol)
             p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
-            t=Transaction()
-            t.description='initial database creation'
+            t = TransactionMetaData()
+            t.description = u'initial database creation'
             self._storage.tpc_begin(t)
             self._storage.store(ZERO, None, file.getvalue(), '', t)
             self._storage.tpc_vote(t)
@@ -186,7 +196,7 @@ class PackableStorage(PackableStorageBase):
         snooze()
         packt = time.time()
 
-        choices = range(10)
+        choices = list(range(10))
         for dummy in choices:
             for i in choices:
                 root[i].value = MinPO(i)
@@ -219,7 +229,7 @@ class PackableStorage(PackableStorageBase):
         liveness = [t.isAlive() for t in threads]
         if True in liveness:
             # They should have finished by now.
-            print 'Liveness:', liveness
+            print('Liveness:', liveness)
             # Combine the outcomes, and sort by start time.
             outcomes = []
             for t in threads:
@@ -242,25 +252,27 @@ class PackableStorage(PackableStorageBase):
                 n = len(outcome)
                 assert n >= 2
                 tid = outcome[0]
-                print 'tid:%d top:%5d' % (tid, outcome[1]),
+                print('tid:%d top:%5d' % (tid, outcome[1]), end=' ')
                 if n > 2:
-                    print 'commit:%5d' % outcome[2],
+                    print('commit:%5d' % outcome[2], end=' ')
                     if n > 3:
-                        print 'index:%2d' % outcome[3],
+                        print('index:%2d' % outcome[3], end=' ')
                         if n > 4:
-                            print 'known:%5d' % outcome[4],
+                            print('known:%5d' % outcome[4], end=' ')
                             if n > 5:
-                                print '%8s' % outcome[5],
+                                print('%8s' % outcome[5], end=' ')
                                 if n > 6:
-                                    print 'assigned:%5s' % outcome[6],
+                                    print('assigned:%5s' % outcome[6], end=' ')
                 counts[tid] += 1
                 if counts[tid] == NUM_LOOP_TRIP:
-                    print 'thread %d done' % tid,
-                print
+                    print('thread %d done' % tid, end=' ')
+                print()
 
             self.fail('a thread is still alive')
 
         self._sanity_check()
+
+        db.close()
 
     def checkPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
@@ -279,7 +291,7 @@ class PackableStorage(PackableStorageBase):
         conn = db.open()
         root = conn.root()
 
-        choices = range(10)
+        choices = list(range(10))
         for i in choices:
             root[i] = MinPO(i)
         transaction.commit()
@@ -304,6 +316,8 @@ class PackableStorage(PackableStorageBase):
 
         self._sanity_check()
 
+        db.close()
+
     def checkPackWithMultiDatabaseReferences(self):
         databases = {}
         db = DB(self._storage, databases=databases, database_name='')
@@ -319,6 +333,9 @@ class PackableStorage(PackableStorageBase):
         db.pack(time.time()+1)
         # some valid storages always return 0 for len()
         self.assertTrue(len(self._storage) in (0, 1))
+        conn.close()
+        otherdb.close()
+        db.close()
 
     def checkPackAllRevisions(self):
         self._initroot()
@@ -336,15 +353,15 @@ class PackableStorage(PackableStorageBase):
         revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         # Now pack all transactions; need to sleep a second to make
@@ -377,7 +394,7 @@ class PackableStorage(PackableStorageBase):
         root.value = 0
         revid0 = self._dostoreNP(ZERO, data=dumps(root))
         # Make sure the root can be retrieved
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         # Commit three different revisions of the other object
@@ -389,15 +406,15 @@ class PackableStorage(PackableStorageBase):
         revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         # Now pack just revisions 1 and 2.  The object's current revision
@@ -408,18 +425,18 @@ class PackableStorage(PackableStorageBase):
         self._storage.pack(packtime, referencesf)
         # Make sure the revisions are gone, but that object zero and revision
         # 3 are still there and correct
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         raises(KeyError, self._storage.loadSerial, oid, revid1)
         raises(KeyError, self._storage.loadSerial, oid, revid2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
-        data, revid = self._storage.load(oid, '')
+        data, revid = load_current(self._storage, oid)
         eq(revid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
 
@@ -445,7 +462,7 @@ class PackableStorage(PackableStorageBase):
         root.value = 0
         revid0 = self._dostoreNP(ZERO, data=dumps(root))
         # Make sure the root can be retrieved
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         # Commit three different revisions of the first object
@@ -457,15 +474,15 @@ class PackableStorage(PackableStorageBase):
         revid3 = self._dostoreNP(oid1, revid=revid2, data=pdumps(obj1))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid1, revid1)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid1, revid2)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid1, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
         # Now commit a revision of the second object
@@ -473,7 +490,7 @@ class PackableStorage(PackableStorageBase):
         revid4 = self._dostoreNP(oid2, data=pdumps(obj2))
         # And make sure the revision can be extracted
         data = self._storage.loadSerial(oid2, revid4)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
         # Now pack just revisions 1 and 2 of object1.  Object1's current
@@ -485,25 +502,25 @@ class PackableStorage(PackableStorageBase):
         self._storage.pack(packtime, referencesf)
         # Make sure the revisions are gone, but that object zero, object2, and
         # revision 3 of object1 are still there and correct.
-        data, revid = self._storage.load(ZERO, '')
+        data, revid = load_current(self._storage, ZERO)
         eq(revid, revid0)
         eq(loads(data).value, 0)
         raises(KeyError, self._storage.loadSerial, oid1, revid1)
         raises(KeyError, self._storage.loadSerial, oid1, revid2)
         data = self._storage.loadSerial(oid1, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
-        data, revid = self._storage.load(oid1, '')
+        data, revid = load_current(self._storage, oid1)
         eq(revid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid1)
         eq(pobj.value, 3)
-        data, revid = self._storage.load(oid2, '')
+        data, revid = load_current(self._storage, oid2)
         eq(revid, revid4)
         eq(loads(data).value, 11)
         data = self._storage.loadSerial(oid2, revid4)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
 
@@ -525,15 +542,15 @@ class PackableStorageWithOptionalGC(PackableStorage):
         revid3 = self._dostoreNP(oid, revid=revid2, data=pdumps(obj))
         # Now make sure all three revisions can be extracted
         data = self._storage.loadSerial(oid, revid1)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 1)
         data = self._storage.loadSerial(oid, revid2)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 2)
         data = self._storage.loadSerial(oid, revid3)
-        pobj = cPickle.loads(data)
+        pobj = loads(data)
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
         # Now pack all transactions; need to sleep a second to make
@@ -558,7 +575,7 @@ class PackableUndoStorage(PackableStorageBase):
         root = conn.root()
 
         txn = transaction.get()
-        txn.note('root')
+        txn.note(u'root')
         txn.commit()
 
         now = packtime = time.time()
@@ -570,12 +587,12 @@ class PackableUndoStorage(PackableStorageBase):
 
         root['obj'] = obj
         txn = transaction.get()
-        txn.note('root -> o1')
+        txn.note(u'root -> o1')
         txn.commit()
 
         del root['obj']
         txn = transaction.get()
-        txn.note('root -x-> o1')
+        txn.note(u'root -x-> o1')
         txn.commit()
 
         self._storage.pack(packtime, referencesf)
@@ -584,7 +601,7 @@ class PackableUndoStorage(PackableStorageBase):
         tid = log[0]['id']
         db.undo(tid)
         txn = transaction.get()
-        txn.note('undo root -x-> o1')
+        txn.note(u'undo root -x-> o1')
         txn.commit()
 
         conn.sync()
@@ -633,7 +650,7 @@ class PackableUndoStorage(PackableStorageBase):
             pass
         # This object would be removed by the second pack, even though
         # it is reachable.
-        self._storage.load(lost_oid, "")
+        load_current(self._storage, lost_oid)
 
     def checkPackUndoLog(self):
         self._initroot()
@@ -694,12 +711,12 @@ class PackableUndoStorage(PackableStorageBase):
                         data=pdumps(obj2), description="2-5")
         # Now pack
         self.assertEqual(6,len(self._storage.undoLog()))
-        print '\ninitial undoLog was'
-        for r in self._storage.undoLog(): print r
+        print('\ninitial undoLog was')
+        for r in self._storage.undoLog(): print(r)
         self._storage.pack(packtime, referencesf)
         # The undo log contains only two undoable transaction.
-        print '\nafter packing undoLog was'
-        for r in self._storage.undoLog(): print r
+        print('\nafter packing undoLog was')
+        for r in self._storage.undoLog(): print(r)
         # what can we assert about that?
 
 
@@ -710,7 +727,7 @@ class ClientThread(TestThread):
 
     def __init__(self, db, choices, loop_trip, timer, thread_id):
         TestThread.__init__(self)
-        self.root = db.open().root()
+        self.db = db
         self.choices = choices
         self.loop_trip = loop_trip
         self.millis = timer.elapsed_millis
@@ -729,6 +746,7 @@ class ClientThread(TestThread):
 
     def runtest(self):
         from random import choice
+        conn = self.db.open()
 
         for j in range(self.loop_trip):
             assign_worked = False
@@ -737,7 +755,7 @@ class ClientThread(TestThread):
             try:
                 index = choice(self.choices)
                 alist.extend([self.millis(), index])
-                self.root[index].value = MinPO(j)
+                conn.root()[index].value = MinPO(j)
                 assign_worked = True
                 transaction.commit()
                 alist.append(self.millis())
@@ -747,6 +765,8 @@ class ClientThread(TestThread):
                 alist.append('Conflict')
                 transaction.abort()
             alist.append(assign_worked)
+
+        conn.close()
 
 class ElapsedTimer:
     def __init__(self, start_time):
@@ -768,4 +788,5 @@ def IExternalGC_suite(factory):
 
     return doctest.DocFileSuite(
         'IExternalGC.test',
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown)
+        setUp=setup, tearDown=ZODB.tests.util.tearDown,
+        checker=ZODB.tests.util.checker)

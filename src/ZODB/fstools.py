@@ -18,13 +18,14 @@ TODO:  This module needs tests.
 Caution:  This file needs to be kept in sync with FileStorage.py.
 """
 
-import cPickle
 import struct
 
 from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN
 from ZODB.FileStorage.format import DATA_HDR_LEN
 from ZODB.utils import u64
+from ZODB._compat import loads
 from persistent.TimeStamp import TimeStamp
+
 
 class TxnHeader:
     """Object representing a transaction record header.
@@ -64,11 +65,16 @@ class TxnHeader:
             self.descr = self._file.read(self.descr_len)
         if self.ext_len:
             self._ext = self._file.read(self.ext_len)
-            self.ext = cPickle.loads(self._ext)
+            self.ext = loads(self._ext)
+
+    def get_offset(self):
+        return self._pos
+
+    def __len__(self):
+        return TRANS_HDR_LEN + self.user_len + self.descr_len + self.ext_len
 
     def get_data_offset(self):
-        return (self._pos + TRANS_HDR_LEN + self.user_len + self.descr_len
-                + self.ext_len)
+        return self._pos + len(self)
 
     def get_timestamp(self):
         return TimeStamp(self.tid)

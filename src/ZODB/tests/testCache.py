@@ -18,8 +18,8 @@ purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
 
-from persistent.cPickleCache import PickleCache
 from persistent import Persistent
+from persistent import PickleCache
 from persistent.mapping import PersistentMapping
 from ZODB.tests.MinPO import MinPO
 from ZODB.utils import p64
@@ -32,6 +32,7 @@ import unittest
 import ZODB
 import ZODB.MappingStorage
 import ZODB.tests.util
+
 
 class CacheTestBase(ZODB.tests.util.TestCase):
 
@@ -94,33 +95,33 @@ class DBMethods(CacheTestBase):
         for i in range(4):
             self.noodle_new_connection()
 
-    def checkCacheDetail(self):
+    def testCacheDetail(self):
         for name, count in self.db.cacheDetail():
-            self.assert_(isinstance(name, str))
-            self.assert_(isinstance(count, int))
+            self.assertEqual(isinstance(name, str), True)
+            self.assertEqual(isinstance(count, int), True)
 
-    def checkCacheExtremeDetail(self):
+    def testCacheExtremeDetail(self):
         expected = ['conn_no', 'id', 'oid', 'rc', 'klass', 'state']
         for dict in self.db.cacheExtremeDetail():
             for k, v in dict.items():
-                self.assert_(k in expected)
+                self.assertTrue(k in expected)
 
     # TODO:  not really sure how to do a black box test of the cache.
     # Should the full sweep and minimize calls always remove things?
 
-    def checkFullSweep(self):
+    def testFullSweep(self):
         old_size = self.db.cacheSize()
         self.db.cacheFullSweep()
         new_size = self.db.cacheSize()
-        self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
+        self.assertTrue(new_size < old_size, "%s < %s" % (old_size, new_size))
 
-    def checkMinimize(self):
+    def testMinimize(self):
         old_size = self.db.cacheSize()
         self.db.cacheMinimize()
         new_size = self.db.cacheSize()
-        self.assert_(new_size < old_size, "%s < %s" % (old_size, new_size))
+        self.assertTrue(new_size < old_size, "%s < %s" % (old_size, new_size))
 
-    def checkMinimizeTerminates(self):
+    def testMinimizeTerminates(self):
         # This is tricky.  cPickleCache had a case where it could get into
         # an infinite loop, but we don't want the test suite to hang
         # if this bug reappears.  So this test spawns a thread to run the
@@ -140,6 +141,13 @@ class DBMethods(CacheTestBase):
         # isn't looking out for this, it can get into an infinite loop
         # then, endlessly trying to ghostify an object that in turn keeps
         # unghostifying itself again.
+
+        # This test uses threads, so we can't use the default
+        # transaction manager.
+        for conn in self.conns:
+            conn.close()
+        self.conns[0] = self.db.open(transaction.TransactionManager())
+
         class Worker(threading.Thread):
 
             def __init__(self, testcase):
@@ -156,7 +164,7 @@ class DBMethods(CacheTestBase):
                 d = r[1]
                 for i in range(len(d)):
                     d[i] = CantGetRidOfMe(i)
-                transaction.commit()
+                conn.transaction_manager.commit()
 
                 self.testcase.db.cacheMinimize()
 
@@ -177,18 +185,18 @@ class DBMethods(CacheTestBase):
     # connection and database call it internally.
     # Same for the get and invalidate methods.
 
-    def checkLRUitems(self):
+    def testLRUitems(self):
         # get a cache
         c = self.conns[0]._cache
         c.lru_items()
 
-    def checkClassItems(self):
+    def testClassItems(self):
         c = self.conns[0]._cache
         c.klass_items()
 
 class LRUCacheTests(CacheTestBase):
 
-    def checkLRU(self):
+    def testLRU(self):
         # verify the LRU behavior of the cache
         dataset_size = 5
         CACHE_SIZE = dataset_size*2+1
@@ -227,9 +235,9 @@ class LRUCacheTests(CacheTestBase):
             # the root, depending on precise order of access. We do
             # not bother to check this
 
-    def checkSize(self):
+    def testSize(self):
+        self.db.cacheMinimize()
         self.assertEqual(self.db.cacheSize(), 0)
-        self.assertEqual(self.db.cacheDetailSize(), [])
 
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
@@ -238,20 +246,20 @@ class LRUCacheTests(CacheTestBase):
         for i in range(CONNS):
             self.noodle_new_connection()
 
-        self.assertEquals(self.db.cacheSize(), CACHE_SIZE * CONNS)
+        self.assertEqual(self.db.cacheSize(), CACHE_SIZE * CONNS)
         details = self.db.cacheDetailSize()
-        self.assertEquals(len(details), CONNS)
+        self.assertEqual(len(details), CONNS)
         for d in details:
-            self.assertEquals(d['ngsize'], CACHE_SIZE)
+            self.assertEqual(d['ngsize'], CACHE_SIZE)
 
             # The assertion below is non-sensical
             # The (poorly named) cache size is a target for non-ghosts.
             # The cache *usually* contains non-ghosts, so that the
             # size normally exceeds the target size.
 
-            #self.assertEquals(d['size'], CACHE_SIZE)
+            #self.assertEqual(d['size'], CACHE_SIZE)
 
-    def checkDetail(self):
+    def testDetail(self):
         CACHE_SIZE = 10
         self.db.setCacheSize(CACHE_SIZE)
 
@@ -293,11 +301,11 @@ class LRUCacheTests(CacheTestBase):
             if details['klass'].endswith('PersistentMapping'):
                 self.assertEqual(details['state'], None)
             else:
-                self.assert_(details['klass'].endswith('MinPO'))
+                self.assertTrue(details['klass'].endswith('MinPO'))
                 self.assertEqual(details['state'], 0)
             # The cache should never hold an unreferenced ghost.
             if details['state'] is None:    # i.e., it's a ghost
-                self.assert_(details['rc'] > 0)
+                self.assertTrue(details['rc'] > 0)
 
 class StubDataManager:
     def setklassstate(self, object):
@@ -312,7 +320,7 @@ class CacheErrors(unittest.TestCase):
         self.jar = StubDataManager()
         self.cache = PickleCache(self.jar)
 
-    def checkGetBogusKey(self):
+    def testGetBogusKey(self):
         self.assertEqual(self.cache.get(p64(0)), None)
         try:
             self.cache[12]
@@ -333,11 +341,14 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expected TypeError")
 
-    def checkBogusObject(self):
+    def testBogusObject(self):
         def add(key, obj):
             self.cache[key] = obj
 
-        nones = sys.getrefcount(None)
+        # getrefcount is an implementation detail of CPython,
+        # not present under PyPy/Jython
+        rc = getattr(sys, 'getrefcount', lambda x: 1)
+        nones = rc(None)
 
         key = p64(2)
         # value isn't persistent
@@ -362,9 +373,14 @@ class CacheErrors(unittest.TestCase):
         # same object, different keys
         self.assertRaises(ValueError, add, p64(0), o)
 
-        self.assertEqual(sys.getrefcount(None), nones)
+        if sys.gettrace() is None:
+            # 'coverage' keeps track of coverage information in a data
+            # structure that adds a new reference to None for each executed
+            # line of code, which interferes with this test.  So check it
+            # only if we're running without coverage tracing.
+            self.assertEqual(rc(None), nones)
 
-    def checkTwoCaches(self):
+    def testTwoCaches(self):
         jar2 = StubDataManager()
         cache2 = PickleCache(jar2)
 
@@ -381,7 +397,7 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expected ValueError because object already in cache")
 
-    def checkReadOnlyAttrsWhenCached(self):
+    def testReadOnlyAttrsWhenCached(self):
         o = StubObject()
         key = o._p_oid = p64(1)
         o._p_jar = self.jar
@@ -399,7 +415,7 @@ class CacheErrors(unittest.TestCase):
         else:
             self.fail("expect that you can't delete jar of cached object")
 
-    def checkTwoObjsSameOid(self):
+    def testTwoObjsSameOid(self):
         # Try to add two distinct objects with the same oid to the cache.
         # This has always been an error, but the error message prior to
         # ZODB 3.2.6 didn't make sense.  This test verifies that (a) an
@@ -415,70 +431,109 @@ class CacheErrors(unittest.TestCase):
         obj2._p_jar = self.jar
         try:
             self.cache[key] = obj2
-        except ValueError, detail:
+        except ValueError as detail:
             self.assertEqual(str(detail),
                              "A different object already has the same oid")
         else:
             self.fail("two objects with the same oid should have failed")
 
-def check_basic_cache_size_estimation():
+def test_basic_cache_size_estimation():
     """Make sure the basic accounting is correct:
 
     >>> import ZODB.MappingStorage
     >>> db = ZODB.MappingStorage.DB()
     >>> conn = db.open()
+    >>> conn.cacheMinimize(); _ = gc.collect() # See fix84.rst
+
+    >>> def check_cache_size(cache, expected):
+    ...     actual = cache.total_estimated_size
+    ...     if actual != expected:
+    ...         print("expected %d, got %d" % (expected, actual))
+    ...         print("objects in cache:")
+    ...         for oid, obj in sorted(cache.items()):
+    ...             print(repr(oid), " - ", obj._p_estimated_size, "bytes")
+
 
 The cache is empty initially:
 
-    >>> conn._cache.total_estimated_size
-    0
+    >>> check_cache_size(conn._cache, 0)
 
 We force the root to be loaded and the cache grows:
 
     >>> getattr(conn.root, 'z', None)
-    >>> conn._cache.total_estimated_size
-    64
+    >>> root_size = conn.root._root._p_estimated_size
+    >>> check_cache_size(conn._cache, root_size)
+
+We need to unwrap the RootConvenience to get to the actual persistent
+mapping that is our root object and see its estimated size
+
+    >>> root_size in (64, 128)
+    True
+
+.. note::
+
+    The actual size is 60 (Python 2.6 using cPickle; would be 62 if we
+    used pickle) or 65 bytes (Python 3.3) due to slight differences in
+    pickle bytecode that is used.  You can play with ::
+
+        pickletools.dis(conn._storage.load(conn.root._root._p_oid)[0]))
+
+    to see the differences in the first pickle (encoding the object class).
+    and
+
+        pickletools.dis(conn._storage.load(conn.root._root._p_oid)[0][N:]))
+
+    to see the differences in the second pickle (encoding the object state,
+    here N is the length of the first pickle).
+
+    These sizes are then rounded up to a multiple of 64, to fit in a
+    24-bit field for obscure reasons having to do with C structure size
+    BBB due to evil packages shipping their own copies of cPersistence.h.
 
 We add some data and the cache grows:
 
     >>> conn.root.z = ZODB.tests.util.P('x'*100)
     >>> import transaction
     >>> transaction.commit()
-    >>> conn._cache.total_estimated_size
-    320
+    >>> root_size = conn.root._root._p_estimated_size
+    >>> z_size = conn.root.z._p_estimated_size
+    >>> check_cache_size(conn._cache, root_size + z_size)
+
+Note that the size of the root object increased also, so we need to take
+a new measurement
+
+    >>> root_size in (128, 192)
+    True
+    >>> z_size
+    192
 
 Loading the objects in another connection gets the same sizes:
 
     >>> conn2 = db.open()
-    >>> conn2._cache.total_estimated_size
-    0
+    >>> check_cache_size(conn2._cache, 0)
     >>> getattr(conn2.root, 'x', None)
-    >>> conn2._cache.total_estimated_size
-    128
+    >>> check_cache_size(conn2._cache, root_size)
     >>> _ = conn2.root.z.name
-    >>> conn2._cache.total_estimated_size
-    320
+    >>> check_cache_size(conn2._cache, root_size + z_size)
 
 If we deactivate, the size goes down:
 
     >>> conn2.root.z._p_deactivate()
-    >>> conn2._cache.total_estimated_size
-    128
+    >>> check_cache_size(conn2._cache, root_size)
 
 Loading data directly, rather than through traversal updates the cache
 size correctly:
 
     >>> conn3 = db.open()
     >>> _ = conn3.get(conn2.root.z._p_oid).name
-    >>> conn3._cache.total_estimated_size
-    192
+    >>> check_cache_size(conn3._cache, z_size)
 
     """
 
 
 def test_suite():
-    s = unittest.makeSuite(DBMethods, 'check')
-    s.addTest(unittest.makeSuite(LRUCacheTests, 'check'))
-    s.addTest(unittest.makeSuite(CacheErrors, 'check'))
+    s = unittest.makeSuite(DBMethods)
+    s.addTest(unittest.makeSuite(LRUCacheTests))
+    s.addTest(unittest.makeSuite(CacheErrors))
     s.addTest(doctest.DocTestSuite())
     return s

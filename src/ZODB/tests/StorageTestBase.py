@@ -18,19 +18,18 @@ semantics (which you can override), and it also provides a helper
 method _dostore() which performs a complete store transaction for a
 single object revision.
 """
-
+from __future__ import print_function
 import sys
 import time
-from cPickle import Pickler, Unpickler
-from cStringIO import StringIO
 
-import transaction
-
-from ZODB.utils import u64
+from ZODB.Connection import TransactionMetaData
+from ZODB.utils import u64, z64
 from ZODB.tests.MinPO import MinPO
+from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 import ZODB.tests.util
 
-ZERO = '\0'*8
+
+ZERO = b'\0'*8
 
 def snooze():
     # In Windows, it's possible that two successive time.time() calls return
@@ -50,9 +49,8 @@ def _persistent_id(obj):
 
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
-    f = StringIO()
-    p = Pickler(f, 1)
-    p.inst_persistent_id = _persistent_id
+    f = BytesIO()
+    p = PersistentPickler(_persistent_id, f, _protocol)
     klass = obj.__class__
     assert not hasattr(obj, '__getinitargs__'), "not ready for constructors"
     args = None
@@ -65,7 +63,7 @@ def zodb_pickle(obj):
 
     p.dump((klass, args))
     p.dump(state)
-    return f.getvalue(1)
+    return f.getvalue()
 
 def persistent_load(pid):
     # helper for zodb_unpickle
@@ -73,7 +71,7 @@ def persistent_load(pid):
 
 def zodb_unpickle(data):
     """Unpickle an object stored using the format expected by ZODB."""
-    f = StringIO(data)
+    f = BytesIO(data)
     u = Unpickler(f)
     u.persistent_load = persistent_load
     klass_info = u.load()
@@ -95,46 +93,13 @@ def zodb_unpickle(data):
             try:
                 klass = ns[klassname]
             except KeyError:
-                print >> sys.stderr, "can't find %s in %r" % (klassname, ns)
+                print("can't find %s in %r" % (klassname, ns), file=sys.stderr)
         inst = klass()
     else:
         raise ValueError("expected class info: %s" % repr(klass_info))
     state = u.load()
     inst.__setstate__(state)
     return inst
-
-def handle_all_serials(oid, *args):
-    """Return dict of oid to serialno from store() and tpc_vote().
-
-    Raises an exception if one of the calls raised an exception.
-
-    The storage interface got complicated when ZEO was introduced.
-    Any individual store() call can return None or a sequence of
-    2-tuples where the 2-tuple is either oid, serialno or an
-    exception to be raised by the client.
-
-    The original interface just returned the serialno for the
-    object.
-    """
-    d = {}
-    for arg in args:
-        if isinstance(arg, str):
-            d[oid] = arg
-        elif arg is None:
-            pass
-        else:
-            for oid, serial in arg:
-                if not isinstance(serial, str):
-                    raise serial # error from ZEO server
-                d[oid] = serial
-    return d
-
-def handle_serials(oid, *args):
-    """Return the serialno for oid based on multiple return values.
-
-    A helper for function _handle_all_serials().
-    """
-    return handle_all_serials(oid, *args)[oid]
 
 def import_helper(name):
     __import__(name)
@@ -179,7 +144,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         if not already_pickled:
             data = zodb_pickle(data)
         # Begin the transaction
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         if user is not None:
             t.user = user
         if description is not None:
@@ -190,8 +155,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
             r1 = self._storage.store(oid, revid, data, '', t)
             # Finish the transaction
             r2 = self._storage.tpc_vote(t)
-            revid = handle_serials(oid, r1, r2)
-            self._storage.tpc_finish(t)
+            revid = self._storage.tpc_finish(t)
         except:
             self._storage.tpc_abort(t)
             raise
@@ -206,16 +170,14 @@ class StorageTestBase(ZODB.tests.util.TestCase):
     def _undo(self, tid, expected_oids=None, note=None):
         # Undo a tid that affects a single object (oid).
         # This is very specialized.
-        t = transaction.Transaction()
-        t.note(note or "undo")
+        t = TransactionMetaData()
+        t.note(note or u"undo")
         self._storage.tpc_begin(t)
         undo_result = self._storage.undo(tid, t)
         vote_result = self._storage.tpc_vote(t)
-        self._storage.tpc_finish(t)
         if expected_oids is not None:
-            oids = undo_result and undo_result[1] or []
-            oids.extend(oid for (oid, _) in vote_result or ())
-            self.assertEqual(len(oids), len(expected_oids), repr(oids))
-            for oid in expected_oids:
-                self.assert_(oid in oids)
-        return self._storage.lastTransaction()
+            oids = set(undo_result[1]) if undo_result else set()
+            if vote_result:
+                oids.update(vote_result)
+            self.assertEqual(oids, set(expected_oids))
+        return self._storage.tpc_finish(t)

@@ -13,39 +13,79 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 """
+from __future__ import print_function
 
-from __future__ import with_statement
-
-from cPickle import Pickler, loads
-from persistent.TimeStamp import TimeStamp
-from struct import pack, unpack
-from zc.lockfile import LockFile
-from ZODB.FileStorage.format import CorruptedError, CorruptedDataError
-from ZODB.FileStorage.format import FileStorageFormatter, DataHeader
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import TxnHeader, DATA_HDR, DATA_HDR_LEN
-from ZODB.FileStorage.fspack import FileStoragePacker
-from ZODB.fsIndex import fsIndex
-from ZODB import BaseStorage, ConflictResolution, POSException
-from ZODB.POSException import UndoError, POSKeyError, MultipleUndoErrors
-from ZODB.utils import p64, u64, z64
-
-import base64
+import binascii
 import contextlib
 import errno
 import logging
 import os
-import threading
 import time
-import ZODB.blob
-import ZODB.interfaces
-import zope.interface
-import ZODB.utils
+from struct import pack
+from struct import unpack
+
+from persistent.TimeStamp import TimeStamp
+from six import string_types as STRING_TYPES
+from zc.lockfile import LockFile
+from zope.interface import alsoProvides
+from zope.interface import implementer
+
+from .. import utils
+
+from ZODB.blob import BlobStorageMixin
+from ZODB.blob import link_or_copy
+from ZODB.blob import remove_committed
+from ZODB.blob import remove_committed_dir
+from ZODB.BaseStorage import BaseStorage
+from ZODB.BaseStorage import DataRecord as _DataRecord
+from ZODB.BaseStorage import TransactionRecord as _TransactionRecord
+from ZODB.ConflictResolution import ConflictResolvingStorage
+from ZODB.FileStorage.format import CorruptedDataError
+from ZODB.FileStorage.format import CorruptedError
+from ZODB.FileStorage.format import DATA_HDR
+from ZODB.FileStorage.format import DATA_HDR_LEN
+from ZODB.FileStorage.format import DataHeader
+from ZODB.FileStorage.format import FileStorageFormatter
+from ZODB.FileStorage.format import TRANS_HDR
+from ZODB.FileStorage.format import TRANS_HDR_LEN
+from ZODB.FileStorage.format import TxnHeader
+from ZODB.FileStorage.fspack import FileStoragePacker
+from ZODB.interfaces import IBlobStorageRestoreable
+from ZODB.interfaces import IExternalGC
+from ZODB.interfaces import IStorage
+from ZODB.interfaces import IStorageCurrentRecordIteration
+from ZODB.interfaces import IStorageIteration
+from ZODB.interfaces import IStorageRestoreable
+from ZODB.interfaces import IStorageUndoable
+from ZODB.POSException import ConflictError
+from ZODB.POSException import MultipleUndoErrors
+from ZODB.POSException import POSKeyError
+from ZODB.POSException import ReadOnlyError
+from ZODB.POSException import StorageError
+from ZODB.POSException import StorageSystemError
+from ZODB.POSException import StorageTransactionError
+from ZODB.POSException import UndoError
+from ZODB.fsIndex import fsIndex
+from ZODB.utils import as_bytes
+from ZODB.utils import as_text
+from ZODB.utils import cp
+from ZODB.utils import load_current
+from ZODB.utils import mktemp
+from ZODB.utils import p64
+from ZODB.utils import u64
+from ZODB.utils import z64
+from ZODB._compat import Pickler
+from ZODB._compat import loads
+from ZODB._compat import decodebytes
+from ZODB._compat import encodebytes
+from ZODB._compat import _protocol
+from ZODB._compat import FILESTORAGE_MAGIC
+
 
 # Not all platforms have fsync
 fsync = getattr(os, "fsync", None)
 
-packed_version = "FS21"
+packed_version = FILESTORAGE_MAGIC
 
 logger = logging.getLogger('ZODB.FileStorage')
 
@@ -53,7 +93,7 @@ def panic(message, *data):
     logger.critical(message, *data)
     raise CorruptedTransactionError(message % data)
 
-class FileStorageError(POSException.StorageError):
+class FileStorageError(StorageError):
     pass
 
 class PackError(FileStorageError):
@@ -66,14 +106,14 @@ class FileStorageFormatError(FileStorageError):
     """
 
 class CorruptedFileStorageError(FileStorageError,
-                                POSException.StorageSystemError):
+                                StorageSystemError):
     """Corrupted file storage."""
 
 class CorruptedTransactionError(CorruptedFileStorageError):
     pass
 
 class FileStorageQuotaError(FileStorageError,
-                            POSException.StorageSystemError):
+                            StorageSystemError):
     """File storage quota exceeded."""
 
 # Intended to be raised only in fspack.py, and ignored here.
@@ -86,21 +126,22 @@ class TempFormatter(FileStorageFormatter):
     def __init__(self, afile):
         self._file = afile
 
-@zope.interface.implementer(
-        ZODB.interfaces.IStorage,
-        ZODB.interfaces.IStorageRestoreable,
-        ZODB.interfaces.IStorageIteration,
-        ZODB.interfaces.IStorageUndoable,
-        ZODB.interfaces.IStorageCurrentRecordIteration,
-        ZODB.interfaces.IExternalGC,
+@implementer(
+        IStorage,
+        IStorageRestoreable,
+        IStorageIteration,
+        IStorageUndoable,
+        IStorageCurrentRecordIteration,
+        IExternalGC,
         )
 class FileStorage(
     FileStorageFormatter,
-    ZODB.blob.BlobStorageMixin,
-    ConflictResolution.ConflictResolvingStorage,
-    BaseStorage.BaseStorage,
+    BlobStorageMixin,
+    ConflictResolvingStorage,
+    BaseStorage,
     ):
-
+    """Storage that saves data in a file
+    """
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
@@ -108,6 +149,82 @@ class FileStorage(
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
                  blob_dir=None, blob_dir_permissions=None):
+        """Create a file storage
+
+        :param str file_name: Path to store data file
+        :param bool create: Flag indicating whether a file should be
+            created even if it already exists.
+        :param bool read_only: Flag indicating whether the file is
+            read only. Only one process is able to open the file
+            non-read-only.
+        :param bytes stop: Time-travel transaction id
+            When the file is opened, data will be read up to the given
+            transaction id.  Transaction ids correspond to times and
+            you can compute transaction ids for a given time using
+            :class:`~ZODB.TimeStamp.TimeStamp`.
+        :param int quota: File-size quota
+        :param bool pack_gc: Flag indicating whether garbage
+            collection should be performed when packing.
+        :param bool pack_keep_old: flag indicating whether old data
+            files should be retained after packing as a ``.old`` file.
+        :param callable packer: An alternative
+           :interface:`packer <ZODB.FileStorage.interfaces.IFileStoragePacker>`.
+        :param str blob_dir: A blob-directory path name.
+           Blobs will be supported if this option is provided.
+
+        A file storage stores data in a single file that behaves like
+        a traditional transaction log. New data records are appended
+        to the end of the file.  Periodically, the file is packed to
+        free up space.  When this is done, current records as of the
+        pack time or later are copied to a new file, which replaces
+        the old file.
+
+        FileStorages keep in-memory indexes mapping object oids to the
+        location of their current records in the file. Back pointers to
+        previous records allow access to non-current records from the
+        current records.
+
+        In addition to the data file, some ancillary files are
+        created. These can be lost without affecting data
+        integrity, however losing the index file may cause extremely
+        slow startup. Each has a name that's a concatenation of the
+        original file and a suffix. The files are listed below by
+        suffix:
+
+        .index
+           Snapshot of the in-memory index.  This are created on
+           shutdown, packing, and after rebuilding an index when one
+           was not found.  For large databases, creating a
+           file-storage object without an index file can take very
+           long because it's necessary to scan the data file to build
+           the index.
+
+        .lock
+           A lock file preventing multiple processes from opening a
+           file storage on non-read-only mode.
+
+        .tmp
+          A file used to store data being committed in the first phase
+          of 2-phase commit
+
+        .index_tmp
+          A temporary file used when saving the in-memory index to
+          avoid overwriting an existing index until a new index has
+          been fully saved.
+
+        .pack
+          A temporary file written while packing containing current
+          records as of and after the pack time.
+
+        .old
+          The previous database file after a pack.
+
+        When the database is packed, current records as of the pack
+        time and later are written to the ``.pack`` file. At the end
+        of packing, the ``.old`` file is removed, if it exists, and
+        the data file is renamed to the ``.old`` file and finally the
+        ``.pack`` file is rewritten to the data file.
+        """
 
         if read_only:
             self._is_read_only = True
@@ -117,7 +234,7 @@ class FileStorage(
             raise ValueError("time-travel only supported in read-only mode")
 
         if stop is None:
-            stop='\377'*8
+            stop = b'\377'*8
 
         # Lock the database and set up the temp file.
         if not read_only:
@@ -135,7 +252,7 @@ class FileStorage(
         if packer is not None:
             self.packer = packer
 
-        BaseStorage.BaseStorage.__init__(self, file_name)
+        BaseStorage.__init__(self, file_name)
 
         index, tindex = self._newIndexes()
         self._initIndex(index, tindex)
@@ -146,9 +263,13 @@ class FileStorage(
         if not create:
             try:
                 self._file = open(file_name, read_only and 'rb' or 'r+b')
-            except IOError, exc:
+            except IOError as exc:
                 if exc.errno == errno.EFBIG:
                     # The file is too big to open.  Fail visibly.
+                    raise
+                if read_only:
+                    # When open request is read-only we do not want to create
+                    # the file
                     raise
                 if exc.errno == errno.ENOENT:
                     # The file doesn't exist.  Create it.
@@ -208,20 +329,19 @@ class FileStorage(
         if blob_dir:
             self.blob_dir = os.path.abspath(blob_dir)
             if create and os.path.exists(self.blob_dir):
-                ZODB.blob.remove_committed_dir(self.blob_dir)
+                remove_committed_dir(self.blob_dir)
 
             self._blob_init(blob_dir, permissions=blob_dir_permissions)
-            zope.interface.alsoProvides(self,
-                                        ZODB.interfaces.IBlobStorageRestoreable)
+            alsoProvides(self, IBlobStorageRestoreable)
         else:
             self.blob_dir = None
             self._blob_init_no_blobs()
 
     def copyTransactionsFrom(self, other):
         if self.blob_dir:
-            return ZODB.blob.BlobStorageMixin.copyTransactionsFrom(self, other)
+            return BlobStorageMixin.copyTransactionsFrom(self, other)
         else:
-            return BaseStorage.BaseStorage.copyTransactionsFrom(self, other)
+            return BaseStorage.copyTransactionsFrom(self, other)
 
     def _initIndex(self, index, tindex):
         self._index=index
@@ -353,7 +473,7 @@ class FileStorage(
         pos = info.get('pos')
         if index is None or pos is None:
             return None
-        pos = long(pos)
+        pos = int(pos)
 
         if (isinstance(index, dict) or
                 (isinstance(index, fsIndex) and
@@ -367,7 +487,7 @@ class FileStorage(
             if not self._is_read_only:
                 # Save the converted index.
                 f = open(index_name, 'wb')
-                p = Pickler(f, 1)
+                p = Pickler(f, _protocol)
                 info['index'] = index
                 p.dump(info)
                 f.close()
@@ -391,7 +511,7 @@ class FileStorage(
             self._save_index()
         except:
             # Log the error and continue
-            logger.error("Error saving index on close()", exc_info=True)
+            logger.exception("Error saving index on close()")
 
     def getSize(self):
         return self._pos
@@ -403,6 +523,8 @@ class FileStorage(
             raise POSKeyError(oid)
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
+
+    load = load_current # Keep load for now for old clients
 
     def load(self, oid, version=''):
         """Return pickle data and serial number."""
@@ -430,7 +552,7 @@ class FileStorage(
                 if h.tid == serial:
                     break
                 pos = h.prev
-                if not pos:
+                if h.tid < serial or not pos:
                     raise POSKeyError(oid)
             if h.plen:
                 return self._file.read(h.plen)
@@ -451,17 +573,19 @@ class FileStorage(
                 if not pos:
                     return None
 
-            if h.back:
+            if h.plen:
+                return _file.read(h.plen), h.tid, end_tid
+            elif h.back:
                 data, _, _, _ = self._loadBack_impl(oid, h.back, _file=_file)
                 return data, h.tid, end_tid
             else:
-                return _file.read(h.plen), h.tid, end_tid
+                raise POSKeyError(oid)
 
     def store(self, oid, oldserial, data, version, transaction):
         if self._is_read_only:
-            raise POSException.ReadOnlyError()
+            raise ReadOnlyError()
         if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
+            raise StorageTransactionError(self, transaction)
         assert not version
 
         with self._lock:
@@ -477,6 +601,7 @@ class FileStorage(
                 if oldserial != committed_tid:
                     data = self.tryToResolveConflict(oid, committed_tid,
                                                      oldserial, data)
+                    self._resolved.append(oid)
 
             pos = self._pos
             here = pos + self._tfile.tell() + self._thl
@@ -491,26 +616,21 @@ class FileStorage(
                 raise FileStorageQuotaError(
                     "The storage quota has been exceeded.")
 
-            if old and oldserial != committed_tid:
-                return ConflictResolution.ResolvedSerial
-            else:
-                return self._tid
-
     def deleteObject(self, oid, oldserial, transaction):
         if self._is_read_only:
-            raise POSException.ReadOnlyError()
+            raise ReadOnlyError()
         if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
+            raise StorageTransactionError(self, transaction)
 
         with self._lock:
             old = self._index_get(oid, 0)
             if not old:
-                raise POSException.POSKeyError(oid)
+                raise POSKeyError(oid)
             h = self._read_data_header(old, oid)
             committed_tid = h.tid
 
             if oldserial != committed_tid:
-                raise POSException.ConflictError(
+                raise ConflictError(
                     oid=oid, serials=(committed_tid, oldserial))
 
             pos = self._pos
@@ -542,6 +662,7 @@ class FileStorage(
         self._file.seek(tpos)
         h = self._file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        status = as_text(status)
         self._file.read(ul + dl + el)
         tend = tpos + tl + 8
         pos = self._file.tell()
@@ -590,9 +711,9 @@ class FileStorage(
         # should be considered just a hint, and is ignored if the transaction
         # doesn't exist.
         if self._is_read_only:
-            raise POSException.ReadOnlyError()
+            raise ReadOnlyError()
         if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
+            raise StorageTransactionError(self, transaction)
         if version:
             raise TypeError("Versions are no-longer supported")
 
@@ -658,7 +779,7 @@ class FileStorage(
     def tpc_vote(self, transaction):
         with self._lock:
             if transaction is not self._transaction:
-                raise POSException.StorageTransactionError(
+                raise StorageTransactionError(
                     "tpc_vote called with wrong transaction")
             dlen = self._tfile.tell()
             if not dlen:
@@ -676,32 +797,35 @@ class FileStorage(
                 h.descr = descr
                 h.ext = ext
                 self._file.write(h.asString())
-                ZODB.utils.cp(self._tfile, self._file, dlen)
+                cp(self._tfile, self._file, dlen)
                 self._file.write(p64(tl))
                 self._file.flush()
             except:
                 # Hm, an error occurred writing out the data. Maybe the
                 # disk is full. We don't want any turd at the end.
                 self._file.truncate(self._pos)
+                self._files.flush()
                 raise
             self._nextpos = self._pos + (tl + 8)
+            return self._resolved
 
     def tpc_finish(self, transaction, f=None):
         with self._files.write_lock():
             with self._lock:
                 if transaction is not self._transaction:
-                    raise POSException.StorageTransactionError(
+                    raise StorageTransactionError(
                         "tpc_finish called with wrong transaction")
                 try:
+                    tid = self._tid
                     if f is not None:
-                        f(self._tid)
-                    u, d, e = self._ude
-                    self._finish(self._tid, u, d, e)
+                        f(tid)
+                    self._finish(tid, *self._ude)
                     self._clear_temp()
                 finally:
                     self._ude = None
                     self._transaction = None
-                    self._commit_lock_release()
+                    self._commit_lock.release()
+        return tid
 
     def _finish(self, tid, u, d, e):
         # If self._nextpos is 0, then the transaction didn't write any
@@ -709,7 +833,7 @@ class FileStorage(
         if self._nextpos:
             # Clear the checkpoint flag
             self._file.seek(self._pos+16)
-            self._file.write(self._tstatus)
+            self._file.write(as_bytes(self._tstatus))
             try:
                 # At this point, we may have committed the data to disk.
                 # If we fail from here, we're in bad shape.
@@ -737,6 +861,7 @@ class FileStorage(
     def _abort(self):
         if self._nextpos:
             self._file.truncate(self._pos)
+            self._files.flush()
             self._nextpos=0
             self._blob_tpc_abort()
 
@@ -744,13 +869,15 @@ class FileStorage(
         """Return the tid, data pointer, and data for the oid record at pos
         """
         if tpos:
-            pos = tpos - self._pos - self._thl
+            itpos = tpos - self._pos - self._thl
+            pos = tpos
             tpos = self._tfile.tell()
-            h = self._tfmt._read_data_header(pos, oid)
+            h = self._tfmt._read_data_header(itpos, oid)
             afile = self._tfile
         else:
             h = self._read_data_header(pos, oid)
             afile = self._file
+
         if h.oid != oid:
             raise UndoError("Invalid undo transaction id", oid)
 
@@ -787,7 +914,7 @@ class FileStorage(
         pointer 0.
         """
 
-        copy = 1 # Can we just copy a data pointer
+        copy = True # Can we just copy a data pointer
 
         # First check if it is possible to undo this record.
         tpos = self._tindex.get(oid, 0)
@@ -795,36 +922,55 @@ class FileStorage(
         tipos = tpos or ipos
 
         if tipos != pos:
-            # Eek, a later transaction modified the data, but,
-            # maybe it is pointing at the same data we are.
-            ctid, cdataptr, cdata = self._undoDataInfo(oid, ipos, tpos)
+            # The transaction being undone isn't current because:
+            # a) A later transaction was committed ipos != pos, or
+            # b) A change was made in the current transaction. This
+            #    could only be a previous undo in a multi-undo.
+            #    (We don't allow multiple data managers with the same
+            #    storage to participate in the same transaction.)
+            assert tipos > pos
+
+            # Get current data, as identified by tipos.  We'll use
+            # it to decide if and how we can undo in this case.
+            ctid, cdataptr, current_data = self._undoDataInfo(oid, ipos, tpos)
 
             if cdataptr != pos:
-                # We aren't sure if we are talking about the same data
+
+                # if cdataptr was == pos, then we'd be cool, because
+                # we're dealing with the same data.
+
+                # Because they aren't equal, we have to dig deeper
+
+                # Let's see if data to be undone and current data
+                # are the same. If not, we'll have to decide whether
+                # we should try conflict resolution.
+
                 try:
-                    if (
-                        # The current record wrote a new pickle
-                        cdataptr == tipos
-                        or
-                        # Backpointers are different
-                        self._loadBackPOS(oid, pos) !=
-                        self._loadBackPOS(oid, cdataptr)
-                        ):
-                        if pre and not tpos:
-                            copy = 0 # we'll try to do conflict resolution
-                        else:
-                            # We bail if:
-                            # - We don't have a previous record, which should
-                            #   be impossible.
-                            raise UndoError("no previous record", oid)
+                    data_to_be_undone = self._loadBack_impl(oid, pos)[0]
+                    if not current_data:
+                        current_data = self._loadBack_impl(oid, cdataptr)[0]
+
+                    if data_to_be_undone != current_data:
+                        # OK, so the current data is different from
+                        # the data being undone.  We can't just copy:
+                        copy = False
+
+                        if not pre:
+                            # The transaction we're undoing has no
+                            # previous state to merge with, so we
+                            # can't resolve a conflict.
+                            raise UndoError(
+                                "Can't undo an add transaction followed by"
+                                " conflicting transactions.", oid)
                 except KeyError:
                     # LoadBack gave us a key error. Bail.
                     raise UndoError("_loadBack() failed", oid)
 
         # Return the data that should be written in the undo record.
         if not pre:
-            # There is no previous revision, because the object creation
-            # is being undone.
+            # We're undoing object addition.  We're doing this because
+            # subsequent transactions has no net effect on the state
+            # (possibly because some of them were undos).
             return "", 0, ipos
 
         if copy:
@@ -832,14 +978,16 @@ class FileStorage(
             return "", pre, ipos
 
         try:
-            bdata = self._loadBack_impl(oid, pre)[0]
+            pre_data = self._loadBack_impl(oid, pre)[0]
         except KeyError:
             # couldn't find oid; what's the real explanation for this?
             raise UndoError("_loadBack() failed for %s", oid)
+
         try:
-            data = self.tryToResolveConflict(oid, ctid, tid, bdata, cdata)
+            data = self.tryToResolveConflict(
+                oid, ctid, tid, pre_data, current_data)
             return data, 0, ipos
-        except POSException.ConflictError:
+        except ConflictError:
             pass
 
         raise UndoError("Some data were modified by a later transaction", oid)
@@ -871,8 +1019,8 @@ class FileStorage(
                     us.search()
                 # Give another thread a chance, so that a long undoLog()
                 # operation doesn't block all other activity.
-                self._lock_release()
-                self._lock_acquire()
+                self._lock.release()
+                self._lock.acquire()
             return us.results
 
     def undo(self, transaction_id, transaction):
@@ -888,13 +1036,13 @@ class FileStorage(
         """
 
         if self._is_read_only:
-            raise POSException.ReadOnlyError()
+            raise ReadOnlyError()
         if transaction is not self._transaction:
-            raise POSException.StorageTransactionError(self, transaction)
+            raise StorageTransactionError(self, transaction)
 
         with self._lock:
           # Find the right transaction to undo and call _txn_undo_write().
-          tid = base64.decodestring(transaction_id + '\n')
+          tid = decodebytes(transaction_id + b'\n')
           assert len(tid) == 8
           tpos = self._txn_find(tid, 1)
           tindex = self._txn_undo_write(tpos)
@@ -913,7 +1061,7 @@ class FileStorage(
                 return pos
             if stop_at_pack:
                 # check the status field of the transaction header
-                if h[16] == 'p':
+                if h[16] == b'p':
                     break
         raise UndoError("Invalid transaction id")
 
@@ -944,7 +1092,7 @@ class FileStorage(
             try:
                 p, prev, ipos = self._transactionalUndoRecord(
                     h.oid, pos, h.tid, h.prev)
-            except UndoError, v:
+            except UndoError as v:
                 # Don't fail right away. We may be redeemed later!
                 failures[h.oid] = v
             else:
@@ -952,16 +1100,17 @@ class FileStorage(
                 if self.blob_dir and not p and prev:
                     try:
                         up, userial = self._loadBackTxn(h.oid, prev)
-                    except ZODB.POSException.POSKeyError:
+                    except POSKeyError:
                         pass # It was removed, so no need to copy data
                     else:
                         if self.is_blob_record(up):
                             # We're undoing a blob modification operation.
                             # We have to copy the blob data
-                            tmp = ZODB.utils.mktemp(dir=self.fshelper.temp_dir)
-                            ZODB.utils.cp(
-                                self.openCommittedBlobFile(h.oid, userial),
-                                open(tmp, 'wb'))
+                            tmp = mktemp(dir=self.fshelper.temp_dir)
+                            with self.openCommittedBlobFile(
+                                h.oid, userial) as sfp:
+                                with open(tmp, 'wb') as dfp:
+                                    cp(sfp, dfp)
                             self._blob_storeblob(h.oid, self._tid, tmp)
 
                 new = DataHeader(h.oid, self._tid, ipos, otloc, 0, len(p))
@@ -983,7 +1132,7 @@ class FileStorage(
                 raise UndoError("non-undoable transaction")
 
         if failures:
-            raise MultipleUndoErrors(failures.items())
+            raise MultipleUndoErrors(list(failures.items()))
 
         return tindex
 
@@ -1031,10 +1180,13 @@ class FileStorage(
         # want to invest much in the old packer, at least for now.
         assert referencesf is not None
         p = FileStoragePacker(storage, referencesf, stop, gc)
-        opos = p.pack()
-        if opos is None:
-            return None
-        return opos, p.index
+        try:
+            opos = p.pack()
+            if opos is None:
+                return None
+            return opos, p.index
+        finally:
+            p.close()
 
     def pack(self, t, referencesf, gc=None):
         """Copy data from the current database file to a packed file
@@ -1046,10 +1198,11 @@ class FileStorage(
         the associated data are copied, since the old records are not copied.
         """
         if self._is_read_only:
-            raise POSException.ReadOnlyError()
+            raise ReadOnlyError()
 
-        stop=`TimeStamp(*time.gmtime(t)[:5]+(t%60,))`
-        if stop==z64: raise FileStorageError('Invalid pack time')
+        stop = TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
+        if stop == z64:
+            raise FileStorageError('Invalid pack time')
 
         # If the storage is empty, there's nothing to do.
         if not self._index:
@@ -1067,7 +1220,7 @@ class FileStorage(
         if os.path.exists(oldpath):
             os.remove(oldpath)
         if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
-            ZODB.blob.remove_committed_dir(self.blob_dir + ".old")
+            remove_committed_dir(self.blob_dir + ".old")
 
         cleanup = []
 
@@ -1076,7 +1229,7 @@ class FileStorage(
             pack_result = None
             try:
                 pack_result = self.packer(self, referencesf, stop, gc)
-            except RedundantPackWarning, detail:
+            except RedundantPackWarning as detail:
                 logger.info(str(detail))
             if pack_result is None:
                 return
@@ -1102,13 +1255,13 @@ class FileStorage(
             # blobs and removing the .old file (see further down).
 
             if self.blob_dir:
-                self._commit_lock_release()
+                self._commit_lock.release()
                 have_commit_lock = False
                 self._remove_blob_files_tagged_for_removal_during_pack()
 
         finally:
             if have_commit_lock:
-                self._commit_lock_release()
+                self._commit_lock.release()
             with self._lock:
                 self._pack_is_in_progress = False
 
@@ -1122,7 +1275,6 @@ class FileStorage(
         lblob_dir = len(self.blob_dir)
         fshelper = self.fshelper
         old = self.blob_dir+'.old'
-        link_or_copy = ZODB.blob.link_or_copy
 
         # Helper to clean up dirs left empty after moving things to old
         def maybe_remove_empty_dir_containing(path, level=0):
@@ -1145,14 +1297,14 @@ class FileStorage(
 
             removed = False
             if level:
-                self._lock_acquire()
+                self._lock.acquire()
             try:
                 if not os.listdir(path):
                     os.rmdir(path)
                     removed = True
             finally:
                 if level:
-                    self._lock_release()
+                    self._lock.release()
 
             if removed:
                 maybe_remove_empty_dir_containing(path, level+1)
@@ -1160,7 +1312,7 @@ class FileStorage(
 
         if self.pack_keep_old:
             # Helpers that move oid dir or revision file to the old dir.
-            os.mkdir(old, 0777)
+            os.mkdir(old, 0o777)
             link_or_copy(os.path.join(self.blob_dir, '.layout'),
                          os.path.join(old, '.layout'))
             def handle_file(path):
@@ -1172,34 +1324,36 @@ class FileStorage(
             handle_dir = handle_file
         else:
             # Helpers that remove an oid dir or revision file.
-            handle_file = ZODB.blob.remove_committed
-            handle_dir = ZODB.blob.remove_committed_dir
+            handle_file = remove_committed
+            handle_dir = remove_committed_dir
 
         # Fist step: move or remove oids or revisions
-        for line in open(os.path.join(self.blob_dir, '.removed')):
-            line = line.strip().decode('hex')
+        with open(os.path.join(self.blob_dir, '.removed'), 'rb') as fp:
+            for line in fp:
+                line = binascii.unhexlify(line.strip())
 
-            if len(line) == 8:
-                # oid is garbage, re/move dir
-                path = fshelper.getPathForOID(line)
+                if len(line) == 8:
+                    # oid is garbage, re/move dir
+                    path = fshelper.getPathForOID(line)
+                    if not os.path.exists(path):
+                        # Hm, already gone. Odd.
+                        continue
+                    handle_dir(path)
+                    maybe_remove_empty_dir_containing(path, 1)
+                    continue
+
+                if len(line) != 16:
+                    raise ValueError(
+                        "Bad record in ", self.blob_dir, '.removed')
+
+                oid, tid = line[:8], line[8:]
+                path = fshelper.getBlobFilename(oid, tid)
                 if not os.path.exists(path):
                     # Hm, already gone. Odd.
                     continue
-                handle_dir(path)
-                maybe_remove_empty_dir_containing(path, 1)
-                continue
-
-            if len(line) != 16:
-                raise ValueError("Bad record in ", self.blob_dir, '.removed')
-
-            oid, tid = line[:8], line[8:]
-            path = fshelper.getBlobFilename(oid, tid)
-            if not os.path.exists(path):
-                # Hm, already gone. Odd.
-                continue
-            handle_file(path)
-            assert not os.path.exists(path)
-            maybe_remove_empty_dir_containing(path)
+                handle_file(path)
+                assert not os.path.exists(path)
+                maybe_remove_empty_dir_containing(path)
 
         os.remove(os.path.join(self.blob_dir, '.removed'))
 
@@ -1251,7 +1405,7 @@ class FileStorage(
         for ext in '', '.old', '.tmp', '.lock', '.index', '.pack':
             try:
                 os.remove(self._file_name + ext)
-            except OSError, e:
+            except OSError as e:
                 if e.errno != errno.ENOENT:
                     raise
 
@@ -1266,7 +1420,7 @@ class FileStorage(
         except ValueError: # "empty tree" error
             next_oid = None
 
-        data, tid = self.load(oid, "")
+        data, tid = load_current(self, oid)
 
         return oid, tid, data, next_oid
 
@@ -1315,6 +1469,7 @@ def shift_transactions_forward(index, tindex, file, pos, opos):
         h=read(TRANS_HDR_LEN)
         if len(h) < TRANS_HDR_LEN: break
         tid, stl, status, ul, dl, el = unpack(TRANS_HDR,h)
+        status = as_text(status)
         if status=='c': break # Oops. we found a checkpoint flag.
         tl=u64(stl)
         tpos=pos
@@ -1402,7 +1557,7 @@ def recover(file_name):
 
     pos, oid, tid = read_index(file, file_name, index, tindex, recover=1)
     if oid is not None:
-        print "Nothing to recover"
+        print("Nothing to recover")
         return
 
     opos=pos
@@ -1412,13 +1567,13 @@ def recover(file_name):
 
     file.truncate(npos)
 
-    print "Recovered file, lost %s, ended up with %s bytes" % (
-        pos-opos, npos)
+    print("Recovered file, lost %s, ended up with %s bytes" % (
+        pos-opos, npos))
 
 
 
-def read_index(file, name, index, tindex, stop='\377'*8,
-               ltid=z64, start=4L, maxoid=z64, recover=0, read_only=0):
+def read_index(file, name, index, tindex, stop=b'\377'*8,
+               ltid=z64, start=4, maxoid=z64, recover=0, read_only=0):
     """Scan the file storage and update the index.
 
     Returns file position, max oid, and last transaction id.  It also
@@ -1465,13 +1620,13 @@ def read_index(file, name, index, tindex, stop='\377'*8,
     else:
         if not read_only:
             file.write(packed_version)
-        return 4L, z64, ltid
+        return 4, z64, ltid
 
     index_get = index.get
 
     pos = start
     seek(start)
-    tid = '\0' * 7 + '\1'
+    tid = b'\0' * 7 + b'\1'
 
     while 1:
         # Read the transaction record
@@ -1486,6 +1641,7 @@ def read_index(file, name, index, tindex, stop='\377'*8,
             break
 
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        status = as_text(status)
 
         if tid <= ltid:
             logger.warning("%s time-stamp reduction at %s", name, pos)
@@ -1597,7 +1753,7 @@ def read_index(file, name, index, tindex, stop='\377'*8,
         maxoid = index.maxKey()
     except ValueError:
         # The index is empty.
-        maxoid == z64
+        pass # maxoid is already equal to z64
 
     return pos, maxoid, ltid
 
@@ -1616,13 +1772,12 @@ def _truncate(file, name, pos):
                                name, oname)
                 o = open(oname,'wb')
                 file.seek(pos)
-                ZODB.utils.cp(file, o, file_size-pos)
+                cp(file, o, file_size-pos)
                 o.close()
                 break
     except:
-        logger.error("couldn\'t write truncated data for %s", name,
-              exc_info=True)
-        raise POSException.StorageSystemError("Couldn't save truncated data")
+        logger.exception("couldn\'t write truncated data for %s", name)
+        raise StorageSystemError("Couldn't save truncated data")
 
     file.seek(pos)
     file.truncate()
@@ -1634,8 +1789,8 @@ class FileIterator(FileStorageFormatter):
     _ltid = z64
     _file = None
 
-    def __init__(self, filename, start=None, stop=None, pos=4L):
-        assert isinstance(filename, str)
+    def __init__(self, filename, start=None, stop=None, pos=4):
+        assert isinstance(filename, STRING_TYPES)
         file = open(filename, 'rb')
         self._file = file
         self._file_name = filename
@@ -1647,8 +1802,8 @@ class FileIterator(FileStorageFormatter):
             raise ValueError("Given position is greater than the file size",
                              pos, self._file_size)
         self._pos = pos
-        assert start is None or isinstance(start, str)
-        assert stop is None or isinstance(stop, str)
+        assert start is None or isinstance(start, bytes)
+        assert stop is None or isinstance(stop, bytes)
         self._start = start
         self._stop = stop
         if start:
@@ -1664,7 +1819,7 @@ class FileIterator(FileStorageFormatter):
         # implementation.  So just return 0.
         return 0
 
-    # This allows us to pass an iterator as the `other' argument to
+    # This allows us to pass an iterator as the `other` argument to
     # copyTransactionsFrom() in BaseStorage.  The advantage here is that we
     # can create the iterator manually, e.g. setting start and stop, and then
     # just let copyTransactionsFrom() do its thing.
@@ -1681,7 +1836,7 @@ class FileIterator(FileStorageFormatter):
         file = self._file
         pos1 = self._pos
         file.seek(pos1)
-        tid1 = file.read(8)
+        tid1 = file.read(8) # XXX bytes
         if len(tid1) < 8:
             raise CorruptedError("Couldn't read tid.")
         if start < tid1:
@@ -1720,9 +1875,9 @@ class FileIterator(FileStorageFormatter):
                     self._pos = self._file_size
                 return
 
-        t1 = ZODB.TimeStamp.TimeStamp(tid1).timeTime()
-        t2 = ZODB.TimeStamp.TimeStamp(tid2).timeTime()
-        ts = ZODB.TimeStamp.TimeStamp(start).timeTime()
+        t1 = TimeStamp(tid1).timeTime()
+        t2 = TimeStamp(tid2).timeTime()
+        ts = TimeStamp(start).timeTime()
         if (ts - t1) < (t2 - ts):
             return self._scan_forward(pos1, start)
         else:
@@ -1750,7 +1905,7 @@ class FileIterator(FileStorageFormatter):
         while 1:
             pos -= 8
             seek(pos)
-            tlen = ZODB.utils.u64(read(8))
+            tlen = u64(read(8))
             pos -= tlen
             h = self._read_txn_header(pos)
             if h.tid <= start:
@@ -1764,7 +1919,7 @@ class FileIterator(FileStorageFormatter):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self._file is None:
             raise StopIteration()
 
@@ -1774,7 +1929,7 @@ class FileIterator(FileStorageFormatter):
             # Read the transaction record
             try:
                 h = self._read_txn_header(pos)
-            except CorruptedDataError, err:
+            except CorruptedDataError as err:
                 # If buf is empty, we've reached EOF.
                 if not err.buf:
                     break
@@ -1857,11 +2012,13 @@ class FileIterator(FileStorageFormatter):
         self.close()
         raise StopIteration()
 
+    next = __next__
 
-class TransactionRecord(BaseStorage.TransactionRecord):
+
+class TransactionRecord(_TransactionRecord):
 
     def __init__(self, tid, status, user, desc, ext, pos, tend, file, tpos):
-        BaseStorage.TransactionRecord.__init__(
+        _TransactionRecord.__init__(
             self, tid, status, user, desc, ext)
         self._pos = pos
         self._tend = tend
@@ -1883,7 +2040,7 @@ class TransactionRecordIterator(FileStorageFormatter):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         pos = self._pos
         while pos < self._tend:
             # Read the data records for this transaction
@@ -1916,8 +2073,10 @@ class TransactionRecordIterator(FileStorageFormatter):
 
         raise StopIteration()
 
+    next = __next__
 
-class Record(BaseStorage.DataRecord):
+
+class Record(_DataRecord):
 
     def __init__(self, oid, tid, data, prev, pos):
         super(Record, self).__init__(oid, tid, data, prev)
@@ -1960,12 +2119,13 @@ class UndoSearch:
         self.file.seek(self.pos)
         h = self.file.read(TRANS_HDR_LEN)
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
+        status = as_text(status)
         if status == 'p':
             self.stop = 1
             return None
         if status != ' ':
             return None
-        d = u = ''
+        d = u = b''
         if ul:
             u = self.file.read(ul)
         if dl:
@@ -1976,7 +2136,7 @@ class UndoSearch:
                 e = loads(self.file.read(el))
             except:
                 pass
-        d = {'id': base64.encodestring(tid).rstrip(),
+        d = {'id': encodebytes(tid).rstrip(),
              'time': TimeStamp(tid).timeTime(),
              'user_name': u,
              'size': tl,
@@ -1994,7 +2154,7 @@ class FilePool:
         self.name = file_name
         self._files = []
         self._out = []
-        self._cond = threading.Condition()
+        self._cond = utils.Condition()
 
     @contextlib.contextmanager
     def write_lock(self):
@@ -2043,6 +2203,17 @@ class FilePool:
     def empty(self):
         while self._files:
             self._files.pop().close()
+
+
+    def flush(self):
+        """Empty read buffers.
+
+        This is required if they contain data of rolled back transactions.
+        """
+        # Unfortunately, Python 3.x has no API to flush read buffers, and
+        # the API is ineffective in Python 2 on Mac OS X.
+        with self.write_lock():
+            self.empty()
 
     def close(self):
         with self._cond:

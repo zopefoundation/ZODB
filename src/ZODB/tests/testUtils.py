@@ -12,41 +12,52 @@
 #
 ##############################################################################
 """Test the routines to convert between long and 64-bit strings"""
-
-from persistent import Persistent
 import doctest
 import random
+import re
 import unittest
+from persistent import Persistent
+
+from zope.testing import renormalizing
+from ZODB.utils import U64, p64, u64
+from ZODB._compat import loads
+
 
 NUM = 100
 
-from ZODB.utils import U64, p64, u64
+
+checker = renormalizing.RENormalizing([
+        # Python 3 bytes add a "b".
+        (re.compile("b('.*?')"), r"\1"),
+        # Windows shows result from 'u64' as long?
+        (re.compile(r"(\d+)L"), r"\1"),
+    ])
 
 class TestUtils(unittest.TestCase):
 
-    small = [random.randrange(1, 1L<<32, int=long)
+    small = [random.randrange(1, 1<<32)
              for i in range(NUM)]
-    large = [random.randrange(1L<<32, 1L<<64, int=long)
+    large = [random.randrange(1<<32, 1<<64)
              for i in range(NUM)]
     all = small + large
 
-    def checkLongToStringToLong(self):
+    def test_LongToStringToLong(self):
         for num in self.all:
             s = p64(num)
             n = U64(s)
-            self.assertEquals(num, n, "U64() failed")
+            self.assertEqual(num, n, "U64() failed")
             n2 = u64(s)
-            self.assertEquals(num, n2, "u64() failed")
+            self.assertEqual(num, n2, "u64() failed")
 
-    def checkKnownConstants(self):
-        self.assertEquals("\000\000\000\000\000\000\000\001", p64(1))
-        self.assertEquals("\000\000\000\001\000\000\000\000", p64(1L<<32))
-        self.assertEquals(u64("\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(U64("\000\000\000\000\000\000\000\001"), 1)
-        self.assertEquals(u64("\000\000\000\001\000\000\000\000"), 1L<<32)
-        self.assertEquals(U64("\000\000\000\001\000\000\000\000"), 1L<<32)
+    def test_KnownConstants(self):
+        self.assertEqual(b"\000\000\000\000\000\000\000\001", p64(1))
+        self.assertEqual(b"\000\000\000\001\000\000\000\000", p64(1<<32))
+        self.assertEqual(u64(b"\000\000\000\000\000\000\000\001"), 1)
+        self.assertEqual(U64(b"\000\000\000\000\000\000\000\001"), 1)
+        self.assertEqual(u64(b"\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEqual(U64(b"\000\000\000\001\000\000\000\000"), 1<<32)
 
-    def checkPersistentIdHandlesDescriptor(self):
+    def test_PersistentIdHandlesDescriptor(self):
         from ZODB.serialize import ObjectWriter
         class P(Persistent):
             pass
@@ -59,38 +70,70 @@ class TestUtils(unittest.TestCase):
     # deduce the class path from a pickle, instead of actually loading
     # the pickle (and so also trying to import application module and
     # class objects, which isn't a good idea on a ZEO server when avoidable).
-    def checkConflictErrorDoesntImport(self):
+    def test_ConflictErrorDoesntImport(self):
         from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
         from ZODB.tests.MinPO import MinPO
-        import cPickle as pickle
 
         obj = MinPO()
         data = ObjectWriter().serialize(obj)
 
         # The pickle contains a GLOBAL ('c') opcode resolving to MinPO's
         # module and class.
-        self.assert_('cZODB.tests.MinPO\nMinPO\n' in data)
+        self.assertTrue(b'cZODB.tests.MinPO\nMinPO\n' in data)
 
         # Fiddle the pickle so it points to something "impossible" instead.
-        data = data.replace('cZODB.tests.MinPO\nMinPO\n',
-                            'cpath.that.does.not.exist\nlikewise.the.class\n')
+        data = data.replace(b'cZODB.tests.MinPO\nMinPO\n',
+                            b'cpath.that.does.not.exist\nlikewise.the.class\n')
         # Pickle can't resolve that GLOBAL opcode -- gets ImportError.
-        self.assertRaises(ImportError, pickle.loads, data)
+        self.assertRaises(ImportError, loads, data)
 
         # Verify that building ConflictError doesn't get ImportError.
         try:
             raise ConflictError(object=obj, data=data)
-        except ConflictError, detail:
+        except ConflictError as detail:
             # And verify that the msg names the impossible path.
-            self.assert_('path.that.does.not.exist.likewise.the.class' in
-                         str(detail))
+            self.assertTrue(
+                'path.that.does.not.exist.likewise.the.class' in str(detail))
         else:
             self.fail("expected ConflictError, but no exception raised")
 
+    def test_get_pickle_metadata_w_protocol_0_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=0)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+    def test_get_pickle_metadata_w_protocol_1_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=1)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+    def test_get_pickle_metadata_w_protocol_2_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        pickle = dumps(ExampleClass, protocol=2)
+        self.assertEqual(get_pickle_metadata(pickle),
+                         (__name__, ExampleClass.__name__))
+
+    def test_get_pickle_metadata_w_protocol_3_class_pickle(self):
+        from ZODB.utils import get_pickle_metadata
+        from ZODB._compat import dumps
+        from ZODB._compat import HIGHEST_PROTOCOL
+        if HIGHEST_PROTOCOL >= 3:
+            pickle = dumps(ExampleClass, protocol=3)
+            self.assertEqual(get_pickle_metadata(pickle),
+                            (__name__, ExampleClass.__name__))
+
+
+class ExampleClass(object):
+    pass
 
 def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(TestUtils, 'check'))
-    suite.addTest(doctest.DocFileSuite('../utils.txt'))
-    return suite
+    return unittest.TestSuite((
+        unittest.makeSuite(TestUtils),
+        doctest.DocFileSuite('../utils.txt', checker=checker),
+    ))

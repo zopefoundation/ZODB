@@ -13,9 +13,19 @@
 ##############################################################################
 import doctest
 import persistent.mapping
+import re
 import transaction
 import unittest
 import ZODB.tests.util
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.ConnectionStateError"),
+     r"ConnectionStateError"),
+    ])
 
 def testAddingThenModifyThenAbort():
     """\
@@ -89,6 +99,7 @@ one traditional use for savepoints is simply to free memory space midstream
 during a long transaction.  Before ZODB 3.4.2, making a savepoint failed
 to trigger cache gc, and this test verifies that it now does.
 
+    >>> import gc
     >>> import ZODB
     >>> from ZODB.tests.MinPO import MinPO
     >>> from ZODB.MappingStorage import MappingStorage
@@ -119,6 +130,14 @@ Making a savepoint at this time used to leave the cache holding the same
 number of objects.  Make sure the cache shrinks now instead.
 
     >>> dummy = transaction.savepoint()
+
+Jython needs a GC, and needs to actually access the cache data to be
+sure the size is updated (it uses "eventually consistent" implementations for
+its weak dictionaries):
+
+    >>> _ = gc.collect()
+    >>> _ = getattr(cn._cache, 'data', {}).values()
+    >>> _ = getattr(cn._cache, 'data', {}).keys()
     >>> len(cn._cache) <= CACHESIZE + 1
     True
 
@@ -185,8 +204,10 @@ def tearDown(test):
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite('testConnectionSavepoint.txt', tearDown=tearDown),
-        doctest.DocTestSuite(tearDown=tearDown),
+        doctest.DocFileSuite(
+                'testConnectionSavepoint.txt',
+                tearDown=tearDown, checker=checker),
+        doctest.DocTestSuite(tearDown=tearDown, checker=checker),
         ))
 
 if __name__ == '__main__':

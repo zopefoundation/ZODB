@@ -1,5 +1,4 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Foundation and Contributors.
@@ -112,10 +111,8 @@ Usage: loadmail2 [options]
          -mbox 'foo.mbox 300 -100'
 
        are equivalent
-
-$Id$
 """
-
+from __future__ import print_function
 import mailbox
 import math
 import os
@@ -183,7 +180,7 @@ class MBox:
 
         self.number = start
         while min:
-            mb.next()
+            next(mb)
             min -= 1
 
         self._lock = threading.Lock()
@@ -191,19 +188,16 @@ class MBox:
         self._max = max
 
     def next(self):
-        self._lock.acquire()
-        try:
+        with self.lock:
             if self._max > 0 and self.number >= self._max:
                 raise IndexError(self.number + 1)
-            message = self._mbox.next()
+            message = next(self._mbox)
             message.body = message.fp.read()
             message.headers = list(message.headers)
             self.number += 1
             message.number = self.number
             message.mbox = self.__name__
             return message
-        finally:
-            self._lock.release()
 
 bins = 9973
 #bins = 11
@@ -223,11 +217,12 @@ def mailfolder(app, mboxname, number):
 def VmSize():
 
     try:
-        f = open('/proc/%s/status' % os.getpid())
+        with open('/proc/%s/status' % os.getpid()) as f:
+            lines = f.readlines()
     except:
         return 0
     else:
-        l = filter(lambda l: l[:7] == 'VmSize:', f.readlines())
+        l = list(filter(lambda l: l[:7] == 'VmSize:', lines))
         if l:
             l = l[0][7:].strip().split()[0]
             return int(l)
@@ -315,14 +310,14 @@ def run1(tid, db, factory, job, args):
     (start, wcomp, ccomp, rconflicts, wconflicts, wcommit, ccommit, r
      ) = do(db, job, args)
     start = "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" % time.localtime(start)[:6]
-    print "%s %s %8.3g %8.3g %s %s\t%8.3g %8.3g %s %r" % (
+    print("%s %s %8.3g %8.3g %s %s\t%8.3g %8.3g %s %r" % (
         start, tid, wcomp, ccomp, rconflicts, wconflicts, wcommit, ccommit,
-        factory.__name__, r)
+        factory.__name__, r))
 
-def run(jobs, tid=''):
+def run(jobs, tid=b''):
     import Zope2
     while 1:
-        factory, job, args, repeatp = jobs.next()
+        factory, job, args, repeatp = next(jobs)
         run1(tid, Zope2.DB, factory, job, args)
         if repeatp:
             while 1:
@@ -386,7 +381,7 @@ class IndexJob:
         self.mbox, self.number, self.max = mbox, int(number), int(max)
 
     def create(self):
-        messages = [self.mbox.next() for i in range(self.number)]
+        messages = [next(self.mbox) for i in range(self.number)]
         return index, (messages, self.catalog, self.max)
 
 
@@ -433,7 +428,7 @@ def edit(connection, mbox, catalog=1):
         m = wordre.search(word)
         if m:
             word = m.group(1).lower()
-            if (not wordsd.has_key(word)) and word not in stop:
+            if (word not in wordsd) and word not in stop:
                 words.append(word)
                 wordsd[word] = 1
         del text[j]
@@ -498,7 +493,7 @@ class SearchJob:
             self.terms = words
 
         number = min(int(number), len(self.terms))
-        self.number = range(number)
+        self.number = list(range(number))
 
     def create(self):
         return search, (self.terms, self.number)
@@ -702,9 +697,10 @@ def collect_options(args, jobs, options):
             if name == 'options':
                 fname = args.pop(0)
                 d = {}
-                execfile(fname, d)
+                with open(fname) as fp:
+                    exec(compile(fp.read(), fname, 'exec'), d)
                 collect_options(list(d['options']), jobs, options)
-            elif options.has_key(name):
+            elif name in options:
                 v = args.pop(0)
                 if options[name] != None:
                     raise ValueError(
@@ -714,31 +710,31 @@ def collect_options(args, jobs, options):
                 options[name] = v
             elif name == 'setup':
                 options['setup'] = 1
-            elif globals().has_key(name.capitalize()+'Job'):
+            elif name.capitalize()+'Job' in globals():
                 job = name
                 kw = {}
                 while args and args[0].find("=") > 0:
                     arg = args.pop(0).split('=')
                     name, v = arg[0], '='.join(arg[1:])
-                    if kw.has_key(name):
+                    if name in kw:
                         raise ValueError(
                             "Duplicate parameter %s for job %s"
                             % (name, job)
                             )
                     kw[name]=v
-                if kw.has_key('frequency'):
+                if 'frequency' in kw:
                     frequency = kw['frequency']
                     del kw['frequency']
                 else:
                     frequency = 1
 
-                if kw.has_key('sleep'):
+                if 'sleep' in kw:
                     sleep = float(kw['sleep'])
                     del kw['sleep']
                 else:
                     sleep = 0.0001
 
-                if kw.has_key('repeat'):
+                if 'repeat' in kw:
                     repeatp = float(kw['repeat'])
                     del kw['repeat']
                 else:
@@ -767,10 +763,10 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
     if not args:
-        print __doc__
+        print(__doc__)
         sys.exit(0)
 
-    print args
+    print(args)
     random.seed(hash(tuple(args))) # always use the same for the given args
 
     options = {"mbox": None, "threads": None}
@@ -784,7 +780,7 @@ def main(args=None):
     # Perform a ZConfig-based Zope initialization:
     zetup(os.path.join(lib_python, '..', '..', 'etc', 'zope.conf'))
 
-    if options.has_key('setup'):
+    if 'setup' in options:
         setup(lib_python)
     else:
         import Zope2
@@ -794,7 +790,7 @@ def main(args=None):
     for job, kw, frequency, sleep, repeatp in jobdefs:
         Job = globals()[job.capitalize()+'Job']
         if getattr(Job, 'needs_mbox', 0):
-            if not kw.has_key("mbox"):
+            if "mbox" not in kw:
                 if not options["mbox"]:
                     raise ValueError(
                         "no mailbox (mbox option) file  specified")
@@ -806,7 +802,7 @@ def main(args=None):
         jobs.add(Job(**kw), frequency, sleep, repeatp)
 
     if not jobs:
-        print "No jobs to execute"
+        print("No jobs to execute")
         return
 
     threads = int(options['threads'] or '0')

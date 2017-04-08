@@ -1,7 +1,0 @@
-.installed.cfg
-bin
-build
-develop-eggs
-eggs
-parts
-*.egg-info

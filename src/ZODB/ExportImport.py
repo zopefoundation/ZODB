@@ -13,18 +13,19 @@
 ##############################################################################
 """Support for database export and import."""
 
-import os
-
-from cStringIO import StringIO
-from cPickle import Pickler, Unpickler
-from tempfile import TemporaryFile
 import logging
+import os
+from tempfile import TemporaryFile
+
+import six
 
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError
 from ZODB.serialize import referencesf
 from ZODB.utils import p64, u64, cp, mktemp
+from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
+
 
 logger = logging.getLogger('ZODB.ExportImport')
 
@@ -32,14 +33,14 @@ class ExportImport:
 
     def exportFile(self, oid, f=None):
         if f is None:
-            f = TemporaryFile()
-        elif isinstance(f, str):
+            f = TemporaryFile(prefix="EXP")
+        elif isinstance(f, six.string_types):
             f = open(f,'w+b')
-        f.write('ZEXP')
+        f.write(b'ZEXP')
         oids = [oid]
         done_oids = {}
-        done=done_oids.has_key
-        load=self._storage.load
+        done = done_oids.__contains__
+        load = self._storage.load
         supports_blobs = IBlobStorage.providedBy(self._storage)
         while oids:
             oid = oids.pop(0)
@@ -47,7 +48,7 @@ class ExportImport:
                 continue
             done_oids[oid] = True
             try:
-                p, serial = load(oid, '')
+                p, serial = load(oid)
             except:
                 logger.debug("broken reference for oid %s", repr(oid),
                              exc_info=True)
@@ -72,12 +73,14 @@ class ExportImport:
     def importFile(self, f, clue='', customImporters=None):
         # This is tricky, because we need to work in a transaction!
 
-        if isinstance(f, str):
-            f = open(f, 'rb')
+        if isinstance(f, six.string_types):
+            with open(f, 'rb') as fp:
+                return self.importFile(fp, clue=clue,
+                                       customImporters=customImporters)
 
         magic = f.read(4)
-        if magic != 'ZEXP':
-            if customImporters and customImporters.has_key(magic):
+        if magic != b'ZEXP':
+            if customImporters and magic in customImporters:
                 f.seek(0)
                 return customImporters[magic](self, f, clue)
             raise ExportError("Invalid export header")
@@ -115,6 +118,11 @@ class ExportImport:
             klass = None
             if isinstance(ooid, tuple):
                 ooid, klass = ooid
+
+            if not isinstance(ooid, bytes):
+                assert isinstance(ooid, str)
+                # this happens on Python 3 when all bytes in the oid are < 0x80
+                ooid = ooid.encode('ascii')
 
             if ooid in oids:
                 oid = oids[ooid]
@@ -164,13 +172,12 @@ class ExportImport:
                 f.seek(-len(blob_begin_marker),1)
                 blob_filename = None
 
-            pfile = StringIO(data)
+            pfile = BytesIO(data)
             unpickler = Unpickler(pfile)
             unpickler.persistent_load = persistent_load
 
-            newp = StringIO()
-            pickler = Pickler(newp, 1)
-            pickler.inst_persistent_id = persistent_id
+            newp = BytesIO()
+            pickler = PersistentPickler(persistent_id, newp, _protocol)
 
             pickler.dump(unpickler.load())
             pickler.dump(unpickler.load())
@@ -183,8 +190,8 @@ class ExportImport:
                 self._storage.store(oid, None, data, '', transaction)
 
 
-export_end_marker = '\377'*16
-blob_begin_marker = '\000BLOBSTART'
+export_end_marker = b'\377'*16
+blob_begin_marker = b'\000BLOBSTART'
 
 class Ghost(object):
     __slots__ = ("oid",)

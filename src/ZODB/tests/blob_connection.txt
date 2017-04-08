@@ -9,7 +9,7 @@ with some data:
     >>> import transaction
     >>> blob = Blob()
     >>> data = blob.open("w")
-    >>> data.write("I'm a happy Blob.")
+    >>> _ = data.write(b"I'm a happy Blob.")
     >>> data.close()
 
 We also need a database with a blob supporting storage.  (We're going to use
@@ -43,7 +43,7 @@ Getting stuff out of there works similarly:
     >>> blob2 = root['myblob']
     >>> IBlob.providedBy(blob2)
     True
-    >>> blob2.open("r").read()
+    >>> with blob2.open("r") as fp: fp.read()
     "I'm a happy Blob."
     >>> transaction2.abort()
 
@@ -52,10 +52,10 @@ MVCC also works.
     >>> transaction3 = transaction.TransactionManager()
     >>> connection3 = database.open(transaction_manager=transaction3)
     >>> f = connection.root()['myblob'].open('w')
-    >>> f.write('I am an ecstatic Blob.')
+    >>> _ = f.write(b'I am an ecstatic Blob.')
     >>> f.close()
     >>> transaction.commit()
-    >>> connection3.root()['myblob'].open('r').read()
+    >>> with connection3.root()['myblob'].open('r') as fp: fp.read()
     "I'm a happy Blob."
 
     >>> transaction2.abort()
@@ -74,7 +74,7 @@ You can't put blobs into a database that has uses a Non-Blob-Storage, though:
     >>> transaction2.commit()        # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    Unsupported: Storing Blobs in <ZODB.MappingStorage.MappingStorage object at ...> is not supported.
+    Unsupported: Storing Blobs in ...
 
     >>> transaction2.abort()
     >>> connection2.close()

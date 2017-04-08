@@ -13,28 +13,45 @@
 ##############################################################################
 import doctest
 import os
+import re
 import time
 import transaction
 import unittest
 import ZODB.blob
 import ZODB.FileStorage
 import ZODB.tests.util
+from ZODB.Connection import TransactionMetaData
+from zope.testing import renormalizing
+
+checker = renormalizing.RENormalizing([
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Python 3 adds module name to exceptions.
+    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
+    (re.compile("ZODB.FileStorage.FileStorage.FileStorageQuotaError"),
+                "FileStorageQuotaError"),
+    (re.compile('data.fs:[0-9]+'), 'data.fs:<OFFSET>'),
+])
 
 def pack_keep_old():
     """Should a copy of the database be kept?
 
-The pack_keep_old constructor argument controls whether a .old file (and .old directory for blobs is kept.)
+The pack_keep_old constructor argument controls whether a .old file (and .old
+directory for blobs is kept.)
 
     >>> fs = ZODB.FileStorage.FileStorage('data.fs', blob_dir='blobs')
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> import ZODB.blob
     >>> conn.root()[1] = ZODB.blob.Blob()
-    >>> conn.root()[1].open('w').write('some data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
-    >>> conn.root()[2].open('w').write('some data')
+    >>> with conn.root()[2].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> transaction.commit()
-    >>> conn.root()[1].open('w').write('some other data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some other data')
     >>> del conn.root()[2]
     >>> transaction.commit()
     >>> old_size = os.stat('data.fs').st_size
@@ -66,11 +83,14 @@ The pack_keep_old constructor argument controls whether a .old file (and .old di
     >>> db = ZODB.DB(fs)
     >>> conn = db.open()
     >>> conn.root()[1] = ZODB.blob.Blob()
-    >>> conn.root()[1].open('w').write('some data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> conn.root()[2] = ZODB.blob.Blob()
-    >>> conn.root()[2].open('w').write('some data')
+    >>> with conn.root()[2].open('w') as file:
+    ...     _ = file.write(b'some data')
     >>> transaction.commit()
-    >>> conn.root()[1].open('w').write('some other data')
+    >>> with conn.root()[1].open('w') as file:
+    ...     _ = file.write(b'some other data')
     >>> del conn.root()[2]
     >>> transaction.commit()
 
@@ -100,23 +120,25 @@ def pack_with_repeated_blob_records():
     >>> transaction.commit()
     >>> tm = transaction.TransactionManager()
     >>> oid = conn.root()[1]._p_oid
-    >>> blob_record, oldserial = fs.load(oid)
+    >>> from ZODB.utils import load_current
+    >>> blob_record, oldserial = load_current(fs, oid)
 
     Now, create a transaction with multiple saves:
 
-    >>> trans = tm.begin()
+    >>> trans = TransactionMetaData()
     >>> fs.tpc_begin(trans)
-    >>> open('ablob', 'w').write('some data')
-    >>> _ = fs.store(oid, oldserial, blob_record, '', trans)
-    >>> _ = fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
-    >>> fs.tpc_vote(trans)
-    >>> fs.tpc_finish(trans)
+    >>> with open('ablob', 'w') as file:
+    ...     _ = file.write('some data')
+    >>> fs.store(oid, oldserial, blob_record, '', trans)
+    >>> fs.storeBlob(oid, oldserial, blob_record, 'ablob', '', trans)
+    >>> _ = fs.tpc_vote(trans)
+    >>> _ = fs.tpc_finish(trans)
 
     >>> time.sleep(.01)
     >>> db.pack()
 
     >>> conn.sync()
-    >>> conn.root()[1].open().read()
+    >>> with conn.root()[1].open() as fp: fp.read()
     'some data'
 
     >>> db.close()
@@ -130,14 +152,14 @@ _save_index can fail for large indexes.
     >>> import ZODB.utils
     >>> fs = ZODB.FileStorage.FileStorage('data.fs')
 
-    >>> t = transaction.begin()
+    >>> t = TransactionMetaData()
     >>> fs.tpc_begin(t)
     >>> oid = 0
     >>> for i in range(5000):
     ...     oid += (1<<16)
-    ...     _ = fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, 'x', '', t)
-    >>> fs.tpc_vote(t)
-    >>> fs.tpc_finish(t)
+    ...     fs.store(ZODB.utils.p64(oid), ZODB.utils.z64, b'x', '', t)
+    >>> _ = fs.tpc_vote(t)
+    >>> _ = fs.tpc_finish(t)
 
     >>> import sys
     >>> old_limit = sys.getrecursionlimit()
@@ -165,15 +187,136 @@ cleanup
 
     """
 
+def pack_disk_full_copyToPacktime():
+    """Recover from a disk full situation by removing the `.pack` file
+
+`copyToPacktime` fails
+
+Add some data
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 'foobar'
+    >>> transaction.commit()
+
+patch `copyToPacktime` to fail
+
+    >>> from ZODB.FileStorage import fspack
+    >>> save_copyToPacktime = fspack.FileStoragePacker.copyToPacktime
+
+    >>> def failing_copyToPacktime(self):
+    ...     self._tfile.write(b'somejunkdata')
+    ...     raise OSError("No space left on device")
+
+    >>> fspack.FileStoragePacker.copyToPacktime = failing_copyToPacktime
+
+pack -- it still raises `OSError`
+
+    >>> db.pack(time.time()+1)
+    Traceback (most recent call last):
+    ...
+    OSError: No space left on device
+
+`data.fs.pack` must not exist
+
+    >>> os.path.exists('data.fs.pack')
+    False
+
+undo patching
+
+    >>> fspack.FileStoragePacker.copyToPacktime = save_copyToPacktime
+
+    >>> db.close()
+
+check the data we added
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1]
+    'foobar'
+    >>> db.close()
+    """
+
+def pack_disk_full_copyRest():
+    """Recover from a disk full situation by removing the `.pack` file
+
+`copyRest` fails
+
+Add some data
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1] = 'foobar'
+    >>> transaction.commit()
+
+patch `copyToPacktime` to add one more transaction
+
+    >>> from ZODB.FileStorage import fspack
+    >>> save_copyToPacktime = fspack.FileStoragePacker.copyToPacktime
+
+    >>> def patched_copyToPacktime(self):
+    ...     res = save_copyToPacktime(self)
+    ...     conn2 = db.open()
+    ...     conn2.root()[2] = 'another bar'
+    ...     transaction.commit()
+    ...     return res
+
+    >>> fspack.FileStoragePacker.copyToPacktime = patched_copyToPacktime
+
+patch `copyRest` to fail
+
+    >>> save_copyRest = fspack.FileStoragePacker.copyRest
+
+    >>> def failing_copyRest(self, ipos):
+    ...     self._tfile.write(b'somejunkdata')
+    ...     raise OSError("No space left on device")
+
+    >>> fspack.FileStoragePacker.copyRest = failing_copyRest
+
+pack -- it still raises `OSError`
+
+    >>> db.pack(time.time()+1)
+    Traceback (most recent call last):
+    ...
+    OSError: No space left on device
+
+`data.fs.pack` must not exist
+
+    >>> os.path.exists('data.fs.pack')
+    False
+
+undo patching
+
+    >>> fspack.FileStoragePacker.copyToPacktime = save_copyToPacktime
+    >>> fspack.FileStoragePacker.copyRest = save_copyRest
+
+    >>> db.close()
+
+check the data we added
+
+    >>> fs = ZODB.FileStorage.FileStorage('data.fs')
+    >>> db = ZODB.DB(fs)
+    >>> conn = db.open()
+    >>> conn.root()[1]
+    'foobar'
+    >>> conn.root()[2]
+    'another bar'
+    >>> db.close()
+    """
 
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-            'zconfig.txt', 'iterator.test',
-            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
+            'zconfig.txt',
+            'iterator.test',
+            setUp=ZODB.tests.util.setUp,
+            tearDown=ZODB.tests.util.tearDown,
+            checker=checker),
         doctest.DocTestSuite(
-            setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-            ),
+            setUp=ZODB.tests.util.setUp,
+            tearDown=ZODB.tests.util.tearDown,
+            checker=checker),
         ))
-

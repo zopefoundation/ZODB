@@ -1,9 +1,10 @@
-#!/usr/bin/env python2.3
-
+#!/usr/bin/env python2
 """Print details statistics from fsdump output."""
-
+from __future__ import print_function
 import re
 import sys
+import six
+from six.moves import filter
 
 rx_txn = re.compile("tid=([0-9a-f]+).*size=(\d+)")
 rx_data = re.compile("oid=([0-9a-f]+) class=(\S+) size=(\d+)")
@@ -21,10 +22,10 @@ class Histogram(dict):
         self[size] = self.get(size, 0) + 1
 
     def size(self):
-        return sum(self.itervalues())
+        return sum(six.itervalues(self))
 
     def mean(self):
-        product = sum([k * v for k, v in self.iteritems()])
+        product = sum([k * v for k, v in six.iteritems(self)])
         return product / self.size()
 
     def median(self):
@@ -42,17 +43,17 @@ class Histogram(dict):
     def mode(self):
         mode = 0
         value = 0
-        for k, v in self.iteritems():
+        for k, v in six.iteritems(self):
             if v > value:
                 value = v
                 mode = k
         return mode
 
     def make_bins(self, binsize):
-        maxkey = max(self.iterkeys())
+        maxkey = max(six.iterkeys(self))
         self.binsize = binsize
         self.bins = [0] * (1 + maxkey / binsize)
-        for k, v in self.iteritems():
+        for k, v in six.iteritems(self):
             b = k / binsize
             self.bins[b] += v
 
@@ -67,41 +68,41 @@ class Histogram(dict):
         # Print up to 40 dots for a value
         dot = max(maxval / 40, 1)
         tot = sum(self.bins)
-        print name
-        print "Total", tot,
-        print "Median", self.median(),
-        print "Mean", self.mean(),
-        print "Mode", self.mode(),
-        print "Max", max(self)
-        print "One * represents", dot
+        print(name)
+        print("Total", tot, end=' ')
+        print("Median", self.median(), end=' ')
+        print("Mean", self.mean(), end=' ')
+        print("Mode", self.mode(), end=' ')
+        print("Max", max(self))
+        print("One * represents", dot)
         gap = False
         cum = 0
         for i, n in enumerate(self.bins):
             if gaps and (not n or (skip and not n / dot)):
                 if not gap:
-                    print "   ..."
+                    print("   ...")
                 gap = True
                 continue
             gap = False
             p = 100 * n / tot
             cum += n
             pc = 100 * cum / tot
-            print "%6d %6d %3d%% %3d%% %s" % (
-                i * binsize, n, p, pc, "*" * (n / dot))
-        print
+            print("%6d %6d %3d%% %3d%% %s" % (
+                i * binsize, n, p, pc, "*" * (n / dot)))
+        print()
 
 def class_detail(class_size):
     # summary of classes
     fmt = "%5s %6s %6s %6s   %-50.50s"
     labels = ["num", "median", "mean", "mode", "class"]
-    print fmt % tuple(labels)
-    print fmt % tuple(["-" * len(s) for s in labels])
-    for klass, h in sort_byhsize(class_size.iteritems()):
-        print fmt % (h.size(), h.median(), h.mean(), h.mode(), klass)
-    print
+    print(fmt % tuple(labels))
+    print(fmt % tuple(["-" * len(s) for s in labels]))
+    for klass, h in sort_byhsize(six.iteritems(class_size)):
+        print(fmt % (h.size(), h.median(), h.mean(), h.mode(), klass))
+    print()
 
     # per class details
-    for klass, h in sort_byhsize(class_size.iteritems(), reverse=True):
+    for klass, h in sort_byhsize(six.iteritems(class_size), reverse=True):
         h.make_bins(50)
         if len(filter(None, h.bins)) == 1:
             continue
@@ -109,7 +110,7 @@ def class_detail(class_size):
 
 def revision_detail(lifetimes, classes):
     # Report per-class details for any object modified more than once
-    for name, oids in classes.iteritems():
+    for name, oids in six.iteritems(classes):
         h = Histogram()
         keep = False
         for oid in dict.fromkeys(oids, 1):
@@ -179,9 +180,9 @@ def main(path=None):
             txn_bytes.add(size)
     f.close()
 
-    print "Summary: %d txns, %d objects, %d revisions" % (
-        txn_objects.size(), len(n_updates), n_updates.size())
-    print
+    print("Summary: %d txns, %d objects, %d revisions" % (
+        txn_objects.size(), len(n_updates), n_updates.size()))
+    print()
 
     txn_bytes.report("Transaction size (bytes)", binsize=1024)
     txn_objects.report("Transaction size (objects)", binsize=10)

@@ -11,9 +11,13 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from zope.testing import setupstack
 import doctest
+import re
+import unittest
+
 import ZODB
+from zope.testing import setupstack
+from zope.testing.renormalizing import RENormalizing
 
 def test_fstest_verbose():
     r"""
@@ -39,6 +43,13 @@ def test_fstest_verbose():
 
 
 def test_suite():
-    return doctest.DocTestSuite(
-        setUp=setupstack.setUpDirectory, tearDown=setupstack.tearDown)
+    checker = RENormalizing([
+        # Python 3 drops the u'' prefix on unicode strings
+        (re.compile(r"u('[^']*')"), r"\1"),
+    ])
+    return unittest.TestSuite([
+        doctest.DocTestSuite('ZODB.scripts.fstest', checker=checker),
+        doctest.DocTestSuite(setUp=setupstack.setUpDirectory,
+                             tearDown=setupstack.tearDown),
+    ])
 

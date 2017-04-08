@@ -201,21 +201,6 @@ class IConnection(Interface):
     def isReadOnly():
         """Returns True if the storage for this connection is read only."""
 
-    def invalidate(tid, oids):
-        """Notify the Connection that transaction 'tid' invalidated oids.
-
-        When the next transaction boundary is reached, objects will be
-        invalidated.  If any of the invalidated objects are accessed by the
-        current transaction, the revision written before Connection.tid will be
-        used.
-
-        The DB calls this method, even when the Connection is closed.
-
-        Parameters:
-        tid: the storage-level id of the transaction that committed
-        oids: oids is an iterable of oids.
-        """
-
     def root():
         """Return the database root object.
 
@@ -278,14 +263,6 @@ class IConnection(Interface):
         If clear is True, reset the counters.
         """
 
-    def invalidateCache():
-        """Invalidate the connection cache
-
-        This invalidates *all* objects in the cache. If the connection
-        is open, subsequent reads will fail until a new transaction
-        begins or until the connection os reopned.
-        """
-
     def readCurrent(obj):
         """Make sure an object being read is current
 
@@ -336,7 +313,7 @@ class IStorageWrapper(Interface):
         there would be so many that it would be inefficient to do so.
         """
 
-    def invalidate(transaction_id, oids, version=''):
+    def invalidate(transaction_id, oids):
         """Invalidate object ids committed by the given transaction
 
         The oids argument is an iterable of object identifiers.
@@ -406,7 +383,41 @@ class IDatabase(IStorageDB):
         include useful objects.
         """
 
-    # TODO: Should this method be moved into some subinterface?
+    def history(oid, size=1):
+        """Return a sequence of history information dictionaries.
+
+        Up to size objects (including no objects) may be returned.
+
+        The information provides a log of the changes made to the
+        object. Data are reported in reverse chronological order.
+
+        Each dictionary has the following keys:
+
+        time
+            UTC seconds since the epoch (as in time.time) that the
+            object revision was committed.
+
+        tid
+            The transaction identifier of the transaction that
+            committed the version.
+
+        user_name
+            The text (unicode) user identifier, if any (or an empty
+            string) of the user on whos behalf the revision was
+            committed.
+
+        description
+            The text (unicode) transaction description for the
+            transaction that committed the revision.
+
+        size
+            The size of the revision data record.
+
+        If the transaction had extension items, then these items are
+        also included if they don't conflict with the keys above.
+        """
+
+
     def pack(t=None, days=0):
         """Pack the storage, deleting unused object revisions.
 
@@ -423,7 +434,76 @@ class IDatabase(IStorageDB):
         time if t is not specified.
         """
 
-    # TODO: Should this method be moved into some subinterface?
+    def undoLog(first, last, filter=None):
+        """Return a sequence of descriptions for undoable transactions.
+
+        Application code should call undoLog() on a DB instance instead of on
+        the storage directly.
+
+        A transaction description is a mapping with at least these keys:
+
+            "time":  The time, as float seconds since the epoch, when
+                     the transaction committed.
+            "user_name":  The text value of the `.user` attribute on that
+                          transaction.
+            "description":  The text value of the `.description` attribute on
+                            that transaction.
+            "id`"  A bytes uniquely identifying the transaction to the
+                   storage.  If it's desired to undo this transaction,
+                   this is the `transaction_id` to pass to `undo()`.
+
+        In addition, if any name+value pairs were added to the transaction
+        by `setExtendedInfo()`, those may be added to the transaction
+        description mapping too (for example, FileStorage's `undoLog()` does
+        this).
+
+        `filter` is a callable, taking one argument.  A transaction
+        description mapping is passed to `filter` for each potentially
+        undoable transaction.  The sequence returned by `undoLog()` excludes
+        descriptions for which `filter` returns a false value.  By default,
+        `filter` always returns a true value.
+
+        ZEO note:  Arbitrary callables cannot be passed from a ZEO client
+        to a ZEO server, and a ZEO client's implementation of `undoLog()`
+        ignores any `filter` argument that may be passed.  ZEO clients
+        should use the related `undoInfo()` method instead (if they want
+        to do filtering).
+
+        Now picture a list containing descriptions of all undoable
+        transactions that pass the filter, most recent transaction first (at
+        index 0).  The `first` and `last` arguments specify the slice of this
+        (conceptual) list to be returned:
+
+            `first`:  This is the index of the first transaction description
+                      in the slice.  It must be >= 0.
+            `last`:  If >= 0, first:last acts like a Python slice, selecting
+                     the descriptions at indices `first`, first+1, ..., up to
+                     but not including index `last`.  At most last-first
+                     descriptions are in the slice, and `last` should be at
+                     least as large as `first` in this case.  If `last` is
+                     less than 0, then abs(last) is taken to be the maximum
+                     number of descriptions in the slice (which still begins
+                     at index `first`).  When `last` < 0, the same effect
+                     could be gotten by passing the positive first-last for
+                     `last` instead.
+        """
+
+    def undoInfo(first=0, last=-20, specification=None):
+        """Return a sequence of descriptions for undoable transactions.
+
+        This is like `undoLog()`, except for the `specification` argument.
+        If given, `specification` is a dictionary, and `undoInfo()`
+        synthesizes a `filter` function `f` for `undoLog()` such that
+        `f(desc)` returns true for a transaction description mapping
+        `desc` if and only if `desc` maps each key in `specification` to
+        the same value `specification` maps that key to.  In other words,
+        only extensions (or supersets) of `specification` match.
+
+        ZEO note:  `undoInfo()` passes the `specification` argument from a
+        ZEO client to its ZEO server (while a ZEO client ignores any `filter`
+        argument passed to `undoLog()`).
+        """
+
     def undo(id, txn=None):
         """Undo a transaction identified by id.
 
@@ -455,12 +535,43 @@ class IDatabase(IStorageDB):
         should also close all the Connections.
         """
 
+class IStorageTransactionMetaData(Interface):
+    """Provide storage transaction meta data.
+
+    Note that unlike transaction.interfaces.ITransaction, the ``user``
+    and ``description`` attributes are bytes, not text.
+    """
+    user = Attribute("Bytes transaction user")
+    description = Attribute("Bytes transaction Description")
+    extension = Attribute(
+        "A dictionary carrying a transaction's extended_info data")
+
+
+    def set_data(ob, data):
+        """Hold data on behalf of an object
+
+        For objects such as storages that
+        work with multiple transactions, it's convenient to store
+        transaction-specific data on the transaction itself.  The
+        transaction knows nothing about the data, but simply holds it
+        on behalf of the object.
+
+        The object passed should be the object that needs the data, as
+        opposed to simple object like a string. (Internally, the id of
+        the object is used as the key.)
+        """
+
+    def data(ob):
+        """Retrieve data held on behalf of an object.
+
+        See set_data.
+        """
+
 
 class IStorage(Interface):
     """A storage is responsible for storing and retrieving data of objects.
 
     Consistency and locking
-    -----------------------
 
     When transactions are committed, a storage assigns monotonically
     increasing transaction identifiers (tids) to the transactions and
@@ -495,6 +606,9 @@ class IStorage(Interface):
 
         Finalize the storage, releasing any external resources.  The
         storage should not be used after this method is called.
+
+        Note that databases close their storages when they're closed, so
+        this method isn't generally called from application code.
         """
 
     def getName():
@@ -534,11 +648,11 @@ class IStorage(Interface):
             An alias for tid, which expected by older clients.
 
         user_name
-            The user identifier, if any (or an empty string) of the
+            The bytes user identifier, if any (or an empty string) of the
             user on whos behalf the revision was committed.
 
         description
-            The transaction description for the transaction that
+            The bytes transaction description for the transaction that
             committed the revision.
 
         size
@@ -574,20 +688,6 @@ class IStorage(Interface):
         This is used soley for informational purposes.
         """
 
-    def load(oid, version):
-        """Load data for an object id
-
-        The version argumement should always be an empty string. It
-        exists soley for backward compatibility with older storage
-        implementations.
-
-        A data record and serial are returned.  The serial is a
-        transaction identifier of the transaction that wrote the data
-        record.
-
-        A POSKeyError is raised if there is no record for the object id.
-        """
-
     def loadBefore(oid, tid):
         """Load the object data written before a transaction id
 
@@ -610,19 +710,6 @@ class IStorage(Interface):
         If a matching data record can be found, it is returned,
         otherwise, POSKeyError is raised.
         """
-
-#     The following two methods are effectively part of the interface,
-#     as they are generally needed when one storage wraps
-#     another. This deserves some thought, at probably debate, before
-#     adding them.
-#
-#     def _lock_acquire():
-#         """Acquire the storage lock
-#         """
-
-#     def _lock_release():
-#         """Release the storage lock
-#         """
 
     def new_oid():
         """Allocate a new object id.
@@ -661,11 +748,7 @@ class IStorage(Interface):
         The passed object is a wrapper object that provides an upcall
         interface to support composition.
 
-        Note that, for historical reasons, an implementation may
-        require a second argument, however, if required, the None will
-        be passed as the second argument.
-
-        Also, for historical reasons, this is called registerDB rather
+        Note that, for historical reasons, this is called registerDB rather
         than register_wrapper.
         """
 
@@ -704,25 +787,7 @@ class IStorage(Interface):
             This must be an empty string. It exists for backward compatibility.
 
         transaction
-            A transaction object.  This should match the current
-            transaction for the storage, set by tpc_begin.
-
-        The new serial for the object is returned, but not necessarily
-        immediately.  It may be returned directly, or on a subsequent
-        store or tpc_vote call.
-
-        The return value may be:
-
-        - None, or
-
-        - A new serial (string) for the object
-
-        If None is returned, then a new serial (or other special
-        values) must ve returned in tpc_vote results.
-
-        A serial, returned as a string, may be the special value
-        ZODB.ConflictResolution.ResolvedSerial to indicate that a
-        conflict occured and that the object should be invalidated.
+            The object passed to tpc_begin
 
         Several different exceptions may be raised when an error occurs.
 
@@ -744,6 +809,8 @@ class IStorage(Interface):
     def tpc_abort(transaction):
         """Abort the transaction.
 
+        The argument is the same object passed to tpc_begin.
+
         Any changes made by the transaction are discarded.
 
         This call is ignored is the storage is not participating in
@@ -753,6 +820,8 @@ class IStorage(Interface):
 
     def tpc_begin(transaction):
         """Begin the two-phase commit process.
+
+        The argument provides IStorageTransactionMetaData.
 
         If storage is already participating in a two-phase commit
         using the same transaction, a StorageTransactionError is raised.
@@ -772,14 +841,20 @@ class IStorage(Interface):
         a different transaction.  Failure of this method is extremely
         serious.
 
+        The first argument is the same object passed to tpc_begin.
+
         The second argument is a call-back function that must be
         called while the storage transaction lock is held.  It takes
         the new transaction id generated by the transaction.
 
+        The return value may be None or the transaction id of the
+        committed transaction, as described in IMultiCommitStorage.
         """
 
     def tpc_vote(transaction):
         """Provide a storage with an opportunity to veto a transaction
+
+        The argument is the same object passed to tpc_begin.
 
         This call raises a StorageTransactionError if the storage
         isn't participating in two-phase commit or if it is commiting
@@ -791,17 +866,50 @@ class IStorage(Interface):
         without an error, then there must not be an error if
         tpc_finish or tpc_abort is called subsequently.
 
-        The return value can be either None or a sequence of object-id
-        and serial pairs giving new serials for objects who's ids were
-        passed to previous store calls in the same transaction.
-        After the tpc_vote call, new serials must have been returned,
-        either from tpc_vote or store for objects passed to store.
+        The return value can be None or a sequence of a sequence of object ids,
+        as described in IMultiCommitStorage.tpc_vote.
+        """
 
-        A serial returned in a sequence of oid/serial pairs, may be
-        the special value ZODB.ConflictResolution.ResolvedSerial to
-        indicate that a conflict occured and that the object should be
-        invalidated.
 
+class IPrefetchStorage(IStorage):
+
+    def prefetch(oids, tid):
+        """Prefetch data for the given object ids before the given tid
+
+        The oids argument is an iterable that should be iterated no
+        more than once.
+        """
+
+
+class IMultiCommitStorage(IStorage):
+    """A multi-commit storage can commit multiple transactions at once.
+
+    It's likely that future versions of ZODB will require all storages
+    to provide this interface.
+    """
+
+    def store(oid, serial, data, version, transaction):
+        """Store data for the object id, oid.
+
+        See IStorage.store. For objects implementing this interface,
+        the return value is always None.
+        """
+
+    def tpc_finish(transaction, func = lambda tid: None):
+        """Finish the transaction, making any transaction changes permanent.
+
+        See IStorage.store. For objects implementing this interface,
+        the return value must be the committed tid. It is used to set the
+        serial for objects whose ids were passed to previous store calls
+        in the same transaction.
+        """
+
+    def tpc_vote(transaction):
+        """Provide a storage with an opportunity to veto a transaction
+
+        See IStorage.tpc_vote. For objects implementing this interface,
+        the return value can be either None or a sequence of oids for which
+        a conflict was resolved.
         """
 
 
@@ -823,6 +931,8 @@ class IStorageRestoreable(IStorage):
         If the storage is already participating in a two-phase commit
         using a different transaction, the call blocks until the
         current transaction ends (commits or aborts).
+
+        The first argument provides IStorageTransactionMetaData.
 
         If a transaction id is given, then the transaction will use
         the given id rather than generating a new id.  This is used
@@ -875,26 +985,22 @@ class IStorageRecordInformation(Interface):
     """Provide information about a single storage record
     """
 
-    oid = Attribute("The object id")
-    tid = Attribute("The transaction id")
-    data = Attribute("The data record")
-    version = Attribute("The version id")
-    data_txn = Attribute("The previous transaction id")
+    oid = Attribute("The object id, bytes")
+    tid = Attribute("The transaction id, bytes")
+    data = Attribute("The data record, bytes")
+    data_txn = Attribute("The previous transaction id, bytes")
 
-
-class IStorageTransactionInformation(Interface):
+class IStorageTransactionInformation(IStorageTransactionMetaData):
     """Provide information about a storage transaction.
 
     Can be iterated over to retrieve the records modified in the transaction.
 
+    Note that this may contain a status field used by FileStorage to
+    support packing. At some point, this will go away when FileStorage
+    has a better pack algoritm.
     """
 
     tid = Attribute("Transaction id")
-    status = Attribute("Transaction Status") # XXX what are valid values?
-    user = Attribute("Transaction user")
-    description = Attribute("Transaction Description")
-    extension = Attribute(
-        "A dictionary carrying the transaction's extension data")
 
     def __iter__():
         """Iterate over the transaction's records given as
@@ -922,7 +1028,6 @@ class IStorageIteration(Interface):
 
         """
 
-
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
     """
@@ -941,8 +1046,8 @@ class IStorageUndoable(IStorage):
         This method must only be called in the first phase of
         two-phase commit (after tpc_begin but before tpc_vote). It
         returns a serial (transaction id) and a sequence of object ids
-        for objects affected by the transaction.
-
+        for objects affected by the transaction. The serial is ignored
+        and may be None. The return from this method may be None.
         """
         # Used by DB (Actually, by TransactionalUndo)
 
@@ -956,11 +1061,11 @@ class IStorageUndoable(IStorage):
 
             "time":  The time, as float seconds since the epoch, when
                      the transaction committed.
-            "user_name":  The value of the `.user` attribute on that
+            "user_name":  The bytes value of the `.user` attribute on that
                           transaction.
-            "description":  The value of the `.description` attribute on
+            "description":  The bytes value of the `.description` attribute on
                             that transaction.
-            "id`"  A string uniquely identifying the transaction to the
+            "id`"  A bytes uniquely identifying the transaction to the
                    storage.  If it's desired to undo this transaction,
                    this is the `transaction_id` to pass to `undo()`.
 
@@ -999,7 +1104,6 @@ class IStorageUndoable(IStorage):
                      could be gotten by passing the positive first-last for
                      `last` instead.
         """
-        # DB pass through
 
     def undoInfo(first=0, last=-20, specification=None):
         """Return a sequence of descriptions for undoable transactions.
@@ -1016,7 +1120,6 @@ class IStorageUndoable(IStorage):
         ZEO client to its ZEO server (while a ZEO client ignores any `filter`
         argument passed to `undoLog()`).
         """
-        # DB pass-through
 
 
 class IMVCCStorage(IStorage):
@@ -1096,11 +1199,9 @@ class IMVCCStorage(IStorage):
         """
 
     def release():
-        """Release all persistent sessions used by this storage instance.
+        """Release resources held by the storage instance.
 
-        After this call, the storage instance can still be used;
-        calling methods that use persistent sessions will cause the
-        persistent sessions to be reopened.
+        The storage instance won't be used again after this call.
         """
 
     def poll_invalidations():
@@ -1123,6 +1224,34 @@ class IMVCCStorage(IStorage):
         the frequency of database polls, thus reducing database load.
         """
 
+    def load(oid):
+        """Load current data for an object id
+
+        A data record and serial are returned.  The serial is a
+        transaction identifier of the transaction that wrote the data
+        record.
+
+        A POSKeyError is raised if there is no record for the object id.
+        """
+
+class IMVCCPrefetchStorage(IMVCCStorage):
+
+    def prefetch(oids):
+        """Prefetch data for the given object ids
+
+        The oids argument is an iterable that should be iterated no
+        more than once.
+        """
+
+class IMVCCAfterCompletionStorage(IMVCCStorage):
+
+    def afterCompletion():
+        """Notify a storage that a transaction has ended.
+
+        The storage may choose to use this opportunity to release resources.
+
+        See ``transaction.interfaces.ISynchronizer.afterCompletion``.
+        """
 
 class IStorageCurrentRecordIteration(IStorage):
 
@@ -1228,24 +1357,6 @@ class IBlobStorage(Interface):
         The storage will take ownership of the file and will rename it
         (or copy and remove it) immediately, or at transaction-commit
         time.  The file must not be open.
-
-        The new serial for the object is returned, but not necessarily
-        immediately.  It may be returned directly, or on a subsequent
-        store or tpc_vote call.
-
-        The return value may be:
-
-        - None
-
-        - A new serial (string) for the object, or
-
-        - An iterable of object-id and serial pairs giving new serials
-          for objects.
-
-        A serial, returned as a string or in a sequence of oid/serial
-        pairs, may be the special value
-        ZODB.ConflictResolution.ResolvedSerial to indicate that a
-        conflict occured and that the object should be invalidated.
 
         Several different exceptions may be raised when an error occurs.
 

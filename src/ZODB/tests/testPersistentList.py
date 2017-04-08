@@ -17,6 +17,8 @@
 import unittest
 from persistent.list import PersistentList
 
+from six import PY2
+
 l0 = []
 l1 = [0]
 l2 = [0, 1]
@@ -50,21 +52,23 @@ class TestPList(unittest.TestCase):
 
         eq(str(u0), str(l0), "str(u0) == str(l0)")
         eq(repr(u1), repr(l1), "repr(u1) == repr(l1)")
-        eq(`u2`, `l2`, "`u2` == `l2`")
+        eq(repr(u2), repr(l2), "repr(u2) == repr(l2)")
 
         # Test __cmp__ and __len__
 
-        def mycmp(a, b):
-            r = cmp(a, b)
-            if r < 0: return -1
-            if r > 0: return 1
-            return r
+        # Py3: No cmp() or __cmp__ anymore.
+        if PY2:
+            def mycmp(a, b):
+                r = cmp(a, b)
+                if r < 0: return -1
+                if r > 0: return 1
+                return r
 
-        all = [l0, l1, l2, u, u0, u1, u2, uu, uu0, uu1, uu2]
-        for a in all:
-            for b in all:
-                eq(mycmp(a, b), mycmp(len(a), len(b)),
-                      "mycmp(a, b) == mycmp(len(a), len(b))")
+            all = [l0, l1, l2, u, u0, u1, u2, uu, uu0, uu1, uu2]
+            for a in all:
+                for b in all:
+                    eq(mycmp(a, b), mycmp(len(a), len(b)),
+                          "mycmp(a, b) == mycmp(len(a), len(b))")
 
         # Test __getitem__
 
@@ -80,7 +84,7 @@ class TestPList(unittest.TestCase):
         except IndexError:
             pass
         else:
-            raise TestFailed("uu2[2] shouldn't be assignable")
+            self.fail("uu2[2] shouldn't be assignable")
 
         # Test __delitem__
 
@@ -91,7 +95,7 @@ class TestPList(unittest.TestCase):
         except IndexError:
             pass
         else:
-            raise TestFailed("uu2[0] shouldn't be deletable")
+            self.fail("uu2[0] shouldn't be deletable")
 
         # Test __getslice__
 
@@ -120,9 +124,9 @@ class TestPList(unittest.TestCase):
 
         # Test __contains__
         for i in u2:
-            self.failUnless(i in u2, "i in u2")
+            self.assertTrue(i in u2, "i in u2")
         for i in min(u2)-1, max(u2)+1:
-            self.failUnless(i not in u2, "i not in u2")
+            self.assertTrue(i not in u2, "i not in u2")
 
         # Test __delslice__
 
@@ -138,12 +142,12 @@ class TestPList(unittest.TestCase):
 
         # Test __add__, __radd__, __mul__ and __rmul__
 
-        #self.failUnless(u1 + [] == [] + u1 == u1, "u1 + [] == [] + u1 == u1")
-        self.failUnless(u1 + [1] == u2, "u1 + [1] == u2")
-        #self.failUnless([-1] + u1 == [-1, 0], "[-1] + u1 == [-1, 0]")
-        self.failUnless(u2 == u2*1 == 1*u2, "u2 == u2*1 == 1*u2")
-        self.failUnless(u2+u2 == u2*2 == 2*u2, "u2+u2 == u2*2 == 2*u2")
-        self.failUnless(u2+u2+u2 == u2*3 == 3*u2, "u2+u2+u2 == u2*3 == 3*u2")
+        #self.assertTrue(u1 + [] == [] + u1 == u1, "u1 + [] == [] + u1 == u1")
+        self.assertTrue(u1 + [1] == u2, "u1 + [1] == u2")
+        #self.assertTrue([-1] + u1 == [-1, 0], "[-1] + u1 == [-1, 0]")
+        self.assertTrue(u2 == u2*1 == 1*u2, "u2 == u2*1 == 1*u2")
+        self.assertTrue(u2+u2 == u2*2 == 2*u2, "u2+u2 == u2*2 == 2*u2")
+        self.assertTrue(u2+u2+u2 == u2*3 == 3*u2, "u2+u2+u2 == u2*3 == 3*u2")
 
         # Test append
 
@@ -187,7 +191,7 @@ class TestPList(unittest.TestCase):
         except ValueError:
             pass
         else:
-            raise TestFailed("expected ValueError")
+            self.fail("expected ValueError")
 
         # Test reverse
 
@@ -212,7 +216,7 @@ class TestPList(unittest.TestCase):
     def checkBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from ZODB.PersistentList import PersistentList as oldPath
-        self.assert_(oldPath is PersistentList)
+        self.assertTrue(oldPath is PersistentList)
 
 def test_suite():
     return unittest.makeSuite(TestPList, 'check')

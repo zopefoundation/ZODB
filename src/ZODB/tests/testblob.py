@@ -11,14 +11,12 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-
-from pickle import Pickler
-from pickle import Unpickler
-from StringIO import StringIO
 from ZODB.blob import Blob
+from ZODB.blob import BushyLayout
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
+from ZODB._compat import Pickler, Unpickler, _protocol
 
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
@@ -41,6 +39,22 @@ import ZODB.tests.IteratorStorage
 import ZODB.tests.StorageTestBase
 import ZODB.tests.util
 import zope.testing.renormalizing
+
+
+try:
+    from StringIO import StringIO as BytesIO
+except ImportError:
+    # Py3
+    from io import BytesIO
+
+try:
+    file_type = file
+except NameError:
+    # Py3: Python 3 does not have a file type.
+    import io
+    file_type = io.BufferedReader
+
+from . import util
 
 def new_time():
     """Create a _new_ time stamp.
@@ -112,8 +126,8 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
         root['blob'] = Blob()
         transaction.commit()
 
-        stream = StringIO()
-        p = Pickler(stream, 1)
+        stream = BytesIO()
+        p = Pickler(stream, _protocol)
         p.dump(root['blob'])
         u = Unpickler(stream)
         stream.seek(0)
@@ -122,10 +136,33 @@ class BlobCloneTests(ZODB.tests.util.TestCase):
 
         # it should also be possible to open the cloned blob
         # (even though it won't contain the original data)
-        clone.open()
+        clone.open().close()
 
         # tearDown
         database.close()
+
+
+class BushyLayoutTests(ZODB.tests.util.TestCase):
+
+    def testBushyLayoutOIDToPathUnicode(self):
+        "OID-to-path should produce valid results given non-ASCII byte strings"
+        non_ascii_oid = b'>\xf1<0\xe9Q\x99\xf0'
+        # The argument should already be bytes;
+        # os.path.sep is native string type under both 2 and 3
+        # binascii.hexlify takes bytes and produces bytes under both py2 and py3
+        # the result should be the native string type
+        oid_as_path = BushyLayout().oid_to_path(non_ascii_oid)
+        self.assertEqual(
+            oid_as_path,
+            os.path.sep.join(
+            '0x3e/0xf1/0x3c/0x30/0xe9/0x51/0x99/0xf0'.split('/')))
+
+        # the reverse holds true as well
+        path_as_oid = BushyLayout().path_to_oid(oid_as_path)
+        self.assertEqual(
+            path_as_oid,
+            non_ascii_oid )
+
 
 class BlobTestBase(ZODB.tests.StorageTestBase.StorageTestBase):
 
@@ -157,19 +194,22 @@ class BlobUndoTests(BlobTestBase):
         root = connection.root()
         transaction.begin()
         blob = Blob()
-        blob.open('w').write('this is state 1')
+        with blob.open('w') as file:
+            file.write(b'this is state 1')
         root['blob'] = blob
         transaction.commit()
 
         transaction.begin()
         blob = root['blob']
-        blob.open('w').write('this is state 2')
+        with blob.open('w') as file:
+            file.write(b'this is state 2')
         transaction.commit()
 
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.close()
 
@@ -178,7 +218,8 @@ class BlobUndoTests(BlobTestBase):
         connection = database.open()
         root = connection.root()
         transaction.begin()
-        open('consume1', 'w').write('this is state 1')
+        with open('consume1', 'wb') as file:
+            file.write(b'this is state 1')
         blob = Blob()
         blob.consumeFile('consume1')
         root['blob'] = blob
@@ -186,14 +227,16 @@ class BlobUndoTests(BlobTestBase):
 
         transaction.begin()
         blob = root['blob']
-        open('consume2', 'w').write('this is state 2')
+        with open('consume2', 'wb') as file:
+            file.write(b'this is state 2')
         blob.consumeFile('consume2')
         transaction.commit()
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.close()
 
@@ -204,24 +247,28 @@ class BlobUndoTests(BlobTestBase):
         blob = Blob()
 
         transaction.begin()
-        blob.open('w').write('this is state 1')
+        with blob.open('w') as file:
+            file.write(b'this is state 1')
         root['blob'] = blob
         transaction.commit()
 
         transaction.begin()
         blob = root['blob']
-        blob.open('w').write('this is state 2')
+        with blob.open('w') as file:
+            file.write(b'this is state 2')
         transaction.commit()
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 2')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 2')
 
         database.close()
 
@@ -232,7 +279,8 @@ class BlobUndoTests(BlobTestBase):
         blob = Blob()
 
         transaction.begin()
-        blob.open('w').write('this is state 1')
+        with blob.open('w') as file:
+            file.write(b'this is state 1')
         root['blob'] = blob
         transaction.commit()
 
@@ -244,7 +292,8 @@ class BlobUndoTests(BlobTestBase):
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
 
-        self.assertEqual(blob.open('r').read(), 'this is state 1')
+        with blob.open('r') as file:
+            self.assertEqual(file.read(), b'this is state 1')
 
         database.close()
 
@@ -262,7 +311,7 @@ class RecoveryBlobStorage(BlobTestBase,
 
     # Requires a setUp() that creates a self._dst destination storage
     def testSimpleBlobRecovery(self):
-        self.assert_(
+        self.assertTrue(
             ZODB.interfaces.IBlobStorageRestoreable.providedBy(self._storage)
             )
         db = DB(self._storage)
@@ -270,30 +319,47 @@ class RecoveryBlobStorage(BlobTestBase,
         conn.root()[1] = ZODB.blob.Blob()
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
-        conn.root()[2].open('w').write('some data')
+        with conn.root()[2].open('w') as file:
+            file.write(b'some data')
         transaction.commit()
         conn.root()[3] = ZODB.blob.Blob()
-        conn.root()[3].open('w').write(
-            (''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
-                     for i in range(random.randint(10000,20000)))
-             )[:-random.randint(1,4)]
-            )
+        with conn.root()[3].open('w') as file:
+            file.write(
+                (b''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
+                         for i in range(random.randint(10000,20000)))
+                 )[:-random.randint(1,4)]
+                )
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
-        conn.root()[2].open('w').write('some other data')
+        with conn.root()[2].open('w') as file:
+            file.write(b'some other data')
         transaction.commit()
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
+        db.close()
 
 
 def gc_blob_removes_uncommitted_data():
     """
     >>> blob = Blob()
-    >>> blob.open('w').write('x')
+    >>> with blob.open('w') as file:
+    ...     _ = file.write(b'x')
     >>> fname = blob._p_blob_uncommitted
     >>> os.path.exists(fname)
     True
-    >>> blob = None
+    >>> file = blob = None
+
+    PyPy not being reference counted actually needs GC to be
+    explicitly requested. In experiments, it finds the weakref
+    on the first collection, but only does the cleanup on the second
+    collection:
+
+    >>> import gc
+    >>> _ = gc.collect()
+    >>> _ = gc.collect()
+
+    Now the file is gone on all platforms:
+
     >>> os.path.exists(fname)
     False
     """
@@ -324,24 +390,26 @@ def commit_from_wrong_partition():
     >>> root = connection.root()
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     _ = file.write(b'test')
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
 
-    >>> root['blob'].open().read()
+    >>> with root['blob'].open() as fp: fp.read()
     'test'
 
 Works with savepoints too:
 
     >>> root['blob2'] = Blob()
-    >>> root['blob2'].open('w').write('test2')
+    >>> with root['blob2'].open('w') as file:
+    ...     _ = file.write(b'test2')
     >>> _ = transaction.savepoint() # doctest: +ELLIPSIS
     Copied blob file ...
 
     >>> transaction.commit() # doctest: +ELLIPSIS
     Copied blob file ...
 
-    >>> root['blob2'].open().read()
+    >>> with root['blob2'].open() as fp: fp.read()
     'test2'
 
     >>> os.rename = os_rename
@@ -373,14 +441,14 @@ def packing_with_uncommitted_data_non_undoing():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     _ = file.write(b'test')
 
     >>> blob_storage.pack(new_time(), referencesf)
 
     Clean up:
 
     >>> database.close()
-
     """
 
 def packing_with_uncommitted_data_undoing():
@@ -400,7 +468,8 @@ def packing_with_uncommitted_data_undoing():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     _ = file.write(b'test')
 
     >>> blob_storage.pack(new_time(), referencesf)
 
@@ -427,10 +496,10 @@ def secure_blob_directory():
 
     They are only accessible by the owner:
 
-    >>> oct(os.stat('blobs').st_mode)
-    '040700'
-    >>> oct(os.stat(tmp_dir).st_mode)
-    '040700'
+    >>> oct(os.stat('blobs').st_mode)[-5:]
+    '40700'
+    >>> oct(os.stat(tmp_dir).st_mode)[-5:]
+    '40700'
 
     These settings are recognized as secure:
 
@@ -442,7 +511,7 @@ def secure_blob_directory():
     After making the permissions of tmp_dir more liberal, the directory is
     recognized as insecure:
 
-    >>> os.chmod(tmp_dir, 040711)
+    >>> os.chmod(tmp_dir, 0o40711)
     >>> blob_storage.fshelper.isSecure(tmp_dir)
     False
 
@@ -505,7 +574,8 @@ def loadblob_tmpstore():
     >>> from ZODB.blob import Blob
     >>> root['blob'] = Blob()
     >>> connection.add(root['blob'])
-    >>> root['blob'].open('w').write('test')
+    >>> with root['blob'].open('w') as file:
+    ...     _ = file.write(b'test')
     >>> import transaction
     >>> transaction.commit()
     >>> blob_oid = root['blob']._p_oid
@@ -520,7 +590,7 @@ def loadblob_tmpstore():
 
     We can access the blob correctly:
 
-    >>> tmpstore.loadBlob(blob_oid, tid) == blob_storage.loadBlob(blob_oid, tid)
+    >>> tmpstore.loadBlob(blob_oid,tid) == blob_storage.loadBlob(blob_oid,tid)
     True
 
     Clean up:
@@ -531,23 +601,25 @@ def loadblob_tmpstore():
 
 def is_blob_record():
     r"""
+    >>> from ZODB.utils import load_current
+
     >>> bs = create_storage()
     >>> db = DB(bs)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
     >>> transaction.commit()
-    >>> ZODB.blob.is_blob_record(bs.load(ZODB.utils.p64(0), '')[0])
+    >>> ZODB.blob.is_blob_record(load_current(bs, ZODB.utils.p64(0))[0])
     False
-    >>> ZODB.blob.is_blob_record(bs.load(ZODB.utils.p64(1), '')[0])
+    >>> ZODB.blob.is_blob_record(load_current(bs, ZODB.utils.p64(1))[0])
     True
 
     An invalid pickle yields a false value:
 
-    >>> ZODB.blob.is_blob_record("Hello world!")
+    >>> ZODB.blob.is_blob_record(b"Hello world!")
     False
-    >>> ZODB.blob.is_blob_record('c__main__\nC\nq\x01.')
+    >>> ZODB.blob.is_blob_record(b'c__main__\nC\nq\x01.')
     False
-    >>> ZODB.blob.is_blob_record('cWaaaa\nC\nq\x01.')
+    >>> ZODB.blob.is_blob_record(b'cWaaaa\nC\nq\x01.')
     False
 
     As does None, which may occur in delete records:
@@ -567,13 +639,14 @@ def do_not_depend_on_cwd():
     >>> db = DB(bs)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
-    >>> conn.root()['blob'].open('w').write('data')
+    >>> with conn.root()['blob'].open('w') as file:
+    ...     _ = file.write(b'data')
     >>> transaction.commit()
     >>> os.chdir(here)
-    >>> conn.root()['blob'].open().read()
+    >>> with conn.root()['blob'].open() as fp: fp.read()
     'data'
 
-    >>> bs.close()
+    >>> db.close()
     """
 
 def savepoint_isolation():
@@ -582,22 +655,24 @@ def savepoint_isolation():
     >>> bs = create_storage()
     >>> db = DB(bs)
     >>> conn = db.open()
-    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> conn.root.b = ZODB.blob.Blob(b'initial')
     >>> transaction.commit()
-    >>> conn.root.b.open('w').write('1')
+    >>> with conn.root.b.open('w') as file:
+    ...     _ = file.write(b'1')
     >>> _ = transaction.savepoint()
     >>> tm = transaction.TransactionManager()
     >>> conn2 = db.open(transaction_manager=tm)
-    >>> conn2.root.b.open('w').write('2')
+    >>> with conn2.root.b.open('w') as file:
+    ...     _ = file.write(b'2')
     >>> _ = tm.savepoint()
-    >>> conn.root.b.open().read()
+    >>> with conn.root.b.open() as fp: fp.read()
     '1'
-    >>> conn2.root.b.open().read()
+    >>> with conn2.root.b.open() as fp: fp.read()
     '2'
     >>> transaction.abort()
     >>> tm.commit()
     >>> conn.sync()
-    >>> conn.root.b.open().read()
+    >>> with conn.root.b.open() as fp: fp.read()
     '2'
     >>> db.close()
     """
@@ -610,18 +685,20 @@ def savepoint_commits_without_invalidations_out_of_order():
     >>> db = DB(bs)
     >>> tm1 = transaction.TransactionManager()
     >>> conn1 = db.open(transaction_manager=tm1)
-    >>> conn1.root.b = ZODB.blob.Blob('initial')
+    >>> conn1.root.b = ZODB.blob.Blob(b'initial')
     >>> tm1.commit()
-    >>> conn1.root.b.open('w').write('1')
+    >>> with conn1.root.b.open('w') as file:
+    ...     _ = file.write(b'1')
     >>> _ = tm1.savepoint()
 
     >>> tm2 = transaction.TransactionManager()
     >>> conn2 = db.open(transaction_manager=tm2)
-    >>> conn2.root.b.open('w').write('2')
+    >>> with conn2.root.b.open('w') as file:
+    ...     _ = file.write(b'2')
     >>> _ = tm1.savepoint()
-    >>> conn1.root.b.open().read()
+    >>> with conn1.root.b.open() as fp: fp.read()
     '1'
-    >>> conn2.root.b.open().read()
+    >>> with conn2.root.b.open() as fp: fp.read()
     '2'
     >>> tm2.commit()
     >>> tm1.commit()  #doctest: +IGNORE_EXCEPTION_DETAIL
@@ -642,16 +719,17 @@ def savepoint_cleanup():
 
     >>> db = DB(bs)
     >>> conn = db.open()
-    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> conn.root.b = ZODB.blob.Blob(b'initial')
     >>> _ = transaction.savepoint()
     >>> len(os.listdir(tdir))
     1
     >>> transaction.abort()
     >>> os.listdir(tdir)
     []
-    >>> conn.root.b = ZODB.blob.Blob('initial')
+    >>> conn.root.b = ZODB.blob.Blob(b'initial')
     >>> transaction.commit()
-    >>> conn.root.b.open('w').write('1')
+    >>> with conn.root.b.open('w') as file:
+    ...     _ = file.write(b'1')
     >>> _ = transaction.savepoint()
     >>> transaction.abort()
     >>> os.listdir(tdir)
@@ -659,21 +737,23 @@ def savepoint_cleanup():
 
     >>> db.close()
     """
+
 def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     r"""
-    >>> conn = ZODB.connection('data.fs', blob_dir='blobs')
-    >>> blob = ZODB.blob.Blob('blah')
+    >>> db = ZODB.DB('data.fs', blob_dir='blobs')
+    >>> conn = db.open()
+    >>> blob = ZODB.blob.Blob(b'blah')
     >>> conn.add(blob)
     >>> transaction.commit()
-    >>> old_serial = blob._p_serial
     >>> blob._p_changed = True
+    >>> old_serial = blob._p_serial
     >>> transaction.commit()
-    >>> blob.open().read()
+    >>> with blob.open() as fp: fp.read()
     'blah'
     >>> old_serial == blob._p_serial
     True
 
-    >>> conn.close()
+    >>> db.close()
     """
 
 def setUp(test):
@@ -711,25 +791,46 @@ def storage_reusable_suite(prefix, factory,
                 blob_dir_permissions=blob_dir_permissions)
 
         test.globs['create_storage'] = create_storage
+        test.globs['file_type'] = file_type
 
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocFileSuite(
-        "blob_connection.txt", "blob_importexport.txt",
+        "blob_connection.txt",
+        "blob_importexport.txt",
         "blob_transaction.txt",
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+        setUp=setup, tearDown=util.tearDown,
+        checker=zope.testing.renormalizing.RENormalizing([
+            # Py3k renders bytes where Python2 used native strings...
+            (re.compile(r"^b'"), "'"),
+            (re.compile(r'^b"'), '"'),
+            # ...and native strings where Python2 used unicode.
+            (re.compile("^POSKeyError: u'No blob file"),
+                        "POSKeyError: 'No blob file"),
+            # Py3k repr's exceptions with dotted names
+            (re.compile("^ZODB.interfaces.BlobError:"), "BlobError:"),
+            (re.compile("^ZODB.POSException.ConflictError:"), "ConflictError:"),
+            (re.compile("^ZODB.POSException.POSKeyError:"), "POSKeyError:"),
+            (re.compile("^ZODB.POSException.Unsupported:"), "Unsupported:"),
+            # Normalize out blobfile paths for sake of Windows
+            (re.compile(
+                r'([a-zA-Z]:)?\%(sep)s.*\%(sep)s(server-)?blobs\%(sep)s.*\.blob'
+                        % dict(sep=os.path.sep)), '<BLOB STORAGE PATH>')
+            ]),
         optionflags=doctest.ELLIPSIS,
         ))
     if test_packing:
         suite.addTest(doctest.DocFileSuite(
             "blob_packing.txt",
-            setUp=setup, tearDown=zope.testing.setupstack.tearDown,
+            setUp=setup, tearDown=util.tearDown,
             ))
     suite.addTest(doctest.DocTestSuite(
-        setUp=setup, tearDown=zope.testing.setupstack.tearDown,
-        checker = zope.testing.renormalizing.RENormalizing([
-            (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
-            (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
-            ]),
+        setUp=setup, tearDown=util.tearDown,
+        checker = (
+            ZODB.tests.util.checker +
+            zope.testing.renormalizing.RENormalizing([
+                (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
+                (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
+                ])),
         ))
 
     def create_storage(self, name='data', blob_dir=None,
@@ -759,22 +860,28 @@ def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
     suite.addTest(unittest.makeSuite(BlobCloneTests))
+    suite.addTest(unittest.makeSuite(BushyLayoutTests))
     suite.addTest(doctest.DocFileSuite(
-        "blob_basic.txt", "blob_consume.txt", "blob_tempdir.txt",
+        "blob_basic.txt",
+        "blob_consume.txt",
+        "blob_tempdir.txt",
         "blobstorage_packing.txt",
         setUp=setUp,
-        tearDown=zope.testing.setupstack.tearDown,
+        tearDown=util.tearDown,
         optionflags=doctest.ELLIPSIS,
+        checker=ZODB.tests.util.checker,
         ))
     suite.addTest(doctest.DocFileSuite(
         "blob_layout.txt",
         optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
         setUp=setUp,
-        tearDown=zope.testing.setupstack.tearDown,
-        checker = zope.testing.renormalizing.RENormalizing([
+        tearDown=util.tearDown,
+        checker=ZODB.tests.util.checker +
+            zope.testing.renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
+            (re.compile(r"u('[^']*')"), r"\1"),
             ]),
         ))
     suite.addTest(storage_reusable_suite(

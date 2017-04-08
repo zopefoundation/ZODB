@@ -11,62 +11,73 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-
+from __future__ import print_function
+import os
+import struct
 import sys
 import time
-import struct
-from struct import pack, unpack
+import threading
 from binascii import hexlify, unhexlify
-import cPickle as pickle
-from cStringIO import StringIO
-import warnings
+from struct import pack, unpack
 from tempfile import mkstemp
-import os
 
 from persistent.TimeStamp import TimeStamp
+
+from ZODB._compat import Unpickler
+from ZODB._compat import BytesIO
+from ZODB._compat import ascii_bytes
+
+from six import PY2
 
 __all__ = ['z64',
            'p64',
            'u64',
            'U64',
            'cp',
+           'maxtid',
            'newTid',
            'oid_repr',
            'serial_repr',
            'tid_repr',
            'positive_id',
            'readable_tid_repr',
-           'DEPRECATED_ARGUMENT',
-           'deprecated37',
-           'deprecated38',
            'get_pickle_metadata',
            'locked',
           ]
 
-# A unique marker to give as the default value for a deprecated argument.
-# The method should then do a
-#
-#     if that_arg is not DEPRECATED_ARGUMENT:
-#         complain
-#
-# dance.
-DEPRECATED_ARGUMENT = object()
 
-# Raise DeprecationWarning, noting that the deprecated thing will go
-# away in ZODB 3.7.  Point to the caller of our caller (i.e., at the
-# code using the deprecated thing).
-def deprecated37(msg):
-    warnings.warn("This will be removed in ZODB 3.7:\n%s" % msg,
-                  DeprecationWarning, stacklevel=3)
+if PY2:
+    def as_bytes(obj):
+        "Convert obj into bytes"
+        return str(obj)
 
-# Raise DeprecationWarning, noting that the deprecated thing will go
-# away in ZODB 3.8.  Point to the caller of our caller (i.e., at the
-# code using the deprecated thing).
-def deprecated38(msg):
-    warnings.warn("This will be removed in ZODB 3.8:\n%s" % msg,
-                  DeprecationWarning, stacklevel=3)
+    def as_text(bytes):
+        "Convert bytes into string"
+        return bytes
 
-z64 = '\0'*8
+    # Convert an element of a bytes object into an int
+    byte_ord = ord
+    byte_chr = chr
+
+else:
+    def as_bytes(obj):
+        if isinstance(obj, bytes):
+            # invoking str on a bytes object gives its repr()
+            return obj
+        return str(obj).encode("ascii")
+
+    def as_text(bytes):
+        return bytes.decode("ascii")
+
+    def byte_ord(byte):
+        return byte # elements of bytes are already ints
+
+    def byte_chr(int):
+        return bytes((int,))
+
+z64 = b'\0' * 8
+
+maxtid = b'\x7f\xff\xff\xff\xff\xff\xff\xff'
 
 assert sys.hexversion >= 0x02030000
 
@@ -117,27 +128,28 @@ def newTid(old):
     ts = TimeStamp(*time.gmtime(t)[:5]+(t%60,))
     if old is not None:
         ts = ts.laterThan(TimeStamp(old))
-    return `ts`
+    return ts.raw()
 
 
 def oid_repr(oid):
-    if isinstance(oid, str) and len(oid) == 8:
+    if isinstance(oid, bytes) and len(oid) == 8:
         # Convert to hex and strip leading zeroes.
-        as_hex = hexlify(oid).lstrip('0')
+        as_hex = hexlify(oid).lstrip(b'0')
         # Ensure two characters per input byte.
         if len(as_hex) & 1:
-            as_hex = '0' + as_hex
-        elif as_hex == '':
-            as_hex = '00'
-        return '0x' + as_hex
+            as_hex = b'0' + as_hex
+        elif as_hex == b'':
+            as_hex = b'00'
+        return '0x' + as_hex.decode()
     else:
         return repr(oid)
 
 def repr_to_oid(repr):
-    if repr.startswith("0x"):
+    repr = ascii_bytes(repr)
+    if repr.startswith(b"0x"):
         repr = repr[2:]
     as_bin = unhexlify(repr)
-    as_bin = "\x00"*(8-len(as_bin)) + as_bin
+    as_bin = b"\x00"*(8-len(as_bin)) + as_bin
     return as_bin
 
 serial_repr = oid_repr
@@ -145,10 +157,10 @@ tid_repr = serial_repr
 
 # For example, produce
 #     '0x03441422948b4399 2002-04-14 20:50:34.815000'
-# for 8-byte string tid '\x03D\x14"\x94\x8bC\x99'.
+# for 8-byte string tid b'\x03D\x14"\x94\x8bC\x99'.
 def readable_tid_repr(tid):
     result = tid_repr(tid)
-    if isinstance(tid, str) and len(tid) == 8:
+    if isinstance(tid, bytes) and len(tid) == 8:
         result = "%s %s" % (result, TimeStamp(tid))
     return result
 
@@ -179,12 +191,18 @@ def positive_id(obj):
 # for what serialize.py calls formats 5 and 6.
 
 def get_pickle_metadata(data):
+    # Returns a 2-tuple of strings.
+
     # ZODB's data records contain two pickles.  The first is the class
     # of the object, the second is the object.  We're only trying to
     # pick apart the first here, to extract the module and class names.
-    if data.startswith('(c'):   # pickle MARK GLOBAL opcode sequence
+    if data[0] in (0x80,    # Py3k indexes bytes -> int
+                   b'\x80'  # Python2 indexes bytes -> bytes
+                  ): # protocol marker, protocol > 1
+        data = data[2:]
+    if data.startswith(b'(c'):   # pickle MARK GLOBAL opcode sequence
         global_prefix = 2
-    elif data.startswith('c'):  # pickle GLOBAL opcode
+    elif data.startswith(b'c'):  # pickle GLOBAL opcode
         global_prefix = 1
     else:
         global_prefix = 0
@@ -195,16 +213,16 @@ def get_pickle_metadata(data):
         # load the class.  Just break open the pickle and get the
         # module and class from it.  The module and class names are given by
         # newline-terminated strings following the GLOBAL opcode.
-        modname, classname, rest = data.split('\n', 2)
+        modname, classname, rest = data.split(b'\n', 2)
         modname = modname[global_prefix:]   # strip GLOBAL opcode
-        return modname, classname
+        return modname.decode(), classname.decode()
 
     # Else there are a bunch of other possible formats.
-    f = StringIO(data)
-    u = pickle.Unpickler(f)
+    f = BytesIO(data)
+    u = Unpickler(f)
     try:
         class_info = u.load()
-    except Exception, err:
+    except Exception as err:
         return '', ''
     if isinstance(class_info, tuple):
         if isinstance(class_info[0], tuple):
@@ -219,31 +237,37 @@ def get_pickle_metadata(data):
         classname = ''
     return modname, classname
 
-def mktemp(dir=None):
+def mktemp(dir=None, prefix='tmp'):
     """Create a temp file, known by name, in a semi-secure manner."""
-    handle, filename = mkstemp(dir=dir)
+    handle, filename = mkstemp(dir=dir, prefix=prefix)
     os.close(handle)
     return filename
+
+def check_precondition(precondition):
+    if not precondition():
+        raise AssertionError(
+            "Failed precondition: ",
+            precondition.__doc__.strip())
 
 class Locked(object):
 
     def __init__(self, func, inst=None, class_=None, preconditions=()):
-        self.im_func = func
-        self.im_self = inst
-        self.im_class = class_
+        self.__func__ = func
+        self.__self__ = inst
+        self.__self_class__ = class_
         self.preconditions = preconditions
 
     def __get__(self, inst, class_):
-        return self.__class__(self.im_func, inst, class_, self.preconditions)
+        return self.__class__(
+            self.__func__, inst, class_, self.preconditions)
 
     def __call__(self, *args, **kw):
-        inst = self.im_self
+        inst = self.__self__
         if inst is None:
             inst = args[0]
-        func = self.im_func.__get__(self.im_self, self.im_class)
+        func = self.__func__.__get__(self.__self__, self.__self_class__)
 
-        inst._lock_acquire()
-        try:
+        with inst._lock:
             for precondition in self.preconditions:
                 if not precondition(inst):
                     raise AssertionError(
@@ -251,8 +275,6 @@ class Locked(object):
                         precondition.__doc__.strip())
 
             return func(*args, **kw)
-        finally:
-            inst._lock_release()
 
 class locked(object):
 
@@ -268,3 +290,89 @@ class locked(object):
     def __call__(self, func):
         return Locked(func, preconditions=self.preconditions)
 
+
+if os.environ.get('DEBUG_LOCKING'): # pragma: no cover
+    # NOTE: This only works on Python 3.
+    class Lock:
+
+        lock_class = threading.Lock
+
+        def __init__(self):
+            self._lock = self.lock_class()
+
+        def pr(self, name, a=None, kw=None):
+            f = sys._getframe(2)
+            if f.f_code.co_filename.endswith('ZODB/utils.py'):
+                f = sys._getframe(3)
+            f = '%s:%s' % (f.f_code.co_filename, f.f_lineno)
+            print(id(self), self._lock, threading.get_ident(), f, name,
+                  a if a else '', kw if kw else '')
+
+        def acquire(self, *a, **kw):
+            self.pr('acquire', a, kw)
+            return self._lock.acquire(*a, **kw)
+
+        def release(self):
+            self.pr('release')
+            return self._lock.release()
+
+        def __enter__(self):
+            self.pr('acquire')
+            return self._lock.acquire()
+
+        def __exit__(self, *ignored):
+            self.pr('release')
+            return self._lock.release()
+
+    class RLock(Lock):
+
+        lock_class = threading.RLock
+
+    class Condition(Lock):
+
+        lock_class = threading.Condition
+
+        def wait(self, *a, **kw):
+            self.pr('wait', a, kw)
+            return self._lock.wait(*a, **kw)
+
+        def wait_for(self, *a, **kw):
+            self.pr('wait_for', a, kw)
+            return self._lock.wait_for(*a, **kw)
+
+        def notify(self, *a, **kw):
+            self.pr('notify', a, kw)
+            return self._lock.notify(*a, **kw)
+
+        def notify_all(self):
+            self.pr('notify_all')
+            return self._lock.notify_all()
+
+        notifyAll = notify_all
+
+else:
+
+    from threading import Condition, Lock, RLock
+
+
+import ZODB.POSException
+
+def load_current(storage, oid, version=''):
+    """Load the most recent revision of an object by calling loadBefore
+
+    Starting in ZODB 5, it's no longer necessary for storages to
+    provide a load method.
+
+    This function is mainly intended to facilitate transitioning from
+    load to loadBefore.  It's mainly useful for tests that are meant
+    to test storages, but do so by calling load on the storages.
+
+    This function will likely become unnecessary and be deprecated
+    some time in the future.
+    """
+    assert not version
+    r = storage.loadBefore(oid, maxtid)
+    if r is None:
+        raise ZODB.POSException.POSKeyError(oid)
+    assert r[2] is None
+    return r[:2]

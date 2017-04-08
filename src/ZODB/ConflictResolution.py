@@ -13,18 +13,21 @@
 ##############################################################################
 
 import logging
-from cStringIO import StringIO
-from cPickle import Unpickler, Pickler
-from pickle import PicklingError
 
+import six
 import zope.interface
-
 from ZODB.POSException import ConflictError
 from ZODB.loglevels import BLATHER
+from ZODB._compat import (
+    BytesIO, PersistentUnpickler, PersistentPickler, _protocol)
+
+# Subtle: Python 2.x has pickle.PicklingError and cPickle.PicklingError,
+# and these are unrelated classes!  So we shouldn't use pickle.PicklingError,
+# since on Python 2, ZODB._compat.pickle is cPickle.
+from pickle import PicklingError
+
 
 logger = logging.getLogger('ZODB.ConflictResolution')
-
-ResolvedSerial = 'rs'
 
 class BadClassName(Exception):
     pass
@@ -57,8 +60,8 @@ def find_global(*args):
     if cls == 1:
         # Not importable
         if (isinstance(args, tuple) and len(args) == 2 and
-            isinstance(args[0], basestring) and
-            isinstance(args[1], basestring)
+            isinstance(args[0], six.string_types) and
+            isinstance(args[1], six.string_types)
             ):
             return BadClass(*args)
         else:
@@ -68,10 +71,9 @@ def find_global(*args):
 def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
     p = self._crs_untransform_record_data(p)
-    file = StringIO(p)
-    unpickler = Unpickler(file)
-    unpickler.find_global = find_global
-    unpickler.persistent_load = prfactory.persistent_load
+    file = BytesIO(p)
+    unpickler = PersistentUnpickler(
+        find_global, prfactory.persistent_load, file)
     unpickler.load() # skip the class tuple
     return unpickler.load()
 
@@ -130,7 +132,7 @@ class PersistentReference(object):
                 # it.  Fortunately, a class reference in a persistent
                 # reference is allowed to be a module+name tuple.
                 self.data = self.oid, klass.args
-        elif isinstance(data, str):
+        elif isinstance(data, (bytes, str)):
             self.oid = data
         else: # a list
             reference_type = data[0]
@@ -156,6 +158,10 @@ class PersistentReference(object):
                 assert len(data) == 1, 'unknown reference format'
                 self.oid = data[0]
                 self.weak = True
+        if not isinstance(self.oid, (bytes, type(None))):
+            assert isinstance(self.oid, str)
+            # this happens on Python 3 when all bytes in the oid are < 0x80
+            self.oid = self.oid.encode('ascii')
 
     def __cmp__(self, other):
         if self is other or (
@@ -170,12 +176,31 @@ class PersistentReference(object):
                 "can't reliably compare against different "
                 "PersistentReferences")
 
+    # Python 3 dropped __cmp__
+
+    def __eq__(self, other):
+        return self.__cmp__(other) == 0
+
+    def __ne__(self, other):
+        return self.__cmp__(other) != 0
+
+    def __lt__(self, other):
+        return self.__cmp__(other) < 0
+
+    def __gt__(self, other):
+        return self.__cmp__(other) > 0
+
+    def __le__(self, other):
+        return self.__cmp__(other) <= 0
+
+    def __ge__(self, other):
+        return self.__cmp__(other) >= 0
+
     def __repr__(self):
         return "PR(%s %s)" % (id(self), self.data)
 
     def __getstate__(self):
         raise PicklingError("Can't pickle PersistentReference")
-
 
     @property
     def klass(self):
@@ -209,15 +234,15 @@ def persistent_id(object):
 
 _unresolvable = {}
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
-                         committedData=''):
+                         committedData=b''):
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
+    klass = 'n/a'
     try:
         prfactory = PersistentReferenceFactory()
         newpickle = self._crs_untransform_record_data(newpickle)
-        file = StringIO(newpickle)
-        unpickler = Unpickler(file)
-        unpickler.find_global = find_global
-        unpickler.persistent_load = prfactory.persistent_load
+        file = BytesIO(newpickle)
+        unpickler = PersistentUnpickler(
+            find_global, prfactory.persistent_load, file)
         meta = unpickler.load()
         if isinstance(meta, tuple):
             klass = meta[0]
@@ -244,34 +269,29 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         if not committedData:
             committedData  = self.loadSerial(oid, committedSerial)
 
-        if newpickle == oldData:
-            # old -> new diff is empty, so merge is trivial
-            return committedData
-        if committedData == oldData:
-            # old -> committed diff is empty, so merge is trivial
-            return newpickle
-
         newstate = unpickler.load()
         old       = state(self, oid, oldSerial, prfactory, oldData)
         committed = state(self, oid, committedSerial, prfactory, committedData)
 
         resolved = resolve(old, committed, newstate)
 
-        file = StringIO()
-        pickler = Pickler(file,1)
-        pickler.inst_persistent_id = persistent_id
+        file = BytesIO()
+        pickler = PersistentPickler(persistent_id, file, _protocol)
         pickler.dump(meta)
         pickler.dump(resolved)
-        return self._crs_transform_record_data(file.getvalue(1))
-    except (ConflictError, BadClassName):
-        pass
+        return self._crs_transform_record_data(file.getvalue())
+    except (ConflictError, BadClassName) as e:
+        logger.debug(
+            "Conflict resolution on %s failed with %s: %s",
+            klass, e.__class__.__name__, str(e))
     except:
         # If anything else went wrong, catch it here and avoid passing an
         # arbitrary exception back to the client.  The error here will mask
         # the original ConflictError.  A client can recover from a
         # ConflictError, but not necessarily from other errors.  But log
         # the error so that any problems can be fixed.
-        logger.error("Unexpected error", exc_info=True)
+        logger.exception(
+            "Unexpected error while trying to resolve conflict on %s", klass)
 
     raise ConflictError(oid=oid, serials=(committedSerial, oldSerial),
                         data=newpickle)
@@ -287,4 +307,9 @@ class ConflictResolvingStorage(object):
     def registerDB(self, wrapper):
         self._crs_untransform_record_data = wrapper.untransform_record_data
         self._crs_transform_record_data = wrapper.transform_record_data
-        super(ConflictResolvingStorage, self).registerDB(wrapper)
+        try:
+            m = super(ConflictResolvingStorage, self).registerDB
+        except AttributeError:
+            pass
+        else:
+            m(wrapper)

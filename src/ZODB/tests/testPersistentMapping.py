@@ -21,14 +21,13 @@ old code, developers will have a hard time testing the new code.
 """
 
 import unittest
-
-import transaction
-from transaction import Transaction
-import ZODB
-from ZODB.MappingStorage import MappingStorage
-import cPickle
-import cStringIO
 import sys
+
+import ZODB
+from ZODB.Connection import TransactionMetaData
+from ZODB.MappingStorage import MappingStorage
+
+from six import PY2
 
 # This pickle contains a persistent mapping pickle created from the
 # old code.
@@ -47,7 +46,7 @@ class PMTests(unittest.TestCase):
             return
         # insert the pickle in place of the root
         s = MappingStorage()
-        t = Transaction()
+        t = TransactionMetaData()
         s.tpc_begin(t)
         s.store('\000' * 8, None, pickle, '', t)
         s.tpc_vote(t)
@@ -57,43 +56,15 @@ class PMTests(unittest.TestCase):
         # If the root can be loaded successfully, we should be okay.
         r = db.open().root()
         # But make sure it looks like a new mapping
-        self.assert_(hasattr(r, 'data'))
-        self.assert_(not hasattr(r, '_container'))
-
-    # TODO:  This test fails in ZODB 3.3a1.  It's making some assumption(s)
-    # about pickles that aren't true.  Hard to say when it stopped working,
-    # because this entire test suite hasn't been run for a long time, due to
-    # a mysterious "return None" at the start of the test_suite() function
-    # below.  I noticed that when the new checkBackwardCompat() test wasn't
-    # getting run.
-    def TODO_checkNewPicklesAreSafe(self):
-        s = MappingStorage()
-        db = ZODB.DB(s)
-        r = db.open().root()
-        r[1] = 1
-        r[2] = 2
-        r[3] = r
-        transaction.commit()
-        # MappingStorage stores serialno + pickle in its _index.
-        root_pickle = s._index['\000' * 8][8:]
-
-        f = cStringIO.StringIO(root_pickle)
-        u = cPickle.Unpickler(f)
-        klass_info = u.load()
-        klass = find_global(*klass_info[0])
-        inst = klass.__new__(klass)
-        state = u.load()
-        inst.__setstate__(state)
-
-        self.assert_(hasattr(inst, '_container'))
-        self.assert_(not hasattr(inst, 'data'))
+        self.assertTrue(hasattr(r, 'data'))
+        self.assertTrue(not hasattr(r, '_container'))
 
     def checkBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from persistent.mapping import PersistentMapping as newPath
         from ZODB.PersistentMapping import PersistentMapping as oldPath
 
-        self.assert_(oldPath is newPath)
+        self.assertTrue(oldPath is newPath)
 
     def checkBasicOps(self):
         from persistent.mapping import PersistentMapping
@@ -101,7 +72,7 @@ class PMTests(unittest.TestCase):
         m['name'] = 'bob'
         self.assertEqual(m['name'], "bob")
         self.assertEqual(m.get('name', 42), "bob")
-        self.assert_('name' in m)
+        self.assertTrue('name' in m)
 
         try:
             m['fred']
@@ -109,35 +80,30 @@ class PMTests(unittest.TestCase):
             pass
         else:
             self.fail("expected KeyError")
-        self.assert_('fred' not in m)
+        self.assertTrue('fred' not in m)
         self.assertEqual(m.get('fred'), None)
         self.assertEqual(m.get('fred', 42), 42)
 
-        keys = m.keys()
-        keys.sort()
+        keys = sorted(m.keys())
         self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
-        values = m.values()
-        values.sort()
-        self.assertEqual(values, [1, 2, 3, 'bob'])
+        values = set(m.values())
+        self.assertEqual(values, set([1, 2, 3, 'bob']))
 
-        items = m.items()
-        items.sort()
+        items = sorted(m.items())
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
-        keys = list(m.iterkeys())
-        keys.sort()
-        self.assertEqual(keys, ['a', 'b', 'name', 'x'])
+        if PY2:
+            keys = sorted(m.iterkeys())
+            self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
-        values = list(m.itervalues())
-        values.sort()
-        self.assertEqual(values, [1, 2, 3, 'bob'])
+            values = sorted(m.itervalues())
+            self.assertEqual(values, [1, 2, 3, 'bob'])
 
-        items = list(m.iteritems())
-        items.sort()
-        self.assertEqual(items,
-                         [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
+            items = sorted(m.iteritems())
+            self.assertEqual(
+                items, [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
     # PersistentMapping didn't have an __iter__ method before ZODB 3.4.2.
     # Check that it plays well now with the Python iteration protocol.
@@ -157,7 +123,7 @@ class PMTests(unittest.TestCase):
         keylist = []
         while 1:
             try:
-                key = i.next()
+                key = next(i)
             except StopIteration:
                 break
             keylist.append(key)

@@ -62,7 +62,7 @@ tested?  Is it a general restriction?
 
 """
 
-from transaction import Transaction
+from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import StorageTransactionError
 
 OID = "\000" * 8
@@ -75,43 +75,43 @@ class SynchronizedStorage:
         self.assertRaises(StorageTransactionError, callable, *args)
 
     def verifyWrongTrans(self, callable, *args):
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertRaises(StorageTransactionError, callable, *args)
         self._storage.tpc_abort(t)
 
     def checkStoreNotCommitting(self):
         self.verifyNotCommitting(self._storage.store,
-                                 OID, SERIALNO, "", "", Transaction())
+                                 OID, SERIALNO, b"", "", TransactionMetaData())
 
     def checkStoreWrongTrans(self):
         self.verifyWrongTrans(self._storage.store,
-                              OID, SERIALNO, "", "", Transaction())
+                              OID, SERIALNO, b"", "", TransactionMetaData())
 
     def checkAbortNotCommitting(self):
-        self._storage.tpc_abort(Transaction())
+        self._storage.tpc_abort(TransactionMetaData())
 
     def checkAbortWrongTrans(self):
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        self._storage.tpc_abort(Transaction())
+        self._storage.tpc_abort(TransactionMetaData())
         self._storage.tpc_abort(t)
 
     def checkFinishNotCommitting(self):
-        t = Transaction()
+        t = TransactionMetaData()
         self.assertRaises(StorageTransactionError,
                           self._storage.tpc_finish, t)
         self._storage.tpc_abort(t)
 
     def checkFinishWrongTrans(self):
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertRaises(StorageTransactionError,
-                          self._storage.tpc_finish, Transaction())
+                          self._storage.tpc_finish, TransactionMetaData())
         self._storage.tpc_abort(t)
 
     def checkBeginCommitting(self):
-        t = Transaction()
+        t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_abort(t)
 

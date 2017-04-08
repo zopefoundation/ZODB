@@ -14,6 +14,7 @@
 from ZODB.DB import DB
 from ZODB.tests import (
     BasicStorage,
+    ConflictResolution,
     HistoryStorage,
     IteratorStorage,
     MTStorage,
@@ -29,6 +30,7 @@ if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
 else:
     import doctest
 import random
+import re
 import transaction
 import unittest
 import ZODB.DemoStorage
@@ -36,10 +38,14 @@ import ZODB.tests.hexstorage
 import ZODB.tests.util
 import ZODB.utils
 
+from ZODB.utils import load_current
+
+from zope.testing import renormalizing
+
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
-
+    ConflictResolution.ConflictResolvingStorage,
     HistoryStorage.HistoryStorage,
     IteratorStorage.ExtendedIteratorStorage,
     IteratorStorage.IteratorStorage,
@@ -63,26 +69,42 @@ class DemoStorageTests(
         # Minimal test of loadEX w/o version -- ironically
         db = DB(self._storage) # creates object 0. :)
         s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
-        self.assertEqual(s2.load(ZODB.utils.z64, ''),
-                         self._storage.load(ZODB.utils.z64, ''))
+        self.assertEqual(load_current(s2, ZODB.utils.z64),
+                         load_current(self._storage, ZODB.utils.z64))
 
     def checkLengthAndBool(self):
         self.assertEqual(len(self._storage), 0)
-        self.assert_(not self._storage)
+        self.assertTrue(not self._storage)
         db = DB(self._storage) # creates object 0. :)
         self.assertEqual(len(self._storage), 1)
-        self.assert_(self._storage)
-        conn = db.open()
-        for i in range(10):
-            conn.root()[i] = conn.root().__class__()
-        transaction.commit()
+        self.assertTrue(self._storage)
+        with db.transaction() as conn:
+            for i in range(10):
+                conn.root()[i] = conn.root().__class__()
         self.assertEqual(len(self._storage), 11)
-        self.assert_(self._storage)
+        self.assertTrue(self._storage)
+        db.close()
 
     def checkLoadBeforeUndo(self):
         pass # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
+    def checkBaseHistory(self):
+        def base_only():
+            yield 11
+            yield 12
+            yield 13
+            self._storage = self._storage.push()
+        self._checkHistory(base_only())
+        self._storage = self._storage.pop()
+        def base_and_changes():
+            yield 11
+            yield 12
+            self._storage = self._storage.push()
+            yield 13
+            yield 14
+        self._checkHistory(base_and_changes())
+        self._storage = self._storage.pop()
 
 class DemoStorageHexTests(DemoStorageTests):
 
@@ -137,16 +159,17 @@ def setUp(test):
 
 def testSomeDelegation():
     r"""
+    >>> import six
     >>> class S:
     ...     def __init__(self, name):
     ...         self.name = name
-    ...     def registerDB(self, db):
-    ...         print self.name, db
+    ...     def getSize(self):
+    ...         six.print_(self.name, 'size')
     ...     def close(self):
-    ...         print self.name, 'closed'
-    ...     sortKey = getSize = __len__ = history = getTid = None
+    ...         six.print_(self.name, 'closed')
+    ...     sortKey = __len__ = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
-    ...     _lock_acquire = _lock_release = lambda self: None
+    ...     _lock = ZODB.utils.Lock()
     ...     getName = lambda self: 'S'
     ...     isReadOnly = tpc_transaction = None
     ...     supportsUndo = undo = undoLog = undoInfo = None
@@ -154,15 +177,15 @@ def testSomeDelegation():
     ...     def new_oid(self):
     ...         return '\0' * 8
     ...     def tpc_begin(self, t, tid, status):
-    ...         print 'begin', tid, status
+    ...         six.print_('begin', tid, status)
     ...     def tpc_abort(self, t):
     ...         pass
 
     >>> from ZODB.DemoStorage import DemoStorage
     >>> storage = DemoStorage(base=S(1), changes=S(2))
 
-    >>> storage.registerDB(1)
-    2 1
+    >>> storage.getSize()
+    2 size
 
     >>> storage.close()
     1 closed
@@ -171,6 +194,8 @@ def testSomeDelegation():
     >>> storage.tpc_begin(1, 2, 3)
     begin 2 3
     >>> storage.tpc_abort(1)
+
+    >>> 
 
     """
 
@@ -216,7 +241,7 @@ def load_before_base_storage_current():
     >>> transaction.commit()
 
     >>> oid = ZODB.utils.z64
-    >>> base_current = storage.base.load(oid)
+    >>> base_current = load_current(storage.base, oid)
     >>> tid = ZODB.utils.p64(ZODB.utils.u64(base_current[1]) + 1)
     >>> base_record = storage.base.loadBefore(oid, tid)
     >>> base_record[-1] is None
@@ -231,7 +256,7 @@ def load_before_base_storage_current():
 
     >>> t[:2] == base_record[:2]
     True
-    >>> t[-1] == storage.changes.load(oid)[1]
+    >>> t[-1] == load_current(storage.changes, oid)[1]
     True
 
     >>> conn.close()
@@ -243,10 +268,13 @@ def test_suite():
     suite = unittest.TestSuite((
         doctest.DocTestSuite(
             setUp=setUp, tearDown=ZODB.tests.util.tearDown,
+            checker=ZODB.tests.util.checker
             ),
         doctest.DocFileSuite(
             '../DemoStorage.test',
-            setUp=setUp, tearDown=ZODB.tests.util.tearDown,
+            setUp=setUp,
+            tearDown=ZODB.tests.util.tearDown,
+            checker=ZODB.tests.util.checker,
             ),
         ))
     suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))

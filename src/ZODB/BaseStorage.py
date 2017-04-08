@@ -16,28 +16,24 @@
 The base class here is tightly coupled with its subclasses and
 its use is not recommended.  It's still here for historical reasons.
 """
+from __future__ import print_function
 
-from __future__ import with_statement
-
-import cPickle
-import threading
 import time
 import logging
+import sys
 from struct import pack as _structpack, unpack as _structunpack
 
 import zope.interface
-
 from persistent.TimeStamp import TimeStamp
 
 import ZODB.interfaces
-from ZODB import POSException
-from ZODB.utils import z64, oid_repr
-from ZODB.UndoLogCompatible import UndoLogCompatible
+from . import POSException, utils
+from .Connection import TransactionMetaData
+from .utils import z64, oid_repr, byte_ord, byte_chr, load_current
+from .UndoLogCompatible import UndoLogCompatible
+from ._compat import dumps, _protocol, py2_hasattr
 
 log = logging.getLogger("ZODB.BaseStorage")
-
-import sys
-
 
 class BaseStorage(UndoLogCompatible):
     """Base class that supports storage implementations.
@@ -87,18 +83,18 @@ class BaseStorage(UndoLogCompatible):
         log.debug("create storage %s", self.__name__)
 
         # Allocate locks:
-        self._lock = threading.RLock()
-        self.__commit_lock = threading.Lock()
+        self._lock = utils.RLock()
+        self._commit_lock = utils.Lock()
 
-        # Comment out the following 4 lines to debug locking:
+        # Needed by external storages that use this dumb api :(
         self._lock_acquire = self._lock.acquire
         self._lock_release = self._lock.release
-        self._commit_lock_acquire = self.__commit_lock.acquire
-        self._commit_lock_release = self.__commit_lock.release
+        self._commit_lock_acquire = self._commit_lock.acquire
+        self._commit_lock_release = self._commit_lock.release
 
         t = time.time()
         t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t%60,)))
-        self._tid = repr(t)
+        self._tid = t.raw()
 
         # ._oid is the highest oid in use (0 is always in use -- it's
         # a reserved oid for the root object).  Our new_oid() method
@@ -109,45 +105,9 @@ class BaseStorage(UndoLogCompatible):
             self._oid = z64
         else:
             self._oid = oid
-
-    ########################################################################
-    # The following methods are normally overridden on instances,
-    # except when debugging:
-
-    def _lock_acquire(self, *args):
-        f = sys._getframe(1)
-        sys.stdout.write("[la(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-        self._lock.acquire(*args)
-        sys.stdout.write("la(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-
-    def _lock_release(self, *args):
-        f = sys._getframe(1)
-        sys.stdout.write("[lr(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-        self._lock.release(*args)
-        sys.stdout.write("lr(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-
-    def _commit_lock_acquire(self, *args):
-        f = sys._getframe(1)
-        sys.stdout.write("[ca(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-        self.__commit_lock.acquire(*args)
-        sys.stdout.write("ca(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-
-    def _commit_lock_release(self, *args):
-        f = sys._getframe(1)
-        sys.stdout.write("[cr(%s:%s)\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-        self.__commit_lock.release(*args)
-        sys.stdout.write("cr(%s:%s)]\n" % (f.f_code.co_filename, f.f_lineno))
-        sys.stdout.flush()
-
-    #
-    ########################################################################
+        # In case that conflicts are resolved during store,
+        # this collects oids to be returned by tpc_vote.
+        self._resolved = []
 
     def sortKey(self):
         """Return a string that can be used to sort storage instances.
@@ -170,30 +130,25 @@ class BaseStorage(UndoLogCompatible):
     def new_oid(self):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        self._lock_acquire()
-        try:
+
+        with self._lock:
             last = self._oid
-            d = ord(last[-1])
+            d = byte_ord(last[-1])
             if d < 255:  # fast path for the usual case
-                last = last[:-1] + chr(d+1)
+                last = last[:-1] + byte_chr(d+1)
             else:        # there's a carry out of the last byte
                 last_as_long, = _structunpack(">Q", last)
                 last = _structpack(">Q", last_as_long + 1)
             self._oid = last
             return last
-        finally:
-            self._lock_release()
 
     # Update the maximum oid in use, under protection of a lock.  The
     # maximum-in-use attribute is changed only if possible_new_max_oid is
     # larger than its current value.
     def set_max_oid(self, possible_new_max_oid):
-        self._lock_acquire()
-        try:
+        with self._lock:
             if possible_new_max_oid > self._oid:
                 self._oid = possible_new_max_oid
-        finally:
-            self._lock_release()
 
     def registerDB(self, db):
         pass # we don't care
@@ -202,18 +157,17 @@ class BaseStorage(UndoLogCompatible):
         return self._is_read_only
 
     def tpc_abort(self, transaction):
-        self._lock_acquire()
-        try:
+        with self._lock:
+
             if transaction is not self._transaction:
                 return
+
             try:
                 self._abort()
                 self._clear_temp()
                 self._transaction = None
             finally:
                 self._commit_lock_release()
-        finally:
-            self._lock_release()
 
     def _abort(self):
         """Subclasses should redefine this to supply abort actions"""
@@ -222,22 +176,23 @@ class BaseStorage(UndoLogCompatible):
     def tpc_begin(self, transaction, tid=None, status=' '):
         if self._is_read_only:
             raise POSException.ReadOnlyError()
-        self._lock_acquire()
-        try:
+
+        with self._lock:
             if self._transaction is transaction:
                 raise POSException.StorageTransactionError(
                     "Duplicate tpc_begin calls for same transaction")
-            self._lock_release()
-            self._commit_lock_acquire()
-            self._lock_acquire()
+
+        self._commit_lock.acquire()
+
+        with self._lock:
             self._transaction = transaction
             self._clear_temp()
 
             user = transaction.user
             desc = transaction.description
-            ext = transaction._extension
+            ext = transaction.extension
             if ext:
-                ext = cPickle.dumps(ext, 1)
+                ext = dumps(ext, _protocol)
             else:
                 ext = ""
 
@@ -247,15 +202,14 @@ class BaseStorage(UndoLogCompatible):
                 now = time.time()
                 t = TimeStamp(*(time.gmtime(now)[:5] + (now % 60,)))
                 self._ts = t = t.laterThan(self._ts)
-                self._tid = repr(t)
+                self._tid = t.raw()
             else:
                 self._ts = TimeStamp(tid)
                 self._tid = tid
 
+            del self._resolved[:]
             self._tstatus = status
             self._begin(self._tid, user, desc, ext)
-        finally:
-            self._lock_release()
 
     def tpc_transaction(self):
         return self._transaction
@@ -266,19 +220,16 @@ class BaseStorage(UndoLogCompatible):
         pass
 
     def tpc_vote(self, transaction):
-        self._lock_acquire()
-        try:
+        with self._lock:
             if transaction is not self._transaction:
                 raise POSException.StorageTransactionError(
                     "tpc_vote called with wrong transaction")
-            self._vote()
-        finally:
-            self._lock_release()
+            return self._vote()
 
     def _vote(self):
         """Subclasses should redefine this to supply transaction vote actions.
         """
-        pass
+        return self._resolved
 
     def tpc_finish(self, transaction, f=None):
         # It's important that the storage calls the function we pass
@@ -287,8 +238,7 @@ class BaseStorage(UndoLogCompatible):
         # to send an invalidation message to all of the other
         # connections!
 
-        self._lock_acquire()
-        try:
+        with self._lock:
             if transaction is not self._transaction:
                 raise POSException.StorageTransactionError(
                     "tpc_finish called with wrong transaction")
@@ -301,9 +251,8 @@ class BaseStorage(UndoLogCompatible):
             finally:
                 self._ude = None
                 self._transaction = None
-                self._commit_lock_release()
-        finally:
-            self._lock_release()
+                self._commit_lock.release()
+            return self._tid
 
     def _finish(self, tid, u, d, e):
         """Subclasses should redefine this to supply transaction finish actions
@@ -315,20 +264,8 @@ class BaseStorage(UndoLogCompatible):
             return self._ltid
 
     def getTid(self, oid):
-        self._lock_acquire()
-        try:
-            v = ''
-            try:
-                supportsVersions = self.supportsVersions
-            except AttributeError:
-                pass
-            else:
-                if supportsVersions():
-                    v = self.modifiedInVersion(oid)
-            pickledata, serial = self.load(oid, v)
-            return serial
-        finally:
-            self._lock_release()
+        with self._lock:
+            return load_current(self, oid)[1]
 
     def loadSerial(self, oid, serial):
         raise POSException.Unsupported(
@@ -368,7 +305,7 @@ def copy(source, dest, verbose=0):
     # using store().  However, if we use store, then
     # copyTransactionsFrom() may fail with VersionLockError or
     # ConflictError.
-    restoring = hasattr(dest, 'restore')
+    restoring = py2_hasattr(dest, 'restore')
     fiter = source.iterator()
     for transaction in fiter:
         tid = transaction.tid
@@ -377,31 +314,31 @@ def copy(source, dest, verbose=0):
         else:
             t = TimeStamp(tid)
             if t <= _ts:
-                if ok: print ('Time stamps out of order %s, %s' % (_ts, t))
+                if ok: print(('Time stamps out of order %s, %s' % (_ts, t)))
                 ok = 0
                 _ts = t.laterThan(_ts)
-                tid = `_ts`
+                tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:
-                    print ('Time stamps back in order %s' % (t))
+                    print(('Time stamps back in order %s' % (t)))
                     ok = 1
 
         if verbose:
-            print _ts
+            print(_ts)
 
         dest.tpc_begin(transaction, tid, transaction.status)
         for r in transaction:
             oid = r.oid
             if verbose:
-                print oid_repr(oid), r.version, len(r.data)
+                print(oid_repr(oid), r.version, len(r.data))
             if restoring:
                 dest.restore(oid, r.tid, r.data, r.version,
                              r.data_txn, transaction)
             else:
                 pre = preget(oid, None)
-                s = dest.store(oid, pre, r.data, r.version, transaction)
-                preindex[oid] = s
+                dest.store(oid, pre, r.data, r.version, transaction)
+                preindex[oid] = tid
 
         dest.tpc_vote(transaction)
         dest.tpc_finish(transaction)
@@ -421,25 +358,14 @@ def checkCurrentSerialInTransaction(self, oid, serial, transaction):
 BaseStorage.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
 
 @zope.interface.implementer(ZODB.interfaces.IStorageTransactionInformation)
-class TransactionRecord(object):
+class TransactionRecord(TransactionMetaData):
     """Abstract base class for iterator protocol"""
 
 
     def __init__(self, tid, status, user, description, extension):
         self.tid = tid
         self.status = status
-        self.user = user
-        self.description = description
-        self.extension = extension
-
-    # XXX This is a workaround to make the TransactionRecord compatible with a
-    # transaction object because it is passed to tpc_begin().
-    def _ext_set(self, value):
-        self.extension = value
-    def _ext_get(self):
-        return self.extension
-    _extension = property(fset=_ext_set, fget=_ext_get)
-
+        TransactionMetaData.__init__(self, user, description, extension)
 
 @zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
 class DataRecord(object):

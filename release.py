@@ -53,9 +53,8 @@ def replace(filename, pat, repl):
 # e.g., ZEO 2.2.7 shipped with ZODB 3.2.7.  Now ZEO and ZODB share their
 # version number.
 def write_zeoversion(path, version):
-    f = open(path, "w")
-    print >> f, version
-    f.close()
+    with open(path, "w") as f:
+        print >> f, version
 
 def main(args):
     version, date = args

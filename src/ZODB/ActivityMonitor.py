@@ -12,11 +12,11 @@
 #
 ##############################################################################
 """ZODB transfer activity monitoring
+"""
 
-$Id$"""
-
-import threading
 import time
+
+from . import utils
 
 
 class ActivityMonitor:
@@ -31,7 +31,7 @@ class ActivityMonitor:
     def __init__(self, history_length=3600):
         self.history_length = history_length  # Number of seconds
         self.log = []                     # [(time, loads, stores)]
-        self.trim_lock = threading.Lock()
+        self.trim_lock = utils.Lock()
 
     def closedConnection(self, conn):
         log = self.log
@@ -41,18 +41,15 @@ class ActivityMonitor:
         self.trim(now)
 
     def trim(self, now):
-        self.trim_lock.acquire()
-        
-        log = self.log
-        cutoff = now - self.history_length
-        n = 0
-        loglen = len(log)
-        while n < loglen and log[n][0] < cutoff:
-            n = n + 1
-        if n:
-            del log[:n]
-        
-        self.trim_lock.release()
+        with self.trim_lock:
+            log = self.log
+            cutoff = now - self.history_length
+            n = 0
+            loglen = len(log)
+            while n < loglen and log[n][0] < cutoff:
+                n = n + 1
+            if n:
+                del log[:n]
 
     def setHistoryLength(self, history_length):
         self.history_length = history_length

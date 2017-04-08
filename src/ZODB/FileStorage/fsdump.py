@@ -1,3 +1,4 @@
+from __future__ import print_function
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Foundation and Contributors.
@@ -23,13 +24,13 @@ def fsdump(path, file=None, with_offset=1):
     iter = FileIterator(path)
     for i, trans in enumerate(iter):
         if with_offset:
-            print >> file, ("Trans #%05d tid=%016x time=%s offset=%d" %
-                  (i, u64(trans.tid), TimeStamp(trans.tid), trans._pos))
+            print(("Trans #%05d tid=%016x time=%s offset=%d" %
+                  (i, u64(trans.tid), TimeStamp(trans.tid), trans._pos)), file=file)
         else:
-            print >> file, ("Trans #%05d tid=%016x time=%s" %
-                  (i, u64(trans.tid), TimeStamp(trans.tid)))
-        print >> file, ("    status=%r user=%r description=%r" %
-              (trans.status, trans.user, trans.description))
+            print(("Trans #%05d tid=%016x time=%s" %
+                  (i, u64(trans.tid), TimeStamp(trans.tid))), file=file)
+        print(("    status=%r user=%r description=%r" %
+              (trans.status, trans.user, trans.description)), file=file)
 
         for j, rec in enumerate(trans):
             if rec.data is None:
@@ -47,8 +48,8 @@ def fsdump(path, file=None, with_offset=1):
             else:
                 bp = ""
 
-            print >> file, ("  data #%05d oid=%016x%s class=%s%s" %
-                  (j, u64(rec.oid), size, fullclass, bp))
+            print(("  data #%05d oid=%016x%s class=%s%s" %
+                  (j, u64(rec.oid), size, fullclass, bp)), file=file)
     iter.close()
 
 def fmt(p64):
@@ -66,8 +67,8 @@ class Dumper:
 
     def dump(self):
         fid = self.file.read(4)
-        print >> self.dest, "*" * 60
-        print >> self.dest, "file identifier: %r" % fid
+        print("*" * 60, file=self.dest)
+        print("file identifier: %r" % fid, file=self.dest)
         while self.dump_txn():
             pass
 
@@ -78,12 +79,12 @@ class Dumper:
             return False
         tid, tlen, status, ul, dl, el = struct.unpack(TRANS_HDR, h)
         end = pos + tlen
-        print >> self.dest, "=" * 60
-        print >> self.dest, "offset: %d" % pos
-        print >> self.dest, "end pos: %d" % end
-        print >> self.dest, "transaction id: %s" % fmt(tid)
-        print >> self.dest, "trec len: %d" % tlen
-        print >> self.dest, "status: %r" % status
+        print("=" * 60, file=self.dest)
+        print("offset: %d" % pos, file=self.dest)
+        print("end pos: %d" % end, file=self.dest)
+        print("transaction id: %s" % fmt(tid), file=self.dest)
+        print("trec len: %d" % tlen, file=self.dest)
+        print("status: %r" % status, file=self.dest)
         user = descr = extra = ""
         if ul:
             user = self.file.read(ul)
@@ -91,13 +92,13 @@ class Dumper:
             descr = self.file.read(dl)
         if el:
             extra = self.file.read(el)
-        print >> self.dest, "user: %r" % user
-        print >> self.dest, "description: %r" % descr
-        print >> self.dest, "len(extra): %d" % el
+        print("user: %r" % user, file=self.dest)
+        print("description: %r" % descr, file=self.dest)
+        print("len(extra): %d" % el, file=self.dest)
         while self.file.tell() < end:
             self.dump_data(pos)
         stlen = self.file.read(8)
-        print >> self.dest, "redundant trec len: %d" % u64(stlen)
+        print("redundant trec len: %d" % u64(stlen), file=self.dest)
         return 1
 
     def dump_data(self, tloc):
@@ -105,18 +106,18 @@ class Dumper:
         h = self.file.read(DATA_HDR_LEN)
         assert len(h) == DATA_HDR_LEN
         oid, revid, prev, tloc, vlen, dlen = struct.unpack(DATA_HDR, h)
-        print >> self.dest, "-" * 60
-        print >> self.dest, "offset: %d" % pos
-        print >> self.dest, "oid: %s" % fmt(oid)
-        print >> self.dest, "revid: %s" % fmt(revid)
-        print >> self.dest, "previous record offset: %d" % prev
-        print >> self.dest, "transaction offset: %d" % tloc
+        print("-" * 60, file=self.dest)
+        print("offset: %d" % pos, file=self.dest)
+        print("oid: %s" % fmt(oid), file=self.dest)
+        print("revid: %s" % fmt(revid), file=self.dest)
+        print("previous record offset: %d" % prev, file=self.dest)
+        print("transaction offset: %d" % tloc, file=self.dest)
         assert not vlen
-        print >> self.dest, "len(data): %d" % dlen
+        print("len(data): %d" % dlen, file=self.dest)
         self.file.read(dlen)
         if not dlen:
             sbp = self.file.read(8)
-            print >> self.dest, "backpointer: %d" % u64(sbp)
+            print("backpointer: %d" % u64(sbp), file=self.dest)
 
 def main():
     import sys

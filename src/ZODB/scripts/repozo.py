@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.3
+#!/usr/bin/env python
 
 # repozo.py -- incremental and full backups of a Data.fs file.
 #
@@ -10,13 +10,16 @@
 Usage: %(program)s [options]
 Where:
 
-    Exactly one of -B or -R must be specified:
+    Exactly one of -B, -R, or -V must be specified:
 
     -B / --backup
         Backup current ZODB file.
 
     -R / --recover
         Restore a ZODB file from a backup.
+
+    -V / --verify
+        Verify backup integrity.
 
     -v / --verbose
         Verbose mode.
@@ -69,17 +72,17 @@ Options for -R/--recover:
 
         Note:  for the stdout case, the index file will **not** be restored
         automatically.
-"""
 
+Options for -V/--verify:
+    -Q / --quick
+        Verify file sizes only (skip md5 checksums).
+"""
+from __future__ import print_function
 import os
 import shutil
 import sys
-try:
-    # the hashlib package is available from Python 2.5
-    from hashlib import md5
-except ImportError:
-    # the md5 package is deprecated in Python 2.6
-    from md5 import new as md5
+from six.moves import filter
+from hashlib import md5
 import gzip
 import time
 import errno
@@ -91,6 +94,7 @@ program = sys.argv[0]
 
 BACKUP = 1
 RECOVER = 2
+VERIFY = 3
 
 COMMASPACE = ', '
 READCHUNK = 16 * 1024
@@ -105,14 +109,26 @@ class NoFiles(Exception):
     pass
 
 
+class _GzipCloser(object):
+
+    def __init__(self, fqn, mode):
+        self._opened = gzip.open(fqn, mode)
+
+    def __enter__(self):
+        return self._opened
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._opened.close()
+
+
 def usage(code, msg=''):
     outfp = sys.stderr
     if code == 0:
         outfp = sys.stdout
 
-    print >> outfp, __doc__ % globals()
+    print(__doc__ % globals(), file=outfp)
     if msg:
-        print >> outfp, msg
+        print(msg, file=outfp)
 
     sys.exit(code)
 
@@ -120,15 +136,20 @@ def usage(code, msg=''):
 def log(msg, *args):
     if VERBOSE:
         # Use stderr here so that -v flag works with -R and no -o
-        print >> sys.stderr, msg % args
+        print(msg % args, file=sys.stderr)
+
+
+def error(msg, *args):
+    print(msg % args, file=sys.stderr)
 
 
 def parseargs(argv):
     global VERBOSE
     try:
-        opts, args = getopt.getopt(argv, 'BRvhr:f:FQzkD:o:',
+        opts, args = getopt.getopt(argv, 'BRVvhr:f:FQzkD:o:',
                                    ['backup',
                                     'recover',
+                                    'verify',
                                     'verbose',
                                     'help',
                                     'repository=',
@@ -140,11 +161,11 @@ def parseargs(argv):
                                     'date=',
                                     'output=',
                                    ])
-    except getopt.error, msg:
+    except getopt.error as msg:
         usage(1, msg)
 
     class Options:
-        mode = None         # BACKUP or RECOVER
+        mode = None         # BACKUP, RECOVER or VERIFY
         file = None         # name of input Data.fs file
         repository = None   # name of directory holding backups
         full = False        # True forces full backup
@@ -163,12 +184,16 @@ def parseargs(argv):
             VERBOSE = True
         elif opt in ('-R', '--recover'):
             if options.mode is not None:
-                usage(1, '-B and -R are mutually exclusive')
+                usage(1, '-B, -R, and -V are mutually exclusive')
             options.mode = RECOVER
         elif opt in ('-B', '--backup'):
             if options.mode is not None:
-                usage(1, '-B and -R are mutually exclusive')
+                usage(1, '-B, -R, and -V are mutually exclusive')
             options.mode = BACKUP
+        elif opt in ('-V', '--verify'):
+            if options.mode is not None:
+                usage(1, '-B, -R, and -V are mutually exclusive')
+            options.mode = VERIFY
         elif opt in ('-Q', '--quick'):
             options.quick = True
         elif opt in ('-f', '--file'):
@@ -194,7 +219,7 @@ def parseargs(argv):
 
     # Sanity checks
     if options.mode is None:
-        usage(1, 'Either --backup or --recover is required')
+        usage(1, 'Either --backup, --recover or --verify is required')
     if options.repository is None:
         usage(1, '--repository is required')
     if options.mode == BACKUP:
@@ -204,14 +229,33 @@ def parseargs(argv):
         if options.output is not None:
             log('--output option is ignored in backup mode')
             options.output = None
-    else:
-        assert options.mode == RECOVER
+    elif options.mode == RECOVER:
         if options.file is not None:
             log('--file option is ignored in recover mode')
             options.file = None
-        if options.killold is not None:
+        if options.killold:
             log('--kill-old-on-full option is ignored in recover mode')
-            options.killold = None
+            options.killold = False
+    else:
+        assert options.mode == VERIFY
+        if options.date is not None:
+            log("--date option is ignored in verify mode")
+            options.date = None
+        if options.output is not None:
+            log('--output option is ignored in verify mode')
+            options.output = None
+        if options.full:
+            log('--full option is ignored in verify mode')
+            options.full = False
+        if options.gzip:
+            log('--gzip option is ignored in verify mode')
+            options.gzip = False
+        if options.file is not None:
+            log('--file option is ignored in verify mode')
+            options.file = None
+        if options.killold:
+            log('--kill-old-on-full option is ignored in verify mode')
+            options.killold = False
     return options
 
 
@@ -229,7 +273,7 @@ def fsync(afile):
 # passed in all to func().  Leaves the file position just after the
 # last byte read.
 def dofile(func, fp, n=None):
-    bytesread = 0L
+    bytesread = 0
     while n is None or n > 0:
         if n is None:
             todo = READCHUNK
@@ -253,6 +297,22 @@ def checksum(fp, n):
         sum.update(data)
     dofile(func, fp, n)
     return sum.hexdigest()
+
+
+def file_size(fp):
+    # Compute number of bytes that can be read from fp
+    def func(data):
+        pass
+    return dofile(func, fp, None)
+
+
+def checksum_and_size(fp):
+    # Checksum and return it with the size of the file
+    sum = md5()
+    def func(data):
+        sum.update(data)
+    size = dofile(func, fp, None)
+    return sum.hexdigest(), size
 
 
 def copyfile(options, dst, start, n):
@@ -283,7 +343,7 @@ def copyfile(options, dst, start, n):
 
 
 def concat(files, ofp=None):
-    # Concatenate a bunch of files from the repository, output to `outfile' if
+    # Concatenate a bunch of files from the repository, output to 'ofp' if
     # given.  Return the number of bytes written and the md5 checksum of the
     # bytes.
     sum = md5()
@@ -336,9 +396,9 @@ def find_files(options):
     if not when:
         when = gen_filename(options, ext='')
     log('looking for files between last full backup and %s...', when)
-    all = filter(is_data_file, os.listdir(options.repository))
-    all.sort()
-    all.reverse()   # newest file first
+    # newest file first
+    all = sorted(
+        filter(is_data_file, os.listdir(options.repository)), reverse=True)
     # Find the last full backup before date, then include all the
     # incrementals between that full backup and "when".
     needed = []
@@ -376,8 +436,8 @@ def scandat(repofiles):
     fn = startpos = endpos = sum = None # assume .dat file missing or empty
     try:
         fp = open(datfile)
-    except IOError, e:
-        if e.errno <> errno.ENOENT:
+    except IOError as e:
+        if e.errno != errno.ENOENT:
             raise
     else:
         # We only care about the last one.
@@ -385,15 +445,14 @@ def scandat(repofiles):
         fp.close()
         if lines:
             fn, startpos, endpos, sum = lines[-1].split()
-            startpos = long(startpos)
-            endpos = long(endpos)
+            startpos = int(startpos)
+            endpos = int(endpos)
 
     return fn, startpos, endpos, sum
 
 def delete_old_backups(options):
     # Delete all full backup files except for the most recent full backup file
-    all = filter(is_data_file, os.listdir(options.repository))
-    all.sort()
+    all = sorted(filter(is_data_file, os.listdir(options.repository)))
 
     deletable = []
     full = []
@@ -456,7 +515,7 @@ def do_full_backup(options):
     # Write the data file for this full backup
     datfile = os.path.splitext(dest)[0] + '.dat'
     fp = open(datfile, 'w')
-    print >> fp, dest, 0, pos, sum
+    print(dest, 0, pos, sum, file=fp)
     fp.flush()
     os.fsync(fp.fileno())
     fp.close()
@@ -492,7 +551,7 @@ def do_incremental_backup(options, reposz, repofiles):
     datfile = os.path.splitext(fullfile)[0] + '.dat'
     # This .dat file better exist.  Let the exception percolate if not.
     fp = open(datfile, 'a')
-    print >> fp, dest, reposz, pos, sum
+    print(dest, reposz, pos, sum, file=fp)
     fp.flush()
     os.fsync(fp.fileno())
     fp.close()
@@ -593,7 +652,7 @@ def do_recover(options):
         log('Recovering file to %s', options.output)
         outfp = open(options.output, 'wb')
     reposz, reposum = concat(repofiles, outfp)
-    if outfp <> sys.stdout:
+    if outfp != sys.stdout:
         outfp.close()
     log('Recovered %s bytes, md5: %s', reposz, reposum)
 
@@ -608,6 +667,60 @@ def do_recover(options):
             log('No index file to restore: %s', source_index)
 
 
+def do_verify(options):
+    # Verify the sizes and checksums of all files mentioned in the .dat file
+    repofiles = find_files(options)
+    if not repofiles:
+        raise NoFiles('No files in repository')
+    datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+    with open(datfile) as fp:
+        for line in fp:
+            fn, startpos, endpos, sum = line.split()
+            startpos = int(startpos)
+            endpos = int(endpos)
+            filename = os.path.join(options.repository,
+                                    os.path.basename(fn))
+            expected_size = endpos - startpos
+            log("Verifying %s", filename)
+            try:
+                if filename.endswith('fsz'):
+                    actual_sum, size = get_checksum_and_size_of_gzipped_file(filename, options.quick)
+                    when_uncompressed = ' (when uncompressed)'
+                else:
+                    actual_sum, size = get_checksum_and_size_of_file(filename, options.quick)
+                    when_uncompressed = ''
+            except IOError:
+                error("%s is missing", filename)
+                continue
+            if size != expected_size:
+                error("%s is %d bytes%s, should be %d bytes", filename,
+                      size, when_uncompressed, expected_size)
+            elif not options.quick:
+                if actual_sum != sum:
+                    error("%s has checksum %s%s instead of %s", filename,
+                          actual_sum, when_uncompressed, sum)
+
+
+def get_checksum_and_size_of_gzipped_file(filename, quick):
+    with _GzipCloser(filename, 'rb') as fp:
+        if quick:
+            return None, file_size(fp)
+        else:
+            return checksum_and_size(fp)
+
+
+def get_checksum_and_size_of_file(filename, quick):
+    with open(filename, 'rb') as fp:
+        fp.seek(0, 2)
+        actual_size = fp.tell()
+        if quick:
+            actual_sum = None
+        else:
+            fp.seek(0)
+            actual_sum = checksum(fp, actual_size)
+    return actual_sum, actual_size
+
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
@@ -615,16 +728,19 @@ def main(argv=None):
     if options.mode == BACKUP:
         try:
             do_backup(options)
-        except WouldOverwriteFiles, e:
-            print >> sys.stderr, str(e)
-            sys.exit(1)
-    else:
-        assert options.mode == RECOVER
+        except WouldOverwriteFiles as e:
+            sys.exit(str(e))
+    elif options.mode == RECOVER:
         try:
             do_recover(options)
-        except NoFiles, e:
-            print >> sys.stderr, str(e)
-            sys.exit(1)
+        except NoFiles as e:
+            sys.exit(str(e))
+    else:
+        assert options.mode == VERIFY
+        try:
+            do_verify(options)
+        except NoFiles as e:
+            sys.exit(str(e))
 
 
 if __name__ == '__main__':
