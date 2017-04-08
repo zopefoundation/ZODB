@@ -91,11 +91,11 @@ def alltests():
             _unittests_only(suite, mod.test_suite())
     return suite
 
-long_description = (
-    open("README.rst").read()  +
-    "\n\n" +
-    open("CHANGES.rst").read()
-    )
+def read(path):
+    with open(path) as f:
+        return f.read()
+
+long_description = read("README.rst")  + "\n\n" + read("CHANGES.rst")
 
 tests_require = ['zope.testing', 'manuel']
 
@@ -111,8 +111,8 @@ setup(name="ZODB",
       url = 'http://www.zodb.org/',
       license = "ZPL 2.1",
       platforms = ["any"],
-      description = long_description[1],
       classifiers = list(filter(None, classifiers.split("\n"))),
+      description = long_description.split('\n', 2)[1],
       long_description = long_description,
       test_suite="__main__.alltests", # to support "setup.py test"
       tests_require = tests_require,
