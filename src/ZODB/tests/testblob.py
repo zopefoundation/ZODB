@@ -478,6 +478,31 @@ def packing_with_uncommitted_data_undoing():
     >>> database.close()
     """
 
+def test_blob_file_permissions():
+    """
+    >>> blob_storage = create_storage()
+    >>> conn = ZODB.connection(blob_storage)
+    >>> conn.root.x = ZODB.blob.Blob('test')
+    >>> conn.transaction_manager.commit()
+
+    Blobs have the readability of their parent directories:
+
+    >>> import stat
+    >>> READABLE = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+    >>> path = conn.root.x.committed()
+    >>> ((os.stat(path).st_mode & READABLE) ==
+    ...  (os.stat(os.path.dirname(path)).st_mode & READABLE))
+    True
+
+    The committed file isn't writable:
+
+    >>> WRITABLE = stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH
+    >>> os.stat(path).st_mode & WRITABLE
+    0
+
+    >>> conn.close()
+    """
+
 # On windows, we can't create secure blob directories, at least not
 # with APIs in the standard library, so there's no point in testing
 # this.

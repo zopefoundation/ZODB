@@ -288,6 +288,7 @@ class Blob(persistent.Persistent):
             tempdir = self._p_jar.db()._storage.temporaryDirectory()
         else:
             tempdir = tempfile.gettempdir()
+
         filename = utils.mktemp(dir=tempdir, prefix="BUC")
         self._p_blob_uncommitted = filename
 
@@ -986,5 +987,14 @@ def copyTransactionsFromTo(source, destination):
 
 
 NO_WRITE = ~ (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+READ_PERMS = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
 def set_not_writable(path):
-    os.chmod(path, stat.S_IMODE(os.lstat(path).st_mode) & NO_WRITE)
+    perms = stat.S_IMODE(os.lstat(path).st_mode)
+
+    # Not writable:
+    perms &= NO_WRITE
+
+    # Read perms from folder:
+    perms |= stat.S_IMODE(os.lstat(os.path.dirname(path)).st_mode) & READ_PERMS
+
+    os.chmod(path, perms)
