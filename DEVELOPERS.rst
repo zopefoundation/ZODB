@@ -1,8 +1,9 @@
+======================
 For developers of ZODB
 ======================
 
 Building
----------
+========
 
 Bootstrap buildout, if necessary using ``bootstrap.py``::
 
@@ -13,7 +14,7 @@ Run the buildout::
   bin/buildout
 
 Testing
--------
+=======
 
 The ZODB checkouts are `buildouts <http://www.python.org/pypi/zc.buildout>`_.
 When working from a ZODB checkout, first run the bootstrap.py script
@@ -54,14 +55,14 @@ Windows, although it can take a long time on Windows -- longer if you
 use ZoneAlarm.
 
 Generating docs
----------------
+===============
 
 cd to the doc directory and::
 
   make html
 
 Contributing
-------------
+============
 
 Almost any code change should include tests.
 
