@@ -14,4 +14,4 @@ build_script:
   - bin\buildout parts=test
 
 test_script:
-  - bin\test -vvv
+  - bin\test -vvvt test_funky_datetime_serialization
