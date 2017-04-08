@@ -9,6 +9,7 @@ install:
 
 build_script:
   - pip install zc.buildout
+  - buildout bootstrap
   - bin\buildout parts=test
 
 test_script:
