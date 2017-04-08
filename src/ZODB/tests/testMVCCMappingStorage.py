@@ -178,9 +178,9 @@ class MVCCMappingStorageTests(
         self._storage.tpc_begin(t)
         self.assertEqual(self._storage._tid, b'zzzzzzzz')
 
-def create_blob_storage(name, blob_dir):
+def create_blob_storage(name, blob_dir, blob_dir_permissions=None):
     s = MVCCMappingStorage(name)
-    return ZODB.blob.BlobStorage(blob_dir, s)
+    return ZODB.blob.BlobStorage(blob_dir, s, permissions=blob_dir_permissions)
 
 def test_suite():
     suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')

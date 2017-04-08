@@ -17,6 +17,7 @@
 import binascii
 import logging
 import os
+import os.path
 import re
 import shutil
 import stat
@@ -351,7 +352,10 @@ class FilesystemHelper:
     # with blobs and storages needn't indirect through this if they
     # want to perform blob storage differently.
 
-    def __init__(self, base_dir, layout_name='automatic'):
+    default_blob_dir_permissions = 0700
+    blob_dir_permissions = None
+
+    def __init__(self, base_dir, layout_name='automatic', permissions=None):
         self.base_dir = os.path.abspath(base_dir) + os.path.sep
         self.temp_dir = os.path.join(base_dir, 'tmp')
 
@@ -363,14 +367,33 @@ class FilesystemHelper:
                 'migrating to the `bushy` layout.', level=logging.WARN)
         self.layout_name = layout_name
         self.layout = LAYOUTS[layout_name]
+        if permissions is not None:
+            self.blob_dir_permissions = permissions
+
+    def makedirs(self, path):
+        if self.blob_dir_permissions:
+            dirs = [path]
+            head, tail = os.path.split(path)
+            if not tail:
+                head, tail = os.path.split(head)
+            while head and tail and not os.path.exists(head):
+                dirs.append(head)
+                head, tail = os.path.split(head)
+            os.makedirs(path)
+            for path in dirs:
+                os.chmod(path, self.blob_dir_permissions)
+        else:
+            # we preserve legacy behavior here when explicit blob
+            # dir permissions are not specified.
+            os.makedirs(path, self.default_blob_dir_permissions)
 
     def create(self):
         if not os.path.exists(self.base_dir):
-            os.makedirs(self.base_dir, 0o700)
+            self.makedirs(self.base_dir)
             log("Blob directory '%s' does not exist. "
                 "Created new directory." % self.base_dir)
         if not os.path.exists(self.temp_dir):
-            os.makedirs(self.temp_dir, 0o700)
+            self.makedirs(self.temp_dir)
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
@@ -392,7 +415,7 @@ class FilesystemHelper:
         return (os.stat(path).st_mode & 0o77) == 0
 
     def checkSecure(self):
-        if not self.isSecure(self.base_dir):
+        if not (self.blob_dir_permissions or self.isSecure(self.base_dir)):
             log('Blob dir %s has insecure mode setting' % self.base_dir,
                 level=logging.WARNING)
 
@@ -414,7 +437,7 @@ class FilesystemHelper:
 
         if create and not os.path.exists(path):
             try:
-                os.makedirs(path, 0o700)
+                self.makedirs(path)
             except OSError:
                 # We might have lost a race.  If so, the directory
                 # must exist now
@@ -628,9 +651,10 @@ LAYOUTS['lawn'] = LawnLayout()
 class BlobStorageMixin(object):
     """A mix-in to help storages support blobs."""
 
-    def _blob_init(self, blob_dir, layout='automatic'):
+    def _blob_init(self, blob_dir, layout='automatic',
+        permissions=None):
         # XXX Log warning if storage is ClientStorage
-        self.fshelper = FilesystemHelper(blob_dir, layout)
+        self.fshelper = FilesystemHelper(blob_dir, layout, permissions)
         self.fshelper.create()
         self.fshelper.checkSecure()
         self.dirty_oids = []
@@ -723,11 +747,12 @@ class BlobStorage(BlobStorageMixin):
     """
 
 
-    def __init__(self, base_directory, storage, layout='automatic'):
+    def __init__(self, base_directory, storage, layout='automatic',
+        permissions=None):
         assert not ZODB.interfaces.IBlobStorage.providedBy(storage)
         self.__storage = storage
 
-        self._blob_init(base_directory, layout)
+        self._blob_init(base_directory, layout, permissions=permissions)
         try:
             supportsUndo = storage.supportsUndo
         except AttributeError:

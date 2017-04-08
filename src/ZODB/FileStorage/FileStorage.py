@@ -148,7 +148,7 @@ class FileStorage(
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
-                 blob_dir=None):
+                 blob_dir=None, blob_dir_permissions=None):
         """Create a file storage
 
         :param str file_name: Path to store data file
@@ -331,7 +331,7 @@ class FileStorage(
             if create and os.path.exists(self.blob_dir):
                 remove_committed_dir(self.blob_dir)
 
-            self._blob_init(blob_dir)
+            self._blob_init(blob_dir, permissions=blob_dir_permissions)
             alsoProvides(self, IBlobStorageRestoreable)
         else:
             self.blob_dir = None
@@ -1319,7 +1319,7 @@ class FileStorage(
                 newpath = old+path[lblob_dir:]
                 dest = os.path.dirname(newpath)
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0o700)
+                    self.fshelper.makedirs(dest)
                 os.rename(path, newpath)
             handle_dir = handle_file
         else:
@@ -1368,7 +1368,7 @@ class FileStorage(
                 file_path = os.path.join(path, file_name)
                 dest = os.path.dirname(old+file_path[lblob_dir:])
                 if not os.path.exists(dest):
-                    os.makedirs(dest, 0o700)
+                    self.fshelper.makedirs(dest)
                 link_or_copy(file_path, old+file_path[lblob_dir:])
 
     def iterator(self, start=None, stop=None):
