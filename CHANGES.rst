@@ -9,7 +9,7 @@
   files were silently created.  Creating a read-only file-storage
   against a non-existent file errors.
 
-4.4.5 (2016-02-06)
+4.4.5 (2017-02-06)
 ==================
 
 - ``persistent`` is no longer required at setup time.
