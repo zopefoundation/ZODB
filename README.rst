@@ -20,7 +20,8 @@ ZODB is an ACID Transactional database.
 
 To learn more, visit: http://www.zodb.org
 
-The githib repository is: at https://github.com/zopefoundation/zodb
+The github repository is: at https://github.com/zopefoundation/zodb
 
 If you're interested in contributing to ZODB itself, see the
-`developer notes <DEVELOPERS.rst>`_.
+`developer notes
+<https://github.com/zopefoundation/ZODB/blob/master/DEVELOPERS.rst>`_.
