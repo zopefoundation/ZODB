@@ -2,6 +2,13 @@
  Change History
 ================
 
+4.4.6 (unreleased)
+==================
+
+- Fixed: When opening FileStorages in read-only mode, non-existent
+  files were silently created.  Creating a read-only file-storage
+  against a non-existent file errors.
+
 4.4.5 (2016-02-06)
 ==================
 
