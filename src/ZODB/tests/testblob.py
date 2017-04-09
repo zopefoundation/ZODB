@@ -503,12 +503,6 @@ def test_blob_file_permissions():
     >>> conn.close()
     """
 
-# On windows, we can't create secure blob directories, at least not
-# with APIs in the standard library, so there's no point in testing
-# this.
-if sys.platform == 'win32':
-    del secure_blob_directory
-
 def loadblob_tmpstore():
     """
     This is a test for assuring that the TmpStore's loadBlob implementation
