@@ -9,7 +9,7 @@ install:
 
 build_script:
   - buildout bootstrap
-  - dir c:\\python27\\lib\\site-packages
+  - dir c:\python27\lib\site-packages
   - bin\buildout parts=test
 
 test_script:
