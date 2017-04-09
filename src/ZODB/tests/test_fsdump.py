@@ -80,7 +80,7 @@ checker = renormalizing.RENormalizing([
     # Python 3 produces larger pickles, even when we use zodbpickle :(
     # this changes all the offsets and sizes
     (re.compile(r'\bsize=[0-9]+\b'), 'size=<SIZE>'),
-    (re.compile(r'\offset=[0-9]+\b'), 'offset=<OFFSET>'),
+    (re.compile(r'\boffset=[0-9]+\b'), 'offset=<OFFSET>'),
 ])
 
 
