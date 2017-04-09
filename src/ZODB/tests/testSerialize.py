@@ -161,7 +161,7 @@ class SerializerFunctestCase(unittest.TestCase):
         import subprocess
         fqn = os.path.join(self._tempdir, 'Data.fs')
         prep_args = [sys.executable, '-c',
-                     'import sys; print sys.path; from ZODB.tests.testSerialize import _functest_prep; '
+                     'from ZODB.tests.testSerialize import _functest_prep; '
                      '_functest_prep(%s)' % repr(fqn)]
         # buildout doesn't arrange for the sys.path to be exported,
         # so force it ourselves
