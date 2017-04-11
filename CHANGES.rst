@@ -409,5 +409,6 @@ Bugs Fixed
 
 
 .. note::
-   Please see ``doc/HISTORY.txt`` for changelog entries for older versions
-   of ZODB.
+   Please see https://github.com/zopefoundation/ZODB/blob/master/HISTORY.rst
+   for older versions of ZODB.
+
