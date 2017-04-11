@@ -288,6 +288,7 @@ class Blob(persistent.Persistent):
             tempdir = self._p_jar.db()._storage.temporaryDirectory()
         else:
             tempdir = tempfile.gettempdir()
+
         filename = utils.mktemp(dir=tempdir, prefix="BUC")
         self._p_blob_uncommitted = filename
 
@@ -366,11 +367,11 @@ class FilesystemHelper:
 
     def create(self):
         if not os.path.exists(self.base_dir):
-            os.makedirs(self.base_dir, 0o700)
+            os.makedirs(self.base_dir)
             log("Blob directory '%s' does not exist. "
                 "Created new directory." % self.base_dir)
         if not os.path.exists(self.temp_dir):
-            os.makedirs(self.temp_dir, 0o700)
+            os.makedirs(self.temp_dir)
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
@@ -388,13 +389,14 @@ class FilesystemHelper:
                     (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
-        """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 0o77) == 0
+        warnings.warn(
+            "isSecure is deprecated. Permissions are no longer set by ZODB",
+            DeprecationWarning, stacklevel=2)
 
     def checkSecure(self):
-        if not self.isSecure(self.base_dir):
-            log('Blob dir %s has insecure mode setting' % self.base_dir,
-                level=logging.WARNING)
+        warnings.warn(
+            "checkSecure is deprecated. Permissions are no longer set by ZODB",
+            DeprecationWarning, stacklevel=2)
 
     def getPathForOID(self, oid, create=False):
         """Given an OID, return the path on the filesystem where
@@ -414,7 +416,7 @@ class FilesystemHelper:
 
         if create and not os.path.exists(path):
             try:
-                os.makedirs(path, 0o700)
+                os.makedirs(path)
             except OSError:
                 # We might have lost a race.  If so, the directory
                 # must exist now
@@ -632,7 +634,6 @@ class BlobStorageMixin(object):
         # XXX Log warning if storage is ClientStorage
         self.fshelper = FilesystemHelper(blob_dir, layout)
         self.fshelper.create()
-        self.fshelper.checkSecure()
         self.dirty_oids = []
 
     def _blob_init_no_blobs(self):
@@ -908,8 +909,9 @@ def rename_or_copy_blob(f1, f2, chmod=True):
             with open(f2, 'wb') as file2:
                 utils.cp(file1, file2)
         remove_committed(f1)
+
     if chmod:
-        os.chmod(f2, stat.S_IREAD)
+        set_not_writable(f2)
 
 if sys.platform == 'win32':
     # On Windows, you can't remove read-only files, so make the
@@ -982,3 +984,17 @@ def copyTransactionsFromTo(source, destination):
 
         destination.tpc_vote(trans)
         destination.tpc_finish(trans)
+
+
+NO_WRITE = ~ (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+READ_PERMS = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+def set_not_writable(path):
+    perms = stat.S_IMODE(os.lstat(path).st_mode)
+
+    # Not writable:
+    perms &= NO_WRITE
+
+    # Read perms from folder:
+    perms |= stat.S_IMODE(os.lstat(os.path.dirname(path)).st_mode) & READ_PERMS
+
+    os.chmod(path, perms)

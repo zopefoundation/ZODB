@@ -1199,7 +1199,7 @@ class TmpStore:
 
         targetpath = self._getBlobPath()
         if not os.path.exists(targetpath):
-            os.makedirs(targetpath, 0o700)
+            os.makedirs(targetpath)
 
         targetname = self._getCleanFilename(oid, serial)
         rename_or_copy_blob(blobfilename, targetname, chmod=False)

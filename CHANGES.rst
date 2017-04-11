@@ -5,7 +5,9 @@
 5.2.2 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Fixed: A blob misfeature set blob permissions so that blobs and blob
+  directories were only readable by the database process owner, rather
+  than honoring user-controlled permissions (e.g. ``umask``).
 
 
 5.2.1 (2017-04-08)
