@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.2.3 (unreleased)
+5.2.3 (2017-04-11)
 ==================
 
 - Fix an import error. See `issue 158 <https://github.com/zopefoundation/ZODB/issues/158>`_.
