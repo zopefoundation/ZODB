@@ -5,7 +5,7 @@
 5.2.3 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Fix an import error. See `issue 158 <https://github.com/zopefoundation/ZODB/issues/158>`_.
 
 
 5.2.2 (2017-04-11)
@@ -14,7 +14,7 @@
 - Fixed: A blob misfeature set blob permissions so that blobs and blob
   directories were only readable by the database process owner, rather
   than honoring user-controlled permissions (e.g. ``umask``).
-
+  See `issue 155 <https://github.com/zopefoundation/ZODB/issues/155>`_.
 
 5.2.1 (2017-04-08)
 ==================
@@ -411,4 +411,3 @@ Bugs Fixed
 .. note::
    Please see https://github.com/zopefoundation/ZODB/blob/master/HISTORY.rst
    for older versions of ZODB.
-
