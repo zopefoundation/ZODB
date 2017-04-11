@@ -389,11 +389,13 @@ class FilesystemHelper:
                     (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
+        import warnings
         warnings.warn(
             "isSecure is deprecated. Permissions are no longer set by ZODB",
             DeprecationWarning, stacklevel=2)
 
     def checkSecure(self):
+        import warnings
         warnings.warn(
             "checkSecure is deprecated. Permissions are no longer set by ZODB",
             DeprecationWarning, stacklevel=2)
