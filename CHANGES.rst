@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.2.2 (unreleased)
+5.2.2 (2017-04-11)
 ==================
 
 - Fixed: A blob misfeature set blob permissions so that blobs and blob
