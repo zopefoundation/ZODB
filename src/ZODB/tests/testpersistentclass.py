@@ -67,7 +67,7 @@ def test_new_ghost_w_persistent_class():
     """
 
 # XXX need to update files to get newer testing package
-class FakeModule:
+class FakeModule(object):
     def __init__(self, name, dict):
         self.__dict__ = dict
         self.__name__ = name

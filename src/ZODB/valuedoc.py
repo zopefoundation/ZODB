@@ -3,7 +3,7 @@
 See http://stackoverflow.com/questions/9153473/sphinx-values-for-attributes-reported-as-none/39276413
 """
 
-class ValueDoc:
+class ValueDoc(object):
 
     def __init__(self, text):
         self.text = text

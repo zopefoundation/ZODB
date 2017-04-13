@@ -123,7 +123,7 @@ import threading
 import time
 import transaction
 
-class JobProducer:
+class JobProducer(object):
 
     def __init__(self):
         self.jobs = []
@@ -143,7 +143,7 @@ class JobProducer:
 
 
 
-class MBox:
+class MBox(object):
 
     def __init__(self, filename):
         if ' ' in filename:
@@ -247,7 +247,7 @@ def setup(lib_python):
                        PLexicon('lex', '', Splitter(), CaseNormalizer())
                        )
 
-    class extra:
+    class extra(object):
         doc_attr = 'PrincipiaSearchSource'
         lexicon_id = 'lex'
         index_type = 'Okapi BM25 Rank'
@@ -371,7 +371,7 @@ def index(connection, messages, catalog, max):
 
     return message.number
 
-class IndexJob:
+class IndexJob(object):
     needs_mbox = 1
     catalog = 1
     prefix = 'index'
@@ -444,7 +444,7 @@ def edit(connection, mbox, catalog=1):
 
     return norig, ndel, nins
 
-class EditJob:
+class EditJob(object):
     needs_mbox = 1
     prefix = 'edit'
     catalog = 1
@@ -480,7 +480,7 @@ def search(connection, terms, number):
 
     return n
 
-class SearchJob:
+class SearchJob(object):
 
     def __init__(self, terms='', number=10):
 

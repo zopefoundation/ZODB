@@ -345,7 +345,7 @@ def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
     logger.log(level, message, exc_info=exc_info)
 
 
-class FilesystemHelper:
+class FilesystemHelper(object):
     # Storages that implement IBlobStorage can choose to use this
     # helper class to generate and parse blob filenames.  This is not
     # a set-in-stone interface for all filesystem operations dealing
@@ -519,7 +519,7 @@ class FilesystemHelper:
             yield oid, path
 
 
-class NoBlobsFileSystemHelper:
+class NoBlobsFileSystemHelper(object):
 
     @property
     def temp_dir(self):

@@ -26,7 +26,7 @@ def FakeUnpickler(f):
     return unpickler
 
 
-class Report:
+class Report(object):
     def __init__(self):
         self.OIDMAP = {}
         self.TYPEMAP = {}

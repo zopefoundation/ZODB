@@ -21,7 +21,7 @@ import sys
 from time import time, sleep
 from ZODB.tests.MinPO import MinPO
 
-class HistoryStorage:
+class HistoryStorage(object):
     def checkSimpleHistory(self):
         self._checkHistory((11, 12, 13))
 

@@ -1213,7 +1213,7 @@ class ModifyOnGetStateObject(Persistent):
         return Persistent.__getstate__(self)
 
 
-class StubStorage:
+class StubStorage(object):
     """Very simple in-memory storage that does *just* enough to support tests.
 
     Only one concurrent transaction is supported.
@@ -1373,7 +1373,7 @@ class TestConnection(unittest.TestCase):
 
         db.close()
 
-class StubDatabase:
+class StubDatabase(object):
 
     def __init__(self):
         self.storage = StubStorage()

@@ -5,7 +5,11 @@
 5.2.4 (unreleased)
 ==================
 
-- Optimize getting the path to a blob file.
+- Optimize getting the path to a blob file. See
+`issue 161 <<https://github.com/zopefoundation/ZODB/pull/161>`_.
+- All classes are new-style classes on Python 2 (they were already
+  new-style on Python 3). This improves performance on PyPy. See
+  `issue 160 <<https://github.com/zopefoundation/ZODB/pull/160>`_.
 
 
 5.2.3 (2017-04-11)

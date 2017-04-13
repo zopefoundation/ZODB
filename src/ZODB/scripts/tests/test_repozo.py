@@ -38,7 +38,7 @@ def _read_file(name, mode='rb'):
         return f.read()
 
 
-class OurDB:
+class OurDB(object):
 
     _file_name = None
 
@@ -241,7 +241,7 @@ class Test_parseargs(unittest.TestCase):
                       sys.stderr.getvalue())
 
 
-class FileopsBase:
+class FileopsBase(object):
 
     def _makeChunks(self):
         from ZODB.scripts.repozo import READCHUNK
@@ -316,7 +316,7 @@ class Test_checksum(unittest.TestCase, FileopsBase):
         self.assertEqual(sum, md5(b'x' * 42).hexdigest())
 
 
-class OptionsTestBase:
+class OptionsTestBase(object):
 
     _repository_directory = None
     _data_directory = None
@@ -408,7 +408,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
 
     def test_w_ofp(self):
 
-        class Faux:
+        class Faux(object):
             _closed = False
             def __init__(self):
                 self._written = []

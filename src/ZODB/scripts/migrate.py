@@ -112,7 +112,7 @@ def main():
     except getopt.error as msg:
         error(2, msg)
 
-    class Options:
+    class Options(object):
         stype = 'FileStorage'
         dtype = 'FileStorage'
         verbose = 0
@@ -329,7 +329,7 @@ def doit(srcdb, dstdb, options):
 # helper to deal with differences between old-style store() return and
 # new-style store() return that supports ZEO
 
-class RevidAccumulator:
+class RevidAccumulator(object):
 
     def __init__(self):
         self.data = {}

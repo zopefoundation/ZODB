@@ -29,7 +29,7 @@ from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 
 logger = logging.getLogger('ZODB.ExportImport')
 
-class ExportImport:
+class ExportImport(object):
 
     def exportFile(self, oid, f=None):
         if f is None:

@@ -293,7 +293,7 @@ class locked(object):
 
 if os.environ.get('DEBUG_LOCKING'): # pragma: no cover
     # NOTE: This only works on Python 3.
-    class Lock:
+    class Lock(object):
 
         lock_class = threading.Lock
 

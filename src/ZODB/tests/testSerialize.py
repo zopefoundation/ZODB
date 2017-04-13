@@ -102,7 +102,7 @@ class SerializerTestCase(unittest.TestCase):
 
     def test_myhasattr(self):
 
-        class OldStyle:
+        class OldStyle(object):
             bar = "bar"
             def __getattr__(self, name):
                 if name == "error":

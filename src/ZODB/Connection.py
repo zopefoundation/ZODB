@@ -1120,7 +1120,7 @@ class Connection(ExportImport, object):
                         yield ob._p_oid
 
 @implementer(IDataManagerSavepoint)
-class Savepoint:
+class Savepoint(object):
 
     def __init__(self, datamanager, state):
         self.datamanager = datamanager
@@ -1131,7 +1131,7 @@ class Savepoint:
 
 
 @implementer(IBlobStorage)
-class TmpStore:
+class TmpStore(object):
     """A storage-like thing to support savepoints."""
 
 

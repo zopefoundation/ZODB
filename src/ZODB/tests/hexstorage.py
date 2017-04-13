@@ -149,7 +149,7 @@ class Transaction(object):
     def __getattr__(self, name):
         return getattr(self.__trans, name)
 
-class ZConfigHex:
+class ZConfigHex(object):
 
     _factory = HexStorage
 

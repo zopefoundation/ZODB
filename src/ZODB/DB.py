@@ -1005,7 +1005,7 @@ class DB(object):
         return conn
 
 
-class ContextManager:
+class ContextManager(object):
     """PEP 343 context manager
     """
 

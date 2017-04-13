@@ -53,7 +53,7 @@ def listeq(L1, L2):
     """
     return sorted(L1) == sorted(L2)
 
-class TransactionalUndoStorage:
+class TransactionalUndoStorage(object):
 
     def _multi_obj_transaction(self, objs):
         t = TransactionMetaData()

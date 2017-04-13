@@ -2083,7 +2083,7 @@ class Record(_DataRecord):
         self.pos = pos
 
 
-class UndoSearch:
+class UndoSearch(object):
 
     def __init__(self, file, pos, first, last, filter=None):
         self.file = file
@@ -2144,7 +2144,7 @@ class UndoSearch:
         d.update(e)
         return d
 
-class FilePool:
+class FilePool(object):
 
     closed = False
     writing = False

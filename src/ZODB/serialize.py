@@ -159,7 +159,7 @@ def myhasattr(obj, name, _marker=object()):
     return getattr(obj, name, _marker) is not _marker
 
 
-class ObjectWriter:
+class ObjectWriter(object):
     """Serializes objects for storage in the database.
 
     The ObjectWriter creates object pickles in the ZODB format.  It
@@ -183,7 +183,7 @@ class ObjectWriter:
         """Return the persistent id for obj.
 
         >>> from ZODB.tests.util import P
-        >>> class DummyJar:
+        >>> class DummyJar(object):
         ...     xrefs = True
         ...     def new_oid(self):
         ...         return 42
@@ -192,7 +192,7 @@ class ObjectWriter:
         ...     databases = {}
 
         >>> jar = DummyJar()
-        >>> class O:
+        >>> class O(object):
         ...     _p_jar = jar
         >>> writer = ObjectWriter(O)
 
@@ -260,7 +260,7 @@ class ObjectWriter:
 
         Check that a classic class doesn't get identified improperly:
 
-        >>> class ClassicClara:
+        >>> class ClassicClara(object):
         ...    pass
         >>> clara = ClassicClara()
 
@@ -432,7 +432,7 @@ class ObjectWriter:
     def __iter__(self):
         return NewObjectIterator(self._stack)
 
-class NewObjectIterator:
+class NewObjectIterator(object):
 
     # The pickler is used as a forward iterator when the connection
     # is looking for new objects to pickle.
@@ -452,7 +452,7 @@ class NewObjectIterator:
 
     next = __next__
 
-class ObjectReader:
+class ObjectReader(object):
 
     def __init__(self, conn=None, cache=None, factory=None):
         self._conn = conn
@@ -680,7 +680,7 @@ def get_refs(a_pickle):
     u.noload()
 
     # Now we have a list of references.  Need to convert to list of
-    # oids and class info:
+    # oids and class info(object):
 
     result = []
 

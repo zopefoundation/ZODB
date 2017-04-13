@@ -160,7 +160,7 @@ def setUp(test):
 def testSomeDelegation():
     r"""
     >>> import six
-    >>> class S:
+    >>> class S(object):
     ...     def __init__(self, name):
     ...         self.name = name
     ...     def getSize(self):

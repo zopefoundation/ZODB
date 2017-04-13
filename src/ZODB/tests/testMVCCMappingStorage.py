@@ -33,7 +33,7 @@ from ZODB.tests import (
     Synchronization,
     )
 
-class MVCCTests:
+class MVCCTests(object):
 
     def checkClosingNestedDatabasesWorks(self):
         # This tests for the error described in

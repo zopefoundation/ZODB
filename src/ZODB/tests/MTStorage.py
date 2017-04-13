@@ -211,7 +211,7 @@ class ExtStorageClientThread(StorageClientThread):
         for obj in iter:
             pass
 
-class MTStorage:
+class MTStorage(object):
     "Test a storage with multiple client threads executing concurrently."
 
     def _checkNThreads(self, n, constructor, *args):

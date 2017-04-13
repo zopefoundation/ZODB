@@ -14,7 +14,7 @@
 
 import persistent.mapping
 
-class fixer:
+class fixer(object):
     def __of__(self, parent):
         def __setstate__(state, self=parent):
             self._container=state
@@ -23,7 +23,7 @@ class fixer:
 
 fixer=fixer()
 
-class hack: pass
+class hack(object): pass
 hack=hack()
 
 def __basicnew__():

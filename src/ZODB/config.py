@@ -103,7 +103,7 @@ def storageFromURL(url):
 def storageFromConfig(section):
     return section.open()
 
-class BaseConfig:
+class BaseConfig(object):
     """Object representing a configured storage or database.
 
     Methods:
