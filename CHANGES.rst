@@ -11,12 +11,10 @@
   new-style on Python 3). This improves performance on PyPy. See
   `issue 160 <<https://github.com/zopefoundation/ZODB/pull/160>`_.
 
-
 5.2.3 (2017-04-11)
 ==================
 
 - Fix an import error. See `issue 158 <https://github.com/zopefoundation/ZODB/issues/158>`_.
-
 
 5.2.2 (2017-04-11)
 ==================
