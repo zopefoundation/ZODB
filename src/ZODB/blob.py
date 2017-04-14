@@ -574,18 +574,21 @@ class BushyLayout(object):
         r'(0x[0-9a-f]{1,2}\%s){7,7}0x[0-9a-f]{1,2}$' % os.path.sep)
 
     def oid_to_path(self, oid):
-        directories = []
         # Create the bushy directory structure with the least significant byte
         # first
-        for byte in ascii_bytes(oid):
-            if isinstance(byte,INT_TYPES): # Py3k iterates byte strings as ints
-                hex_segment_bytes = b'0x' + binascii.hexlify(bytes([byte]))
-                hex_segment_string = hex_segment_bytes.decode('ascii')
-            else:
-                hex_segment_string = '0x%s' % binascii.hexlify(byte)
-            directories.append(hex_segment_string)
+        oid_bytes = ascii_bytes(oid)
+        hex_bytes = binascii.hexlify(oid_bytes)
+        assert len(hex_bytes) == 16
 
-        return os.path.sep.join(directories)
+        directories = [b'0x' + hex_bytes[x:x+2]
+                       for x in range(0, 16, 2)]
+
+        if bytes is not str: # py3
+            sep_bytes = os.path.sep.encode('ascii')
+            path_bytes = sep_bytes.join(directories)
+            return path_bytes.decode('ascii')
+        else:
+            return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
