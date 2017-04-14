@@ -5,7 +5,7 @@
 5.2.4 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Optimize getting the path to a blob file.
 
 
 5.2.3 (2017-04-11)
