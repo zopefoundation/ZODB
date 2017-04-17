@@ -16,7 +16,7 @@ from ZODB.POSException import ReadOnlyError, Unsupported
 
 from ZODB.utils import load_current
 
-class ReadOnlyStorage:
+class ReadOnlyStorage(object):
 
     def _create_data(self):
         # test a read-only storage that already has some data

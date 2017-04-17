@@ -211,7 +211,7 @@ class PersistentReference(object):
         elif isinstance(data, list) and data[0] == 'm':
             return data[1][2]
 
-class PersistentReferenceFactory:
+class PersistentReferenceFactory(object):
 
     data = None
 

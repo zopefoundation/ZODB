@@ -27,7 +27,7 @@ from ZODB._compat import loads
 from persistent.TimeStamp import TimeStamp
 
 
-class TxnHeader:
+class TxnHeader(object):
     """Object representing a transaction record header.
 
     Attribute   Position  Value
@@ -100,7 +100,7 @@ class TxnHeader:
         tlen = u64(self._file.read(8))
         return TxnHeader(self._file, self._pos - (tlen + 8))
 
-class DataHeader:
+class DataHeader(object):
     """Object representing a data record header.
 
     Attribute         Position  Value

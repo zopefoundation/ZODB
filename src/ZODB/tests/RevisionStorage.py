@@ -20,7 +20,7 @@ from ZODB.utils import p64, u64, load_current
 
 ZERO = '\0'*8
 
-class RevisionStorage:
+class RevisionStorage(object):
 
     def checkLoadSerial(self):
         oid = self._storage.new_oid()

@@ -32,7 +32,7 @@ def test_integration():
 
     We'll create a fake module with a class:
 
-    >>> class NotThere:
+    >>> class NotThere(object):
     ...     Atall = type('Atall', (persistent.Persistent, ),
     ...                  {'__module__': 'ZODB.not.there'})
 

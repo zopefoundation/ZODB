@@ -44,7 +44,7 @@ ZERO = b'\0'*8
 # ids, not as the object's state.  This makes the referencesf stuff work,
 # because it pickle sniffs for persistent ids (so we have to get those
 # persistent ids into the root object's pickle).
-class Root:
+class Root(object):
     pass
 
 
@@ -99,7 +99,7 @@ def pdumps(obj):
     return s.getvalue()
 
 
-class PackableStorageBase:
+class PackableStorageBase(object):
     # We keep a cache of object ids to instances so that the unpickler can
     # easily return any persistent object.
 
@@ -768,7 +768,7 @@ class ClientThread(TestThread):
 
         conn.close()
 
-class ElapsedTimer:
+class ElapsedTimer(object):
     def __init__(self, start_time):
         self.start_time = start_time
 

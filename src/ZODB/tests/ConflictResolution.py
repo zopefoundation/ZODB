@@ -55,7 +55,7 @@ class PCounter4(PCounter):
     def _p_resolveConflict(self, oldState, savedState):
         raise RuntimeError("Can't get here; not enough args")
 
-class ConflictResolvingStorage:
+class ConflictResolvingStorage(object):
 
     def checkResolve(self, resolvable=True):
         db = DB(self._storage)
@@ -131,7 +131,7 @@ class ConflictResolvingStorage:
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
 
-class ConflictResolvingTransUndoStorage:
+class ConflictResolvingTransUndoStorage(object):
 
     def checkUndoConflictResolution(self):
         # This test is based on checkNotUndoable in the

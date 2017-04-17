@@ -37,7 +37,7 @@ class TestPList(unittest.TestCase):
         uu2 = PersistentList(u2)
 
         v = PersistentList(tuple(u))
-        class OtherList:
+        class OtherList(object):
             def __init__(self, initlist):
                 self.__data = initlist
             def __len__(self):

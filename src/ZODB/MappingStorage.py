@@ -332,7 +332,7 @@ class MappingStorage(object):
             raise ZODB.POSException.StorageTransactionError(
                 "tpc_vote called with wrong transaction")
 
-class TransactionRecord:
+class TransactionRecord(object):
 
     status = ' '
 

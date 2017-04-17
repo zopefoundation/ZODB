@@ -56,7 +56,7 @@ def fmt(p64):
     # Return a nicely formatted string for a packaged 64-bit value
     return "%016x" % u64(p64)
 
-class Dumper:
+class Dumper(object):
     """A very verbose dumper for debuggin FileStorage problems."""
 
     # TODO:  Should revise this class to use FileStorageFormatter.

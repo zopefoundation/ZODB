@@ -99,7 +99,7 @@ class P(persistent.Persistent):
     def __repr__(self):
         return 'P(%s)' % self.name
 
-class MininalTestLayer:
+class MininalTestLayer(object):
 
     __bases__ = ()
     __module__ = ''

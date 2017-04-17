@@ -307,7 +307,7 @@ class LRUCacheTests(CacheTestBase):
             if details['state'] is None:    # i.e., it's a ghost
                 self.assertTrue(details['rc'] > 0)
 
-class StubDataManager:
+class StubDataManager(object):
     def setklassstate(self, object):
         pass
 

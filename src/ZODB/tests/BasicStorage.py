@@ -32,7 +32,7 @@ from .. import utils
 
 ZERO = b'\0'*8
 
-class BasicStorage:
+class BasicStorage(object):
     def checkBasics(self):
         self.assertEqual(self._storage.lastTransaction(), ZERO)
 
