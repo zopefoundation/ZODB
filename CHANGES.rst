@@ -5,6 +5,10 @@
 5.2.4 (unreleased)
 ==================
 
+- Ensure that the pickled class is set when an object is loaded from a
+  ghost state. This fixes an issue with ``BTrees`` which may initially
+  create an object with an old class reference.
+
 - Optimize getting the path to a blob file. See
 `issue 161 <<https://github.com/zopefoundation/ZODB/pull/161>`_.
 - All classes are new-style classes on Python 2 (they were already

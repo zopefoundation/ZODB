@@ -609,17 +609,31 @@ class ObjectReader(object):
         return klass.__new__(klass, *args)
 
     def getState(self, pickle):
+        return self.getClassAndState(pickle)[0]
+
+    def getClassAndState(self, pickle):
         unpickler = self._get_unpickler(pickle)
         try:
-            unpickler.load() # skip the class metadata
-            return unpickler.load()
+            klass = unpickler.load()
+
+            # The class pickle is sometimes a tuple where the actual class
+            # reference is the first item.
+            if isinstance(klass, tuple):
+                klass = klass[0]
+
+                # Backwards compatibility with earlier Zope.
+                if isinstance(klass, tuple):
+                    klass = unpickler.find_global(*klass)
+            return klass, unpickler.load()
         except EOFError as msg:
             log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
 
     def setGhostState(self, obj, pickle):
-        state = self.getState(pickle)
+        klass, state = self.getClassAndState(pickle)
+        if klass is not obj.__class__ and not isinstance(obj, broken.Broken):
+            obj.__class__ = klass
         obj.__setstate__(state)
 
 
