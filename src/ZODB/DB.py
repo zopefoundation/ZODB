@@ -646,7 +646,7 @@ class DB(object):
         del self.storage
         del self._mvcc_storage
         # clean up references to other DBs
-        self.databases.clear()
+        self.databases = {}
         # clean up the connection pool
         while self.pool.pop():
             pass
