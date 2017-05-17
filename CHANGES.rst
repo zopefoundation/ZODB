@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.2.4 (unreleased)
+5.2.4 (2017-05-17)
 ==================
 
 - ``DB.close`` now explicitly frees internal resources.  This is
