@@ -5,8 +5,12 @@
 5.2.4 (unreleased)
 ==================
 
+- ``DB.close`` now explicitly frees internal resources.  This is
+  helpful to avoid false positives in tests that check for leaks.
+
 - Optimize getting the path to a blob file. See
-`issue 161 <<https://github.com/zopefoundation/ZODB/pull/161>`_.
+  `issue 161 <<https://github.com/zopefoundation/ZODB/pull/161>`_.
+
 - All classes are new-style classes on Python 2 (they were already
   new-style on Python 3). This improves performance on PyPy. See
   `issue 160 <<https://github.com/zopefoundation/ZODB/pull/160>`_.
