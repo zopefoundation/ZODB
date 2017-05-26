@@ -105,3 +105,8 @@ Optional argument -n specifies ntxn, and defaults to 10.
 migrate.py -- do a storage migration and gather statistics
 
 See the module docstring for details.
+
+
+zodbcmp.py -- compare content of two ZODB databases bit-to-bit.
+
+Run the script with the -h option to see usage details.
