@@ -67,8 +67,7 @@ def report(rep):
     fmts = "%46s %7d %8dk %5.1f%% %7.2f" # summary format
     print(fmt % ("Class Name", "Count", "TBytes", "Pct", "AvgSize"))
     print(fmt % ('-'*46, '-'*7, '-'*9, '-'*5, '-'*7))
-    typemap = rep.TYPEMAP.keys()
-    typemap.sort()
+    typemap = sorted(rep.TYPEMAP.keys())
     cumpct = 0.0
     for t in typemap:
         pct = rep.TYPESIZE[t] * 100.0 / rep.DBYTES
