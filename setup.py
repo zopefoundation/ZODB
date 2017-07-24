@@ -14,7 +14,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '5.2.5.dev0'
+version = '5.3.0.dev0'
 
 classifiers = """\
 Intended Audience :: Developers
@@ -23,7 +23,6 @@ Programming Language :: Python
 Programming Language :: Python :: 2
 Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.3
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6
@@ -145,5 +144,7 @@ setup(
       repozo = ZODB.scripts.repozo:main
     """,
     include_package_data=True,
+    # The pypy3 we test with on travis CI is still a Python 3.3
+    # implementation, so we don't explicitly blacklist 3.3 yet.
     python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
 )

@@ -10,8 +10,6 @@ matrix:
         - os: linux
           python: 2.7
         - os: linux
-          python: 3.3
-        - os: linux
           python: 3.4
         - os: linux
           python: 3.5
@@ -20,7 +18,7 @@ matrix:
 install:
     - pip install -U pip
     - pip install zc.buildout
-    - buildout $BUILOUT_OPTIONS versions:sphinx=1.4.9
+    - buildout $BUILOUT_OPTIONS
 script:
     - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then bin/coverage run bin/coverage-test -v1j99; fi
     - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then bin/test -v1j99; fi

@@ -2,10 +2,12 @@
  Change History
 ================
 
-5.2.5 (unreleased)
+5.3.0 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Add support for Python 3.6.
+
+- Drop support for Python 3.3.
 
 
 5.2.4 (2017-05-17)
