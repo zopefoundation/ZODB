@@ -16,7 +16,7 @@ Because ZODB is an object database:
 
 Check out the :doc:`tutorial`!
 
-ZODB runs on Python 2.7 or Python 3.3 and above. It also runs on PyPy.
+ZODB runs on Python 2.7 or Python 3.4 and above. It also runs on PyPy.
 
 Transactions
 ============

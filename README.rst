@@ -3,7 +3,7 @@ ZODB, a Python object-oriented database
 =======================================
 
 ZODB provides an object-oriented database for Python that provides a
-high-degree of transparency. ZODB runs on Python 2.7 or Python 3.3 and
+high-degree of transparency. ZODB runs on Python 2.7 or Python 3.4 and
 above. It also runs on PyPy.
 
 - no separate language for database operations
