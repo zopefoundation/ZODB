@@ -33,7 +33,7 @@ def tearDown(test):
 
 def test_suite():
     base, src = os.path.split(os.path.dirname(os.path.dirname(ZODB.__file__)))
-    assert src == 'src'
+    assert src == 'src', src
     base = join(base, 'doc')
     guide = join(base, 'guide')
     reference = join(base, 'reference')
@@ -54,4 +54,3 @@ def test_suite():
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')
-

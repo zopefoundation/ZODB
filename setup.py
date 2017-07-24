@@ -11,10 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-version = '5.2.5.dev0'
-
 import os
 from setuptools import setup, find_packages
+
+version = '5.3.0.dev0'
 
 classifiers = """\
 Intended Audience :: Developers
@@ -23,9 +23,9 @@ Programming Language :: Python
 Programming Language :: Python :: 2
 Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3
-Programming Language :: Python :: 3.3
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.6
 Programming Language :: Python :: Implementation :: CPython
 Programming Language :: Python :: Implementation :: PyPy
 Topic :: Database
@@ -78,7 +78,7 @@ def alltests():
     suite = unittest.TestSuite()
     base = pkg_resources.working_set.find(
         pkg_resources.Requirement.parse('ZODB')).location
-    for dirpath, dirnames, filenames in os.walk(base):
+    for dirpath, _dirnames, filenames in os.walk(base):
         if os.path.basename(dirpath) == 'tests':
             for filename in filenames:
                 if filename.endswith('.py') and filename.startswith('test'):
@@ -95,31 +95,36 @@ def read(path):
     with open(path) as f:
         return f.read()
 
-long_description = read("README.rst")  + "\n\n" + read("CHANGES.rst")
+long_description = read("README.rst") + "\n\n" + read("CHANGES.rst")
 
-tests_require = ['zope.testing', 'manuel']
+tests_require = [
+    'manuel',
+    'zope.testing',
+    'zope.testrunner >= 4.4.6',
+]
 
-setup(name="ZODB",
-      version=version,
-      author="Jim Fulton",
-      author_email="jim@zope.com",
-      maintainer="Zope Foundation and Contributors",
-      maintainer_email="zodb-dev@zope.org",
-      keywords="database nosql python zope",
-      packages = find_packages('src'),
-      package_dir = {'': 'src'},
-      url = 'http://www.zodb.org/',
-      license = "ZPL 2.1",
-      platforms = ["any"],
-      classifiers = list(filter(None, classifiers.split("\n"))),
-      description = long_description.split('\n', 2)[1],
-      long_description = long_description,
-      test_suite="__main__.alltests", # to support "setup.py test"
-      tests_require = tests_require,
-      extras_require = {
+setup(
+    name="ZODB",
+    version=version,
+    author="Jim Fulton",
+    author_email="jim@zope.com",
+    maintainer="Zope Foundation and Contributors",
+    maintainer_email="zodb-dev@zope.org",
+    keywords="database nosql python zope",
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
+    url='http://www.zodb.org/',
+    license="ZPL 2.1",
+    platforms=["any"],
+    classifiers=list(filter(None, classifiers.split("\n"))),
+    description=long_description.split('\n', 2)[1],
+    long_description=long_description,
+    test_suite="__main__.alltests", # to support "setup.py test"
+    tests_require=tests_require,
+    extras_require={
         'test': tests_require,
-      },
-      install_requires = [
+    },
+    install_requires=[
         'persistent >= 4.2.0',
         'BTrees >= 4.2.0',
         'ZConfig',
@@ -128,15 +133,18 @@ setup(name="ZODB",
         'zc.lockfile',
         'zope.interface',
         'zodbpickle >= 0.6.0',
-      ],
-      zip_safe = False,
-      entry_points = """
+    ],
+    zip_safe=False,
+    entry_points="""
       [console_scripts]
       fsdump = ZODB.FileStorage.fsdump:main
       fsoids = ZODB.scripts.fsoids:main
       fsrefs = ZODB.scripts.fsrefs:main
       fstail = ZODB.scripts.fstail:Main
       repozo = ZODB.scripts.repozo:main
-      """,
-      include_package_data = True,
-      )
+    """,
+    include_package_data=True,
+    # The pypy3 we test with on travis CI is still a Python 3.3
+    # implementation, so we don't explicitly blacklist 3.3 yet.
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
+)
