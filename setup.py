@@ -26,6 +26,7 @@ Programming Language :: Python :: 3
 Programming Language :: Python :: 3.3
 Programming Language :: Python :: 3.4
 Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.6
 Programming Language :: Python :: Implementation :: CPython
 Programming Language :: Python :: Implementation :: PyPy
 Topic :: Database
@@ -97,7 +98,11 @@ def read(path):
 
 long_description = read("README.rst")  + "\n\n" + read("CHANGES.rst")
 
-tests_require = ['zope.testing', 'manuel']
+tests_require = [
+    'manuel',
+    'zope.testing',
+    'zope.testrunner >= 4.4.6',
+]
 
 setup(name="ZODB",
       version=version,
