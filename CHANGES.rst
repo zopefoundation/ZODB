@@ -9,6 +9,8 @@
 
 - Drop support for Python 3.3.
 
+- The ``HistoricalStorageAdapter`` forwards the ``release`` method to
+  its base instance. See `issue 78 <https://github.com/zopefoundation/ZODB/issues/788>`_.
 
 5.2.4 (2017-05-17)
 ==================

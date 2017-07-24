@@ -27,10 +27,9 @@ class Base(object):
 
     def __getattr__(self, name):
         if name in self._copy_methods:
-            if hasattr(self._storage, name):
-                m = getattr(self._storage, name)
-                setattr(self, name, m)
-                return m
+            m = getattr(self._storage, name)
+            setattr(self, name, m)
+            return m
 
         raise AttributeError(name)
 
@@ -204,7 +203,12 @@ class HistoricalStorageAdapter(Base):
         return False
 
     def release(self):
-        pass
+        try:
+            release = self._storage.release
+        except AttributeError:
+            pass
+        else:
+            release()
 
     close = release
 
