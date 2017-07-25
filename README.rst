@@ -2,6 +2,22 @@
 ZODB, a Python object-oriented database
 =======================================
 
+.. image:: https://img.shields.io/pypi/v/ZODB.svg
+   :target: https://pypi.python.org/pypi/ZODB/
+   :alt: Latest release
+
+.. image:: https://img.shields.io/pypi/pyversions/ZODB.svg
+   :target: https://pypi.org/project/ZODB/
+   :alt: Supported Python versions
+
+.. image:: https://travis-ci.org/zopefoundation/ZODB.png?branch=master
+   :target: https://travis-ci.org/zopefoundation/ZODB
+   :alt: Build status
+
+.. image:: https://readthedocs.org/projects/zodb/badge/?version=latest
+   :target: https://zodb.readthedocs.io/en/latest/
+   :alt: Documentation status
+
 ZODB provides an object-oriented database for Python that provides a
 high-degree of transparency. ZODB runs on Python 2.7 or Python 3.4 and
 above. It also runs on PyPy.
