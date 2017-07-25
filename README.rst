@@ -13,6 +13,10 @@ ZODB, a Python object-oriented database
 .. image:: https://travis-ci.org/zopefoundation/ZODB.png?branch=master
    :target: https://travis-ci.org/zopefoundation/ZODB
    :alt: Build status
+   
+.. image:: https://coveralls.io/repos/github/zopefoundation/ZODB/badge.svg
+   :target: https://coveralls.io/github/zopefoundation/ZODB
+   :alt: Coverage status
 
 .. image:: https://readthedocs.org/projects/zodb/badge/?version=latest
    :target: https://zodb.readthedocs.io/en/latest/
