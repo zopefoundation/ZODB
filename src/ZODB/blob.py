@@ -338,6 +338,16 @@ class BlobFile(file):
         self.blob.closed(self)
         super(BlobFile, self).close()
 
+    def __reduce__(self):
+        # Python 3 cannot pickle an open file with any pickle protocol
+        # because of the underlying _io.BufferedReader/Writer object.
+        # Python 2 cannot pickle a file with a protocol < 2, but
+        # protocol 2 *can* pickle an open file; the result of unpickling
+        # is a closed file object.
+        # It's pointless to do that with a blob, so we make sure to
+        # prohibit it on all versions.
+        raise TypeError("Pickling a BlobFile is not allowed")
+
 _pid = str(os.getpid())
 
 def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):

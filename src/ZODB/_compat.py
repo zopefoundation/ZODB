@@ -34,7 +34,7 @@ if not PY3:
     HIGHEST_PROTOCOL = cPickle.HIGHEST_PROTOCOL
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
-    _protocol = 1
+    _protocol = 3
     FILESTORAGE_MAGIC = b"FS21"
 else:
     # Python 3.x: can't use stdlib's pickle because

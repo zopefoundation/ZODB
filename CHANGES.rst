@@ -12,6 +12,17 @@
 - Ensure that the ``HistoricalStorageAdapter`` forwards the ``release`` method to
   its base instance. See `issue 78 <https://github.com/zopefoundation/ZODB/issues/788>`_.
 
+- Use a higher pickle protocol (3) for serializing objects on Python
+  2; previously protocol 1 was used. This is *much* more efficient for
+  new-style classes (all persistent objects are new-style), at the
+  cost of being very slightly less efficient for old-style classes.
+
+  .. note:: On Python 2, this will now allow open ``file`` objects
+			(but **not** open blobs or sockets) to be pickled (loading
+			the object will result in a closed file); previously this
+			would result in a ``TypeError``. Doing so is not
+			recommended as they cannot be loaded in Python 3.
+
 5.2.4 (2017-05-17)
 ==================
 
