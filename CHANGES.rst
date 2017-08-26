@@ -23,6 +23,8 @@
 			would result in a ``TypeError``. Doing so is not
 			recommended as they cannot be loaded in Python 3.
 
+  See `issue 179 <https://github.com/zopefoundation/ZODB/pull/179>`_.
+
 5.2.4 (2017-05-17)
 ==================
 
