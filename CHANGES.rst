@@ -12,7 +12,7 @@
 - Ensure that the ``HistoricalStorageAdapter`` forwards the ``release`` method to
   its base instance. See `issue 78 <https://github.com/zopefoundation/ZODB/issues/788>`_.
 
-- Use a higher pickle protocol (3) for serializing objects on Python
+- Use a higher pickle protocol (2) for serializing objects on Python
   2; previously protocol 1 was used. This is *much* more efficient for
   new-style classes (all persistent objects are new-style), at the
   cost of being very slightly less efficient for old-style classes.
