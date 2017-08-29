@@ -360,7 +360,7 @@ examples used so far::
 
 This program demonstrates a couple interesting things. First, this
 program shows how persistent objects can refer to each other. The
-'self.manger' attribute of 'Employee' instances can refer to other
+'self.manager' attribute of 'Employee' instances can refer to other
 'Employee' instances. Unlike a relational database, there is no
 need to use indirection such as object ids when referring from one
 persistent object to another. You can just use normal Python
