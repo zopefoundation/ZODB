@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.3.0 (unreleased)
+5.3.0 (2017-08-30)
 ==================
 
 - Add support for Python 3.6.

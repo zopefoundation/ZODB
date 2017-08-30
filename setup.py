@@ -14,7 +14,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '5.3.0.dev0'
+version = '5.3.0'
 
 classifiers = """\
 Intended Audience :: Developers
