@@ -56,7 +56,7 @@ from . import _compat
 
 global_reset_counter = 0
 
-noop = lambda : None
+noop = lambda *_: None
 
 def resetCaches():
     """Causes all connection caches to be reset as connections are reopened.
@@ -199,6 +199,10 @@ class Connection(ExportImport, object):
 
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
 
+        # Any invalidation received before the first open can be ignored,
+        # since the cache is known to be empty. See also open() and close().
+        storage._invalidate = noop
+
     def new_oid(self):
         return self._storage.new_oid()
 
@@ -276,6 +280,9 @@ class Connection(ExportImport, object):
             self.__onCloseCallbacks = []
         self.__onCloseCallbacks.append(f)
 
+    def _invalidate(self, oids):
+        self._cache.invalidate(list(oids))
+
     def close(self, primary=True):
         """Close the Connection."""
         if not self._needs_to_join:
@@ -283,7 +290,12 @@ class Connection(ExportImport, object):
             raise ConnectionStateError("Cannot close a connection joined to "
                                        "a transaction")
 
-        self._cache.incrgc() # This is a good time to do some GC
+        # Invalidate immediately when this Connection is closed,
+        # mainly to avoid a memory leak when pool-timeout is not set.
+        if self._storage is not None:
+            self._storage._invalidate = self._invalidate
+
+            self._cache.incrgc() # This is a good time to do some GC
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
@@ -896,6 +908,9 @@ class Connection(ExportImport, object):
         if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
+
+        # Stop invalidating immediately.
+        del self._storage._invalidate
 
         if not self.explicit_transactions:
             # This newTransaction is to deal with some pathalogical cases:
