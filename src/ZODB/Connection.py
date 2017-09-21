@@ -283,8 +283,7 @@ class Connection(ExportImport, object):
             raise ConnectionStateError("Cannot close a connection joined to "
                                        "a transaction")
 
-        if self._cache is not None:
-            self._cache.incrgc() # This is a good time to do some GC
+        self._cache.incrgc() # This is a good time to do some GC
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
@@ -734,17 +733,13 @@ class Connection(ExportImport, object):
 
     def newTransaction(self, transaction, sync=True):
         self._readCurrent.clear()
-
-        try:
-            self._storage.sync(sync)
-            invalidated = self._storage.poll_invalidations()
-            if invalidated is None:
-                # special value: the transaction is so old that
-                # we need to flush the whole cache.
-                invalidated = self._cache.cache_data.copy()
-            self._cache.invalidate(invalidated)
-        except AttributeError:
-            assert self._storage is None
+        self._storage.sync(sync)
+        invalidated = self._storage.poll_invalidations()
+        if invalidated is None:
+            # special value: the transaction is so old that
+            # we need to flush the whole cache.
+            invalidated = self._cache.cache_data.copy()
+        self._cache.invalidate(invalidated)
 
     def afterCompletion(self, transaction):
         # Note that we we call newTransaction here for 2 reasons:
@@ -924,8 +919,7 @@ class Connection(ExportImport, object):
 
         transaction_manager.registerSynch(self)
 
-        if self._cache is not None:
-            self._cache.incrgc() # This is a good time to do some GC
+        self._cache.incrgc() # This is a good time to do some GC
 
         if delegate:
             # delegate open to secondary connections
@@ -951,7 +945,7 @@ class Connection(ExportImport, object):
                 c._storage.release()
             c._storage = c._normal_storage = None
             c._cache = PickleCache(self, 0, 0)
-            c.transaction_manager = None
+            c.close(False)
 
     ##########################################################################
     # Python protocol
