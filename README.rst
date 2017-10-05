@@ -10,7 +10,7 @@ ZODB, a Python object-oriented database
    :target: https://pypi.org/project/ZODB/
    :alt: Supported Python versions
 
-.. image:: https://travis-ci.org/zopefoundation/ZODB.png?branch=master
+.. image:: https://travis-ci.org/zopefoundation/ZODB.svg?branch=master
    :target: https://travis-ci.org/zopefoundation/ZODB
    :alt: Build status
    
