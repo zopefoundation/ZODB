@@ -3,9 +3,9 @@ sudo: false
 matrix:
     include:
         - os: linux
-          python: pypy-5.6.0
+          python: pypy
         - os: linux
-          python: pypy3.3-5.5-alpha
+          python: pypy3
           env: BUILOUT_OPTIONS=sphinx:eggs=
         - os: linux
           python: 2.7
