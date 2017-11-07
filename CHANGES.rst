@@ -5,7 +5,8 @@
 5.3.1 (unreleased)
 ==================
 
-- Nothing changed yet.
+- If an object is missing from the index while packing a ``FileStorage``,
+  report its full ``oid``.
 
 
 5.3.0 (2017-08-30)
