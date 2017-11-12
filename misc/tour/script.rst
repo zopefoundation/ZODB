@@ -1,13 +1,23 @@
 A tour of ZODB, a transactional object-oriented database
 ========================================================
 
+.. prep
+   Remove demo feature from board
+   Move edit state model to ready
+   restore use management to deployed
+   get python prompt on demo
+   set postgres url variable
+
 <first slide>
 
-In this web-cast, I'm going give a tour of ZODB to help you decide
+Hi.
+
+In this screen-cast, I'm going give a tour of ZODB to help you decide
 whether you want to learn more.
 
-ZODB is a general-purpose transactional database designed to make
-working with persistent data as easy and transparent as practical.
+ZODB is a general-purpose transactional object-oriented database
+designed to make working with persistent data as easy and transparent
+as practical.
 
 ZODB has a number of interesting features, which we'll review in a
 bit, but first, we'll look at working with ZODB by looking at a small
@@ -40,7 +50,7 @@ archival.  We can search the bag for old features.
 <drag to bag, open bag, search>
 
 To get a feel for working with objects, we'll access the database in
-interactive mode.
+an interactive Python session.
 
 <start a python interpreter>
 
@@ -49,8 +59,8 @@ connection. ZODB has a pluggable storage architecture, and the details
 of getting a connection vary, depending on the storage approach used.
 
 This application uses newt.db, which is a thin wrapper around ZODB
-that provides Postgres-based storage and also allows data to be
-indexed and searched with PostgreSQL.
+that leverages a Postgres-based storage and also allows data to be
+accessed, indexed, and searched with PostgreSQL.
 
 ::
    import newt.db
@@ -59,8 +69,8 @@ We're using a Postgres database and we create a connection using a
 Postgres connection string for our Postgres database.
 
 ::
-   url = '...'
-   conn = newt.db.connection(url)
+   POSTGRES_CONNECTION_STRING ='...'
+   conn = newt.db.connection(POSTGRES_CONNECTION_STRING)
 
 To access data we start with a database root and walk objects from the
 root.  If we print the root object, we'll see that it has a sites
@@ -101,10 +111,12 @@ They also have a changes object that tracks site changes.  This is
 part of a framework for providing real-time user interfaces.  While
 that framework is interesting, we won't delve into it here.
 
+Mutable subobjects are persistent!
+
 Let's look at a board:
 
 ::
-   board = site.board['Valuenator']
+   board = site.boards['Valuenator']
    board.name
    [state.title for state in board.states]
    [task.title for task in board.tasks]
@@ -113,6 +125,15 @@ Let's look at a board:
 https://github.com/feature-flow/twotieredkanban/blob/90018a656f2200ef9ed1ef886b5c9bb53bfdbfe3/server/twotieredkanban/board.py#L15
 
 Note that we're accessing data by just accessing objects. No queries.
+
+Also note that we store a reference to the site object on a board.
+
+::
+   board.site is site
+
+To get a sites boards or a board's site, we don't need to do a join
+and we don't have to store the sites and boards in a single database
+record.  The database manages and using connections for us.
 
 Let's add a feature.
 
@@ -149,7 +170,7 @@ can choose to abort the current transaction.
 
 When we abort a transaction, the data are returned to the state they
 were in at the start of the transaction. This feature of transactions
-is called "atomicity".  It is a wildly important feature of
+is called "atomicity".  It's a wildly important feature of
 transactional databases.
 
 Without atomicity, recovering from errors is extremely difficult,
@@ -162,9 +183,9 @@ the application does work in discrete units. For these applications,
 the application framework will often manage transactions. For example,
 let's look at the REST API method for updating a task.
 
-https://github.com/feature-flow/twotieredkanban/blob/90018a656f2200ef9ed1ef886b5c9bb53bfdbfe3/server/twotieredkanban/apiboard.py#L46
+https://github.com/feature-flow/twotieredkanban/blob/90018a656f2200ef9ed1ef886b5c9bb53bfdbfe3/server/twotieredkanban/apiboard.py#L45
 
-The details of the web framework used aren't important. We have a REST
+The details of the web framework used here aren't important. We have a REST
 endpoint that updates tasks given a task id.  Note that internally,
 both features and tasks are just tasks. This allows features to be
 demoted to tasks and tasks to be promoted to features.
@@ -184,7 +205,7 @@ any obvious database logic. The code could just be operating on
 non-persistent objects in memory.
 
 The web framework has been configured to begin a transaction at the
-start of a request, abort the transaction if an exception is raised
+start of a request, abort the transaction if an exception is raised,
 and commit if there isn't an error.
 
 So far, we haven't seen obvious database queries.  We've simply
@@ -196,7 +217,7 @@ ordinary dictionaries.
 ::
    site.boards
 
-BTrees are very efficient for working with mapping objects with
+BTrees are very efficient for working with large mapping objects with
 ordered keys.  They can spread data over multiple database records, so
 very large collections can be handled without loading the entire
 collection into memory to access a subset of keys.
@@ -210,18 +231,17 @@ an important case, which is searching the Bag.
 In ZODB, search is viewed as something to be provided at the
 application level.
 
-In this application, we leverage PostgreSQL for search.  Newt DB
-replicates object data to JSONB column and the application uses a
-Postgres full-text index to support task search in the bag.
-
-More commonly, "catalog" objects are used. These provide
-application-level search engines.  There are a variety of these to
-select from, which can be a bit confusing.  They typically require the
-use of event frameworks to cause indexes to be updated when objects
-change.
+Most commonly, "catalog" objects are used. These provide
+application-level search engines, built on BTrees.  There are a
+variety of these to select from.
 
 Because of ZODB's powerful caching, catalogs are often faster than
-using external indexes, like Postgres or ElasticSearch.
+using external indexes, like Postgres or ElasticSearch.  If write
+speed is important, however, it's better to use external indexes.
+
+In this application, however, we leverage Postgres for search.  Newt DB
+replicates object data to a Postgres JSONB column and the application
+uses a Postgres full-text index to support task search in the bag.
 
 Now that you've seen ZODB in action, let's review some of it's notable
 features.
