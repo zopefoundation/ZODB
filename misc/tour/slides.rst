@@ -5,8 +5,8 @@
 
 ----
 
-A tour of ZODB, a transactional object-oriented database
-========================================================
+A tour of ZODB, a transactional Python object-oriented database
+================================================================
 
 ZODB was designed to provide a **very easy to use programming** model by
 minimizing the impedance mismatch between programming and databases.
@@ -43,21 +43,6 @@ ZODB object cache:
 - In memory object graph
 
 - Transactionally-consistent partial database replica.
-
-----
-
-ZODB orders transactions in time
-================================
-
-- Facilitates replication from a point in time.
-
-- Facilitates caching, because ZODB's caching is based on replication.
-
-- Facilitates updating external indexes.
-
-- Allows time travel, depending on which storage components are used.
-
-(There is a write performance cost.)
 
 ----
 
@@ -124,11 +109,26 @@ ZODB provides asynchronous tracing garbage collection.
 Distributed transaction support
 ===============================
 
-ZODB uses the transaction package, which provides
+ZODB uses the `transaction` package, which provides
 distributed-transaction support.
 
 ZODB can be integrated with other databases through distributed
 transactions.
+
+----
+
+Mature
+======
+
+You wouldn't have heard about ZODB if you only followed new projects.
+
+- Development started in 1996
+
+- Mature since early 2000s
+
+- Many contributors
+
+- Still evolving (slowly, because mature)
 
 ----
 
@@ -151,9 +151,9 @@ There's always a schema.
 NoSQL databases
 ===============
 
-- Emphasize speed
+- Emphasize write speed
 
-- Typically Sacrifice transactions
+- Typically sacrifice transactions
 
 - Mitigate by supporting complex schema (documents).
 
@@ -170,7 +170,7 @@ NoSQL databases
 Speed
 =====
 
-ZODB is optimized for reads. Cached reads are simply memory accesses
+Cached reads are simply memory accesses
 and are extremely fast.
 
 ZODB is slower at writing that many relational databases, which are
@@ -178,3 +178,23 @@ typically slower than some NoSQL databases.
 
 But ZODB can still write thousands of transactions per second.
 
+----
+
+In conclusion
+=============
+
+- Simple, natural, development model (very little impedance mismatch).
+
+- Transactions
+
+- Consistent caching
+
+- Easy testing
+
+- Garbage collection
+
+- Database-managed files
+
+- Mature
+
+http://zodb.org
