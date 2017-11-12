@@ -652,6 +652,8 @@ class DB(object):
         def _(conn):
             if conn.transaction_manager is not None:
                 for c in six.itervalues(conn.connections):
+                    # Prevent connections from implicitly starting new
+                    # transactions.
                     c.explicit_transactions = True
                 conn.transaction_manager.abort()
             conn._release_resources()
