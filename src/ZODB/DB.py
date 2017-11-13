@@ -24,7 +24,7 @@ from . import utils
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
-from ZODB.Connection import Connection, TransactionMetaData
+from ZODB.Connection import Connection, TransactionMetaData, noop
 from ZODB._compat import Pickler, _protocol, BytesIO
 import ZODB.serialize
 
@@ -646,15 +646,17 @@ class DB(object):
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
         """
-        noop = lambda *a: None
         self.close = noop
 
         @self._connectionMap
-        def _(c):
-            if c.transaction_manager is not None:
-                c.transaction_manager.abort()
-            c.afterCompletion = c.newTransaction = c.close = noop
-            c._release_resources()
+        def _(conn):
+            if conn.transaction_manager is not None:
+                for c in six.itervalues(conn.connections):
+                    # Prevent connections from implicitly starting new
+                    # transactions.
+                    c.explicit_transactions = True
+                conn.transaction_manager.abort()
+            conn._release_resources()
 
         self._mvcc_storage.close()
         del self.storage
