@@ -14,6 +14,9 @@ Because ZODB is an object database:
 
 - almost no seam between code and database.
 
+- Relationships between objects are handled very naturally, supporting
+  complex object graphs without joins.
+
 Check out the :doc:`tutorial`!
 
 ZODB runs on Python 2.7 or Python 3.4 and above. It also runs on PyPy.
@@ -21,7 +24,7 @@ ZODB runs on Python 2.7 or Python 3.4 and above. It also runs on PyPy.
 Transactions
 ============
 
-Make programs easier to reason about.
+Transactions make programs easier to reason about.
 
 Transactions are atomic
   Changes made in a transaction are either saved in their entirety or
@@ -66,12 +69,6 @@ ZODB transaction support:
 Other notable ZODB features
 ===========================
 
-Pluggable layered storage
-  ZODB has a pluggable storage architecture. This allows a variety of
-  storage schemes including memory-based, file-based and distributed
-  (client-server) storage.  Through storage layering, storage
-  components provide compression, encryption, replication and more.
-
 Database caching with invalidation
   Every database connection has a cache that is a consistent partial database
   replica. When accessing database objects, data already in the cache
@@ -80,14 +77,31 @@ Database caching with invalidation
   to be invalidated. The next time invalidated objects are accessed
   they'll be loaded from the database.
 
-  This makes caching extremely efficient, but provides some limit to
-  the number of clients.  The server has to send an invalidation
-  message to each client for each write.
+  Applications don't have to invalidate cache entries. The database
+  invalidates cache entries automatically.
+
+Pluggable layered storage
+  ZODB has a pluggable storage architecture. This allows a variety of
+  storage schemes including memory-based, file-based and distributed
+  (client-server) storage.  Through storage layering, storage
+  components provide compression, encryption, replication and more.
 
 Easy testing
+  Because application code rarely has database logic, it can
+  usually be unit tested without a database.
+
   ZODB provides in-memory storage implementations as well as
   copy-on-write layered "demo storage" implementations that make testing
   database-related code very easy.
+
+Garbage collection
+  Removal of unused objects is automatic, so application developers
+  don't have to worry about referential integrity.
+
+Binary large objects, Blobs
+  ZODB blobs are database-managed files.  This can be especially
+  useful when serving media.  If you use AWS, there's a Blob
+  implementation that stores blobs in S3 and caches them on disk.
 
 Time travel
   ZODB storages typically add new records on write and remove old
@@ -95,21 +109,11 @@ Time travel
   to the last pack time.  This can be very useful for forensic
   analysis.
 
-Binary large objects, Blobs
-  Many databases have these, but so does ZODB.
-
-  In applications, Blobs are files, so they can be treated as files in
-  many ways. This can be especially useful when serving media.  If you
-  use AWS, there's a Blob implementation that stores blobs in S3 and
-  caches them on disk.
-
 When should you use ZODB?
 =========================
 
 You want to focus on your application without writing a lot of database code.
-  Even if find you need to incorporate or switch to another database
-  later, you can use ZODB in the early part of your project to make
-  initial discovery and learning much quicker.
+  ZODB provides highly transparent persistence.
 
 Your application has complex relationships and data structures.
   In relational databases you have to join tables to model complex
@@ -155,20 +159,21 @@ Need to test logic that uses your database.
 When should you *not* use ZODB?
 ===============================
 
-- Search is a dominant data access path
+- You have very high write volume.
 
-- You have high write volume
+  ZODB can commit thousands of transactions per second with suitable
+  storage configuration and without conflicting changes.
 
-- Caching is unlikely to benefit you
-
-  This can be the case when write volume is high, or when you tend to
-  access small amounts of data from a working set way too large to fit in
-  memory and when there's no good mechanism for dividing the working
-  set across application servers.
+  Internal search indexes can lead to lots of conflicts, and can
+  therefore limit write capacity.  If you need high write volume and
+  search beyond mapping access, consider using external indexes.
 
 - You need to use non-Python tools to access your database.
 
   especially tools designed to work with relational databases
+
+Newt DB addresses these issues to a significant degree. See
+http://newtdb.org.
 
 How does ZODB scale?
 ====================
