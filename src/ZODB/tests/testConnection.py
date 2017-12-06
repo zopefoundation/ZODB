@@ -567,6 +567,14 @@ class InvalidationTests(unittest.TestCase):
         >>> p3._p_state
         0
 
+        Invalidations are processed immediately by closed connections.
+
+        >>> cn.close()
+        >>> mvcc_storage.invalidate(p64(1), {p1._p_oid: 1})
+        >>> mvcc_instance.poll_invalidations()
+        []
+        >>> db.open() is cn
+        True
         >>> db.close()
         """
 
