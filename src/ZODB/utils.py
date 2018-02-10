@@ -95,7 +95,7 @@ def u64(v):
 U64 = u64
 
 
-def cp(f1, f2, length=None):
+def cp(f1, f2, length=None, bufsize=1 << 16):
     """Copy all data from one file to another.
 
     It copies the data from the current position of the input file (f1)
@@ -106,7 +106,7 @@ def cp(f1, f2, length=None):
     """
     read = f1.read
     write = f2.write
-    n = 8192
+    n = bufsize
 
     if length is None:
         old_pos = f1.tell()
