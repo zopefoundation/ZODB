@@ -158,9 +158,15 @@ class ExportImport(object):
                 oids[ooid] = oid = self._storage.new_oid()
                 return_oid_list.append(oid)
 
-            # Blob support
-            blob_begin = f.read(len(blob_begin_marker))
-            if blob_begin == blob_begin_marker:
+            if (len(data) < 99 and 'blob' in data and
+                isinstance(self._reader.getGhost(data), Blob)
+                ):
+                # Blob support
+
+                # Make sure we have a (redundant, overly) blob marker.
+                if f.read(len(blob_begin_marker)) != blob_begin_marker:
+                    raise ValueError("No data for blob object")
+
                 # Copy the blob data to a temporary file
                 # and remember the name
                 blob_len = u64(f.read(8))
@@ -169,7 +175,6 @@ class ExportImport(object):
                 cp(f, blob_file, blob_len)
                 blob_file.close()
             else:
-                f.seek(-len(blob_begin_marker),1)
                 blob_filename = None
 
             pfile = BytesIO(data)
