@@ -31,7 +31,7 @@ logger = logging.getLogger('ZODB.ExportImport')
 
 class ExportImport(object):
 
-    def exportFile(self, oid, f=None):
+    def exportFile(self, oid, f=None, bufsize=1 << 16):
         if f is None:
             f = TemporaryFile(prefix="EXP")
         elif isinstance(f, six.string_types):
@@ -64,7 +64,7 @@ class ExportImport(object):
                     f.write(blob_begin_marker)
                     f.write(p64(os.stat(blobfilename).st_size))
                     blobdata = open(blobfilename, "rb")
-                    cp(blobdata, f)
+                    cp(blobdata, f, bufsize=bufsize)
                     blobdata.close()
 
         f.write(export_end_marker)
@@ -170,7 +170,7 @@ class ExportImport(object):
                 # Copy the blob data to a temporary file
                 # and remember the name
                 blob_len = u64(f.read(8))
-                blob_filename = mktemp()
+                blob_filename = mktemp(self._storage.temporaryDirectory())
                 blob_file = open(blob_filename, "wb")
                 cp(f, blob_file, blob_len)
                 blob_file.close()
