@@ -31,7 +31,7 @@ logger = logging.getLogger('ZODB.ExportImport')
 
 class ExportImport(object):
 
-    def exportFile(self, oid, f=None, bufsize=1 << 16):
+    def exportFile(self, oid, f=None, bufsize=64 * 1024):
         if f is None:
             f = TemporaryFile(prefix="EXP")
         elif isinstance(f, six.string_types):
@@ -158,7 +158,7 @@ class ExportImport(object):
                 oids[ooid] = oid = self._storage.new_oid()
                 return_oid_list.append(oid)
 
-            if (len(data) < 99 and b'blob' in data and
+            if (b'blob' in data and
                 isinstance(self._reader.getGhost(data), Blob)
                 ):
                 # Blob support
