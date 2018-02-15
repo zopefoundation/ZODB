@@ -31,7 +31,7 @@ logger = logging.getLogger('ZODB.ExportImport')
 
 class ExportImport(object):
 
-    def exportFile(self, oid, f=None):
+    def exportFile(self, oid, f=None, bufsize=64 * 1024):
         if f is None:
             f = TemporaryFile(prefix="EXP")
         elif isinstance(f, six.string_types):
@@ -64,7 +64,7 @@ class ExportImport(object):
                     f.write(blob_begin_marker)
                     f.write(p64(os.stat(blobfilename).st_size))
                     blobdata = open(blobfilename, "rb")
-                    cp(blobdata, f)
+                    cp(blobdata, f, bufsize=bufsize)
                     blobdata.close()
 
         f.write(export_end_marker)
@@ -158,18 +158,23 @@ class ExportImport(object):
                 oids[ooid] = oid = self._storage.new_oid()
                 return_oid_list.append(oid)
 
-            # Blob support
-            blob_begin = f.read(len(blob_begin_marker))
-            if blob_begin == blob_begin_marker:
+            if (b'blob' in data and
+                isinstance(self._reader.getGhost(data), Blob)
+                ):
+                # Blob support
+
+                # Make sure we have a (redundant, overly) blob marker.
+                if f.read(len(blob_begin_marker)) != blob_begin_marker:
+                    raise ValueError("No data for blob object")
+
                 # Copy the blob data to a temporary file
                 # and remember the name
                 blob_len = u64(f.read(8))
-                blob_filename = mktemp()
+                blob_filename = mktemp(self._storage.temporaryDirectory())
                 blob_file = open(blob_filename, "wb")
                 cp(f, blob_file, blob_len)
                 blob_file.close()
             else:
-                f.seek(-len(blob_begin_marker),1)
                 blob_filename = None
 
             pfile = BytesIO(data)
