@@ -174,7 +174,7 @@ def find_global(modulename, globalname,
          >>> find_global('ZODB.not.there', 'atall') is ZODBnotthere.atall
          True
 
-       Of course, if we beak it again::
+       Of course, if we break it again::
 
          >>> del sys.modules['ZODB.not']
          >>> del sys.modules['ZODB.not.there']
