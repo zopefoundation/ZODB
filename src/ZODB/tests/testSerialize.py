@@ -137,6 +137,9 @@ class SerializerTestCase(unittest.TestCase):
         top.ref = WeakRef(o)
 
         pickle = serialize.ObjectWriter().serialize(top)
+        # Make sure the persistent id is pickled using the 'C',
+        # SHORT_BINBYTES opcode:
+        self.assertTrue(b'C\x04abcd' in pickle)
 
         refs = []
         u = PersistentUnpickler(None, refs.append, BytesIO(pickle))
@@ -145,6 +148,18 @@ class SerializerTestCase(unittest.TestCase):
 
         self.assertEqual(refs, [['w', (b'abcd',)]])
 
+    def test_protocol_3_binary_handling(self):
+        from ZODB.serialize import _protocol
+        self.assertEqual(3, _protocol) # Yeah, whitebox
+        o = PersistentObject()
+        o._p_oid = b'o'
+        o.o = PersistentObject()
+        o.o._p_oid = b'o.o'
+        pickle = serialize.ObjectWriter().serialize(o)
+
+        # Make sure the persistent id is pickled using the 'C',
+        # SHORT_BINBYTES opcode:
+        self.assertTrue(b'C\x03o.o' in pickle)
 
 class SerializerFunctestCase(unittest.TestCase):
 

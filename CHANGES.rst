@@ -5,6 +5,19 @@
 5.4.0 (unreleased)
 ==================
 
+- ZODB now uses pickle protocol 3 for both Python 2 and Python 3.
+
+  (Previously, protocol 2 was used for Python 2.)
+
+  The zodbpickle package provides a `zodbpickle.binary` string type
+  that should be used in Python 2 to cause binary strings to be saved
+  in a pickle binary format, so they can be loaded correctly in
+  Python 3.  Pickle protocol 3 is needed for this to work correctly.
+
+- Object identifiers in persistent references are saved as
+  `zodbpickle.binary` strings in Python 2, so that they are loaded
+  correctly in Python 3.
+
 - If an object is missing from the index while packing a ``FileStorage``,
   report its full ``oid``.
 
