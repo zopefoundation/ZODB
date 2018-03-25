@@ -2,12 +2,16 @@
  Change History
 ================
 
-5.3.1 (unreleased)
+5.4.0 (unreleased)
 ==================
 
 - If an object is missing from the index while packing a ``FileStorage``,
   report its full ``oid``.
 
+- Storage imports are a bit faster.
+
+- Storages can be important from non-seekable sources, like
+  file-wrapped pipes.
 
 5.3.0 (2017-08-30)
 ==================
