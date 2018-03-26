@@ -139,7 +139,8 @@ from persistent import Persistent
 from persistent.wref import WeakRefMarker, WeakRef
 from ZODB import broken
 from ZODB.POSException import InvalidObjectReference
-from ZODB._compat import PersistentPickler, PersistentUnpickler, BytesIO, _protocol
+from ZODB._compat import PersistentPickler, PersistentUnpickler, BytesIO
+from ZODB._compat import _protocol, binary
 
 
 _oidtypes = bytes, type(None)
@@ -186,7 +187,7 @@ class ObjectWriter(object):
         >>> class DummyJar(object):
         ...     xrefs = True
         ...     def new_oid(self):
-        ...         return 42
+        ...         return b'42'
         ...     def db(self):
         ...         return self
         ...     databases = {}
@@ -204,24 +205,31 @@ class ObjectWriter(object):
         >>> bob = P('bob')
         >>> oid, cls = writer.persistent_id(bob)
         >>> oid
-        42
+        '42'
         >>> cls is P
         True
+
+        To work with Python 3, the oid in the persistent id is of the
+        zodbpickle binary type:
+
+        >>> oid.__class__ is binary
+        True
+
 
         If a persistent object does not already have an oid and jar,
         these will be assigned by persistent_id():
 
         >>> bob._p_oid
-        42
+        '42'
         >>> bob._p_jar is jar
         True
 
         If the object already has a persistent id, the id is not changed:
 
-        >>> bob._p_oid = 24
+        >>> bob._p_oid = b'24'
         >>> oid, cls = writer.persistent_id(bob)
         >>> oid
-        24
+        '24'
         >>> cls is P
         True
 
@@ -247,9 +255,9 @@ class ObjectWriter(object):
 
         >>> sam = PNewArgs('sam')
         >>> writer.persistent_id(sam)
-        42
+        '42'
         >>> sam._p_oid
-        42
+        '42'
         >>> sam._p_jar is jar
         True
 
@@ -312,6 +320,8 @@ class ObjectWriter(object):
                     obj.oid = oid
                     obj.dm = target._p_jar
                     obj.database_name = obj.dm.db().database_name
+
+                oid = binary(oid)
                 if obj.dm is self._jar:
                     return ['w', (oid, )]
                 else:
@@ -366,6 +376,7 @@ class ObjectWriter(object):
                     self._jar, obj,
                     )
 
+        oid = binary(oid)
         klass = type(obj)
         if hasattr(klass, '__getnewargs__'):
             # We don't want to save newargs in object refs.
