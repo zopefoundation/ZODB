@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.4.0 (unreleased)
+5.4.0 (2018-03-26)
 ==================
 
 - ZODB now uses pickle protocol 3 for both Python 2 and Python 3.
