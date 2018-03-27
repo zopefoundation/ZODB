@@ -151,7 +151,7 @@
 Major internal improvements and cleanups plus:
 
 - Added a connection ``prefetch`` method that can be used to request
-  that a storage prefect data an application will need::
+  that a storage prefetch data an application will need::
 
     conn.prefetch(obj, ...)
 
