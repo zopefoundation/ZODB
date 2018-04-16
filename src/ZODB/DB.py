@@ -20,12 +20,13 @@ import logging
 import datetime
 import time
 import warnings
+import weakref
+from itertools import chain
 
 from persistent.TimeStamp import TimeStamp
 import six
 
 import transaction
-import transaction.weakset
 
 from zope.interface import implementer
 
@@ -77,7 +78,7 @@ class AbstractConnectionPool(object):
         # A weak set of all connections we've seen.  A connection vanishes
         # from this set if pop() hands it out, it's not reregistered via
         # repush(), and it becomes unreachable.
-        self.all = transaction.weakset.WeakSet()
+        self.all = weakref.WeakSet()
 
     def setSize(self, size):
         """Change our belief about the expected maximum # of live connections.
@@ -119,6 +120,9 @@ class ConnectionPool(AbstractConnectionPool):
         # pop() pops this stack.  There are never more than size entries
         # in this stack.
         self.available = []
+
+    def __iter__(self):
+        return iter(self.all)
 
     def _append(self, c):
         available = self.available
@@ -205,10 +209,6 @@ class ConnectionPool(AbstractConnectionPool):
             assert result in self.all
         return result
 
-    def map(self, f):
-        """For every live connection c, invoke f(c)."""
-        self.all.map(f)
-
     def availableGC(self):
         """Perform garbage collection on available connections.
 
@@ -248,6 +248,9 @@ class KeyedConnectionPool(AbstractConnectionPool):
         super(KeyedConnectionPool, self).__init__(size, timeout)
         self.pools = {}
 
+    def __iter__(self):
+        return chain(*self.pools.values())
+
     def setSize(self, v):
         self._size = v
         for pool in self.pools.values():
@@ -281,10 +284,6 @@ class KeyedConnectionPool(AbstractConnectionPool):
         if pool is not None:
             return pool.pop()
 
-    def map(self, f):
-        for pool in six.itervalues(self.pools):
-            pool.map(f)
-
     def availableGC(self):
         for key, pool in list(self.pools.items()):
             pool.availableGC()
@@ -295,20 +294,6 @@ class KeyedConnectionPool(AbstractConnectionPool):
         for pool in self.pools.values():
             pool.clear()
         self.pools.clear()
-
-    @property
-    def test_all(self):
-        result = set()
-        for pool in six.itervalues(self.pools):
-            result.update(pool.all)
-        return frozenset(result)
-
-    @property
-    def test_available(self):
-        result = []
-        for pool in six.itervalues(self.pools):
-            result.extend(pool.available)
-        return tuple(result)
 
 
 def toTimeStamp(dt):
@@ -512,8 +497,10 @@ class DB(object):
         """Call f(c) for all connections c in all pools, live and historical.
         """
         with self._lock:
-            self.pool.map(f)
-            self.historical_pool.map(f)
+            for c in self.pool:
+                f(c)
+            for c in self.historical_pool:
+                f(c)
 
     def cacheDetail(self):
         """Return object counts by class accross all connections.
@@ -865,36 +852,32 @@ class DB(object):
         """
         with self._lock:
             self._cache_size = size
-            def setsize(c):
+            for c in self.pool:
                 c._cache.cache_size = size
-            self.pool.map(setsize)
 
     def setCacheSizeBytes(self, size):
         """Reconfigure the cache total size in bytes
         """
         with self._lock:
             self._cache_size_bytes = size
-            def setsize(c):
+            for c in self.pool:
                 c._cache.cache_size_bytes = size
-            self.pool.map(setsize)
 
     def setHistoricalCacheSize(self, size):
         """Reconfigure the historical cache size (non-ghost object count)
         """
         with self._lock:
             self._historical_cache_size = size
-            def setsize(c):
+            for c in self.historical_pool:
                 c._cache.cache_size = size
-            self.historical_pool.map(setsize)
 
     def setHistoricalCacheSizeBytes(self, size):
         """Reconfigure the historical cache total size in bytes
         """
         with self._lock:
             self._historical_cache_size_bytes = size
-            def setsize(c):
+            for c in self.historical_pool:
                 c._cache.cache_size_bytes = size
-            self.historical_pool.map(setsize)
 
     def setPoolSize(self, size):
         """Reconfigure the connection pool size
