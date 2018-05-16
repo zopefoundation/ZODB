@@ -132,7 +132,7 @@ setup(
         'six',
         'zc.lockfile',
         'zope.interface',
-        'zodbpickle >= 0.6.0',
+        'zodbpickle >= 1.0.1',
     ],
     zip_safe=False,
     entry_points="""
