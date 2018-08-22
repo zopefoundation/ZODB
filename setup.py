@@ -14,7 +14,7 @@
 import os
 from setuptools import setup, find_packages
 
-version = '5.4.1.dev0'
+version = '5.5.0.dev0'
 
 classifiers = """\
 Intended Audience :: Developers
@@ -125,7 +125,7 @@ setup(
         'test': tests_require,
     },
     install_requires=[
-        'persistent >= 4.2.0',
+        'persistent >= 4.4.0',
         'BTrees >= 4.2.0',
         'ZConfig',
         'transaction >= 2.0.3',
