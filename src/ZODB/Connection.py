@@ -1328,7 +1328,7 @@ class TransactionMetaData(object):
     @property
     def _extension(self):
         warnings.warn("_extension is deprecated, use extension",
-                      DeprecationWarning)
+                      DeprecationWarning, stacklevel=2)
         return self.extension
 
     @_extension.setter

@@ -38,31 +38,37 @@ class TransactionMetaDataTests(unittest.TestCase):
         self.assertEqual(t.user, b'user')
         self.assertEqual(t.description, b'description')
         self.assertEqual(t.extension, dict(foo='FOO'))
-        self.assertEqual(t._extension, t.extension)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertEqual(t._extension, t.extension)
 
     def test_constructor_default_args(self):
         t = TransactionMetaData()
         self.assertEqual(t.user, b'')
         self.assertEqual(t.description, b'')
         self.assertEqual(t.extension, {})
-        self.assertEqual(t._extension, t.extension)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertEqual(t._extension, t.extension)
 
     def test_set_extension(self):
         t = TransactionMetaData(u'', u'', b'')
         self.assertEqual(t.user, b'')
         self.assertEqual(t.description, b'')
         self.assertEqual(t.extension, {})
-        self.assertEqual(t._extension, t.extension)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.assertEqual(t._extension, t.extension)
 
-        for name in 'extension', '_extension':
-            data = {name: name + 'foo'}
-            setattr(t, name, data)
-            self.assertEqual(t.extension, data)
-            self.assertEqual(t._extension, t.extension)
-            data = {}
-            setattr(t, name, data)
-            self.assertEqual(t.extension, data)
-            self.assertEqual(t._extension, t.extension)
+            for name in 'extension', '_extension':
+                data = {name: name + 'foo'}
+                setattr(t, name, data)
+                self.assertEqual(t.extension, data)
+                self.assertEqual(t._extension, t.extension)
+                data = {}
+                setattr(t, name, data)
+                self.assertEqual(t.extension, data)
+                self.assertEqual(t._extension, t.extension)
 
     def test_used_by_connection(self):
         import ZODB
@@ -109,4 +115,3 @@ def test_suite():
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')
-

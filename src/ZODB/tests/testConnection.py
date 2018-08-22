@@ -36,7 +36,7 @@ checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".
     (re.compile("b('.*?')"), r"\1"),
     # Python 3 removes empty list representation.
-    (re.compile("set\(\[\]\)"), r"set()"),
+    (re.compile(r"set\(\[\]\)"), r"set()"),
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
     (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
@@ -198,7 +198,7 @@ class SetstateErrorLoggingTests(ZODB.tests.util.TestCase):
             record.msg,
             "Shouldn't load state for ZODB.tests.testConnection.StubObject"
             " 0x01 when the connection is closed")
-        self.assert_(record.exc_info)
+        self.assertTrue(record.exc_info)
 
 
 class UserMethodTests(unittest.TestCase):
