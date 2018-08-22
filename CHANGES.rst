@@ -15,6 +15,8 @@
 
 - Bump the dependency on persistent to at least 4.4.0.
 
+- Add support for Python 3.7.
+
 5.4.0 (2018-03-26)
 ==================
 
