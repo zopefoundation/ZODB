@@ -5,6 +5,10 @@
 5.4.1 (unreleased)
 ==================
 
+- Remove support for ``python setup.py test``. It hadn't been working
+  for some time. See `issue #218
+  <https://github.com/zopefoundation/ZODB/issues/218>`_.
+
 - Bump the dependency on zodbpickle to at least 1.0.1. This is
   required to avoid a memory leak on Python 2.7. See `issue 203
   <https://github.com/zopefoundation/ZODB/issues/203>`_.

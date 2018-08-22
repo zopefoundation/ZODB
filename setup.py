@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import os
 from setuptools import setup, find_packages
 
 version = '5.4.1.dev0'
@@ -34,62 +33,6 @@ Operating System :: Microsoft :: Windows
 Operating System :: Unix
 Framework :: ZODB
 """
-
-def _modname(path, base, name=''):
-    if path == base:
-        return name
-    dirname, basename = os.path.split(path)
-    return _modname(dirname, base, basename + '.' + name)
-
-def _flatten(suite, predicate=lambda *x: True):
-    from unittest import TestCase
-    for suite_or_case in suite:
-        if predicate(suite_or_case):
-            if isinstance(suite_or_case, TestCase):
-                yield suite_or_case
-            else:
-                for x in _flatten(suite_or_case):
-                    yield x
-
-def _no_layer(suite_or_case):
-    return getattr(suite_or_case, 'layer', None) is None
-
-def _unittests_only(suite, mod_suite):
-    for case in _flatten(mod_suite, _no_layer):
-        suite.addTest(case)
-
-def alltests():
-    import logging
-    import pkg_resources
-    import unittest
-
-    # Something wacked in setting recursion limit when running setup test
-    import ZODB.FileStorage.tests
-    del ZODB.FileStorage.tests._save_index
-
-    class NullHandler(logging.Handler):
-        level = 50
-
-        def emit(self, record):
-            pass
-
-    logging.getLogger().addHandler(NullHandler())
-
-    suite = unittest.TestSuite()
-    base = pkg_resources.working_set.find(
-        pkg_resources.Requirement.parse('ZODB')).location
-    for dirpath, _dirnames, filenames in os.walk(base):
-        if os.path.basename(dirpath) == 'tests':
-            for filename in filenames:
-                if filename.endswith('.py') and filename.startswith('test'):
-                    mod = __import__(
-                        _modname(dirpath, base, os.path.splitext(filename)[0]),
-                        {}, {}, ['*'])
-                    _unittests_only(suite, mod.test_suite())
-        elif 'tests.py' in filenames:
-            mod = __import__(_modname(dirpath, base, 'tests'), {}, {}, ['*'])
-            _unittests_only(suite, mod.test_suite())
-    return suite
 
 def read(path):
     with open(path) as f:
@@ -119,7 +62,6 @@ setup(
     classifiers=list(filter(None, classifiers.split("\n"))),
     description=long_description.split('\n', 2)[1],
     long_description=long_description,
-    test_suite="__main__.alltests", # to support "setup.py test"
     tests_require=tests_require,
     extras_require={
         'test': tests_require,
