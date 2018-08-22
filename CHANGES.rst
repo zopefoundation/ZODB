@@ -17,6 +17,11 @@
 
 - Add support for Python 3.7.
 
+- Make the internal support functions for dealing with OIDs (``p64``
+  and ``u64``) somewhat faster and raise more informative
+  exceptions on certain types of bad input. See `issue 216
+  <https://github.com/zopefoundation/ZODB/issues/216>`_.
+
 5.4.0 (2018-03-26)
 ==================
 
@@ -57,10 +62,10 @@
   cost of being very slightly less efficient for old-style classes.
 
   .. note:: On Python 2, this will now allow open ``file`` objects
-			(but **not** open blobs or sockets) to be pickled (loading
-			the object will result in a closed file); previously this
-			would result in a ``TypeError``. Doing so is not
-			recommended as they cannot be loaded in Python 3.
+            (but **not** open blobs or sockets) to be pickled (loading
+            the object will result in a closed file); previously this
+            would result in a ``TypeError``. Doing so is not
+            recommended as they cannot be loaded in Python 3.
 
   See `issue 179 <https://github.com/zopefoundation/ZODB/pull/179>`_.
 
