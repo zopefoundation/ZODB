@@ -2,13 +2,14 @@
  Change History
 ================
 
-5.4.1 (unreleased)
+5.5.0 (unreleased)
 ==================
 
 - Bump the dependency on zodbpickle to at least 1.0.1. This is
   required to avoid a memory leak on Python 2.7. See `issue 203
   <https://github.com/zopefoundation/ZODB/issues/203>`_.
 
+- Bump the dependency on persistent to at least 4.4.0.
 
 5.4.0 (2018-03-26)
 ==================
