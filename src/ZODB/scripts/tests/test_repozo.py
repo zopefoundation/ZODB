@@ -19,11 +19,11 @@ from hashlib import md5
 
 import ZODB.tests.util  # layer used at class scope
 
-try:
-    from StringIO import StringIO
-    BytesIO = StringIO
-except ImportError:
-    from io import BytesIO, StringIO
+from io import BytesIO, StringIO
+if str is bytes:
+    NativeStringIO = BytesIO
+else:
+    NativeStringIO = StringIO
 
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
@@ -94,19 +94,12 @@ class OurDB(object):
 
 class Test_parseargs(unittest.TestCase):
 
-    # Python 2.6 lacks this
-    def assertIn(self, member, container, msg=None):
-        if member not in container:
-            standardMsg = '%s not found in %s' % (repr(member),
-                                                  repr(container))
-            self.fail(self._formatMessage(msg, standardMsg))
-
     def setUp(self):
         from ZODB.scripts import repozo
         self._old_verbosity = repozo.VERBOSE
         self._old_stderr = sys.stderr
         repozo.VERBOSE = False
-        sys.stderr = StringIO()
+        sys.stderr = NativeStringIO()
 
     def tearDown(self):
         from ZODB.scripts import repozo
@@ -134,7 +127,7 @@ class Test_parseargs(unittest.TestCase):
         # zope.testrunner will happily print the traceback and failure message
         # into our StringIO before running our tearDown.
         old_stdout = sys.stdout
-        sys.stdout = StringIO()
+        sys.stdout = NativeStringIO()
         try:
             self.assertRaises(SystemExit, repozo.parseargs, ['--help'])
             self.assertIn('Usage:', sys.stdout.getvalue())
@@ -1099,6 +1092,7 @@ class MonteCarloTests(unittest.TestCase):
         from ZODB.scripts.repozo import main
         main(argv)
 
+    @ZODB.tests.util.time_monotonically_increases
     def test_via_monte_carlo(self):
         self.saved_snapshots = []  # list of (name, time) pairs for copies.
 
@@ -1142,8 +1136,7 @@ class MonteCarloTests(unittest.TestCase):
             copyfile(srcname, copyname)
             self.saved_snapshots.append((copyname, copytime))
 
-        # Make sure the clock moves at least a second.
-        sleep(1.01)
+        # The clock moves forward automatically on calls to time.time()
 
         # Verify current Data.fs can be reproduced exactly.
         self.assertRestored()

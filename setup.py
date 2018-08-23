@@ -43,6 +43,7 @@ long_description = read("README.rst") + "\n\n" + read("CHANGES.rst")
 
 tests_require = [
     'manuel',
+    'mock; python_version == "2.7"',
     'zope.testing',
     'zope.testrunner >= 4.4.6',
 ]

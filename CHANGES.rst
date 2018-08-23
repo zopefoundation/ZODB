@@ -22,6 +22,8 @@
   exceptions on certain types of bad input. See `issue 216
   <https://github.com/zopefoundation/ZODB/issues/216>`_.
 
+- Make the tests run faster by avoiding calls to ``time.sleep()``.
+
 5.4.0 (2018-03-26)
 ==================
 

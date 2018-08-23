@@ -21,6 +21,7 @@ from ZODB import DB
 from ZODB.serialize import referencesf
 
 from ZODB.utils import load_current
+from ZODB.tests.util import time_monotonically_increases
 
 import time
 
@@ -66,6 +67,7 @@ class RecoveryStorage(IteratorDeepCompare):
         self._dst.tpc_vote(final)
         self._dst.tpc_finish(final)
 
+    @time_monotonically_increases
     def checkPackWithGCOnDestinationAfterRestore(self):
         raises = self.assertRaises
         db = DB(self._storage)
