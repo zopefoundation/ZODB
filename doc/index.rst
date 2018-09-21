@@ -141,7 +141,7 @@ You access data through object attributes and methods.
   enough to support some search.
 
 You read data a lot more than you write it.
-  ZODB caches aggressively, and if you're working set fits (or mostly
+  ZODB caches aggressively, and if your working set fits (or mostly
   fits) in memory, performance is very good because it rarely has to
   touch the database server.
 
