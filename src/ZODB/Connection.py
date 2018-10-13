@@ -126,7 +126,6 @@ class Connection(ExportImport, object):
             storage = storage.new_instance()
 
         self._normal_storage = self._storage = storage
-        self.new_oid = db.new_oid
         self._savepoint_storage = None
 
         # Do we need to join a txn manager?
@@ -199,6 +198,9 @@ class Connection(ExportImport, object):
         self._import = None
 
         self._reader = ObjectReader(self, self._cache, self._db.classFactory)
+
+    def new_oid(self):
+        return self._storage.new_oid()
 
     def add(self, obj):
         """Add a new object 'obj' to the database and assign it an oid."""
@@ -281,8 +283,7 @@ class Connection(ExportImport, object):
             raise ConnectionStateError("Cannot close a connection joined to "
                                        "a transaction")
 
-        if self._cache is not None:
-            self._cache.incrgc() # This is a good time to do some GC
+        self._cache.incrgc() # This is a good time to do some GC
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
@@ -302,6 +303,17 @@ class Connection(ExportImport, object):
             # closed the DB already, .e.g, ZODB.connection() does this.
             self.transaction_manager.unregisterSynch(self)
 
+
+        am = self._db._activity_monitor
+        if am is not None:
+            am.closedConnection(self)
+
+        # Drop transaction manager to release resources and help prevent errors
+        self.transaction_manager = None
+
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+
         if primary:
             for connection in self.connections.values():
                 if connection is not self:
@@ -318,12 +330,9 @@ class Connection(ExportImport, object):
         else:
             self.opened = None
 
-        am = self._db._activity_monitor
-        if am is not None:
-            am.closedConnection(self)
+        # We may have been reused by another thread at this point so
+        # we can't manipulate or check the state of `self` any more.
 
-        # Drop transaction manager to release resources and help prevent errors
-        self.transaction_manager = None
 
     def db(self):
         """Returns a handle to the database this connection belongs to."""
@@ -399,7 +408,6 @@ class Connection(ExportImport, object):
 
     def abort(self, transaction):
         """Abort a transaction and forget all changes."""
-
         # The order is important here.  We want to abort registered
         # objects before we process the cache.  Otherwise, we may un-add
         # objects added in savepoints.  If they've been modified since
@@ -473,7 +481,6 @@ class Connection(ExportImport, object):
 
     def commit(self, transaction):
         """Commit changes to an object"""
-
         transaction = transaction.data(self)
 
         if self._savepoint_storage is not None:
@@ -726,20 +733,13 @@ class Connection(ExportImport, object):
 
     def newTransaction(self, transaction, sync=True):
         self._readCurrent.clear()
-
-        try:
-            self._storage.sync(sync)
-            invalidated = self._storage.poll_invalidations()
-            if invalidated is None:
-                # special value: the transaction is so old that
-                # we need to flush the whole cache.
-                invalidated = self._cache.cache_data.copy()
-            self._cache.invalidate(invalidated)
-        except AttributeError:
-            assert self._storage is None
-
-        # Now is a good time to collect some garbage.
-        self._cache.incrgc()
+        self._storage.sync(sync)
+        invalidated = self._storage.poll_invalidations()
+        if invalidated is None:
+            # special value: the transaction is so old that
+            # we need to flush the whole cache.
+            invalidated = self._cache.cache_data.copy()
+        self._cache.invalidate(invalidated)
 
     def afterCompletion(self, transaction):
         # Note that we we call newTransaction here for 2 reasons:
@@ -750,7 +750,14 @@ class Connection(ExportImport, object):
         #    finalizing previous ones without calling begin.  We pass
         #    False to avoid possiblyt expensive sync calls to not
         #    penalize well-behaved applications that call begin.
-        self.newTransaction(transaction, False)
+        if hasattr(self._storage, 'afterCompletion'):
+            self._storage.afterCompletion()
+
+        if not self.explicit_transactions:
+            self.newTransaction(transaction, False)
+
+        # Now is a good time to collect some garbage.
+        self._cache.incrgc()
 
     # Transaction-manager synchronization -- ISynchronizer
     ##########################################################################
@@ -765,8 +772,9 @@ class Connection(ExportImport, object):
         return self._reader.getState(p)
 
     def setstate(self, obj):
-        """Turns the ghost 'obj' into a real object by loading its state from
-        the database."""
+        """Load the state for an (ghost) object
+        """
+
         oid = obj._p_oid
 
         if self.opened is None:
@@ -880,33 +888,38 @@ class Connection(ExportImport, object):
 
         self.transaction_manager = transaction_manager
 
+        self.explicit_transactions = getattr(transaction_manager,
+                                             'explicit', False)
+
         self.opened = time.time()
 
         if self._reset_counter != global_reset_counter:
             # New code is in place.  Start a new cache.
             self._resetCache()
 
-        # This newTransaction is to deal with some pathalogical cases:
-        #
-        # a) Someone opens a connection when a transaction isn't
-        #    active and proceeeds without calling begin on a
-        #    transaction manager. We initialize the transaction for
-        #    the connection, but we don't do a storage sync, since
-        #    this will be done if a well-nehaved application calls
-        #    begin, and we don't want to penalize well-behaved
-        #    transactions by syncing twice, as storage syncs might be
-        #    expensive.
-        # b) Lots of tests assume that connection transaction
-        #    information is set on open.
-        #
-        # Fortunately, this is a cheap operation.  It doesn't really
-        # cost much, if anything.
-        self.newTransaction(None, False)
+        if not self.explicit_transactions:
+            # This newTransaction is to deal with some pathalogical cases:
+            #
+            # a) Someone opens a connection when a transaction isn't
+            #    active and proceeeds without calling begin on a
+            #    transaction manager. We initialize the transaction for
+            #    the connection, but we don't do a storage sync, since
+            #    this will be done if a well-nehaved application calls
+            #    begin, and we don't want to penalize well-behaved
+            #    transactions by syncing twice, as storage syncs might be
+            #    expensive.
+            # b) Lots of tests assume that connection transaction
+            #    information is set on open.
+            #
+            # Fortunately, this is a cheap operation.  It doesn't
+            # really cost much, if anything.  Well, except for
+            # RelStorage, in which case it adds a server round
+            # trip.
+            self.newTransaction(None, False)
 
         transaction_manager.registerSynch(self)
 
-        if self._cache is not None:
-            self._cache.incrgc() # This is a good time to do some GC
+        self._cache.incrgc() # This is a good time to do some GC
 
         if delegate:
             # delegate open to secondary connections
@@ -932,7 +945,7 @@ class Connection(ExportImport, object):
                 c._storage.release()
             c._storage = c._normal_storage = None
             c._cache = PickleCache(self, 0, 0)
-            c.transaction_manager = None
+            c.close(False)
 
     ##########################################################################
     # Python protocol
@@ -1101,7 +1114,7 @@ class Connection(ExportImport, object):
                         yield ob._p_oid
 
 @implementer(IDataManagerSavepoint)
-class Savepoint:
+class Savepoint(object):
 
     def __init__(self, datamanager, state):
         self.datamanager = datamanager
@@ -1112,7 +1125,7 @@ class Savepoint:
 
 
 @implementer(IBlobStorage)
-class TmpStore:
+class TmpStore(object):
     """A storage-like thing to support savepoints."""
 
 
@@ -1180,7 +1193,7 @@ class TmpStore:
 
         targetpath = self._getBlobPath()
         if not os.path.exists(targetpath):
-            os.makedirs(targetpath, 0o700)
+            os.makedirs(targetpath)
 
         targetname = self._getCleanFilename(oid, serial)
         rename_or_copy_blob(blobfilename, targetname, chmod=False)
@@ -1315,7 +1328,7 @@ class TransactionMetaData(object):
     @property
     def _extension(self):
         warnings.warn("_extension is deprecated, use extension",
-                      DeprecationWarning)
+                      DeprecationWarning, stacklevel=2)
         return self.extension
 
     @_extension.setter

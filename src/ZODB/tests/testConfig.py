@@ -33,13 +33,15 @@ class ConfigTestBase(ZODB.tests.util.TestCase):
 
     def _test(self, s):
         db = self._opendb(s)
-        self.storage = db._storage
-        # Do something with the database to make sure it works
-        cn = db.open()
-        rt = cn.root()
-        rt["test"] = 1
-        transaction.commit()
-        db.close()
+        try:
+            self.storage = db._storage
+            # Do something with the database to make sure it works
+            cn = db.open()
+            rt = cn.root()
+            rt["test"] = 1
+            transaction.commit()
+        finally:
+            db.close()
 
 
 class ZODBConfigTest(ConfigTestBase):
@@ -73,6 +75,16 @@ class ZODBConfigTest(ConfigTestBase):
 
     def test_file_config2(self):
         path = tempfile.mktemp()
+        # first pass to actually create database file
+        self._test(
+            """
+            <zodb>
+              <filestorage>
+                path %s
+              </filestorage>
+            </zodb>
+            """ % path)
+        # write operations must be disallowed on read-only access
         cfg = """
         <zodb>
           <filestorage>

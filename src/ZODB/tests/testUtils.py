@@ -128,12 +128,34 @@ class TestUtils(unittest.TestCase):
             self.assertEqual(get_pickle_metadata(pickle),
                             (__name__, ExampleClass.__name__))
 
+    def test_p64_bad_object(self):
+        with self.assertRaises(ValueError) as exc:
+            p64(2 ** 65)
+
+        e = exc.exception
+        # The args will be whatever the struct.error args were,
+        # which vary from version to version and across implementations,
+        # followed by the bad value
+        self.assertEqual(e.args[-1], 2 ** 65)
+
+    def test_u64_bad_object(self):
+        with self.assertRaises(ValueError) as exc:
+            u64(b'123456789')
+
+        e = exc.exception
+        # The args will be whatever the struct.error args were,
+        # which vary from version to version and across implementations,
+        # followed by the bad value
+        self.assertEqual(e.args[-1], b'123456789')
+
+
 
 class ExampleClass(object):
     pass
 
 def test_suite():
-    return unittest.TestSuite((
-        unittest.makeSuite(TestUtils),
-        doctest.DocFileSuite('../utils.txt', checker=checker),
-    ))
+    suite = unittest.defaultTestLoader.loadTestsFromName(__name__)
+    suite.addTest(
+        doctest.DocFileSuite('../utils.txt', checker=checker)
+    )
+    return suite

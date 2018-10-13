@@ -44,7 +44,7 @@ from ZODB._compat import FILESTORAGE_MAGIC
 class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
 
-class Status:
+class Status(object):
     checkpoint = b'c'
     undone = b'u'
 

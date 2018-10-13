@@ -164,7 +164,7 @@ def parseargs(argv):
     except getopt.error as msg:
         usage(1, msg)
 
-    class Options:
+    class Options(object):
         mode = None         # BACKUP, RECOVER or VERIFY
         file = None         # name of input Data.fs file
         repository = None   # name of directory holding backups

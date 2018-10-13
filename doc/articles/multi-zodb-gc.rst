@@ -11,15 +11,24 @@ database of all persistent references.
 The second feature allows us to debug and repair PosKeyErrors by finding the
 persistent object(s) that point to the lost object.
 
-Note: This documentation applies to ZODB 3.9 and later. Earlier versions of the
-ZODB are not supported, as they lack the fast storage iteration API's required
-by `zc.zodbdgc`.
+.. note::
+    This documentation applies to ZODB 3.9 and later. Earlier versions of the
+    ZODB are not supported, as they lack the fast storage iteration API's required
+    by ``zc.zodbdgc``.
 
-This documentation does not apply to
-`RelStorage <http://pypi.python.org/pypi/RelStorage>`_ which has the same
-features built-in, but accessible in different ways. Look at the options for
-the `zodbpack` script. The `--prepack` option creates a table containing the
-same information as we are creating in the reference database.
+.. note:: 
+    Unless you're using multi-databases, this documentation does not apply to
+    `RelStorage <http://pypi.python.org/pypi/RelStorage>`_ which has the same
+    features built-in, but accessible in different ways. Look at the options for
+    the ``zodbpack`` script. The ``--prepack`` option creates a table containing the
+    same information as we are creating in the reference database. 
+    
+    If you *are* using multi-databases, be aware that RelStorage 2.0 is needed to 
+    perform packing and garbage collection with ``zc.zodbdgc``, and those features only
+    work in history-free databases. 
+    
+    It's important to realize that there is currently no way to perform garbage collection
+    in a history-preserving multi-database RelStorage.
 
 Setup
 -----

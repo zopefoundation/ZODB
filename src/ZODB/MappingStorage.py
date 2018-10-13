@@ -332,7 +332,7 @@ class MappingStorage(object):
             raise ZODB.POSException.StorageTransactionError(
                 "tpc_vote called with wrong transaction")
 
-class TransactionRecord:
+class TransactionRecord(object):
 
     status = ' '
 
@@ -344,8 +344,8 @@ class TransactionRecord:
         self.extension = extension
         self.data = data
 
-    _extension = property(lambda self: self._extension,
-                          lambda self, v: setattr(self, '_extension', v),
+    _extension = property(lambda self: self.extension,
+                          lambda self, v: setattr(self, 'extension', v),
                           )
 
     def __iter__(self):

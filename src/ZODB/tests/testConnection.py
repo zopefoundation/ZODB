@@ -36,7 +36,7 @@ checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".
     (re.compile("b('.*?')"), r"\1"),
     # Python 3 removes empty list representation.
-    (re.compile("set\(\[\]\)"), r"set()"),
+    (re.compile(r"set\(\[\]\)"), r"set()"),
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
     (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
@@ -198,7 +198,7 @@ class SetstateErrorLoggingTests(ZODB.tests.util.TestCase):
             record.msg,
             "Shouldn't load state for ZODB.tests.testConnection.StubObject"
             " 0x01 when the connection is closed")
-        self.assert_(record.exc_info)
+        self.assertTrue(record.exc_info)
 
 
 class UserMethodTests(unittest.TestCase):
@@ -1060,6 +1060,7 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     >>> conn.close()
     """
 
+
 class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
@@ -1212,7 +1213,7 @@ class ModifyOnGetStateObject(Persistent):
         return Persistent.__getstate__(self)
 
 
-class StubStorage:
+class StubStorage(object):
     """Very simple in-memory storage that does *just* enough to support tests.
 
     Only one concurrent transaction is supported.
@@ -1301,16 +1302,78 @@ class StubStorage:
         return z64
 
 
-class TestConnectionInterface(unittest.TestCase):
+class TestConnection(unittest.TestCase):
 
     def test_connection_interface(self):
         from ZODB.interfaces import IConnection
         db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         cn = db.open()
         verifyObject(IConnection, cn)
+        db.close()
 
+    def test_storage_afterCompletionCalled(self):
+        db = ZODB.DB(None)
+        conn = db.open()
+        data = []
+        conn._storage.afterCompletion = lambda : data.append(None)
+        conn.transaction_manager.commit()
+        self.assertEqual(len(data), 1)
+        conn.close()
+        self.assertEqual(len(data), 2)
+        db.close()
 
-class StubDatabase:
+    def test_explicit_transactions_no_newTransactuon_on_afterCompletion(self):
+        syncs = []
+        from .MVCCMappingStorage import MVCCMappingStorage
+        storage = MVCCMappingStorage()
+
+        new_instance = storage.new_instance
+        def new_instance2():
+            inst = new_instance()
+            sync = inst.sync
+            def sync2(*args):
+                sync()
+                syncs.append(1)
+            inst.sync = sync2
+            return inst
+
+        storage.new_instance = new_instance2
+
+        db = ZODB.DB(storage)
+        del syncs[:] # Need to do this to clear effect of getting the
+                     # root object
+
+        # We don't want to depend on latest transaction package, so
+        # just set attr for test:
+        tm = transaction.TransactionManager()
+        tm.explicit = True
+
+        conn = db.open(tm)
+        self.assertEqual(len(syncs), 0)
+        conn.transaction_manager.begin()
+        self.assertEqual(len(syncs), 1)
+        conn.transaction_manager.commit()
+        self.assertEqual(len(syncs), 1)
+        conn.transaction_manager.begin()
+        self.assertEqual(len(syncs), 2)
+        conn.transaction_manager.abort()
+        self.assertEqual(len(syncs), 2)
+        conn.close()
+        self.assertEqual(len(syncs), 2)
+
+        # For reference, in non-explicit mode:
+        conn = db.open()
+        self.assertEqual(len(syncs), 3)
+        conn._storage.sync = syncs.append
+        conn.transaction_manager.begin()
+        self.assertEqual(len(syncs), 4)
+        conn.transaction_manager.abort()
+        self.assertEqual(len(syncs), 5)
+        conn.close()
+
+        db.close()
+
+class StubDatabase(object):
 
     def __init__(self):
         self.storage = StubStorage()
@@ -1330,6 +1393,6 @@ def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd)
     s.addTest(unittest.makeSuite(SetstateErrorLoggingTests))
     s.addTest(doctest.DocTestSuite(checker=checker))
-    s.addTest(unittest.makeSuite(TestConnectionInterface))
+    s.addTest(unittest.makeSuite(TestConnection))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
     return s

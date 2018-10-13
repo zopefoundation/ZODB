@@ -24,7 +24,7 @@ from . import utils
 
 from ZODB.broken import find_global
 from ZODB.utils import z64
-from ZODB.Connection import Connection, TransactionMetaData
+from ZODB.Connection import Connection, TransactionMetaData, noop
 from ZODB._compat import Pickler, _protocol, BytesIO
 import ZODB.serialize
 
@@ -106,6 +106,10 @@ class AbstractConnectionPool(object):
     timeout = property(getTimeout, lambda self, v: self.setTimeout(v))
 
     size = property(getSize, lambda self, v: self.setSize(v))
+
+    def clear(self):
+        pass
+
 
 class ConnectionPool(AbstractConnectionPool):
 
@@ -230,6 +234,11 @@ class ConnectionPool(AbstractConnectionPool):
             self.available[:] = [i for i in self.available
                                  if i[1] not in to_remove]
 
+    def clear(self):
+        while self.pop():
+            pass
+
+
 class KeyedConnectionPool(AbstractConnectionPool):
     # this pool keeps track of keyed connections all together.  It makes
     # it possible to make assertions about total numbers of keyed connections.
@@ -284,6 +293,11 @@ class KeyedConnectionPool(AbstractConnectionPool):
             pool.availableGC()
             if not pool.all:
                 del self.pools[key]
+
+    def clear(self):
+        for pool in self.pools.values():
+            pool.clear()
+        self.pools.clear()
 
     @property
     def test_all(self):
@@ -632,19 +646,26 @@ class DB(object):
         is closed, so they stop behaving usefully.  Perhaps close()
         should also close all the Connections.
         """
-        noop = lambda *a: None
         self.close = noop
 
         @self._connectionMap
-        def _(c):
-            if c.transaction_manager is not None:
-                c.transaction_manager.abort()
-            c.afterCompletion = c.newTransaction = c.close = noop
-            c._release_resources()
+        def _(conn):
+            if conn.transaction_manager is not None:
+                for c in six.itervalues(conn.connections):
+                    # Prevent connections from implicitly starting new
+                    # transactions.
+                    c.explicit_transactions = True
+                conn.transaction_manager.abort()
+            conn._release_resources()
 
         self._mvcc_storage.close()
         del self.storage
         del self._mvcc_storage
+        # clean up references to other DBs
+        self.databases = {}
+        # clean up the connection pool
+        self.pool.clear()
+        self.historical_pool.clear()
 
     def getCacheSize(self):
         """Get the configured cache size (objects).
@@ -987,7 +1008,13 @@ class DB(object):
         return ContextManager(self, note)
 
     def new_oid(self):
-        return self.storage.new_oid()
+        """
+        Return a new oid from the storage.
+
+        Kept for backwards compatibility only. New oids should be
+        allocated in a transaction using an open Connection.
+        """
+        return self.storage.new_oid() # pragma: no cover
 
     def open_then_close_db_when_connection_closes(self):
         """Create and return a connection.
@@ -999,7 +1026,7 @@ class DB(object):
         return conn
 
 
-class ContextManager:
+class ContextManager(object):
     """PEP 343 context manager
     """
 

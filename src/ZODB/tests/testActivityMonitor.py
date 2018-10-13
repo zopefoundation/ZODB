@@ -24,7 +24,7 @@ import time
 from ZODB.ActivityMonitor import ActivityMonitor
 
 
-class FakeConnection:
+class FakeConnection(object):
 
     loads = 0
     stores = 0

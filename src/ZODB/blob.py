@@ -288,6 +288,7 @@ class Blob(persistent.Persistent):
             tempdir = self._p_jar.db()._storage.temporaryDirectory()
         else:
             tempdir = tempfile.gettempdir()
+
         filename = utils.mktemp(dir=tempdir, prefix="BUC")
         self._p_blob_uncommitted = filename
 
@@ -337,6 +338,16 @@ class BlobFile(file):
         self.blob.closed(self)
         super(BlobFile, self).close()
 
+    def __reduce__(self):
+        # Python 3 cannot pickle an open file with any pickle protocol
+        # because of the underlying _io.BufferedReader/Writer object.
+        # Python 2 cannot pickle a file with a protocol < 2, but
+        # protocol 2 *can* pickle an open file; the result of unpickling
+        # is a closed file object.
+        # It's pointless to do that with a blob, so we make sure to
+        # prohibit it on all versions.
+        raise TypeError("Pickling a BlobFile is not allowed")
+
 _pid = str(os.getpid())
 
 def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
@@ -344,7 +355,7 @@ def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
     logger.log(level, message, exc_info=exc_info)
 
 
-class FilesystemHelper:
+class FilesystemHelper(object):
     # Storages that implement IBlobStorage can choose to use this
     # helper class to generate and parse blob filenames.  This is not
     # a set-in-stone interface for all filesystem operations dealing
@@ -366,11 +377,11 @@ class FilesystemHelper:
 
     def create(self):
         if not os.path.exists(self.base_dir):
-            os.makedirs(self.base_dir, 0o700)
+            os.makedirs(self.base_dir)
             log("Blob directory '%s' does not exist. "
                 "Created new directory." % self.base_dir)
         if not os.path.exists(self.temp_dir):
-            os.makedirs(self.temp_dir, 0o700)
+            os.makedirs(self.temp_dir)
             log("Blob temporary directory '%s' does not exist. "
                 "Created new directory." % self.temp_dir)
 
@@ -388,13 +399,16 @@ class FilesystemHelper:
                     (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
-        """Ensure that (POSIX) path mode bits are 0700."""
-        return (os.stat(path).st_mode & 0o77) == 0
+        import warnings
+        warnings.warn(
+            "isSecure is deprecated. Permissions are no longer set by ZODB",
+            DeprecationWarning, stacklevel=2)
 
     def checkSecure(self):
-        if not self.isSecure(self.base_dir):
-            log('Blob dir %s has insecure mode setting' % self.base_dir,
-                level=logging.WARNING)
+        import warnings
+        warnings.warn(
+            "checkSecure is deprecated. Permissions are no longer set by ZODB",
+            DeprecationWarning, stacklevel=2)
 
     def getPathForOID(self, oid, create=False):
         """Given an OID, return the path on the filesystem where
@@ -414,7 +428,7 @@ class FilesystemHelper:
 
         if create and not os.path.exists(path):
             try:
-                os.makedirs(path, 0o700)
+                os.makedirs(path)
             except OSError:
                 # We might have lost a race.  If so, the directory
                 # must exist now
@@ -515,7 +529,7 @@ class FilesystemHelper:
             yield oid, path
 
 
-class NoBlobsFileSystemHelper:
+class NoBlobsFileSystemHelper(object):
 
     @property
     def temp_dir(self):
@@ -570,18 +584,21 @@ class BushyLayout(object):
         r'(0x[0-9a-f]{1,2}\%s){7,7}0x[0-9a-f]{1,2}$' % os.path.sep)
 
     def oid_to_path(self, oid):
-        directories = []
         # Create the bushy directory structure with the least significant byte
         # first
-        for byte in ascii_bytes(oid):
-            if isinstance(byte,INT_TYPES): # Py3k iterates byte strings as ints
-                hex_segment_bytes = b'0x' + binascii.hexlify(bytes([byte]))
-                hex_segment_string = hex_segment_bytes.decode('ascii')
-            else:
-                hex_segment_string = '0x%s' % binascii.hexlify(byte)
-            directories.append(hex_segment_string)
+        oid_bytes = ascii_bytes(oid)
+        hex_bytes = binascii.hexlify(oid_bytes)
+        assert len(hex_bytes) == 16
 
-        return os.path.sep.join(directories)
+        directories = [b'0x' + hex_bytes[x:x+2]
+                       for x in range(0, 16, 2)]
+
+        if bytes is not str: # py3
+            sep_bytes = os.path.sep.encode('ascii')
+            path_bytes = sep_bytes.join(directories)
+            return path_bytes.decode('ascii')
+        else:
+            return os.path.sep.join(directories)
 
     def path_to_oid(self, path):
         if self.blob_path_pattern.match(path) is None:
@@ -632,7 +649,6 @@ class BlobStorageMixin(object):
         # XXX Log warning if storage is ClientStorage
         self.fshelper = FilesystemHelper(blob_dir, layout)
         self.fshelper.create()
-        self.fshelper.checkSecure()
         self.dirty_oids = []
 
     def _blob_init_no_blobs(self):
@@ -908,8 +924,9 @@ def rename_or_copy_blob(f1, f2, chmod=True):
             with open(f2, 'wb') as file2:
                 utils.cp(file1, file2)
         remove_committed(f1)
+
     if chmod:
-        os.chmod(f2, stat.S_IREAD)
+        set_not_writable(f2)
 
 if sys.platform == 'win32':
     # On Windows, you can't remove read-only files, so make the
@@ -982,3 +999,17 @@ def copyTransactionsFromTo(source, destination):
 
         destination.tpc_vote(trans)
         destination.tpc_finish(trans)
+
+
+NO_WRITE = ~ (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+READ_PERMS = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+def set_not_writable(path):
+    perms = stat.S_IMODE(os.lstat(path).st_mode)
+
+    # Not writable:
+    perms &= NO_WRITE
+
+    # Read perms from folder:
+    perms |= stat.S_IMODE(os.lstat(os.path.dirname(path)).st_mode) & READ_PERMS
+
+    os.chmod(path, perms)

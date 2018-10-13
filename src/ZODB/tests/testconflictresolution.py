@@ -222,7 +222,7 @@ And load the pickle:
 
 Oooooof course, this won't work if the subobjects aren't persistent:
 
-    >>> class NP:
+    >>> class NP(object):
     ...     pass
 
 

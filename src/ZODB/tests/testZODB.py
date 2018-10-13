@@ -598,7 +598,7 @@ class PoisonedError(Exception):
     pass
 
 # PoisonedJar arranges to raise PoisonedError from interesting places.
-class PoisonedJar:
+class PoisonedJar(object):
     def __init__(self, break_tpc_begin=False, break_tpc_vote=False,
                  break_savepoint=False):
         self.break_tpc_begin = break_tpc_begin
@@ -629,7 +629,7 @@ class PoisonedJar:
         pass
 
 
-class PoisonedObject:
+class PoisonedObject(object):
     def __init__(self, poisonedjar):
         self._p_jar = poisonedjar
 

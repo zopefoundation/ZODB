@@ -31,7 +31,7 @@ except ImportError:
     # Py3: zip() already returns an iterable.
     pass
 
-class IteratorCompare:
+class IteratorCompare(object):
 
     def iter_verify(self, txniter, revids, val0):
         eq = self.assertEqual
@@ -203,7 +203,7 @@ class ExtendedIteratorStorage(IteratorCompare):
         self.iter_verify(txniter, [revid3], 13)
 
 
-class IteratorDeepCompare:
+class IteratorDeepCompare(object):
 
     def compare(self, storage1, storage2):
         eq = self.assertEqual

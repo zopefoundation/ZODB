@@ -26,7 +26,7 @@ Make a change locally:
     >>> rt = cn.root()
     >>> rt['a'] = 1
 
-Sync isn't called when a connectiin is opened, even though that
+Sync isn't called when a connection is opened, even though that
 implicitly starts a new transaction:
 
     >>> st.sync_called
@@ -40,7 +40,7 @@ Sync is only called when we explicitly start a new transaction:
     True
     >>> st.sync_called = False
 
-BTW, calling ``sync()`` on a connectin starts a new transaction, which
+BTW, calling ``sync()`` on a connection starts a new transaction, which
 caused ``sync()`` to be called on the storage:
 
     >>> cn.sync()
@@ -49,7 +49,7 @@ caused ``sync()`` to be called on the storage:
     >>> st.sync_called = False
 
 ``sync()`` is not called by the Connection's ``afterCompletion()``
-hook after the commit completes, because we'll sunc when a new
+hook after the commit completes, because we'll sync when a new
 transaction begins:
 
     >>> transaction.commit()
@@ -81,7 +81,7 @@ traceback then ;-)
     >>> cn.close()
 
 As a special case, if a synchronizer registers while a transaction is
-in flight, then newTransaction and this the storage sync method is
+in flight, then newTransaction and thus the storage sync method is
 called:
 
     >>> tm = transaction.TransactionManager()

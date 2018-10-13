@@ -20,3 +20,4 @@ testing.log
 .dir-locals.el
 htmlcov
 tmp
+*~

@@ -163,7 +163,7 @@ def find_global(modulename, globalname,
 
        If we "repair" a missing global::
 
-         >>> class ZODBnotthere:
+         >>> class ZODBnotthere(object):
          ...     atall = []
 
          >>> sys.modules['ZODB.not'] = ZODBnotthere
@@ -174,7 +174,7 @@ def find_global(modulename, globalname,
          >>> find_global('ZODB.not.there', 'atall') is ZODBnotthere.atall
          True
 
-       Of course, if we beak it again::
+       Of course, if we break it again::
 
          >>> del sys.modules['ZODB.not']
          >>> del sys.modules['ZODB.not.there']
@@ -233,7 +233,7 @@ def rebuild(modulename, globalname, *args):
 
        If we "repair" the brokenness::
 
-         >>> class notthere: # fake notthere module
+         >>> class notthere(object): # fake notthere module
          ...     class atall(object):
          ...         def __new__(self, *args):
          ...             ob = object.__new__(self)

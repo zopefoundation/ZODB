@@ -18,10 +18,10 @@ import sys
 import time
 import threading
 from binascii import hexlify, unhexlify
-from struct import pack, unpack
+
 from tempfile import mkstemp
 
-from persistent.TimeStamp import TimeStamp
+from persistent.timestamp import TimeStamp
 
 from ZODB._compat import Unpickler
 from ZODB._compat import BytesIO
@@ -84,18 +84,29 @@ assert sys.hexversion >= 0x02030000
 # The distinction between ints and longs is blurred in Python 2.2,
 # so u64() are U64() really the same.
 
+_OID_STRUCT = struct.Struct('>Q')
+_OID_PACK = _OID_STRUCT.pack
+_OID_UNPACK = _OID_STRUCT.unpack
+
+
 def p64(v):
-    """Pack an integer or long into a 8-byte string"""
-    return pack(">Q", v)
+    """Pack an integer or long into a 8-byte string."""
+    try:
+        return _OID_PACK(v)
+    except struct.error as e:
+        raise ValueError(*(e.args + (v,)))
 
 def u64(v):
     """Unpack an 8-byte string into a 64-bit long integer."""
-    return unpack(">Q", v)[0]
+    try:
+        return _OID_UNPACK(v)[0]
+    except struct.error as e:
+        raise ValueError(*(e.args + (v,)))
 
 U64 = u64
 
 
-def cp(f1, f2, length=None):
+def cp(f1, f2, length=None, bufsize=64 * 1024):
     """Copy all data from one file to another.
 
     It copies the data from the current position of the input file (f1)
@@ -106,7 +117,7 @@ def cp(f1, f2, length=None):
     """
     read = f1.read
     write = f2.write
-    n = 8192
+    n = bufsize
 
     if length is None:
         old_pos = f1.tell()
@@ -293,7 +304,7 @@ class locked(object):
 
 if os.environ.get('DEBUG_LOCKING'): # pragma: no cover
     # NOTE: This only works on Python 3.
-    class Lock:
+    class Lock(object):
 
         lock_class = threading.Lock
 

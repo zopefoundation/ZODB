@@ -37,6 +37,11 @@ checker = renormalizing.RENormalizing([
      r"\1"),
     (re.compile('b(".*?")'),
      r"\1"),
+    # Persistent 4.4 changes the repr of persistent subclasses,
+    # and it is slightly different with the C extension and
+    # pure-Python module
+    (re.compile('ZODB.tests.testcrossdatabasereferences.'),
+     ''),
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.interfaces.BlobError"),
      r"BlobError"),
@@ -99,7 +104,7 @@ class P(persistent.Persistent):
     def __repr__(self):
         return 'P(%s)' % self.name
 
-class MininalTestLayer:
+class MininalTestLayer(object):
 
     __bases__ = ()
     __module__ = ''

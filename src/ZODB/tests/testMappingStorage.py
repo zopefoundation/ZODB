@@ -11,6 +11,7 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from collections import namedtuple
 import ZODB.MappingStorage
 import unittest
 import ZODB.tests.hexstorage
@@ -61,9 +62,35 @@ class MappingStorageHexTests(MappingStorageTests):
         self._storage = ZODB.tests.hexstorage.HexStorage(
             ZODB.MappingStorage.MappingStorage())
 
+MockTransaction = namedtuple(
+    'transaction',
+    ['user', 'description', 'extension']
+)
+
+class MappingStorageTransactionRecordTests(unittest.TestCase):
+
+    def setUp(self):
+        self._transaction_record = ZODB.MappingStorage.TransactionRecord(
+            0,
+            MockTransaction('user', 'description', 'extension'),
+            ''
+        )
+
+    def check_set__extension(self):
+        self._transaction_record._extension = 'new'
+        self.assertEqual(self._transaction_record.extension, 'new')
+
+    def check_get__extension(self):
+        self.assertEqual(
+            self._transaction_record.extension,
+            self._transaction_record._extension
+        )
+
 def test_suite():
-    suite = unittest.makeSuite(MappingStorageTests, 'check')
-    suite = unittest.makeSuite(MappingStorageHexTests, 'check')
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(MappingStorageTests, 'check'))
+    suite.addTest(unittest.makeSuite(MappingStorageHexTests, 'check'))
+    suite.addTest(unittest.makeSuite(MappingStorageTransactionRecordTests, 'check'))
     return suite
 
 if __name__ == "__main__":

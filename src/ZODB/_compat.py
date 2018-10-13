@@ -16,6 +16,8 @@ from six import PY3
 
 IS_JYTHON = sys.platform.startswith('java')
 
+_protocol = 3
+from zodbpickle import binary
 
 if not PY3:
     # Python 2.x
@@ -34,7 +36,6 @@ if not PY3:
     HIGHEST_PROTOCOL = cPickle.HIGHEST_PROTOCOL
     IMPORT_MAPPING = {}
     NAME_MAPPING = {}
-    _protocol = 1
     FILESTORAGE_MAGIC = b"FS21"
 else:
     # Python 3.x: can't use stdlib's pickle because
@@ -69,7 +70,6 @@ else:
 
     def loads(s):
         return zodbpickle.pickle.loads(s, encoding='ASCII', errors='bytes')
-    _protocol = 3
     FILESTORAGE_MAGIC = b"FS30"
 
 

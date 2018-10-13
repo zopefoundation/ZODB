@@ -1,113 +1,48 @@
-====
-ZODB
-====
+=======================================
+ZODB, a Python object-oriented database
+=======================================
 
-Introduction
-============
+.. image:: https://img.shields.io/pypi/v/ZODB.svg
+   :target: https://pypi.python.org/pypi/ZODB/
+   :alt: Latest release
 
-The ZODB  package provides a  set of tools  for using the  Zope Object
-Database (ZODB).
+.. image:: https://img.shields.io/pypi/pyversions/ZODB.svg
+   :target: https://pypi.org/project/ZODB/
+   :alt: Supported Python versions
 
-Our primary development platforms are Linux and Mac OS X.  The test
-suite should pass without error on these platforms and, hopefully,
-Windows, although it can take a long time on Windows -- longer if you
-use ZoneAlarm.
+.. image:: https://travis-ci.org/zopefoundation/ZODB.svg?branch=master
+   :target: https://travis-ci.org/zopefoundation/ZODB
+   :alt: Build status
+   
+.. image:: https://coveralls.io/repos/github/zopefoundation/ZODB/badge.svg
+   :target: https://coveralls.io/github/zopefoundation/ZODB
+   :alt: Coverage status
 
-Compatibility
-=============
+.. image:: https://readthedocs.org/projects/zodb/badge/?version=latest
+   :target: https://zodb.readthedocs.io/en/latest/
+   :alt: Documentation status
 
-ZODB 5 requires Python 2.7 (>= 2.7.9) or Python >= 3.3.
+ZODB provides an object-oriented database for Python that provides a
+high-degree of transparency. ZODB runs on Python 2.7 or Python 3.4 and
+above. It also runs on PyPy.
 
-Documentation
-=============
+- no separate language for database operations
 
-See http://zodb-docs.readthedocs.io/en/latest/
+- very little impact on your code to make objects persistent
 
-For developers of ZODB
-======================
+- no database mapper that partially hides the database.
 
-Building
----------
+  Using an object-relational mapping **is not** like using an
+  object-oriented database.
 
-Bootstrap buildout, if necessary using ``bootstrap.py``::
+- almost no seam between code and database.
 
-  python bootstrap.py
+ZODB is an ACID Transactional database.
 
-Run the buildout::
+To learn more, visit: http://www.zodb.org
 
-  bin/buildout
+The github repository is: at https://github.com/zopefoundation/zodb
 
-Testing
--------
-
-The ZODB checkouts are `buildouts <http://www.python.org/pypi/zc.buildout>`_.
-When working from a ZODB checkout, first run the bootstrap.py script
-to initialize the buildout:
-
-    % python bootstrap.py
-
-and then use the buildout script to build ZODB and gather the dependencies:
-
-    % bin/buildout
-
-This creates a test script:
-
-    % bin/test -v
-
-This command will run all the tests, printing a single dot for each
-test.  When it finishes, it will print a test summary.  The exact
-number of tests can vary depending on platform and available
-third-party libraries.::
-
-    Ran 1182 tests in 241.269s
-
-    OK
-
-The test script has many more options.  Use the ``-h`` or ``--help``
-options to see a file list of options.  The default test suite omits
-several tests that depend on third-party software or that take a long
-time to run.  To run all the available tests use the ``--all`` option.
-Running all the tests takes much longer.::
-
-    Ran 1561 tests in 1461.557s
-
-    OK
-
-Generating docs
----------------
-
-cd to the doc directory and::
-
-  make html
-
-Contributing
-------------
-
-Almost any code change should include tests.
-
-Any change that changes features should include documentation updates.
-
-Maintenance scripts
--------------------
-
-Several scripts are provided with the ZODB and can help for analyzing,
-debugging, checking for consistency, summarizing content, reporting space used
-by objects, doing backups, artificial load testing, etc.
-Look at the ZODB/script directory for more informations.
-
-License
-=======
-
-ZODB is distributed under the Zope Public License, an OSI-approved
-open source license.  Please see the LICENSE.txt file for terms and
-conditions.
-
-More information
-================
-
-See http://zodb.org/
-
-
-.. image:: https://badges.gitter.im/zopefoundation/ZODB.svg
-   :alt: Join the chat at https://gitter.im/zopefoundation/ZODB
-   :target: https://gitter.im/zopefoundation/ZODB?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
+If you're interested in contributing to ZODB itself, see the
+`developer notes
+<https://github.com/zopefoundation/ZODB/blob/master/DEVELOPERS.rst>`_.

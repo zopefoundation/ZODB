@@ -2,6 +2,128 @@
  Change History
 ================
 
+5.5.0 (unreleased)
+==================
+
+- Remove support for ``python setup.py test``. It hadn't been working
+  for some time. See `issue #218
+  <https://github.com/zopefoundation/ZODB/issues/218>`_.
+
+- Bump the dependency on zodbpickle to at least 1.0.1. This is
+  required to avoid a memory leak on Python 2.7. See `issue 203
+  <https://github.com/zopefoundation/ZODB/issues/203>`_.
+
+- Bump the dependency on persistent to at least 4.4.0.
+
+- Add support for Python 3.7.
+
+- Make the internal support functions for dealing with OIDs (``p64``
+  and ``u64``) somewhat faster and raise more informative
+  exceptions on certain types of bad input. See `issue 216
+  <https://github.com/zopefoundation/ZODB/issues/216>`_.
+
+5.4.0 (2018-03-26)
+==================
+
+- ZODB now uses pickle protocol 3 for both Python 2 and Python 3.
+
+  (Previously, protocol 2 was used for Python 2.)
+
+  The zodbpickle package provides a `zodbpickle.binary` string type
+  that should be used in Python 2 to cause binary strings to be saved
+  in a pickle binary format, so they can be loaded correctly in
+  Python 3.  Pickle protocol 3 is needed for this to work correctly.
+
+- Object identifiers in persistent references are saved as
+  `zodbpickle.binary` strings in Python 2, so that they are loaded
+  correctly in Python 3.
+
+- If an object is missing from the index while packing a ``FileStorage``,
+  report its full ``oid``.
+
+- Storage imports are a bit faster.
+
+- Storages can be important from non-seekable sources, like
+  file-wrapped pipes.
+
+5.3.0 (2017-08-30)
+==================
+
+- Add support for Python 3.6.
+
+- Drop support for Python 3.3.
+
+- Ensure that the ``HistoricalStorageAdapter`` forwards the ``release`` method to
+  its base instance. See `issue 78 <https://github.com/zopefoundation/ZODB/issues/788>`_.
+
+- Use a higher pickle protocol (2) for serializing objects on Python
+  2; previously protocol 1 was used. This is *much* more efficient for
+  new-style classes (all persistent objects are new-style), at the
+  cost of being very slightly less efficient for old-style classes.
+
+  .. note:: On Python 2, this will now allow open ``file`` objects
+            (but **not** open blobs or sockets) to be pickled (loading
+            the object will result in a closed file); previously this
+            would result in a ``TypeError``. Doing so is not
+            recommended as they cannot be loaded in Python 3.
+
+  See `issue 179 <https://github.com/zopefoundation/ZODB/pull/179>`_.
+
+5.2.4 (2017-05-17)
+==================
+
+- ``DB.close`` now explicitly frees internal resources.  This is
+  helpful to avoid false positives in tests that check for leaks.
+
+- Optimize getting the path to a blob file. See
+  `issue 161 <https://github.com/zopefoundation/ZODB/pull/161>`_.
+
+- All classes are new-style classes on Python 2 (they were already
+  new-style on Python 3). This improves performance on PyPy. See
+  `issue 160 <https://github.com/zopefoundation/ZODB/pull/160>`_.
+
+5.2.3 (2017-04-11)
+==================
+
+- Fix an import error. See `issue 158 <https://github.com/zopefoundation/ZODB/issues/158>`_.
+
+5.2.2 (2017-04-11)
+==================
+
+- Fixed: A blob misfeature set blob permissions so that blobs and blob
+  directories were only readable by the database process owner, rather
+  than honoring user-controlled permissions (e.g. ``umask``).
+  See `issue 155 <https://github.com/zopefoundation/ZODB/issues/155>`_.
+
+5.2.1 (2017-04-08)
+==================
+
+- Fixed: When opening FileStorages in read-only mode, non-existent
+  files were silently created.  Creating a read-only file-storage
+  against a non-existent file errors.
+
+5.2.0 (2017-02-09)
+==================
+
+- Call new afterCompletion API on storages to allow them to free
+  resources after transaction complete.
+  See `issue 147 <https://github.com/zodb/relstorage/issues/147>`__.
+- Take advantage of the new transaction-manager explicit mode to avoid
+  starting transactions unnecessarily when transactions end.
+
+- ``Connection.new_oid`` delegates to its storage, not the DB. This is
+  helpful for improving concurrency in MVCC storages like RelStorage.
+  See `issue 139 <https://github.com/zopefoundation/ZODB/issues/139>`_.
+
+- ``persistent`` is no longer required at setup time.
+  See `issue 119 <https://github.com/zopefoundation/ZODB/issues/119>`_.
+
+- ``Connection.close`` and ``Connection.open`` no longer race on
+  ``self.transaction_manager``, which could lead to
+  ``AttributeError``. This was a bug introduced in 5.0.1. See `issue
+  142 <https://github.com/zopefoundation/ZODB/pull/143>`_.
+
+
 5.1.1 (2016-11-18)
 ==================
 
@@ -43,7 +165,7 @@
 Major internal improvements and cleanups plus:
 
 - Added a connection ``prefetch`` method that can be used to request
-  that a storage prefect data an application will need::
+  that a storage prefetch data an application will need::
 
     conn.prefetch(obj, ...)
 
@@ -133,7 +255,7 @@ Concurrency Control (MVCC) implementation:
   layer. This underlying layer works by calling ``loadBefore``. The
   low-level storage ``load`` method isn't used any more.
 
-  This change allows server-nased storages like ZEO and NEO to be
+  This change allows server-based storages like ZEO and NEO to be
   implemented more simply and cleanly.
 
 4.4.3 (2016-08-04)
@@ -366,5 +488,5 @@ Bugs Fixed
 
 
 .. note::
-   Please see ``doc/HISTORY.txt`` for changelog entries for older versions
-   of ZODB.
+   Please see https://github.com/zopefoundation/ZODB/blob/master/HISTORY.rst
+   for older versions of ZODB.

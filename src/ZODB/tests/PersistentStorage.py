@@ -15,7 +15,7 @@
 
 from ZODB.utils import load_current
 
-class PersistentStorage:
+class PersistentStorage(object):
 
     def checkUpdatesPersist(self):
         oids = []

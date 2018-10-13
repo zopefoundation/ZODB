@@ -53,7 +53,7 @@ def listeq(L1, L2):
     """
     return sorted(L1) == sorted(L2)
 
-class TransactionalUndoStorage:
+class TransactionalUndoStorage(object):
 
     def _multi_obj_transaction(self, objs):
         t = TransactionMetaData()
@@ -407,154 +407,167 @@ class TransactionalUndoStorage:
         eq = self.assertEqual
         db = DB(self._storage)
         conn = db.open()
-        root = conn.root()
+        try:
+            root = conn.root()
 
-        o1 = C()
-        o2 = C()
-        root['obj'] = o1
-        o1.obj = o2
-        txn = transaction.get()
-        txn.note(u'o1 -> o2')
-        txn.commit()
-        now = packtime = time.time()
-        while packtime <= now:
-            packtime = time.time()
+            o1 = C()
+            o2 = C()
+            root['obj'] = o1
+            o1.obj = o2
+            txn = transaction.get()
+            txn.note(u'o1 -> o2')
+            txn.commit()
+            now = packtime = time.time()
+            while packtime <= now:
+                packtime = time.time()
 
-        o3 = C()
-        o2.obj = o3
-        txn = transaction.get()
-        txn.note(u'o1 -> o2 -> o3')
-        txn.commit()
+            o3 = C()
+            o2.obj = o3
+            txn = transaction.get()
+            txn.note(u'o1 -> o2 -> o3')
+            txn.commit()
 
-        o1.obj = o3
-        txn = transaction.get()
-        txn.note(u'o1 -> o3')
-        txn.commit()
+            o1.obj = o3
+            txn = transaction.get()
+            txn.note(u'o1 -> o3')
+            txn.commit()
 
-        log = self._storage.undoLog()
-        eq(len(log), 4)
-        for entry in zip(log, (b'o1 -> o3', b'o1 -> o2 -> o3',
-                               b'o1 -> o2', b'initial database creation')):
-            eq(entry[0]['description'], entry[1])
+            log = self._storage.undoLog()
+            eq(len(log), 4)
+            for entry in zip(log, (b'o1 -> o3', b'o1 -> o2 -> o3',
+                                   b'o1 -> o2', b'initial database creation')):
+                eq(entry[0]['description'], entry[1])
 
-        self._storage.pack(packtime, referencesf)
+            self._storage.pack(packtime, referencesf)
 
-        log = self._storage.undoLog()
-        for entry in zip(log, (b'o1 -> o3', b'o1 -> o2 -> o3')):
-            eq(entry[0]['description'], entry[1])
+            log = self._storage.undoLog()
+            for entry in zip(log, (b'o1 -> o3', b'o1 -> o2 -> o3')):
+                eq(entry[0]['description'], entry[1])
 
-        tid = log[0]['id']
-        db.undo(tid)
-        txn = transaction.get()
-        txn.note(u'undo')
-        txn.commit()
-        # undo does a txn-undo, but doesn't invalidate
-        conn.sync()
+            tid = log[0]['id']
+            db.undo(tid)
+            txn = transaction.get()
+            txn.note(u'undo')
+            txn.commit()
+            # undo does a txn-undo, but doesn't invalidate
+            conn.sync()
 
-        log = self._storage.undoLog()
-        for entry in zip(log, (b'undo', b'o1 -> o3', b'o1 -> o2 -> o3')):
-            eq(entry[0]['description'], entry[1])
+            log = self._storage.undoLog()
+            for entry in zip(log, (b'undo', b'o1 -> o3', b'o1 -> o2 -> o3')):
+                eq(entry[0]['description'], entry[1])
 
-        eq(o1.obj, o2)
-        eq(o1.obj.obj, o3)
-        self._iterate()
+            eq(o1.obj, o2)
+            eq(o1.obj.obj, o3)
+            self._iterate()
+        finally:
+            conn.close()
+            db.close()
 
     def checkPackAfterUndoDeletion(self):
         db = DB(self._storage)
         cn = db.open()
-        root = cn.root()
+        try:
+            root = cn.root()
 
-        pack_times = []
-        def set_pack_time():
-            pack_times.append(time.time())
-            snooze()
+            pack_times = []
+            def set_pack_time():
+                pack_times.append(time.time())
+                snooze()
 
-        root["key0"] = MinPO(0)
-        root["key1"] = MinPO(1)
-        root["key2"] = MinPO(2)
-        txn = transaction.get()
-        txn.note(u"create 3 keys")
-        txn.commit()
+            root["key0"] = MinPO(0)
+            root["key1"] = MinPO(1)
+            root["key2"] = MinPO(2)
+            txn = transaction.get()
+            txn.note(u"create 3 keys")
+            txn.commit()
 
-        set_pack_time()
+            set_pack_time()
 
-        del root["key1"]
-        txn = transaction.get()
-        txn.note(u"delete 1 key")
-        txn.commit()
+            del root["key1"]
+            txn = transaction.get()
+            txn.note(u"delete 1 key")
+            txn.commit()
 
-        set_pack_time()
+            set_pack_time()
 
-        root._p_deactivate()
-        cn.sync()
-        self.assertTrue(listeq(root.keys(), ["key0", "key2"]))
+            root._p_deactivate()
+            cn.sync()
+            self.assertTrue(listeq(root.keys(), ["key0", "key2"]))
 
-        L = db.undoInfo()
-        db.undo(L[0]["id"])
-        txn = transaction.get()
-        txn.note(u"undo deletion")
-        txn.commit()
+            L = db.undoInfo()
+            db.undo(L[0]["id"])
+            txn = transaction.get()
+            txn.note(u"undo deletion")
+            txn.commit()
 
-        set_pack_time()
-
-        root._p_deactivate()
-        cn.sync()
-        self.assertTrue(listeq(root.keys(), ["key0", "key1", "key2"]))
-
-        for t in pack_times:
-            self._storage.pack(t, referencesf)
+            set_pack_time()
 
             root._p_deactivate()
             cn.sync()
             self.assertTrue(listeq(root.keys(), ["key0", "key1", "key2"]))
-            for i in range(3):
-                obj = root["key%d" % i]
-                self.assertEqual(obj.value, i)
-            root.items()
-            self._inter_pack_pause()
+
+            for t in pack_times:
+                self._storage.pack(t, referencesf)
+
+                root._p_deactivate()
+                cn.sync()
+                self.assertTrue(listeq(root.keys(), ["key0", "key1", "key2"]))
+                for i in range(3):
+                    obj = root["key%d" % i]
+                    self.assertEqual(obj.value, i)
+                root.items()
+                self._inter_pack_pause()
+        finally:
+            cn.close()
+            db.close()
+
 
     def checkPackAfterUndoManyTimes(self):
         db = DB(self._storage)
         cn = db.open()
-        rt = cn.root()
+        try:
+            rt = cn.root()
 
-        rt["test"] = MinPO(1)
-        transaction.commit()
-        rt["test2"] = MinPO(2)
-        transaction.commit()
-        rt["test"] = MinPO(3)
-        txn = transaction.get()
-        txn.note(u"root of undo")
-        txn.commit()
-
-        packtimes = []
-        for i in range(10):
-            L = db.undoInfo()
-            db.undo(L[0]["id"])
+            rt["test"] = MinPO(1)
+            transaction.commit()
+            rt["test2"] = MinPO(2)
+            transaction.commit()
+            rt["test"] = MinPO(3)
             txn = transaction.get()
-            txn.note(u"undo %d" % i)
+            txn.note(u"root of undo")
             txn.commit()
-            rt._p_deactivate()
-            cn.sync()
 
-            self.assertEqual(rt["test"].value, i % 2 and 3 or 1)
-            self.assertEqual(rt["test2"].value, 2)
+            packtimes = []
+            for i in range(10):
+                L = db.undoInfo()
+                db.undo(L[0]["id"])
+                txn = transaction.get()
+                txn.note(u"undo %d" % i)
+                txn.commit()
+                rt._p_deactivate()
+                cn.sync()
 
-            packtimes.append(time.time())
-            snooze()
+                self.assertEqual(rt["test"].value, i % 2 and 3 or 1)
+                self.assertEqual(rt["test2"].value, 2)
 
-        for t in packtimes:
-            self._storage.pack(t, referencesf)
-            cn.sync()
+                packtimes.append(time.time())
+                snooze()
 
-            # TODO:  Is _cache supposed to have a clear() method, or not?
-            # cn._cache.clear()
+            for t in packtimes:
+                self._storage.pack(t, referencesf)
+                cn.sync()
 
-            # The last undo set the value to 3 and pack should
-            # never change that.
-            self.assertEqual(rt["test"].value, 3)
-            self.assertEqual(rt["test2"].value, 2)
-            self._inter_pack_pause()
+                # TODO:  Is _cache supposed to have a clear() method, or not?
+                # cn._cache.clear()
+
+                # The last undo set the value to 3 and pack should
+                # never change that.
+                self.assertEqual(rt["test"].value, 3)
+                self.assertEqual(rt["test2"].value, 2)
+                self._inter_pack_pause()
+        finally:
+            cn.close()
+            db.close()
 
     def _inter_pack_pause(self):
         # DirectoryStorage needs a pause between packs,
@@ -654,17 +667,21 @@ class TransactionalUndoStorage:
         t.setUser(u'u3',path=u'p3')
         db = DB(self._storage)
         conn = db.open()
-        root = conn.root()
-        o1 = C()
-        root['obj'] = o1
-        txn = transaction.get()
-        txn.commit()
-        l = self._storage.undoLog()
-        self.assertEqual(len(l),2)
-        d = l[0]
-        self.assertEqual(d['description'], b't1')
-        self.assertEqual(d['k2'], 'this is transaction metadata')
-        self.assertEqual(d['user_name'], b'p3 u3')
+        try:
+            root = conn.root()
+            o1 = C()
+            root['obj'] = o1
+            txn = transaction.get()
+            txn.commit()
+            l = self._storage.undoLog()
+            self.assertEqual(len(l),2)
+            d = l[0]
+            self.assertEqual(d['description'], b't1')
+            self.assertEqual(d['k2'], 'this is transaction metadata')
+            self.assertEqual(d['user_name'], b'p3 u3')
+        finally:
+            conn.close()
+            db.close()
 
     # A common test body for index tests on undoInfo and undoLog.  Before
     # ZODB 3.4, they always returned a wrong number of results (one too
@@ -729,26 +746,28 @@ class TransactionalUndoStorage:
     def checkUndoMultipleConflictResolution(self, reverse=False):
         from .ConflictResolution import PCounter
         db = DB(self._storage)
-
         cn = db.open()
-        cn.root.x = PCounter()
-        transaction.commit()
+        try:
+            cn.root.x = PCounter()
+            transaction.commit()
 
-        for i in range(4):
-            with db.transaction() as conn:
-                conn.transaction_manager.get().note(
-                    (str if PY3 else unicode)(i))
-                conn.root.x.inc()
+            for i in range(4):
+                with db.transaction() as conn:
+                    conn.transaction_manager.get().note(
+                        (str if PY3 else unicode)(i))
+                    conn.root.x.inc()
 
-        ids = [l['id'] for l in db.undoLog(1, 3)]
-        if reverse:
-            ids.reverse()
+            ids = [l['id'] for l in db.undoLog(1, 3)]
+            if reverse:
+                ids.reverse()
 
-        db.undoMultiple(ids)
-        transaction.commit()
+            db.undoMultiple(ids)
+            transaction.commit()
 
-        self.assertEqual(cn.root.x._value, 2)
-        cn.close()
+            self.assertEqual(cn.root.x._value, 2)
+        finally:
+            cn.close()
+            db.close()
 
     def checkUndoMultipleConflictResolutionReversed(self):
         self.checkUndoMultipleConflictResolution(True)

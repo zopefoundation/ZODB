@@ -10,19 +10,22 @@ matrix:
         - os: linux
           python: 2.7
         - os: linux
-          python: 3.3
-        - os: linux
           python: 3.4
         - os: linux
           python: 3.5
+        - os: linux
+          python: 3.6
+        - python: 3.7
+          dist: xenial
+          sudo: true
 install:
     - pip install -U pip
-    - pip install zc.buildout
-    - buildout $BUILOUT_OPTIONS versions:sphinx=1.4.9
+    - pip install -U setuptools zc.buildout
+    - buildout $BUILOUT_OPTIONS
 script:
     - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then bin/coverage run bin/coverage-test -v1j99; fi
-    - if [[ $TRAVIS_PYTHON_VERSION == 'pypy' || $TRAVIS_PYTHON_VERSION == 'pypy3' ]]; then bin/test -v1j99; fi
-    - if [[ $TRAVIS_PYTHON_VERSION != 'pypy3' ]]; then pushd doc; make html; popd; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then bin/test -v1j99; fi
+    - if [[ $TRAVIS_PYTHON_VERSION != pypy3* ]]; then make -C doc html; fi
     - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then pip install coveralls; fi # install early enough to get into the cache
 after_success:
   - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then bin/coverage combine; fi
