@@ -17,6 +17,7 @@ from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
 from ZODB.utils import p64, u64, load_current
+from ZODB.tests.util import time_monotonically_increases
 
 ZERO = '\0'*8
 
@@ -34,6 +35,7 @@ class RevisionStorage(object):
             data = self._storage.loadSerial(oid, revid)
             self.assertEqual(zodb_unpickle(data), value)
 
+    @time_monotonically_increases
     def checkLoadBefore(self):
         # Store 10 revisions of one object and then make sure that we
         # can get all the non-current revisions back.
@@ -89,6 +91,7 @@ class RevisionStorage(object):
         self.assertEqual(start, revid1)
         self.assertEqual(end, revid2)
 
+    @time_monotonically_increases
     def checkLoadBeforeOld(self):
         # Look for a very old revision.  With the BaseStorage implementation
         # this should require multple history() calls.
