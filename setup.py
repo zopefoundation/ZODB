@@ -13,7 +13,7 @@
 ##############################################################################
 from setuptools import setup, find_packages
 
-version = '5.5.0.dev0'
+version = '5.5.0'
 
 classifiers = """\
 Intended Audience :: Developers
