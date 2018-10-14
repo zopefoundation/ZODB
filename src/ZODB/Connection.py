@@ -884,7 +884,10 @@ class Connection(ExportImport, object):
         """
 
         if transaction_manager is None:
-            transaction_manager = transaction.manager
+            # The .manager bit below unwraps the threaded
+            # manager so we can call unregisterSynch in close
+            # when close is called from another thread.
+            transaction_manager = transaction.manager.manager
 
         self.transaction_manager = transaction_manager
 
