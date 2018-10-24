@@ -29,6 +29,19 @@ from ZODB.Connection import TransactionMetaData
 import zope.testing.setupstack
 from zope.testing import renormalizing
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+
+import six
+import functools
+from time import time as _real_time
+from time import gmtime as _real_gmtime
+_current_time = _real_time()
+
+
+
 checker = renormalizing.RENormalizing([
     (re.compile("<(.*?) object at 0x[0-9a-f]*?>"),
      r"<\1 object at 0x000000000000>"),
@@ -206,3 +219,122 @@ def clear_transaction_syncs():
     for this.
     """
     transaction.manager.clearSynchs()
+
+
+class _TimeWrapper(object):
+
+    def __init__(self, granularity=1.0):
+        self._granularity = granularity
+        self._lock = ZODB.utils.Lock()
+        self.fake_gmtime = mock.Mock()
+        self.fake_time = mock.Mock()
+        self._configure_fakes()
+
+    def _configure_fakes(self):
+        def incr():
+            global _current_time # pylint:disable=global-statement
+            with self._lock:
+                _current_time = max(_real_time(), _current_time + self._granularity)
+            return _current_time
+        self.fake_time.side_effect = incr
+
+        def incr_gmtime(seconds=None):
+            if seconds is not None:
+                now = seconds
+            else:
+                now = incr()
+            return _real_gmtime(now)
+        self.fake_gmtime.side_effect = incr_gmtime
+
+    def install_fakes(self):
+        time.time = self.fake_time
+        time.gmtime = self.fake_gmtime
+
+    __enter__ = install_fakes
+
+    def close(self, *args):
+        time.time = _real_time
+        time.gmtime = _real_gmtime
+
+    __exit__ = close
+
+    def __call__(self, func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with self:
+                return func(*args, **kwargs)
+        return wrapper
+
+
+def time_monotonically_increases(func_or_granularity):
+    """
+    Decorate a unittest method with this function to cause the value
+    of :func:`time.time` and :func:`time.gmtime` to monotonically
+    increase by one each time it is called. This ensures things like
+    last modified dates always increase.
+
+    We make three guarantees about the value of :func:`time.time`
+    returned while the decorated function is running:
+
+        1. It is always *at least* the value of the *real*
+           :func:`time.time`;
+
+        2. Each call returns a value greater than the previous call;
+
+        3. Those two constraints hold across different invocations of
+           functions decorated. This decorator can be applied to a
+           method in a test case::
+
+               class TestThing(unittest.TestCase)
+                   @time_monotonically_increases
+                   def test_method(self):
+                     t = time.time()
+                      ...
+
+    It can also be applied to a bare function taking any number of
+    arguments::
+
+        @time_monotonically_increases
+        def utility_function(a, b, c=1):
+           t = time.time()
+           ...
+
+    By default, the time will be incremented in 1.0 second intervals.
+    You can specify a particular granularity as an argument; this is
+    useful to keep from running too far ahead of the real clock::
+
+        @time_monotonically_increases(0.1)
+        def smaller_increment():
+            t1 = time.time()
+            t2 = time.time()
+            assrt t2 == t1 + 0.1
+    """
+    if isinstance(func_or_granularity, (six.integer_types, float)):
+        # We're being used as a factory.
+        wrapper_factory = _TimeWrapper(func_or_granularity)
+        return wrapper_factory
+
+    # We're being used bare
+    wrapper_factory = _TimeWrapper()
+    return wrapper_factory(func_or_granularity)
+
+
+def reset_monotonic_time(value=0.0):
+    """
+    Make the monotonic clock return the real time on its next
+    call.
+    """
+
+    global _current_time # pylint:disable=global-statement
+    _current_time = value
+
+
+class MonotonicallyIncreasingTimeMinimalTestLayer(MininalTestLayer):
+
+    def testSetUp(self):
+        self.time_manager = _TimeWrapper()
+        self.time_manager.install_fakes()
+
+    def testTearDown(self):
+        self.time_manager.close()
+        reset_monotonic_time()

@@ -18,11 +18,7 @@ from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
 from ZODB._compat import Pickler, Unpickler, _protocol
 
-import os
-if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
-    from zope.testing import doctest
-else:
-    import doctest
+import doctest
 
 import os
 import random
@@ -40,12 +36,7 @@ import ZODB.tests.StorageTestBase
 import ZODB.tests.util
 import zope.testing.renormalizing
 
-
-try:
-    from StringIO import StringIO as BytesIO
-except ImportError:
-    # Py3
-    from io import BytesIO
+from io import BytesIO
 
 try:
     file_type = file
@@ -67,7 +58,11 @@ def new_time():
     now = new_time = time.time()
     while new_time <= now:
         new_time = time.time()
-    time.sleep(1)
+    if time.time() - new_time < 1.0:
+        # Detect if we're in a time monotonically increasing
+        # layer (two back-to-back calls of time.time() advance the clock
+        # by a whole second); if so, we don't need to sleep
+        time.sleep(1.0)
     return new_time
 
 
@@ -703,6 +698,14 @@ def setUp(test):
     ZODB.tests.util.setUp(test)
     test.globs['rmtree'] = zope.testing.setupstack.rmtree
 
+def timeIncreasesSetUp(test):
+    setUp(test)
+    l = test.globs['time_layer'] = ZODB.tests.util.MonotonicallyIncreasingTimeMinimalTestLayer('')
+    l.testSetUp()
+
+def timeIncreasesTearDown(test):
+    test.globs['time_layer'].testTearDown()
+    util.tearDown(test)
 
 def setUpBlobAdaptedFileStorage(test):
     setUp(test)
@@ -791,7 +794,7 @@ def storage_reusable_suite(prefix, factory,
     if test_undo:
         add_test_based_on_test_class(BlobUndoTests)
 
-    suite.layer = ZODB.tests.util.MininalTestLayer(prefix+'BlobTests')
+    suite.layer = ZODB.tests.util.MonotonicallyIncreasingTimeMinimalTestLayer(prefix+'BlobTests')
 
     return suite
 
@@ -804,9 +807,15 @@ def test_suite():
         "blob_basic.txt",
         "blob_consume.txt",
         "blob_tempdir.txt",
-        "blobstorage_packing.txt",
         setUp=setUp,
         tearDown=util.tearDown,
+        optionflags=doctest.ELLIPSIS,
+        checker=ZODB.tests.util.checker,
+        ))
+    suite.addTest(doctest.DocFileSuite(
+        "blobstorage_packing.txt",
+        setUp=timeIncreasesSetUp,
+        tearDown=timeIncreasesTearDown,
         optionflags=doctest.ELLIPSIS,
         checker=ZODB.tests.util.checker,
         ))

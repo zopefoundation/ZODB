@@ -13,7 +13,7 @@
 ##############################################################################
 from setuptools import setup, find_packages
 
-version = '5.5.0.dev0'
+version = '5.5.1.dev0'
 
 classifiers = """\
 Intended Audience :: Developers
@@ -43,6 +43,7 @@ long_description = read("README.rst") + "\n\n" + read("CHANGES.rst")
 
 tests_require = [
     'manuel',
+    'mock; python_version == "2.7"',
     'zope.testing',
     'zope.testrunner >= 4.4.6',
 ]

@@ -30,6 +30,7 @@ from ZODB._compat import (loads, PersistentPickler, Pickler, Unpickler,
 import transaction
 import ZODB.interfaces
 import ZODB.tests.util
+from ZODB.tests.util import time_monotonically_increases
 import zope.testing.setupstack
 
 from ZODB.utils import load_current
@@ -274,12 +275,15 @@ class PackableStorage(PackableStorageBase):
 
         db.close()
 
+    @time_monotonically_increases
     def checkPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
 
+    @time_monotonically_increases
     def checkPackNowWhileWriting(self):
         self._PackWhileWriting(pack_now=True)
 
+    @time_monotonically_increases
     def checkPackLotsWhileWriting(self):
         # This is like the other pack-while-writing tests, except it packs
         # repeatedly until the client thread is done.  At the time it was
@@ -608,6 +612,7 @@ class PackableUndoStorage(PackableStorageBase):
 
         eq(root['obj'].value, 7)
 
+    @time_monotonically_increases
     def checkRedundantPack(self):
         # It is an error to perform a pack with a packtime earlier
         # than a previous packtime.  The storage can't do a full
@@ -652,6 +657,7 @@ class PackableUndoStorage(PackableStorageBase):
         # it is reachable.
         load_current(self._storage, lost_oid)
 
+    @time_monotonically_increases(0.1)
     def checkPackUndoLog(self):
         self._initroot()
         # Create a `persistent' object
@@ -669,7 +675,7 @@ class PackableUndoStorage(PackableStorageBase):
         self.assertEqual(3, len(self._storage.undoLog()))
         self._storage.pack(packtime, referencesf)
         # The undo log contains only the most resent transaction
-        self.assertEqual(1,len(self._storage.undoLog()))
+        self.assertEqual(1, len(self._storage.undoLog()))
 
     def dont_checkPackUndoLogUndoable(self):
         # A disabled test. I wanted to test that the content of the

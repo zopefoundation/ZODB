@@ -2,20 +2,21 @@
  Change History
 ================
 
-5.5.0 (unreleased)
+5.5.1 (unreleased)
 ==================
 
-- Remove support for ``python setup.py test``. It hadn't been working
-  for some time. See `issue #218
-  <https://github.com/zopefoundation/ZODB/issues/218>`_.
+- TBD
+
+5.5.0 (2018-10-13)
+==================
+
+- Add support for Python 3.7.
 
 - Bump the dependency on zodbpickle to at least 1.0.1. This is
   required to avoid a memory leak on Python 2.7. See `issue 203
   <https://github.com/zopefoundation/ZODB/issues/203>`_.
 
 - Bump the dependency on persistent to at least 4.4.0.
-
-- Add support for Python 3.7.
 
 - Make the internal support functions for dealing with OIDs (``p64``
   and ``u64``) somewhat faster and raise more informative
@@ -25,6 +26,12 @@
 - Fix KeyError on releasing resources of a Connection when closing the DB.
   This requires at least version 2.4 of the `transaction` package.
   See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`.
+
+- Remove support for ``python setup.py test``. It hadn't been working
+  for some time. See `issue #218
+  <https://github.com/zopefoundation/ZODB/issues/218>`_.
+
+- Make the tests run faster by avoiding calls to ``time.sleep()``.
 
 
 5.4.0 (2018-03-26)

@@ -378,7 +378,12 @@ class CacheErrors(unittest.TestCase):
             # structure that adds a new reference to None for each executed
             # line of code, which interferes with this test.  So check it
             # only if we're running without coverage tracing.
-            self.assertEqual(rc(None), nones)
+
+            # On Python 3.7, we can see the value of reference counts
+            # to None actually go *down* by a few. Possibly it has to
+            # do with the lazy tracking of frames?
+            # (https://github.com/python/cpython/commit/5a625d0aa6a6d9ec6574ee8344b41d63dcb9897e)
+            self.assertLessEqual(rc(None), nones)
 
     def testTwoCaches(self):
         jar2 = StubDataManager()
