@@ -71,7 +71,7 @@ setup(
         'persistent >= 4.4.0',
         'BTrees >= 4.2.0',
         'ZConfig',
-        'transaction >= 2.0.3',
+        'transaction >= 2.4',
         'six',
         'zc.lockfile',
         'zope.interface',
