@@ -5,7 +5,10 @@
 5.5.1 (unreleased)
 ==================
 
-- TBD
+- Fix KeyError on releasing resources of a Connection when closing the DB.
+  This requires at least version 2.4 of the `transaction` package.
+  See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`.
+
 
 5.5.0 (2018-10-13)
 ==================
@@ -23,16 +26,11 @@
   exceptions on certain types of bad input. See `issue 216
   <https://github.com/zopefoundation/ZODB/issues/216>`_.
 
-- Fix KeyError on releasing resources of a Connection when closing the DB.
-  This requires at least version 2.4 of the `transaction` package.
-  See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`.
-
 - Remove support for ``python setup.py test``. It hadn't been working
   for some time. See `issue #218
   <https://github.com/zopefoundation/ZODB/issues/218>`_.
 
 - Make the tests run faster by avoiding calls to ``time.sleep()``.
-
 
 5.4.0 (2018-03-26)
 ==================
