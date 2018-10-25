@@ -2,13 +2,12 @@
  Change History
 ================
 
-5.5.1 (unreleased)
+5.5.1 (2018-10-25)
 ==================
 
 - Fix KeyError on releasing resources of a Connection when closing the DB.
   This requires at least version 2.4 of the `transaction` package.
   See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`.
-
 
 5.5.0 (2018-10-13)
 ==================
