@@ -1,9 +1,6 @@
-import sys
 import threading
 import time
 import unittest
-
-import transaction
 
 import ZODB
 
@@ -48,7 +45,6 @@ class ShutdownTest(ZODB.tests.util.TestCase):
         # that calls conn.transaction_manager.unregisterSynch(self),
         # but from a different thread, so transaction_manager._synchs
         # have different contents.
-        # So this is expected to fail with a keyerror:
         self._db.close()
 
     def tearDown(self):
