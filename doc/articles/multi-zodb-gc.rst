@@ -141,7 +141,7 @@ is complete we can open the generated database via our interpreter::
   $ bin/zeopy
 
   >>> import ZODB.config
-  >>> db = ZODB.config.databaseFromFile(open('./etc/refdb.conf'))
+  >>> db = ZODB.config.databaseFromFile('./etc/refdb.conf')
   >>> conn = db.open()
   >>> refs = conn.root()['references']
 

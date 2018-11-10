@@ -57,10 +57,12 @@ def databaseFromString(s):
     return databaseFromFile(StringIO(s))
 
 def databaseFromFile(f):
-    """Create a database from a file object that provides configuration.
+    """Create a database from an url or file object that provides configuration.
 
     See :func:`databaseFromString`.
     """
+    if isinstance(f, str):
+        return databaseFromURL(f)
     config, handle = ZConfig.loadConfigFile(getDbSchema(), f)
     return databaseFromConfig(config.database)
 
