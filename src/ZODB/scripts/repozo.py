@@ -360,8 +360,6 @@ def concat(files, ofp=None):
             ifp = open(f, 'rb')
         bytesread += dofile(func, ifp)
         ifp.close()
-    if ofp:
-        ofp.close()
     return bytesread, sum.hexdigest()
 
 

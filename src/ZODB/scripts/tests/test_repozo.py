@@ -414,7 +414,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         ofp = Faux()
         bytes, sum = self._callFUT(files, ofp)
         self.assertEqual(ofp._written, [x.encode() for x in 'ABC'])
-        self.assertTrue(ofp._closed)
+        self.assertFalse(ofp._closed)
 
 _marker = object()
 class Test_gen_filename(OptionsTestBase, unittest.TestCase):
