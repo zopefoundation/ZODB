@@ -5,7 +5,8 @@
 5.5.2 (unreleased)
 ==================
 
-- TBD
+- Add a new option to repozo in recover mode which allows to verify
+  backups integrity on the fly.
 
 5.5.1 (2018-10-25)
 ==================

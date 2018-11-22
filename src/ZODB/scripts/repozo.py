@@ -73,6 +73,12 @@ Options for -R/--recover:
         Note:  for the stdout case, the index file will **not** be restored
         automatically.
 
+    -w
+    --with-verification
+        Verify on the fly the backup files on recovering. This option runs
+        the same checks as when repozo is run in -V/--verify mode, and
+        allows to verify and recover a backup in one single step.
+
 Options for -V/--verify:
     -Q / --quick
         Verify file sizes only (skip md5 checksums).
@@ -108,6 +114,8 @@ class WouldOverwriteFiles(Exception):
 class NoFiles(Exception):
     pass
 
+class VerificationFail(Exception):
+    pass
 
 class _GzipCloser(object):
 
@@ -146,7 +154,7 @@ def error(msg, *args):
 def parseargs(argv):
     global VERBOSE
     try:
-        opts, args = getopt.getopt(argv, 'BRVvhr:f:FQzkD:o:',
+        opts, args = getopt.getopt(argv, 'BRVvhr:f:FQzkD:o:w',
                                    ['backup',
                                     'recover',
                                     'verify',
@@ -160,6 +168,7 @@ def parseargs(argv):
                                     'kill-old-on-full',
                                     'date=',
                                     'output=',
+                                    'with-verification',
                                    ])
     except getopt.error as msg:
         usage(1, msg)
@@ -174,6 +183,7 @@ def parseargs(argv):
         quick = False       # -Q flag state
         gzip = False        # -z flag state
         killold = False     # -k flag state
+        withverify = False  # -w flag state
 
     options = Options()
 
@@ -210,6 +220,8 @@ def parseargs(argv):
             options.gzip = True
         elif opt in ('-k', '--kill-old-on-full'):
             options.killold = True
+        elif opt in ('-w', '--with-verify'):
+            options.withverify = True
         else:
             assert False, (opt, arg)
 
@@ -229,6 +241,9 @@ def parseargs(argv):
         if options.output is not None:
             log('--output option is ignored in backup mode')
             options.output = None
+        if options.withverify is not None:
+            log('--with-verify option is ignored in backup mode')
+            options.withverify = None
     elif options.mode == RECOVER:
         if options.file is not None:
             log('--file option is ignored in recover mode')
@@ -256,6 +271,9 @@ def parseargs(argv):
         if options.killold:
             log('--kill-old-on-full option is ignored in verify mode')
             options.killold = False
+        if options.withverify is not None:
+            log('--with-verify option is ignored in verify mode')
+            options.withverify = None
     return options
 
 
@@ -649,10 +667,40 @@ def do_recover(options):
     else:
         log('Recovering file to %s', options.output)
         outfp = open(options.output, 'wb')
-    reposz, reposum = concat(repofiles, outfp)
+    if options.withverify:
+        datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+        with open(datfile) as fp:
+            truth_dict = {}
+            for line in fp:
+                fn, startpos, endpos, sum = line.split()
+                startpos = int(startpos)
+                endpos = int(endpos)
+                filename = os.path.join(options.repository,
+                                        os.path.basename(fn))
+                truth_dict[filename] = {
+                    'size': endpos - startpos,
+                    'sum': sum,
+                }
+        totalsz = 0
+        for repofile in repofiles:
+            reposz, reposum = concat([repofile], outfp)
+            expected_truth = truth_dict[repofile]
+            if reposz != expected_truth['size']:
+                raise VerificationFail(
+                    "%s is %d bytes, should be %d bytes" % (
+                        repofile, reposz, expected_truth['size']))
+            if reposum != expected_truth['sum']:
+                raise VerificationFail(
+                    "%s has checksum %s instead of %s" % (
+                        repofile, reposum, expected_truth['sum']))
+            totalsz += reposz
+            log("Recovered chunk %s : %s bytes, md5: %s", repofile, reposz, reposum)
+        log("Recovered a total of %s bytes", totalsz)
+    else:
+        reposz, reposum = concat(repofiles, outfp)
+        log('Recovered %s bytes, md5: %s', reposz, reposum)
     if outfp != sys.stdout:
         outfp.close()
-    log('Recovered %s bytes, md5: %s', reposz, reposum)
 
     if options.output is not None:
         last_base = os.path.splitext(repofiles[-1])[0]
@@ -727,6 +775,8 @@ def main(argv=None):
         try:
             do_backup(options)
         except WouldOverwriteFiles as e:
+            sys.exit(str(e))
+        except VerificationFail as e:
             sys.exit(str(e))
     elif options.mode == RECOVER:
         try:

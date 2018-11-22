@@ -872,7 +872,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._callFUT(options)
@@ -884,7 +885,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
@@ -898,7 +900,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._callFUT(options)
@@ -910,13 +913,62 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
         self._callFUT(options)
         self.assertEqual(_read_file(output), b'AAABBB')
         self.assertEqual(_read_file(index), b'CCC')
+
+    def test_w_incr_backup_with_verify_all_is_fine(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBBB')
+
+    def test_w_incr_backup_with_verify_sum_inconsistent(self):
+        import tempfile
+        from ZODB.scripts.repozo import VerificationFail
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec61\n')
+        self.assertRaises(VerificationFail, self._callFUT, options)
+
+    def test_w_incr_backup_with_verify_size_inconsistent(self):
+        import tempfile
+        from ZODB.scripts.repozo import VerificationFail
+        dd = self._data_directory = tempfile.mkdtemp()
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 8 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertRaises(VerificationFail, self._callFUT, options)
 
 
 class Test_do_verify(OptionsTestBase, unittest.TestCase):
