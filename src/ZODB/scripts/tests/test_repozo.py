@@ -371,7 +371,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         from ZODB.scripts.repozo import _GzipCloser
         import tempfile
         if self._repository_directory is None:
-            self._repository_directory = tempfile.mkdtemp()
+            self._repository_directory = tempfile.mkdtemp(prefix='zodb-test-')
         fqn = os.path.join(self._repository_directory, name)
         if gzip_file:
             _opener = _GzipCloser
@@ -674,7 +674,7 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
 
     def _makeDB(self):
         import tempfile
-        datadir = self._data_directory = tempfile.mkdtemp()
+        datadir = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         return OurDB(self._data_directory)
 
     def test_dont_overwrite_existing_file(self):
@@ -729,7 +729,7 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
 
     def _makeDB(self):
         import tempfile
-        datadir = self._data_directory = tempfile.mkdtemp()
+        datadir = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         return OurDB(self._data_directory)
 
     def test_dont_overwrite_existing_file(self):
@@ -868,7 +868,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_full_backup_latest_no_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -881,7 +881,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_full_backup_latest_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -896,7 +896,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_latest_no_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -909,7 +909,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_latest_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -924,7 +924,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_with_verify_all_is_fine(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -941,7 +941,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
     def test_w_incr_backup_with_verify_sum_inconsistent(self):
         import tempfile
         from ZODB.scripts.repozo import VerificationFail
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -957,7 +957,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
     def test_w_incr_backup_with_verify_size_inconsistent(self):
         import tempfile
         from ZODB.scripts.repozo import VerificationFail
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
@@ -1121,7 +1121,7 @@ class MonteCarloTests(unittest.TestCase):
     def setUp(self):
         # compute directory names
         import tempfile
-        self.basedir = tempfile.mkdtemp()
+        self.basedir = tempfile.mkdtemp(prefix='zodb-test-')
         self.backupdir = os.path.join(self.basedir, 'backup')
         self.datadir = os.path.join(self.basedir, 'data')
         self.restoredir = os.path.join(self.basedir, 'restore')
