@@ -108,15 +108,21 @@ READCHUNK = 16 * 1024
 VERBOSE = False
 
 
-class WouldOverwriteFiles(Exception):
+class RepozoError(Exception):
     pass
 
 
-class NoFiles(Exception):
+class WouldOverwriteFiles(RepozoError):
     pass
 
-class VerificationFail(Exception):
+
+class NoFiles(RepozoError):
     pass
+
+
+class VerificationFail(RepozoError):
+    pass
+
 
 class _GzipCloser(object):
 
@@ -785,24 +791,16 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
     options = parseargs(argv)
-    if options.mode == BACKUP:
-        try:
+    try:
+        if options.mode == BACKUP:
             do_backup(options)
-        except WouldOverwriteFiles as e:
-            sys.exit(str(e))
-        except VerificationFail as e:
-            sys.exit(str(e))
-    elif options.mode == RECOVER:
-        try:
+        elif options.mode == RECOVER:
             do_recover(options)
-        except NoFiles as e:
-            sys.exit(str(e))
-    else:
-        assert options.mode == VERIFY
-        try:
+        else:
+            assert options.mode == VERIFY
             do_verify(options)
-        except NoFiles as e:
-            sys.exit(str(e))
+    except (RepozoError, OSError) as e:
+        sys.exit(str(e))
 
 
 if __name__ == '__main__':
