@@ -936,6 +936,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
            '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
         self._callFUT(options)
+        self.assertFalse(os.path.exists(output + '.part'))
         self.assertEqual(_read_file(output), b'AAABBBB')
 
     def test_w_incr_backup_with_verify_sum_inconsistent(self):
@@ -953,6 +954,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
            '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec61\n')
         self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertTrue(os.path.exists(output + '.part'))
 
     def test_w_incr_backup_with_verify_size_inconsistent(self):
         import tempfile
@@ -969,6 +971,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
            '/backup/2010-05-14-04-05-06.deltafs 3 8 f50881ced34c7d9e6bce100bf33dec60\n')
         self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertTrue(os.path.exists(output + '.part'))
 
 
 class Test_do_verify(OptionsTestBase, unittest.TestCase):

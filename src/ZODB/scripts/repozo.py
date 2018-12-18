@@ -77,7 +77,8 @@ Options for -R/--recover:
     --with-verification
         Verify on the fly the backup files on recovering. This option runs
         the same checks as when repozo is run in -V/--verify mode, and
-        allows to verify and recover a backup in one single step.
+        allows to verify and recover a backup in one single step. If a sanity
+        check fails, the partially recovered ZODB will be left in place.
 
 Options for -V/--verify:
     -Q / --quick
@@ -665,8 +666,14 @@ def do_recover(options):
         log('Recovering file to stdout')
         outfp = sys.stdout
     else:
+        # Delete old ZODB before recovering backup as size of
+        # old ZODB + full partial file may be superior to free disk space
+        if os.path.exists(options.output):
+            log('Deleting old %s', options.output)
+            os.unlink(options.output)
         log('Recovering file to %s', options.output)
-        outfp = open(options.output, 'wb')
+        temporary_output_file = options.output + '.part'
+        outfp = open(temporary_output_file, 'wb')
     if options.withverify:
         datfile = os.path.splitext(repofiles[0])[0] + '.dat'
         with open(datfile) as fp:
@@ -699,8 +706,6 @@ def do_recover(options):
     else:
         reposz, reposum = concat(repofiles, outfp)
         log('Recovered %s bytes, md5: %s', reposz, reposum)
-    if outfp != sys.stdout:
-        outfp.close()
 
     if options.output is not None:
         last_base = os.path.splitext(repofiles[-1])[0]
@@ -711,6 +716,15 @@ def do_recover(options):
             shutil.copyfile(source_index, target_index)
         else:
             log('No index file to restore: %s', source_index)
+
+    if outfp != sys.stdout:
+        outfp.close()
+        try:
+            os.rename(temporary_output_file, options.output)
+        except OSError:
+            log("ZODB has been fully recovered as %s, but it cannot be renamed into : %s",
+                temporary_output_file, options.output)
+            raise
 
 
 def do_verify(options):
