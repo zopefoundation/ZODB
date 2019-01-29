@@ -15,7 +15,7 @@ the following advanced features in this article:
     most useful of these is the "BTree", which is a fast, efficient
     storage object for lots of data.
 
--   Voalitile Data -- Not all your data is meant to be stored in the
+-   Volatile Data -- Not all your data is meant to be stored in the
     database, ZODB let's you have volatile data on your objects that
     does not get saved.
 
