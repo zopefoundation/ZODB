@@ -371,7 +371,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         from ZODB.scripts.repozo import _GzipCloser
         import tempfile
         if self._repository_directory is None:
-            self._repository_directory = tempfile.mkdtemp()
+            self._repository_directory = tempfile.mkdtemp(prefix='zodb-test-')
         fqn = os.path.join(self._repository_directory, name)
         if gzip_file:
             _opener = _GzipCloser
@@ -414,7 +414,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         ofp = Faux()
         bytes, sum = self._callFUT(files, ofp)
         self.assertEqual(ofp._written, [x.encode() for x in 'ABC'])
-        self.assertTrue(ofp._closed)
+        self.assertFalse(ofp._closed)
 
 _marker = object()
 class Test_gen_filename(OptionsTestBase, unittest.TestCase):
@@ -674,7 +674,7 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
 
     def _makeDB(self):
         import tempfile
-        datadir = self._data_directory = tempfile.mkdtemp()
+        datadir = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         return OurDB(self._data_directory)
 
     def test_dont_overwrite_existing_file(self):
@@ -729,7 +729,7 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
 
     def _makeDB(self):
         import tempfile
-        datadir = self._data_directory = tempfile.mkdtemp()
+        datadir = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         return OurDB(self._data_directory)
 
     def test_dont_overwrite_existing_file(self):
@@ -868,11 +868,12 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_full_backup_latest_no_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._callFUT(options)
@@ -880,11 +881,12 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_full_backup_latest_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.fs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
@@ -894,11 +896,12 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_latest_no_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._callFUT(options)
@@ -906,17 +909,69 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_latest_index(self):
         import tempfile
-        dd = self._data_directory = tempfile.mkdtemp()
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
         index = os.path.join(dd, 'Data.fs.index')
         options = self._makeOptions(date='2010-05-15-13-30-57',
-                                    output=output)
+                                    output=output,
+                                    withverify=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
         self._makeFile(4, 5, 6, '.index', 'CCC')
         self._callFUT(options)
         self.assertEqual(_read_file(output), b'AAABBB')
         self.assertEqual(_read_file(index), b'CCC')
+
+    def test_w_incr_backup_with_verify_all_is_fine(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')
+        self._callFUT(options)
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertEqual(_read_file(output), b'AAABBBB')
+
+    def test_w_incr_backup_with_verify_sum_inconsistent(self):
+        import tempfile
+        from ZODB.scripts.repozo import VerificationFail
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec61\n')
+        self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertTrue(os.path.exists(output + '.part'))
+
+    def test_w_incr_backup_with_verify_size_inconsistent(self):
+        import tempfile
+        from ZODB.scripts.repozo import VerificationFail
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        index = os.path.join(dd, 'Data.fs.index')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBBB')
+        self._makeFile(2, 3, 4, '.dat',
+           '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'
+           '/backup/2010-05-14-04-05-06.deltafs 3 8 f50881ced34c7d9e6bce100bf33dec60\n')
+        self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertTrue(os.path.exists(output + '.part'))
 
 
 class Test_do_verify(OptionsTestBase, unittest.TestCase):
@@ -1069,7 +1124,7 @@ class MonteCarloTests(unittest.TestCase):
     def setUp(self):
         # compute directory names
         import tempfile
-        self.basedir = tempfile.mkdtemp()
+        self.basedir = tempfile.mkdtemp(prefix='zodb-test-')
         self.backupdir = os.path.join(self.basedir, 'backup')
         self.datadir = os.path.join(self.basedir, 'data')
         self.restoredir = os.path.join(self.basedir, 'restore')

@@ -5,7 +5,10 @@
 5.5.2 (unreleased)
 ==================
 
-- TBD
+- Make repozo's recover mode atomic by recovering the backup in a
+  temporary file which is then moved to the expected output file.
+- Add a new option to repozo in recover mode which allows to verify
+  backups integrity on the fly.
 
 5.5.1 (2018-10-25)
 ==================

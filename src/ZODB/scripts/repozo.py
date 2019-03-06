@@ -73,6 +73,13 @@ Options for -R/--recover:
         Note:  for the stdout case, the index file will **not** be restored
         automatically.
 
+    -w
+    --with-verification
+        Verify on the fly the backup files on recovering. This option runs
+        the same checks as when repozo is run in -V/--verify mode, and
+        allows to verify and recover a backup in one single step. If a sanity
+        check fails, the partially recovered ZODB will be left in place.
+
 Options for -V/--verify:
     -Q / --quick
         Verify file sizes only (skip md5 checksums).
@@ -101,11 +108,19 @@ READCHUNK = 16 * 1024
 VERBOSE = False
 
 
-class WouldOverwriteFiles(Exception):
+class RepozoError(Exception):
     pass
 
 
-class NoFiles(Exception):
+class WouldOverwriteFiles(RepozoError):
+    pass
+
+
+class NoFiles(RepozoError):
+    pass
+
+
+class VerificationFail(RepozoError):
     pass
 
 
@@ -146,7 +161,7 @@ def error(msg, *args):
 def parseargs(argv):
     global VERBOSE
     try:
-        opts, args = getopt.getopt(argv, 'BRVvhr:f:FQzkD:o:',
+        opts, args = getopt.getopt(argv, 'BRVvhr:f:FQzkD:o:w',
                                    ['backup',
                                     'recover',
                                     'verify',
@@ -160,6 +175,7 @@ def parseargs(argv):
                                     'kill-old-on-full',
                                     'date=',
                                     'output=',
+                                    'with-verification',
                                    ])
     except getopt.error as msg:
         usage(1, msg)
@@ -174,6 +190,7 @@ def parseargs(argv):
         quick = False       # -Q flag state
         gzip = False        # -z flag state
         killold = False     # -k flag state
+        withverify = False  # -w flag state
 
     options = Options()
 
@@ -210,6 +227,8 @@ def parseargs(argv):
             options.gzip = True
         elif opt in ('-k', '--kill-old-on-full'):
             options.killold = True
+        elif opt in ('-w', '--with-verify'):
+            options.withverify = True
         else:
             assert False, (opt, arg)
 
@@ -229,6 +248,9 @@ def parseargs(argv):
         if options.output is not None:
             log('--output option is ignored in backup mode')
             options.output = None
+        if options.withverify is not None:
+            log('--with-verify option is ignored in backup mode')
+            options.withverify = None
     elif options.mode == RECOVER:
         if options.file is not None:
             log('--file option is ignored in recover mode')
@@ -256,6 +278,9 @@ def parseargs(argv):
         if options.killold:
             log('--kill-old-on-full option is ignored in verify mode')
             options.killold = False
+        if options.withverify is not None:
+            log('--with-verify option is ignored in verify mode')
+            options.withverify = None
     return options
 
 
@@ -360,8 +385,6 @@ def concat(files, ofp=None):
             ifp = open(f, 'rb')
         bytesread += dofile(func, ifp)
         ifp.close()
-    if ofp:
-        ofp.close()
     return bytesread, sum.hexdigest()
 
 
@@ -649,12 +672,46 @@ def do_recover(options):
         log('Recovering file to stdout')
         outfp = sys.stdout
     else:
+        # Delete old ZODB before recovering backup as size of
+        # old ZODB + full partial file may be superior to free disk space
+        if os.path.exists(options.output):
+            log('Deleting old %s', options.output)
+            os.unlink(options.output)
         log('Recovering file to %s', options.output)
-        outfp = open(options.output, 'wb')
-    reposz, reposum = concat(repofiles, outfp)
-    if outfp != sys.stdout:
-        outfp.close()
-    log('Recovered %s bytes, md5: %s', reposz, reposum)
+        temporary_output_file = options.output + '.part'
+        outfp = open(temporary_output_file, 'wb')
+    if options.withverify:
+        datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+        with open(datfile) as fp:
+            truth_dict = {}
+            for line in fp:
+                fn, startpos, endpos, sum = line.split()
+                startpos = int(startpos)
+                endpos = int(endpos)
+                filename = os.path.join(options.repository,
+                                        os.path.basename(fn))
+                truth_dict[filename] = {
+                    'size': endpos - startpos,
+                    'sum': sum,
+                }
+        totalsz = 0
+        for repofile in repofiles:
+            reposz, reposum = concat([repofile], outfp)
+            expected_truth = truth_dict[repofile]
+            if reposz != expected_truth['size']:
+                raise VerificationFail(
+                    "%s is %d bytes, should be %d bytes" % (
+                        repofile, reposz, expected_truth['size']))
+            if reposum != expected_truth['sum']:
+                raise VerificationFail(
+                    "%s has checksum %s instead of %s" % (
+                        repofile, reposum, expected_truth['sum']))
+            totalsz += reposz
+            log("Recovered chunk %s : %s bytes, md5: %s", repofile, reposz, reposum)
+        log("Recovered a total of %s bytes", totalsz)
+    else:
+        reposz, reposum = concat(repofiles, outfp)
+        log('Recovered %s bytes, md5: %s', reposz, reposum)
 
     if options.output is not None:
         last_base = os.path.splitext(repofiles[-1])[0]
@@ -665,6 +722,15 @@ def do_recover(options):
             shutil.copyfile(source_index, target_index)
         else:
             log('No index file to restore: %s', source_index)
+
+    if outfp != sys.stdout:
+        outfp.close()
+        try:
+            os.rename(temporary_output_file, options.output)
+        except OSError:
+            log("ZODB has been fully recovered as %s, but it cannot be renamed into : %s",
+                temporary_output_file, options.output)
+            raise
 
 
 def do_verify(options):
@@ -725,22 +791,16 @@ def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
     options = parseargs(argv)
-    if options.mode == BACKUP:
-        try:
+    try:
+        if options.mode == BACKUP:
             do_backup(options)
-        except WouldOverwriteFiles as e:
-            sys.exit(str(e))
-    elif options.mode == RECOVER:
-        try:
+        elif options.mode == RECOVER:
             do_recover(options)
-        except NoFiles as e:
-            sys.exit(str(e))
-    else:
-        assert options.mode == VERIFY
-        try:
+        else:
+            assert options.mode == VERIFY
             do_verify(options)
-        except NoFiles as e:
-            sys.exit(str(e))
+    except (RepozoError, OSError) as e:
+        sys.exit(str(e))
 
 
 if __name__ == '__main__':
