@@ -150,7 +150,8 @@ class Test_parseargs(unittest.TestCase):
 
     def test_mode_selection(self):
         from ZODB.scripts import repozo
-        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir'])
+        options = repozo.parseargs([
+            '-B', '-f', '/tmp/Data.fs', '-r', '/tmp/nosuchdir'])
         self.assertEqual(options.mode, repozo.BACKUP)
         options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir'])
         self.assertEqual(options.mode, repozo.RECOVER)
@@ -173,9 +174,11 @@ class Test_parseargs(unittest.TestCase):
 
     def test_misc_flags(self):
         from ZODB.scripts import repozo
-        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-F'])
+        options = repozo.parseargs([
+            '-B', '-f', '/tmp/Data.fs', '-r', '/tmp/nosuchdir', '-F'])
         self.assertTrue(options.full)
-        options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-k'])
+        options = repozo.parseargs([
+            '-B', '-f', '/tmp/Data.fs', '-r', '/tmp/nosuchdir', '-k'])
         self.assertTrue(options.killold)
 
     def test_repo_is_required(self):
@@ -186,6 +189,7 @@ class Test_parseargs(unittest.TestCase):
     def test_backup_ignored_args(self):
         from ZODB.scripts import repozo
         options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-v',
+                                    '-f', '/tmp/Data.fs',
                                     '-o', '/tmp/ignored.fs',
                                     '-D', '2011-12-13'])
         self.assertEqual(options.date, None)
@@ -194,6 +198,12 @@ class Test_parseargs(unittest.TestCase):
         self.assertEqual(options.output, None)
         self.assertIn('--output option is ignored in backup mode',
                       sys.stderr.getvalue())
+
+    def test_backup_required_args(self):
+        from ZODB.scripts import repozo
+        self.assertRaises(SystemExit, repozo.parseargs,
+                          ['-B', '-r', '/tmp/nosuchdir'])
+        self.assertIn('--file is required', sys.stderr.getvalue())
 
     def test_recover_ignored_args(self):
         from ZODB.scripts import repozo

@@ -251,6 +251,8 @@ def parseargs(argv):
         if options.withverify is not None:
             log('--with-verify option is ignored in backup mode')
             options.withverify = None
+        if not options.file:
+            usage(1, '--file is required in backup mode')
     elif options.mode == RECOVER:
         if options.file is not None:
             log('--file option is ignored in recover mode')
