@@ -227,7 +227,7 @@ class PackableStorage(PackableStorageBase):
 
         for t in threads:
             t.join(60)
-        liveness = [t.isAlive() for t in threads]
+        liveness = [t.is_alive() for t in threads]
         if True in liveness:
             # They should have finished by now.
             print('Liveness:', liveness)
@@ -312,7 +312,7 @@ class PackableStorage(PackableStorageBase):
         timer = ElapsedTimer(time.time())
         thread = ClientThread(db, choices, NUM_LOOP_TRIP, timer, 0)
         thread.start()
-        while thread.isAlive():
+        while thread.is_alive():
             db.pack(packt)
             snooze()
             packt = time.time()
