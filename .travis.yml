@@ -1,23 +1,14 @@
 language: python
-sudo: false
-matrix:
-    include:
-        - os: linux
-          python: pypy
-        - os: linux
-          python: pypy3
-          env: BUILOUT_OPTIONS=sphinx:eggs=
-        - os: linux
-          python: 2.7
-        - os: linux
-          python: 3.4
-        - os: linux
-          python: 3.5
-        - os: linux
-          python: 3.6
-        - python: 3.7
-          dist: xenial
-          sudo: true
+dist: xenial
+python:
+  - 2.7
+  - 3.4
+  - 3.5
+  - 3.6
+  - 3.7
+  - pypy
+  - pypy3
+
 install:
     - pip install -U pip
     - pip install -U setuptools zc.buildout
