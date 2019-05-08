@@ -177,7 +177,7 @@ class DBMethods(CacheTestBase):
         w = Worker(self)
         w.start()
         w.join(30)
-        if w.isAlive():
+        if w.is_alive():
             self.fail("cacheMinimize still running after 30 seconds -- "
                       "almost certainly in an infinite loop")
 
