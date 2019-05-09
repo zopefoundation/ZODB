@@ -7,6 +7,8 @@ import ZODB
 
 class ZODBClientThread(threading.Thread):
 
+    sleep_time = 15
+
     def __init__(self, db, test):
         threading.Thread.__init__(self)
         self._exc_info = None
@@ -19,7 +21,7 @@ class ZODBClientThread(threading.Thread):
         conn = self.db.open()
         conn.sync()
         self.event.set()
-        time.sleep(15)
+        time.sleep(self.sleep_time)
 
         # conn.close calls self.transaction_manager.unregisterSynch(self)
         # and this succeeds.
@@ -50,8 +52,11 @@ class ShutdownTest(ZODB.tests.util.TestCase):
         # have different contents.
         self._db.close()
 
-        # Be sure not to 'leak' the running thread.
-        client_thread.join()
+        # Be sure not to 'leak' the running thread; if it hasn't
+        # finished after this, something went very wrong
+        client_thread.join(client_thread.sleep_time + 10)
+        if client_thread.is_alive():
+            self.fail("Client thread failed to close connection")
 
 
 def test_suite():
