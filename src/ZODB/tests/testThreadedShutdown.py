@@ -37,6 +37,9 @@ class ShutdownTest(ZODB.tests.util.TestCase):
             'ZODBTests.fs', create=1)
         self._db = ZODB.DB(self._storage)
 
+    def tearDown(self):
+        ZODB.tests.util.TestCase.tearDown(self)
+
     def check_shutdown(self):
         client_thread = ZODBClientThread(self._db, self)
         client_thread.start()
@@ -47,8 +50,8 @@ class ShutdownTest(ZODB.tests.util.TestCase):
         # have different contents.
         self._db.close()
 
-    def tearDown(self):
-        ZODB.tests.util.TestCase.tearDown(self)
+        # Be sure not to 'leak' the running thread.
+        client_thread.join()
 
 
 def test_suite():

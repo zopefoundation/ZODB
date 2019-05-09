@@ -667,9 +667,11 @@ def do_recover(options):
     repofiles = find_files(options)
     if not repofiles:
         if options.date:
-            raise NoFiles('No files in repository before %s', options.date)
+            raise NoFiles('No files in repository before %s' % (options.date,))
         else:
             raise NoFiles('No files in repository')
+
+    files_to_close = ()
     if options.output is None:
         log('Recovering file to stdout')
         outfp = sys.stdout
@@ -682,51 +684,56 @@ def do_recover(options):
         log('Recovering file to %s', options.output)
         temporary_output_file = options.output + '.part'
         outfp = open(temporary_output_file, 'wb')
-    if options.withverify:
-        datfile = os.path.splitext(repofiles[0])[0] + '.dat'
-        with open(datfile) as fp:
-            truth_dict = {}
-            for line in fp:
-                fn, startpos, endpos, sum = line.split()
-                startpos = int(startpos)
-                endpos = int(endpos)
-                filename = os.path.join(options.repository,
-                                        os.path.basename(fn))
-                truth_dict[filename] = {
-                    'size': endpos - startpos,
-                    'sum': sum,
-                }
-        totalsz = 0
-        for repofile in repofiles:
-            reposz, reposum = concat([repofile], outfp)
-            expected_truth = truth_dict[repofile]
-            if reposz != expected_truth['size']:
-                raise VerificationFail(
-                    "%s is %d bytes, should be %d bytes" % (
-                        repofile, reposz, expected_truth['size']))
-            if reposum != expected_truth['sum']:
-                raise VerificationFail(
-                    "%s has checksum %s instead of %s" % (
-                        repofile, reposum, expected_truth['sum']))
-            totalsz += reposz
-            log("Recovered chunk %s : %s bytes, md5: %s", repofile, reposz, reposum)
-        log("Recovered a total of %s bytes", totalsz)
-    else:
-        reposz, reposum = concat(repofiles, outfp)
-        log('Recovered %s bytes, md5: %s', reposz, reposum)
+        files_to_close += (outfp,)
+
+    try:
+        if options.withverify:
+            datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+            with open(datfile) as fp:
+                truth_dict = {}
+                for line in fp:
+                    fn, startpos, endpos, sum = line.split()
+                    startpos = int(startpos)
+                    endpos = int(endpos)
+                    filename = os.path.join(options.repository,
+                                            os.path.basename(fn))
+                    truth_dict[filename] = {
+                        'size': endpos - startpos,
+                        'sum': sum,
+                    }
+            totalsz = 0
+            for repofile in repofiles:
+                reposz, reposum = concat([repofile], outfp)
+                expected_truth = truth_dict[repofile]
+                if reposz != expected_truth['size']:
+                    raise VerificationFail(
+                        "%s is %d bytes, should be %d bytes" % (
+                            repofile, reposz, expected_truth['size']))
+                if reposum != expected_truth['sum']:
+                    raise VerificationFail(
+                        "%s has checksum %s instead of %s" % (
+                            repofile, reposum, expected_truth['sum']))
+                totalsz += reposz
+                log("Recovered chunk %s : %s bytes, md5: %s", repofile, reposz, reposum)
+            log("Recovered a total of %s bytes", totalsz)
+        else:
+            reposz, reposum = concat(repofiles, outfp)
+            log('Recovered %s bytes, md5: %s', reposz, reposum)
+
+        if options.output is not None:
+            last_base = os.path.splitext(repofiles[-1])[0]
+            source_index = '%s.index' % last_base
+            target_index = '%s.index' % options.output
+            if os.path.exists(source_index):
+                log('Restoring index file %s to %s', source_index, target_index)
+                shutil.copyfile(source_index, target_index)
+            else:
+                log('No index file to restore: %s', source_index)
+    finally:
+        for f in files_to_close:
+            f.close()
 
     if options.output is not None:
-        last_base = os.path.splitext(repofiles[-1])[0]
-        source_index = '%s.index' % last_base
-        target_index = '%s.index' % options.output
-        if os.path.exists(source_index):
-            log('Restoring index file %s to %s', source_index, target_index)
-            shutil.copyfile(source_index, target_index)
-        else:
-            log('No index file to restore: %s', source_index)
-
-    if outfp != sys.stdout:
-        outfp.close()
         try:
             os.rename(temporary_output_file, options.output)
         except OSError:

@@ -131,6 +131,7 @@ Demo storages are configured using the ``demostorage`` section::
    'base.fs'
    >>> storage.changes.getName()
    'Changes'
+   >>> storage.close()
 
 ``demostorage`` sections can contain up to 2 storage subsections,
 named ``base`` and ``changes``, specifying the demo storage's base and
