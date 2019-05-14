@@ -110,6 +110,117 @@ class DBTests(ZODB.tests.util.TestCase):
         check(db.undoLog(0, 3)  , True)
         check(db.undoInfo(0, 3) , True)
 
+
+class TransactionalUndoTests(unittest.TestCase):
+
+    def _makeOne(self):
+        from ZODB.DB import TransactionalUndo
+
+        class MockStorage(object):
+            instance_count = 0
+            close_count = 0
+            release_count = 0
+            begin_count = 0
+            abort_count = 0
+
+            def new_instance(self):
+                self.instance_count += 1
+                return self
+
+            def tpc_begin(self, tx):
+                self.begin_count += 1
+
+            def close(self):
+                self.close_count += 1
+
+            def release(self):
+                self.release_count += 1
+
+            def sortKey(self):
+                return 'MockStorage'
+
+        class MockDB(object):
+
+            def __init__(self):
+                self.storage = self._mvcc_storage = MockStorage()
+
+        return TransactionalUndo(MockDB(), [1])
+
+    def test_only_new_instance_on_begin(self):
+        undo = self._makeOne()
+        self.assertIsNone(undo._storage)
+        self.assertEqual(0, undo._db.storage.instance_count)
+
+        undo.tpc_begin(transaction.get())
+        self.assertIsNotNone(undo._storage)
+        self.assertEqual(1, undo._db.storage.instance_count)
+        self.assertEqual(1, undo._db.storage.begin_count)
+        self.assertIsNotNone(undo._storage)
+
+        # And we can't begin again
+        with self.assertRaises(AssertionError):
+            undo.tpc_begin(transaction.get())
+
+    def test_close_many(self):
+        undo = self._makeOne()
+        self.assertIsNone(undo._storage)
+        self.assertEqual(0, undo._db.storage.instance_count)
+
+        undo.close()
+        # Not open, didn't go through
+        self.assertEqual(0, undo._db.storage.close_count)
+        self.assertEqual(0, undo._db.storage.release_count)
+
+        undo.tpc_begin(transaction.get())
+        undo.close()
+        undo.close()
+        self.assertEqual(0, undo._db.storage.close_count)
+        self.assertEqual(1, undo._db.storage.release_count)
+        self.assertIsNone(undo._storage)
+
+    def test_sortKey(self):
+        # We get the same key whether or not we're open
+        undo = self._makeOne()
+        key = undo.sortKey()
+        self.assertIn('MockStorage', key)
+
+        undo.tpc_begin(transaction.get())
+        key2 = undo.sortKey()
+        self.assertEqual(key, key2)
+
+    def test_tpc_abort_closes(self):
+        undo = self._makeOne()
+        undo.tpc_begin(transaction.get())
+        undo._db.storage.tpc_abort = lambda tx: None
+        undo.tpc_abort(transaction.get())
+        self.assertEqual(0, undo._db.storage.close_count)
+        self.assertEqual(1, undo._db.storage.release_count)
+
+    def test_tpc_abort_closes_on_exception(self):
+        undo = self._makeOne()
+        undo.tpc_begin(transaction.get())
+        with self.assertRaises(AttributeError):
+            undo.tpc_abort(transaction.get())
+        self.assertEqual(0, undo._db.storage.close_count)
+        self.assertEqual(1, undo._db.storage.release_count)
+
+    def test_tpc_finish_closes(self):
+        undo = self._makeOne()
+        undo.tpc_begin(transaction.get())
+        undo._db.storage.tpc_finish = lambda tx: None
+        undo.tpc_finish(transaction.get())
+        self.assertEqual(0, undo._db.storage.close_count)
+        self.assertEqual(1, undo._db.storage.release_count)
+
+    def test_tpc_finish_closes_on_exception(self):
+        undo = self._makeOne()
+        undo.tpc_begin(transaction.get())
+        with self.assertRaises(AttributeError):
+            undo.tpc_finish(transaction.get())
+        self.assertEqual(0, undo._db.storage.close_count)
+        self.assertEqual(1, undo._db.storage.release_count)
+
+
 def test_invalidateCache():
     """The invalidateCache method invalidates a connection caches for all of
     the connections attached to a database::
@@ -423,7 +534,7 @@ def cleanup_on_close():
 """
 
 def test_suite():
-    s = unittest.makeSuite(DBTests)
+    s = unittest.defaultTestLoader.loadTestsFromName(__name__)
     s.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
         checker=checker
