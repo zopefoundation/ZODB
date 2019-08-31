@@ -196,6 +196,9 @@ class PersistentReference(object):
     def __ge__(self, other):
         return self.__cmp__(other) >= 0
 
+    def __hash__(self):
+        return hash((self.oid, self.database_name, self.weak))
+
     def __repr__(self):
         return "PR(%s %s)" % (id(self), self.data)
 
