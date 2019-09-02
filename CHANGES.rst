@@ -13,12 +13,15 @@
 
 - Drop support for Python 3.4.
 
+- Make ``PersistentReference`` hashable (`#278
+  <https://github.com/zopefoundation/ZODB/issues/278>`_).
+
 5.5.1 (2018-10-25)
 ==================
 
 - Fix KeyError on releasing resources of a Connection when closing the DB.
   This requires at least version 2.4 of the `transaction` package.
-  See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`.
+  See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`_.
 
 5.5.0 (2018-10-13)
 ==================
