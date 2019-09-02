@@ -17,6 +17,7 @@ from ZODB import DB
 from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
+from persistent.list import PersistentList
 from transaction import TransactionManager
 
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
@@ -54,6 +55,12 @@ class PCounter3(PCounter):
 class PCounter4(PCounter):
     def _p_resolveConflict(self, oldState, savedState):
         raise RuntimeError("Can't get here; not enough args")
+
+class PHasher(PersistentList):
+    def _p_resolveConflict(self, oldState, savedState, newState):
+        # Do anything to resolve the conflict, but hash the states in the process
+        set(oldState["data"] + savedState["data"] + newState["data"])
+        return oldState
 
 class ConflictResolvingStorage(object):
 
@@ -130,6 +137,27 @@ class ConflictResolvingStorage(object):
         self.assertRaises(ConflictError,
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
+
+    def checkPersistentReferenceHashability(self):
+        db = DB(self._storage)
+
+        t0 = TransactionManager()
+        c0 = db.open(t0)
+        c0.root()['z'] = PHasher([PCounter(), "foobar"])
+        t0.commit()
+
+        t1 = TransactionManager()
+        t2 = TransactionManager()
+
+        c1 = db.open(t1)
+        c2 = db.open(t2)
+
+        c1.root()['z'][1] = "foo"
+        c2.root()['z'][1] = "bar"
+
+        t1.commit()
+        t2.commit()
+
 
 class ConflictResolvingTransUndoStorage(object):
 
