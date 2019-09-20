@@ -13,12 +13,17 @@
 
 - Drop support for Python 3.4.
 
+- Fix ``DB.undo()`` and ``DB.undoMultiple()`` to close the storage
+  they open behind the scenes when the transaction is committed or
+  rolled back. See `issue 268
+  <https://github.com/zopefoundation/ZODB/issues/268>`_.
+
 5.5.1 (2018-10-25)
 ==================
 
 - Fix KeyError on releasing resources of a Connection when closing the DB.
-  This requires at least version 2.4 of the `transaction` package.
-  See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`.
+  This requires at least version 2.4 of the ``transaction`` package.
+  See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`_.
 
 5.5.0 (2018-10-13)
 ==================

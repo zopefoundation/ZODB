@@ -14,32 +14,29 @@
 """Database objects
 """
 from __future__ import print_function
+
 import sys
 import logging
 import datetime
 import time
 import warnings
 
-from . import utils
-
-from ZODB.broken import find_global
-from ZODB.utils import z64
-from ZODB.Connection import Connection, TransactionMetaData, noop
-from ZODB._compat import Pickler, _protocol, BytesIO
-import ZODB.serialize
-
-import transaction.weakset
-
-from zope.interface import implementer
-from ZODB.interfaces import IDatabase
-from ZODB.interfaces import IMVCCStorage
-
-import transaction
-
 from persistent.TimeStamp import TimeStamp
 import six
 
-from . import POSException, valuedoc
+import transaction
+import transaction.weakset
+
+from zope.interface import implementer
+
+from ZODB import utils
+from ZODB.interfaces import IDatabase
+from ZODB.interfaces import IMVCCStorage
+from ZODB.broken import find_global
+from ZODB.utils import z64
+from ZODB.Connection import Connection, TransactionMetaData, noop
+import ZODB.serialize
+from ZODB import valuedoc
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -1056,19 +1053,43 @@ class TransactionalUndo(object):
 
     def __init__(self, db, tids):
         self._db = db
-        self._storage = getattr(
-            db._mvcc_storage, 'undo_instance', db._mvcc_storage.new_instance)()
         self._tids = tids
+        self._storage = None
 
     def abort(self, transaction):
         pass
 
+    def close(self):
+        if self._storage is not None:
+            # We actually want to release the storage we've created,
+            # not close it. releasing it frees external resources
+            # dedicated to this instance, closing might make permanent
+            # changes that affect other instances.
+            self._storage.release()
+            self._storage = None
+
     def tpc_begin(self, transaction):
+        assert self._storage is None, "Already in an active transaction"
+
         tdata = TransactionMetaData(
             transaction.user,
             transaction.description,
             transaction.extension)
         transaction.set_data(self, tdata)
+        # `undo_instance` is not part of any IStorage interface;
+        # it is defined in our MVCCAdapter. Regardless, we're opening
+        # a new storage instance, and so we must close it to be sure
+        # to reclaim resources in a timely manner.
+        #
+        # Once the tpc_begin method has been called, the transaction manager will
+        # guarantee to call either `tpc_finish` or `tpc_abort`, so those are the only
+        # methods we need to be concerned about calling close() from.
+        db_mvcc_storage = self._db._mvcc_storage
+        self._storage = getattr(
+            db_mvcc_storage,
+            'undo_instance',
+            db_mvcc_storage.new_instance)()
+
         self._storage.tpc_begin(tdata)
 
     def commit(self, transaction):
@@ -1081,15 +1102,27 @@ class TransactionalUndo(object):
         self._storage.tpc_vote(transaction)
 
     def tpc_finish(self, transaction):
-        transaction = transaction.data(self)
-        self._storage.tpc_finish(transaction)
+        try:
+            transaction = transaction.data(self)
+            self._storage.tpc_finish(transaction)
+        finally:
+            self.close()
 
     def tpc_abort(self, transaction):
-        transaction = transaction.data(self)
-        self._storage.tpc_abort(transaction)
+        try:
+            transaction = transaction.data(self)
+            self._storage.tpc_abort(transaction)
+        finally:
+            self.close()
 
     def sortKey(self):
-        return "%s:%s" % (self._storage.sortKey(), id(self))
+        # The transaction sorts data managers first before it calls
+        # `tpc_begin`, so we can't use our own storage because it's
+        # not open yet. Fortunately new_instances of a storage are
+        # supposed to return the same sort key as the original storage
+        # did.
+        return "%s:%s" % (self._db._mvcc_storage.sortKey(), id(self))
+
 
 def connection(*args, **kw):
     """Create a database :class:`connection <ZODB.Connection.Connection>`.
