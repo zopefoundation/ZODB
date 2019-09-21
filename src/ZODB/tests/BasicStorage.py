@@ -22,6 +22,7 @@ from ZODB import POSException
 from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
+from ZODB.tests.StorageTestBase import ZERO
 
 import threading
 import time
@@ -29,8 +30,6 @@ import zope.interface
 import zope.interface.verify
 
 from .. import utils
-
-ZERO = b'\0'*8
 
 class BasicStorage(object):
     def checkBasics(self):

@@ -29,7 +29,7 @@ from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 import ZODB.tests.util
 
 
-ZERO = b'\0'*8
+ZERO = z64
 
 def snooze():
     # In Windows, it's possible that two successive time.time() calls return

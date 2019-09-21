@@ -31,8 +31,8 @@ from ZODB import DB
 
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
+from ZODB.tests.StorageTestBase import ZERO
 
-ZERO = '\0'*8
 
 class C(Persistent):
     pass
