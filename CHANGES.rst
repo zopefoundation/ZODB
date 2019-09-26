@@ -24,6 +24,11 @@
   holds bytes as they are stored (i.e. no deserialization happens).
   See `issue 207 <https://github.com/zopefoundation/ZODB/pull/207>`_.
 
+- Make a connection's savepoint storage implement its own
+  (approximate) ``getSize`` method instead of relying on the original
+  storage. Previously, this produced confusing DEBUG logging. See
+  `issue 282 <https://github.com/zopefoundation/ZODB/issues/282>`_.
+
 5.5.1 (2018-10-25)
 ==================
 
