@@ -1135,20 +1135,22 @@ class TmpStore(object):
     def __init__(self, storage):
         self._storage = storage
         for method in (
-            'getName', 'new_oid', 'getSize', 'sortKey',
+            'getName', 'new_oid', 'sortKey',
             'isReadOnly'
             ):
             setattr(self, method, getattr(storage, method))
 
         self._file = tempfile.TemporaryFile(prefix='TmpStore')
-        # position: current file position
-        # _tpos: file position at last commit point
+        # position: current file position. If objects are only stored
+        # once, this is approximately the byte size of object data stored.
         self.position = 0
         # index: map oid to pos of last committed version
         self.index = {}
         self.creating = {}
-
         self._blob_dir = None
+
+    def getSize(self):
+        return self.position
 
     def __len__(self):
         return len(self.index)
