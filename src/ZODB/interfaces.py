@@ -774,43 +774,30 @@ class IStorage(Interface):
     def store(oid, serial, data, version, transaction):
         """Store data for the object id, oid.
 
-        Arguments:
+        :param bytes oid: The object identifier. This is either a
+            string consisting of 8 nulls or a string previously
+            returned by new_oid.
+        :param bytes serial: The serial of the data that was read when
+            the object was loaded from the database. If the object was
+            created in the current transaction this will be a string
+            consisting of 8 nulls.
+        :param bytes data: The data record. This is opaque to the
+            storage.
+        :param version: This must be an empty string. It exists for
+            backward compatibility.
+        :param transaction: The object passed to tpc_begin
 
-        oid
-            The object identifier.  This is either a string
-            consisting of 8 nulls or a string previously returned by
-            new_oid.
+        :raises ConflictError: Raised when serial does not match the
+            most recent serial number for object oid and the conflict
+            was not resolved by the storage. Note that this may be deferred
+            to :meth:`tpc_vote`.
 
-        serial
-            The serial of the data that was read when the object was
-            loaded from the database.  If the object was created in
-            the current transaction this will be a string consisting
-            of 8 nulls.
+        :raises StorageTransactionError: Raised when transaction does
+            not match the current transaction.
 
-        data
-            The data record. This is opaque to the storage.
-
-        version
-            This must be an empty string. It exists for backward compatibility.
-
-        transaction
-            The object passed to tpc_begin
-
-        Several different exceptions may be raised when an error occurs.
-
-        ConflictError
-          is raised when serial does not match the most recent serial
-          number for object oid and the conflict was not resolved by
-          the storage.
-
-        StorageTransactionError
-          is raised when transaction does not match the current
-          transaction.
-
-        StorageError or, more often, a subclass of it
-          is raised when an internal error occurs while the storage is
-          handling the store() call.
-
+        :raises StorageError: Raised when an internal error occurs
+            while the storage is handling the store() call. Most often this
+            is a descriptive subclass.
         """
 
     def tpc_abort(transaction):

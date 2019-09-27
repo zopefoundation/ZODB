@@ -21,6 +21,7 @@ all these tests.
 from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
+from ZODB.tests.StorageTestBase import ZERO
 from ZODB.utils import U64, p64, load_current
 
 import ZODB.blob
@@ -126,7 +127,7 @@ class IteratorStorage(IteratorCompare):
         data = zodb_pickle(MinPO(0))
         try:
             self._storage.tpc_begin(t)
-            self._storage.store(oid, '\0'*8, data, '', t)
+            self._storage.store(oid, ZERO, data, '', t)
             self._storage.tpc_vote(t)
             # Don't do tpc_finish yet
             it = self._storage.iterator()

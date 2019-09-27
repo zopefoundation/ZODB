@@ -80,12 +80,12 @@ import getopt
 import marshal
 import profile
 
+from persistent.timestamp import TimeStamp
 from ZODB import utils
-from ZODB import StorageTypes
-from ZODB.TimeStamp import TimeStamp
+from ZODB import StorageTypes # XXX: This import does not exist
+
 
 PROGRAM = sys.argv[0]
-ZERO = '\0'*8
 
 
 def usage(code, msg=''):
@@ -283,7 +283,7 @@ def doit(srcdb, dstdb, options):
                 else:
                     vstr = r.version
                 print(utils.U64(oid), vstr, len(r.data))
-            oldrevid = prevrevids.get(oid, ZERO)
+            oldrevid = prevrevids.get(oid, utils.z64)
             result = dstdb.store(oid, oldrevid, r.data, r.version, txn)
             newrevids.store(oid, result)
         t2 = time.time()
