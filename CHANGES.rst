@@ -13,6 +13,8 @@
 
 - Drop support for Python 3.4.
 
+- Add support for Python 3.8.
+
 - Fix ``DB.undo()`` and ``DB.undoMultiple()`` to close the storage
   they open behind the scenes when the transaction is committed or
   rolled back. See `issue 268
