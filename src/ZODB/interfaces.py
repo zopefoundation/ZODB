@@ -403,7 +403,7 @@ class IDatabase(IStorageDB):
 
         user_name
             The text (unicode) user identifier, if any (or an empty
-            string) of the user on whos behalf the revision was
+            string) of the user on whose behalf the revision was
             committed.
 
         description
