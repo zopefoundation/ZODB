@@ -31,6 +31,8 @@
   storage. Previously, this produced confusing DEBUG logging. See
   `issue 282 <https://github.com/zopefoundation/ZODB/issues/282>`_.
 
+- Fix tests with transaction 3.0.
+
 5.5.1 (2018-10-25)
 ==================
 
