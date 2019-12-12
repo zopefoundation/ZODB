@@ -290,8 +290,9 @@ class ZODBTests(ZODB.tests.util.TestCase):
         rt['a'] = 1
 
         # Arrange for commit to fail during tpc_vote.
-        poisoned = PoisonedObject(PoisonedJar(break_tpc_vote=True))
-        transaction.get().register(poisoned)
+        poisoned_jar = PoisonedJar(break_tpc_vote=True)
+        poisoned = PoisonedObject(poisoned_jar)
+        transaction.get().join(poisoned_jar)
 
         self.assertRaises(PoisonedError, transaction.get().commit)
         # Trying to commit again fails too.
@@ -314,7 +315,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
         # Cleaning up via begin() should also work.
         rt['a'] = 2
-        transaction.get().register(poisoned)
+        transaction.get().join(poisoned_jar)
         self.assertRaises(PoisonedError, transaction.commit)
         self.assertRaises(TransactionFailedError, transaction.commit)
         # The change to rt['a'] is lost.
