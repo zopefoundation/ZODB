@@ -5,6 +5,11 @@
 5.6.0 (unreleased)
 ==================
 
+- Fix race with invalidations when starting a new transaction. The bug
+  affected Storage implementations that rely on mvccadapter, and could result
+  in data corruption (oid loaded at wrong serial after a concurrent commit).
+  See `issue 290 <https://github.com/zopefoundation/ZODB/issues/290>`_.
+
 - Improve volatile attribute ``_v_`` documentation.
 
 - Make repozo's recover mode atomic by recovering the backup in a

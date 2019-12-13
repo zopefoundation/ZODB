@@ -49,6 +49,7 @@ class MVCCAdapter(Base):
         instance = MVCCAdapterInstance(self)
         with self._lock:
             self._instances.add(instance)
+        instance._lastTransaction()
         return instance
 
     def before_instance(self, before=None):
@@ -77,13 +78,13 @@ class MVCCAdapter(Base):
     def invalidate(self, transaction_id, oids):
         with self._lock:
             for instance in self._instances:
-                instance._invalidate(oids)
+                instance._invalidate(transaction_id, oids)
 
-    def _invalidate_finish(self, oids, committing_instance):
+    def _invalidate_finish(self, tid, oids, committing_instance):
         with self._lock:
             for instance in self._instances:
                 if instance is not committing_instance:
-                    instance._invalidate(oids)
+                    instance._invalidate(tid, oids)
 
     references = serialize.referencesf
     transform_record_data = untransform_record_data = lambda self, data: data
@@ -98,13 +99,25 @@ class MVCCAdapterInstance(Base):
         'checkCurrentSerialInTransaction', 'tpc_abort',
         )
 
+    _start = None # Transaction start time
+    _ltid = None # Last storage transaction id
+
     def __init__(self, base):
         self._base = base
         Base.__init__(self, base._storage)
         self._lock = Lock()
         self._invalidations = set()
-        self._start = None # Transaction start time
         self._sync = getattr(self._storage, 'sync', lambda : None)
+
+    def _lastTransaction(self):
+        ltid = self._storage.lastTransaction()
+        # At this precise moment, a transaction may be
+        # committed and we have already received the new tid.
+        with self._lock:
+            # So make sure we won't override with a smaller value.
+            if self._ltid is None:
+                # Calling lastTransaction() here could result in a deadlock.
+                self._ltid = ltid
 
     def release(self):
         self._base._release(self)
@@ -115,8 +128,9 @@ class MVCCAdapterInstance(Base):
         with self._lock:
             self._invalidations = None
 
-    def _invalidate(self, oids):
+    def _invalidate(self, tid, oids):
         with self._lock:
+            self._ltid = tid
             try:
                 self._invalidations.update(oids)
             except AttributeError:
@@ -128,8 +142,8 @@ class MVCCAdapterInstance(Base):
             self._sync()
 
     def poll_invalidations(self):
-        self._start = p64(u64(self._storage.lastTransaction()) + 1)
         with self._lock:
+            self._start = p64(u64(self._ltid) + 1)
             if self._invalidations is None:
                 self._invalidations = set()
                 return None
@@ -175,7 +189,8 @@ class MVCCAdapterInstance(Base):
         self._modified = None
 
         def invalidate_finish(tid):
-            self._base._invalidate_finish(modified, self)
+            self._base._invalidate_finish(tid, modified, self)
+            self._ltid = tid
             func(tid)
 
         return self._storage.tpc_finish(transaction, invalidate_finish)
@@ -260,7 +275,7 @@ class UndoAdapterInstance(Base):
     def tpc_finish(self, transaction, func = lambda tid: None):
 
         def invalidate_finish(tid):
-            self._base._invalidate_finish(self._undone, None)
+            self._base._invalidate_finish(tid, self._undone, None)
             func(tid)
 
         self._storage.tpc_finish(transaction, invalidate_finish)
