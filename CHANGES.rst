@@ -5,6 +5,8 @@
 5.6.0 (unreleased)
 ==================
 
+- Improve volatile attribute ``_v_`` documentation.
+
 - Make repozo's recover mode atomic by recovering the backup in a
   temporary file which is then moved to the expected output file.
 
