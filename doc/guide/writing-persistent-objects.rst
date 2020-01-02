@@ -272,20 +272,13 @@ the value ``None`` rather than a dictionary for :ref:`ghosts
 Volatile Attributes
 -------------------
 
-Attributes with names starting with ``_v_`` are treated as volatile.
-They are useful for caching data that can be computed from saved data
-and should not be saved [#cache]_.
+Attributes with names starting with ``_v_`` are volatile, 
+they are never serialized and not saved to the database.
+They are useful for caching data that can be computed from other data[#cache]_.
 
-They are never serialized and not saved to the database.
 Volatile attributes are local to a specific active object in memory and
-thus to a specific connection.
-They should be treated as though they can disappear between transactions:
-If an object is removed from the connection cache the volatile attribute is
-gone.
-
-Because ZODB connections can be used (in a serial fashion) from one thread
-and then another, it is possible to see volatile attributes that were set
-in one thread in a process appear in another thread in that process.
+thus to a specific connection. If an object is removed from the connection 
+cache the volatile attribute is lost.
 
 Setting a volatile attribute does not cause an object to be considered to
 be modified.
