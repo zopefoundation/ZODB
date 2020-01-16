@@ -264,18 +264,24 @@ _p_jar
   commonly used by database-aware application code to get hold of an
   object's database connection.
 
-Attributes with names starting with ``_v_`` are treated as volatile.
-They aren't saved to the database.  They're useful for caching data
-that can be computed from saved data and shouldn't be saved [#cache]_.
-They should be treated as though they can disappear between
-transactions.  Setting a volatile attribute doesn't cause an object to
-be considered to be modified.
-
 An object's ``__dict__`` attribute is treated specially in that
 getting it doesn't cause an object's state to be loaded.  It may have
 the value ``None`` rather than a dictionary for :ref:`ghosts
 <ghost-label>`.
 
+Volatile Attributes
+-------------------
+
+Attributes with names starting with ``_v_`` are volatile, 
+they are never serialized and not saved to the database.
+They are useful for caching data that can be computed from other data[#cache]_.
+
+Volatile attributes are local to a specific active object in memory and
+thus to a specific connection. If an object is removed from the connection 
+cache the volatile attribute is lost.
+
+Setting a volatile attribute does not cause an object to be considered to
+be modified.
 
 Object storage and management
 =============================
