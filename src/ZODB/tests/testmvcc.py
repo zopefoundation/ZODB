@@ -85,13 +85,14 @@ storage has seen.
 
 >>> cn = db.open()
 
->>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+>>> ltid = u64(st.lastTransaction())
+>>> cn._storage._start == p64(ltid + 1)
 True
->>> cn.db()._mvcc_storage.invalidate(100, dict.fromkeys([1, 2]))
->>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+>>> cn.db()._mvcc_storage.invalidate(p64(ltid+100), dict.fromkeys([1, 2]))
+>>> cn._storage._start == p64(ltid + 1)
 True
->>> cn.db()._mvcc_storage.invalidate(200, dict.fromkeys([1, 2]))
->>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+>>> cn.db()._mvcc_storage.invalidate(p64(ltid+200), dict.fromkeys([1, 2]))
+>>> cn._storage._start == p64(ltid + 1)
 True
 
 A connection's high-water mark is set to the transaction id taken from
@@ -105,7 +106,7 @@ but that doesn't work unless an object is modified.  sync() will abort
 a transaction and process invalidations.
 
 >>> cn.sync()
->>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
+>>> cn._storage._start == p64(ltid + 201)
 True
 
 Basic functionality

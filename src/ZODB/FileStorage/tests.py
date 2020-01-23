@@ -113,15 +113,15 @@ def pack_with_repeated_blob_records():
     fixed by the time you read this, but there might still be
     transactions in the wild that have duplicate records.
 
-    >>> fs = ZODB.FileStorage.FileStorage('t', blob_dir='bobs')
-    >>> db = ZODB.DB(fs)
+    >>> db = ZODB.DB(ZODB.FileStorage.FileStorage('t', blob_dir='bobs'))
     >>> conn = db.open()
     >>> conn.root()[1] = ZODB.blob.Blob()
     >>> transaction.commit()
     >>> tm = transaction.TransactionManager()
     >>> oid = conn.root()[1]._p_oid
-    >>> from ZODB.utils import load_current
-    >>> blob_record, oldserial = load_current(fs, oid)
+    >>> fs = db._mvcc_storage.new_instance()
+    >>> _ = fs.poll_invalidations()
+    >>> blob_record, oldserial = fs.load(oid)
 
     Now, create a transaction with multiple saves:
 

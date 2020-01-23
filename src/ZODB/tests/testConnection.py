@@ -14,6 +14,7 @@
 """Unit tests for the Connection class."""
 from __future__ import print_function
 
+from contextlib import contextmanager
 import doctest
 import re
 import six
@@ -535,13 +536,13 @@ class InvalidationTests(unittest.TestCase):
 
         >>> mvcc_storage.invalidate(p64(1), {p1._p_oid: 1})
 
-        Transaction start times are based on storage's last
-        transaction. (Previousely, they were based on the first
-        invalidation seen in a transaction.)
+        Transaction start times are based on storage's last transaction,
+        which is known from invalidations. (Previousely, they were
+        based on the first invalidation seen in a transaction.)
 
         >>> mvcc_instance.poll_invalidations() == [p1._p_oid]
         True
-        >>> mvcc_instance._start == p64(u64(db.storage.lastTransaction()) + 1)
+        >>> mvcc_instance._start == p64(2)
         True
 
         >>> mvcc_storage.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})
@@ -569,6 +570,36 @@ class InvalidationTests(unittest.TestCase):
 
         >>> db.close()
         """
+
+    def test_mvccadapterNewTransactionVsInvalidations(self):
+        """
+        Check that polled invalidations are consistent with the TID at which
+        the transaction operates. Otherwise, it's like we miss invalidations.
+        """
+        db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        try:
+            t1 = transaction.TransactionManager()
+            c1 = db.open(t1)
+            r1 = c1.root()
+            r1['a'] = 1
+            t1.commit()
+            t2 = transaction.TransactionManager()
+            c2 = db.open(t2)
+            c2.root()['b'] = 1
+            s1 = c1._storage
+            l1 = s1._lock
+            @contextmanager
+            def beforeLock1():
+                s1._lock = l1
+                t2.commit()
+                with l1:
+                    yield
+            s1._lock = beforeLock1()
+            t1.begin()
+            self.assertIs(s1._lock, l1)
+            self.assertIn('b', r1)
+        finally:
+            db.close()
 
 def doctest_invalidateCache():
     """The invalidateCache method invalidates a connection's cache.
@@ -1395,4 +1426,5 @@ def test_suite():
     s.addTest(doctest.DocTestSuite(checker=checker))
     s.addTest(unittest.makeSuite(TestConnection))
     s.addTest(unittest.makeSuite(EstimatedSizeTests))
+    s.addTest(unittest.makeSuite(InvalidationTests))
     return s
