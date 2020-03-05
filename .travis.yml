@@ -1,4 +1,5 @@
 language: python
+
 python:
   - 2.7
   - 3.5
@@ -7,6 +8,13 @@ python:
   - 3.8
   - pypy
   - pypy3
+
+jobs:
+  include:
+    # Special Linux builds
+    - name: "Python: 3.8, pure (no C extensions)"
+      python: 3.8
+      env: PURE_PYTHON=1
 
 install:
     - pip install -U pip
