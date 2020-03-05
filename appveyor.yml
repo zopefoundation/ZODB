@@ -17,5 +17,9 @@ install:
   - python -m pip install -U pip setuptools wheel
   - pip install -U -e .[test]
 
+build_script:
+  - python -m pip install -U wheel
+  - python -W ignore setup.py -q bdist_wheel
+
 test_script:
   - zope-testrunner --test-path=src -vvv --auto-color
