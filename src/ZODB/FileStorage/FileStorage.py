@@ -661,8 +661,6 @@ class FileStorage(
                 raise POSException.StorageTransactionError(
                     "tpc_vote called with wrong transaction")
             dlen = self._tfile.tell()
-            if not dlen:
-                return # No data in this trans
             self._tfile.seek(0)
             user, descr, ext = self._ude
 
@@ -705,22 +703,19 @@ class FileStorage(
                     self._commit_lock_release()
 
     def _finish(self, tid, u, d, e):
-        # If self._nextpos is 0, then the transaction didn't write any
-        # data, so we don't bother writing anything to the file.
-        if self._nextpos:
-            # Clear the checkpoint flag
-            self._file.seek(self._pos+16)
-            self._file.write(self._tstatus)
-            try:
-                # At this point, we may have committed the data to disk.
-                # If we fail from here, we're in bad shape.
-                self._finish_finish(tid)
-            except:
-                # Ouch.  This is bad.  Let's try to get back to where we were
-                # and then roll over and die
-                logger.critical("Failure in _finish. Closing.", exc_info=True)
-                self.close()
-                raise
+        # Clear the checkpoint flag
+        self._file.seek(self._pos+16)
+        self._file.write(self._tstatus)
+        try:
+            # At this point, we may have committed the data to disk.
+            # If we fail from here, we're in bad shape.
+            self._finish_finish(tid)
+        except:
+            # Ouch.  This is bad.  Let's try to get back to where we were
+            # and then roll over and die
+            logger.critical("Failure in _finish. Closing.", exc_info=True)
+            self.close()
+            raise
 
     def _finish_finish(self, tid):
         # This is a separate method to allow tests to replace it with

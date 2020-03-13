@@ -305,6 +305,39 @@ class FileStorageTests(
         self._storage._files.flush = lambda: None
         self.checkFlushAfterTruncate(True)
 
+    def checkCommitWithEmptyData(self):
+        """
+        Verify that transaction is persisted even if it has no data, or even
+        both no data and empty metadata.
+        """
+
+        # verify:
+        # - commit with empty data but non-empty metadata
+        # - commit with empty data and empty metadata
+        #   (the fact of commit carries information by itself)
+        stor = self._storage
+        for description in (u'commit with empty data', u''):
+            t = transaction.Transaction()
+            t.description = description
+            stor.tpc_begin(t)
+            stor.tpc_vote(t)
+            head = stor.tpc_finish(t)
+            if head is None:
+                # in ZODB4 returning tid from tpc_finish is optional
+                head = stor.lastTransaction()
+            self.assertEqual(head, stor.lastTransaction())
+
+            v = list( stor.iterator(start=head, stop=head) )
+            self.assertEqual(len(v), 1)
+            trec = v[0] # FileStorage.TransactionRecord or hexstorage.Transaction
+            self.assertEqual(trec.tid, head)
+            self.assertEqual(trec.user,          b'')
+            self.assertEqual(trec.description,   description.encode('utf-8'))
+            self.assertEqual(trec.extension,     {})
+            drecv = list(trec)
+            self.assertEqual(drecv, [])
+
+
 class FileStorageHexTests(FileStorageTests):
 
     def open(self, **kwargs):
