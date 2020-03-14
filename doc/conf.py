@@ -210,4 +210,5 @@ intersphinx_mapping = {
     "persistent": ('https://persistent.readthedocs.io/en/latest/', None),
     "zodburi": ("https://docs.pylonsproject.org/projects/zodburi/en/latest/", None),
     "btrees": ("https://btrees.readthedocs.io/en/latest/", None),
+    "zodburi": ("https://docs.pylonsproject.org/projects/zodburi/en/latest/", None),
 }
