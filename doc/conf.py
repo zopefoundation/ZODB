@@ -14,19 +14,33 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+import sys
+import os
+import pkg_resources
+
 # If your extensions are in another directory, add it here. If the directory
 # is relative to the documentation root, use os.path.abspath to make it
 # absolute, like shown here.
-#sys.path.append(os.path.abspath('.'))
+
+sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath(".."))
+
 
 # General configuration
 # ---------------------
 
+rqmt = pkg_resources.require('ZODB')[0]
+
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc',
-              'j1m.sphinxautointerface',
-              'j1m.sphinxautozconfig']
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.viewcode',
+    'j1m.sphinxautointerface',
+    'j1m.sphinxautozconfig',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['.templates']
@@ -41,15 +55,15 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'ZODB'
-copyright = u'2009-2016, Zope Foundation'
+project = 'ZODB'
+copyright = '2009-2020, Zope Foundation'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 # The short X.Y version.
-version = '5.0'
+version = '%s.%s' % tuple(map(int, rqmt.version.split('.')[:2]))
 # The full version, including alpha/beta/rc tags.
 #release = '3.10.3'
 
@@ -88,6 +102,10 @@ pygments_style = 'sphinx'
 
 # Options for HTML output
 # -----------------------
+
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes.
+html_theme = 'sphinx_rtd_theme'
 
 # The style sheet to use for HTML and HTML Help pages. A file of that name
 # must exist either in Sphinx' static/ path, or in one of the custom paths
@@ -166,8 +184,8 @@ htmlhelp_basename = 'ZODBdocumentationandarticlesdoc'
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, document class [howto/manual]).
 latex_documents = [
-  ('index', 'ZODBdocumentationandarticles.tex', ur'ZODB documentation and articles',
-   ur'Zope Developer Community', 'manual'),
+  ('index', 'ZODBdocumentationandarticles.tex', 'ZODB documentation and articles',
+   'Zope Developer Community', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -186,3 +204,10 @@ latex_documents = [
 
 # If false, no module index is generated.
 #latex_use_modindex = True
+
+intersphinx_mapping = {
+    "python": ('https://docs.python.org/3/', None),
+    "persistent": ('https://persistent.readthedocs.io/en/latest/', None),
+    "zodburi": ("https://docs.pylonsproject.org/projects/zodburi/en/latest/", None),
+    "btrees": ("https://btrees.readthedocs.io/en/latest/", None),
+}
