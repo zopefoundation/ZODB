@@ -394,7 +394,7 @@ def test_suite():
             manuel.doctest.Manuel(checker=ZODB.tests.util.checker)
             + manuel.footnote.Manuel()
             + manuel.capture.Manuel(),
-            '../ConflictResolution.txt',
+            '../ConflictResolution.rst',
             setUp=setUp, tearDown=tearDown
             ),
         doctest.DocTestSuite(

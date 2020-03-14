@@ -69,7 +69,7 @@ It isn't valid to create references outside a multi database:
     >>> tm.abort()
 
 Databases for new objects
--------------------------
+=========================
 
 Objects are normally added to a database by making them reachable from
 an object already in the database.  This is unambiguous when there is
@@ -142,7 +142,7 @@ This the most explicit and thus the best way, when practical, to avoid
 the ambiguity.
 
 Dissallowing implicit cross-database references
------------------------------------------------
+===============================================
 
 The database contructor accepts a xrefs keyword argument that defaults
 to True.  If False is passed, the implicit cross database references
@@ -173,7 +173,7 @@ the other way around.
     >>> transaction.abort()
 
 NOTE
-----
+====
 
 This implementation is incomplete.  It allows creating and using
 cross-database references, however, there are a number of facilities

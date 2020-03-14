@@ -2,6 +2,10 @@
 Subtransactions in ZODB 3
 =========================
 
+.. caution::
+    This document hasn't been reviewed since 2005
+    and is likely out of date.
+
 ZODB 3 provides limited support for subtransactions. Subtransactions
 are nested to *one* level. There are top-level transactions and
 subtransactions.  When a transaction is committed, a flag is passed

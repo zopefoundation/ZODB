@@ -30,8 +30,18 @@ Learning more
    introduction
    tutorial
    guide/index
-   reference/index
    articles/index
+   ConflictResolution
+   collaborations
+   cross-database-references
+   event
+   historical_connections
+   persistentclass
+   subtransactions
+   utils
+   developers
+   changelog
+   reference/index
 
 * `The ZODB Book (in progress) <http://zodb.readthedocs.org/en/latest/>`_
 
