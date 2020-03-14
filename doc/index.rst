@@ -64,7 +64,7 @@ trackers for various ZODB components:
 
 - BTrees `documentation <https://btrees.readthedocs.io/en/stable/>`_ and their `repository <https://github.com/zopefoundation/BTrees>`_
 
-- ZEO (client-server framework) `repository <https://github.com/zopefoundation/ZEO>`_
+- ZEO (client-server framework) `documentation <https://zeo.readthedocs.io/en/stable/>`_ and its `repository <https://github.com/zopefoundation/ZEO>`_
 
 - relstorage `documentation <https://relstorage.readthedocs.io/en/latest/>`_ and its `repository <https://github.com/zodb/relstorage/>`_
 
