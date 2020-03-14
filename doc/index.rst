@@ -231,15 +231,23 @@ transaction system on the `transaction list
 Bug reporting and feature requests are submitted through github issue
 trackers for various ZODB components:
 
-- `ZODB <https://github.com/zopefoundation/zodb>`_
+- ZODB `repository <https://github.com/zopefoundation/zodb>`_
 
-- `persistent <https://github.com/zopefoundation/persistent>`_
+- persistent `documentation <https://persistent.readthedocs.io/en/stable/>`_ and its `repository <https://github.com/zopefoundation/persistent>`_.
 
-- `transaction <https://github.com/zopefoundation/transaction>`_
+- transaction `documentation <https://transaction.readthedocs.io/en/stable/>`_ and its `repository <https://github.com/zopefoundation/transaction>`_
 
-- `BTrees <https://github.com/zopefoundation/BTrees>`_
+- BTrees `documentation <https://btrees.readthedocs.io/en/stable/>`_ and their `repository <https://github.com/zopefoundation/BTrees>`_
 
-- `ZEO (client-server framework) <https://github.com/zopefoundation/ZEO>`_
+- ZEO (client-server framework) `repository <https://github.com/zopefoundation/ZEO>`_
+
+- relstorage `documentation <https://relstorage.readthedocs.io/en/latest/>`_ and its `repository <https://github.com/zodb/relstorage/>`_
+
+- zodburi `documentation <https://docs.pylonsproject.org/projects/zodburi/en/latest/>`_ and its `repository <https://github.com/Pylons/zodburi>`_
+
+- NEO `documentation <https://neo.nexedi.com/>`_ and its `repository <https://lab.nexedi.com/nexedi/neoppod/>`_
+
+- readonlystorage `repository <https://gitlab.com/yaal/readonlystorage>`_
 
 If you'd like to contribute then we'll gladly accept work on documentation,
 helping out other developers and users at the mailing list, submitting bugs,
