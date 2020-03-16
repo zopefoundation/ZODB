@@ -37,7 +37,6 @@ Learning more
    event
    historical_connections
    persistentclass
-   subtransactions
    utils
    developers
    changelog
