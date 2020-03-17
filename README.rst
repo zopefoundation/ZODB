@@ -13,13 +13,13 @@ ZODB, a Python object-oriented database
 .. image:: https://travis-ci.org/zopefoundation/ZODB.svg?branch=master
    :target: https://travis-ci.org/zopefoundation/ZODB
    :alt: Build status
-   
+
 .. image:: https://coveralls.io/repos/github/zopefoundation/ZODB/badge.svg
    :target: https://coveralls.io/github/zopefoundation/ZODB
    :alt: Coverage status
 
-.. image:: https://readthedocs.org/projects/zodb/badge/?version=latest
-   :target: https://zodb.readthedocs.io/en/latest/
+.. image:: https://readthedocs.org/projects/zodb-docs/badge/?version=latest
+   :target: https://zodb-docs.readthedocs.io/en/latest/
    :alt: Documentation status
 
 ZODB provides an object-oriented database for Python that provides a
@@ -39,7 +39,7 @@ above. It also runs on PyPy.
 
 ZODB is an ACID Transactional database.
 
-To learn more, visit: http://www.zodb.org
+To learn more, visit: https://zodb-docs.readthedocs.io
 
 The github repository is: at https://github.com/zopefoundation/zodb
 

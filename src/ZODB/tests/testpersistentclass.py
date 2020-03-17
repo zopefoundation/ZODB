@@ -87,7 +87,7 @@ def tearDown(test):
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-                "../persistentclass.txt",
+                "../persistentclass.rst",
                 setUp=setUp, tearDown=tearDown,
                 checker=ZODB.tests.util.checker),
         doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
