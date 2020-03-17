@@ -10,6 +10,7 @@ __pycache__
 *.so
 .tox
 .coverage
+.coverage.*
 nosetests.xml
 coverage.xml
 *.egg-info
