@@ -83,6 +83,8 @@ trackers for various ZODB components:
 
 - readonlystorage `repository <https://gitlab.com/yaal/readonlystorage>`_
 
+- newt db `documentation <https://newt-db.readthedocs.io/en/latest>`_ and its `repository <https://github.com/newtdb/db>`_
+
 If you'd like to contribute then we'll gladly accept work on documentation,
 helping out other developers and users at the mailing list, submitting bugs,
 creating proposals and writing code.
