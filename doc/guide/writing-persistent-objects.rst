@@ -220,12 +220,12 @@ entries in a ``TreeSet``, they must provide a `total ordering
 <https://pythonhosted.org/BTrees/#total-ordering-and-persistence>`_.
 The builtin python `str` class is always safe to use as BTree key. You
 can use `zope.keyreference
-<https://pypi.python.org/pypi/zope.keyreference>`_ to treat arbitrary
+<https://pypi.org/project/zope.keyreference/>`_ to treat arbitrary
 persistent objects as totally orderable based on their persistent
 object identity.
 
 Scalable sequences are a bit more challenging. The `zc.blist
-<https://pypi.python.org/pypi/zc.blist/>`_ package provides a scalable
+<https://pypi.org/project/zc.blist/>`_ package provides a scalable
 list implementation that works well for some sequence use cases.
 
 Properties
@@ -374,7 +374,7 @@ these are usually impractical for large databases.)
 
 An improvement to running migration scripts manually is to use a
 generational framework like `zope.generations
-<https://pypi.python.org/pypi/zope.generations>`_. With a generational
+<https://pypi.org/project/zope.generations/>`_. With a generational
 framework, each migration is assigned a migration number and the
 number is recorded in the database as each migration is run.  This is
 useful because remembering what migrations are needed is automated.
@@ -681,11 +681,11 @@ Links
 <http://persistent.readthedocs.io/en/latest/index.html>`_ provides
 additional documentation on the ``Persistent`` base class.
 
-The `zc.blist <https://pypi.python.org/pypi/zc.blist/>`_ package provides
+The `zc.blist <https://pypi.org/project/zc.blist/>`_ package provides
 a scalable sequence implementation for many use cases.
 
 The `zope.cachedescriptors
-<https://pypi.python.org/pypi/zope.cachedescriptors>`_ package
+<https://pypi.org/project/zope.cachedescriptors/>`_ package
 provides descriptor implementations that facilitate implementing
 caching attributes, especially ``_v_`` volatile attributes.
 
@@ -696,12 +696,12 @@ location, which is helpful when moving classes, especially persistent
 classes.
 
 The `zope.generations
-<https://pypi.python.org/pypi/zope.generations>`_ package provides a
+<https://pypi.org/project/zope.generations/>`_ package provides a
 framework for managing schema-migration scripts.
 
 
 .. [#cache] The `zope.cachedescriptors
-   <https://pypi.python.org/pypi/zope.cachedescriptors>`_ package
+   <https://pypi.org/project/zope.cachedescriptors/>`_ package
    provides some descriptors that help implement attributes that cache
    data.
 

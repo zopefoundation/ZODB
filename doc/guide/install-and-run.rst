@@ -14,8 +14,8 @@ packaging system. For example, using pip::
   pip install ZODB
 
 You may need additional optional packages, such as `ZEO
-<https://pypi.python.org/pypi/ZEO>`_ or `RelStorage
-<https://pypi.python.org/pypi/RelStorage>`_, depending your deployment
+<https://pypi.org/project/ZEO/>`_ or `RelStorage
+<https://pypi.org/project/RelStorage/>`_, depending your deployment
 choices.
 
 Configuration
@@ -53,7 +53,7 @@ we want to save space, we could layer a ``ZlibStorage``
     compressed_storage = zc.zlibstorage.ZlibStorage(storage)
     db = ZODB.DB(compressed_storage)
 
-`ZlibStorage <https://pypi.python.org/pypi/zc.zlibstorage>`_
+`ZlibStorage <https://pypi.org/project/zc.zlibstorage/>`_
 compresses database records [#zlib]_.
 
 Python configuration
@@ -80,7 +80,7 @@ similar to Apache configuration files.  The syntax was chosen to be
 familiar to site administrators.
 
 ZODB's text configuration uses `ZConfig
-<https://pypi.python.org/pypi/ZConfig>`_. You can use ZConfig to
+<https://pypi.org/project/ZConfig/>`_. You can use ZConfig to
 create your application's configuration, but it's more common to
 include ZODB configuration strings in their own files or embedded in
 simpler configuration files, such as `configarser
@@ -115,7 +115,7 @@ URI-based configuration
 -----------------------
 
 Another database configuration option is provided by the `zodburi
-<https://pypi.python.org/pypi/zodburi>`_ package. See:
+<https://pypi.org/project/zodburi/>`_ package. See:
 http://docs.pylonsproject.org/projects/zodburi.  It's less powerful
 than the Python or text configuration options, but allows
 configuration to be reduced to a single URI and handles most cases.
@@ -205,7 +205,7 @@ need.  Often indexing data structures like BTrees_ are used to
 make it possible to search objects in large collections.
 
 .. [#zlibstoragefn] `zc.zlibstorage
-   <https://pypi.python.org/pypi/zc.zlibstorage>`_ is an optional
+   <https://pypi.org/project/zc.zlibstorage/>`_ is an optional
    package that you need to install separately.
 
 .. [#zlib] ZlibStorage uses the :mod:`zlib` standard module, which

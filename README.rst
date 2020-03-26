@@ -3,7 +3,7 @@ ZODB, a Python object-oriented database
 =======================================
 
 .. image:: https://img.shields.io/pypi/v/ZODB.svg
-   :target: https://pypi.python.org/pypi/ZODB/
+   :target: https://pypi.org/project/ZODB/
    :alt: Latest release
 
 .. image:: https://img.shields.io/pypi/pyversions/ZODB.svg

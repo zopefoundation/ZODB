@@ -48,7 +48,7 @@ Downloads
 =========
 
 ZODB is distributed through the `Python Package Index
-<http://pypi.python.org/pypi/ZODB>`_.
+<https://pypi.org/project/ZODB/>`_.
 
 You can install the ZODB using pip command::
 
