@@ -305,7 +305,7 @@ Which is shorter and simpler [#but-obscure]_.
 
 For Python web frameworks, there are WSGI [#wtf-wsgi]_ middle-ware
 components, such as `repoze.tm2
-<https://pypi.python.org/pypi/repoze.tm2>`_ that align transaction
+<https://pypi.org/project/repoze.tm2/>`_ that align transaction
 boundaries with HTTP requests and retry transactions when there are
 transient errors.
 
