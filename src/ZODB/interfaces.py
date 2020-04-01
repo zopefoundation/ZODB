@@ -685,6 +685,14 @@ class IStorage(Interface):
     def lastTransaction():
         """Return the id of the last committed transaction.
 
+        For proper MVCC operation, the return value is the id of the last
+        transaction for which invalidation notifications are completed.
+
+        In particular for client-server implementations, lastTransaction
+        should return a cached value (rather than querying the server).
+        A preliminary call to sync() can be done to get the actual last
+        TID at the wanted time.
+
         If no transactions have been committed, return a string of 8
         null (0) characters.
         """
