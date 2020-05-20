@@ -733,7 +733,6 @@ class BlobStorageMixin(object):
         return self.fshelper.temp_dir
 
 
-@zope.interface.implementer(ZODB.interfaces.IBlobStorage)
 class BlobStorage(BlobStorageMixin):
     """A wrapper/proxy storage to support blobs.
     """
