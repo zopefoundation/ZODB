@@ -127,12 +127,12 @@ class TempFormatter(FileStorageFormatter):
         self._file = afile
 
 @implementer(
-        IStorage,
         IStorageRestoreable,
         IStorageIteration,
         IStorageUndoable,
         IStorageCurrentRecordIteration,
         IExternalGC,
+        IStorage,
         )
 class FileStorage(
     FileStorageFormatter,

@@ -3,6 +3,6 @@ Sphinx
 pygments<2.6
 docutils
 ZODB
-j1m.sphinxautointerface
+sphinxcontrib_zopeext
 j1m.sphinxautozconfig
 sphinx_rtd_theme

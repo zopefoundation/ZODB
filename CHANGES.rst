@@ -40,6 +40,8 @@
 
 - Fix tests with transaction 3.0.
 
+- Fix inconsistent resolution order with zope.interface v5.
+
 5.5.1 (2018-10-25)
 ==================
 
