@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (c) Zope Corporation and Contributors.
@@ -563,6 +564,18 @@ class IStorage(Interface):
 
     def lastTransaction():
         """Return the id of the last committed transaction.
+
+        Returned tid is ID of last committed transaction as observed from
+        some time _before_ lastTransaction call returns. In particular for
+        client-sever case, lastTransaction can return cached view of storage
+        that was learned some time ago.
+
+        It is guaranteed that for all IStorageWrappers, that wrap the storage,
+        invalidation notifications have been completed for transactions
+        with ID ≤ returned tid.
+
+        It is guaranteed that after lastTransaction returns, "current" view of
+        the storage as observed by load() is ≥ returned tid.
 
         If no transactions have been committed, return a string of 8
         null (0) characters.
