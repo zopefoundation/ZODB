@@ -9,6 +9,10 @@
   affected Storage implementations that rely on mvccadapter, and could result
   in data corruption (oid loaded at wrong serial after a concurrent commit).
   See `issue 290 <https://github.com/zopefoundation/ZODB/issues/290>`_.
+  As mentionned in pull request #307, interfaces are clarified about the fact
+  that storage implementations must update at a precise moment the value that
+  is returned by lastTransaction(): just after invalidate() or
+  tpc_finish callback.
 
 - Improve volatile attribute ``_v_`` documentation.
 
