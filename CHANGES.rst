@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.6.0 (unreleased)
+5.6.0 (2020-06-11)
 ==================
 
 - Fix race with invalidations when starting a new transaction. The bug
