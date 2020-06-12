@@ -52,6 +52,10 @@
 
 - Fix inconsistent resolution order with zope.interface v5.
 
+- Remove ``ConnectionPool.map()``. Instead, ``ConnectionPool`` is now
+  iterable. See `PR 280
+  <https://github.com/zopefoundation/ZODB/pull/280>`_.
+
 5.5.1 (2018-10-25)
 ==================
 
