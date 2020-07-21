@@ -144,10 +144,17 @@ class ConflictError(POSError, transaction.interfaces.TransientError):
         return self.serials
 
 class ReadConflictError(ConflictError):
-    """Conflict detected when object was loaded.
+    """Conflict detected when object was requested to stay unchanged.
 
-    An attempt was made to read an object that has changed in another
-    transaction (eg. another thread or process).
+    An object was requested to stay not modified via
+    checkCurrentSerialInTransaction, and at commit time was found to be
+    changed by another transaction (eg. another thread or process).
+
+    Note: for backward compatibility ReadConflictError is also raised on
+    plain object access if
+
+      - object is found to be removed, and
+      - there is possibility that database pack was running simultaneously.
     """
     def __init__(self, message=None, object=None, serials=None, **kw):
         if message is None:
