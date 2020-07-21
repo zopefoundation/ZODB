@@ -43,6 +43,9 @@ def transact(f, note=None, retries=5):
             try:
                 r = f(*args, **kwargs)
             except ReadConflictError as msg:
+                # the only way ReadConflictError can happen here is due to
+                # simultaneous pack removing objects revision that f could try
+                # to load.
                 transaction.abort()
                 if not n:
                     raise

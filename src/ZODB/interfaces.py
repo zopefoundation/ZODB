@@ -78,12 +78,6 @@ class IConnection(Interface):
     Two options affect consistency.  By default, the mvcc and synch
     options are enabled by default.
 
-    If you pass mvcc=False to db.open(), the Connection will never read
-    non-current revisions of an object.  Instead it will raise a
-    ReadConflictError to indicate that the current revision is
-    unavailable because it was written after the current transaction
-    began.
-
     The logic for handling modifications assumes that the thread that
     opened a Connection (called db.open()) is the thread that will use
     the Connection.  If this is not true, you should pass synch=False

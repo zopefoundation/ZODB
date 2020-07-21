@@ -25,9 +25,8 @@ ZODB guarantees execution-time consistency: A single transaction will
 always see a consistent view of the database while it is executing.
 If transaction A is running, has already read an object O1, and a
 different transaction B modifies object O2, then transaction A can no
-longer read the current revision of O2.  It must either read the
-version of O2 that is consistent with O1 or raise a ReadConflictError.
-When MVCC is in use, A will do the former.
+longer read the current revision of O2.  It must read the
+version of O2 that is consistent with O1.
 
 This note includes doctests that explain how MVCC is implemented (and
 test that the implementation is correct).  The tests use a

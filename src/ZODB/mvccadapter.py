@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Adapt IStorage objects to IMVCCStorage
 
 This is a largely internal implementation of ZODB, especially DB and
@@ -9,7 +10,7 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, Lock
+from .utils import p64, u64, Lock, oid_repr, tid_repr
 
 class Base(object):
 
@@ -152,7 +153,31 @@ class MVCCAdapterInstance(Base):
         assert self._start is not None
         r = self._storage.loadBefore(oid, self._start)
         if r is None:
-            raise POSException.ReadConflictError(repr(oid))
+            # object was deleted or not-yet-created.
+            # raise ReadConflictError - not - POSKeyError due to backward
+            # compatibility: a pack(t+δ) could be running simultaneously to our
+            # transaction that observes database as of t state. Such pack,
+            # because it packs the storage from a "future-to-us" point of view,
+            # can remove object revisions that we can try to load, for example:
+            #
+            #   txn1            <-- t
+            #        obj.revA
+            #
+            #   txn2            <-- t+δ
+            #        obj.revB
+            #
+            # for such case we want user transaction to be restarted - not
+            # failed - by raising ConflictError subclass.
+            #
+            # XXX we don't detect for pack to be actually running - just assume
+            # the worst. It would be good if storage could provide information
+            # whether pack is/was actually running and its details, take that
+            # into account, and raise ReadConflictError only in the presence of
+            # database being simultaneously updated from back of its log.
+            raise POSException.ReadConflictError(
+                    "load %s @%s: object deleted, likely by simultaneous pack" %
+                    (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
+
         return r[:2]
 
     def prefetch(self, oids):
