@@ -16,11 +16,14 @@ from __future__ import print_function
 
 import doctest
 import time
+import warnings
+import gc
 
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB import DB
-from ZODB.POSException import ConflictError, StorageError
+from ZODB.POSException import ConflictError, StorageError, POSKeyError, \
+                              ReadConflictError
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
@@ -527,6 +530,109 @@ class PackableStorage(PackableStorageBase):
         pobj = loads(data)
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
+
+    def checkPackVSConnectionGet(self):
+        # verify behaviour of Connection.get vs simultaneous pack:
+        #
+        # For deleted objects, in normal circumstances, get should raise POSKeyError.
+        # However when a pack was run simultaneously with packtime going after
+        # connection view of the database, for storages that do not implement
+        # IMVCCStorage natively, get should raise ReadConflictError instead.
+        #
+        # IMVCCStorage storages are not affected, since they natively provide
+        # isolation, via e.g. RDBMS in case of RelStorage. The isolation
+        # property provided by RDBMS guarantees that connection view of the
+        # database is not affected by other changes - e.g. pack - until
+        # connection's transaction is complete.
+        db = DB(self._storage)
+        eq = self.assertEqual
+        raises = self.assertRaises
+
+        # connA is main connection through which database changes are made
+        # @at0 - start
+        tmA   = transaction.TransactionManager()
+        connA = db.open(transaction_manager=tmA)
+        rootA = connA.root()
+        rootA[0] = None
+        tmA.commit()
+        at0 = rootA._p_serial
+
+        # conn0 is "current" db connection that observes database as of @at0 state
+        tm0   = transaction.TransactionManager()
+        conn0 = db.open(transaction_manager=tm0)
+
+        # @at1 - new object is added to database and linked to root
+        rootA[0] = objA = MinPO(1)
+        tmA.commit()
+        oid = objA._p_oid
+        at1 = objA._p_serial
+
+        # conn1 is "current" db connection that observes database as of @at1 state
+        tm1   = transaction.TransactionManager()
+        conn1 = db.open(transaction_manager=tm1)
+
+        # @at2 - object value is modified
+        objA.value = 2
+        tmA.commit()
+        at2 = objA._p_serial
+
+        # ---- before pack ----
+
+        # conn0.get(oid) -> POSKeyError (as of @at0 object was not yet created)
+        errGetNoObject = POSKeyError
+        if (not ZODB.interfaces.IMVCCStorage.providedBy(self._storage)) and \
+           (not ZODB.interfaces.IStorageLastPack.providedBy(self._storage)):
+            warnings.warn("FIXME %s does not implement lastPack" %
+                            type(self._storage), DeprecationWarning)
+            errGetNoObject = ReadConflictError
+        raises(errGetNoObject, conn0.get, oid)
+
+        # conn1.get(oid) -> obj(1)
+        obj1 = conn1.get(oid)
+        eq(obj1._p_oid, oid)
+        eq(obj1.value, 1)
+
+        # --- after pack to latest db head ----
+        db.pack(time.time()+1)
+
+        # IMVCCStorage - as before
+        #
+        # !IMVCCStorage:
+        # conn0.get(oid) -> ReadConflictError
+        # conn1.get(oid) -> ReadConflictError
+        #
+        # ( conn1: the pack removes obj@at1 revision, which results in conn1
+        #   finding the object in non-existent/deleted state, traditionally this
+        #   is reported as ReadConflictError for conn1's transaction to be
+        #   restarted.
+        #
+        #   conn0: obj@at0 never existed, but after pack@at2 it is
+        #   indistinguishable whether obj@at0 revision was removed, or it never
+        #   existed -> ReadConflictError too, similarly to conn1 )
+        conn0.cacheMinimize()
+        conn1.cacheMinimize()
+        del obj1
+        gc.collect()
+        if ZODB.interfaces.IMVCCStorage.providedBy(self._storage):
+            raises(POSKeyError, conn0.get, oid)
+            obj1 = conn1.get(oid)
+            eq(obj1._p_oid, oid)
+            eq(obj1.value, 1)
+
+        else:
+            # !IMVCCStorage
+            raises(ReadConflictError, conn0.get, oid)
+            raises(ReadConflictError, conn1.get, oid)
+
+        # connA stays ok
+        connA.cacheMinimize()
+        objA_ = connA.get(oid)
+        self.assertIs(objA_, objA)
+        eq(objA_.value, 2)
+
+        # end
+        self._sanity_check()
+        db.close()
 
 class PackableStorageWithOptionalGC(PackableStorage):
 

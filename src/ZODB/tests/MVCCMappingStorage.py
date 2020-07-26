@@ -45,6 +45,7 @@ class MVCCMappingStorage(MappingStorage):
         inst._commit_lock = self._commit_lock
         inst.new_oid = self.new_oid
         inst.pack = self.pack
+        inst.lastPack = self.lastPack
         inst.loadBefore = self.loadBefore
         inst._ltid = self._ltid
         inst._main_lock = self._lock

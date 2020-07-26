@@ -30,6 +30,7 @@ import zope.interface
 @zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
+        ZODB.interfaces.IStorageLastPack,
         )
 class MappingStorage(object):
     """In-memory storage implementation
@@ -186,6 +187,15 @@ class MappingStorage(object):
         self._oid += 1
         return ZODB.utils.p64(self._oid)
 
+    # ZODB.interfaces.IStorageLastPack
+    @ZODB.utils.locked(opened)
+    def lastPack(self):
+        packed = self._last_pack
+        if packed is None:
+            return ZODB.utils.z64
+        else:
+            return packed
+
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def pack(self, t, referencesf, gc=True):
@@ -193,6 +203,14 @@ class MappingStorage(object):
             return
 
         stop = ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
+        # clip stop to last committed transaction.
+        # don't use ._ltid as head - for MVCCMappingStorage ._ltid is specific
+        # to current storage instance, not whole storage history.
+        head = ZODB.utils.z64
+        if self._transactions:
+            head = self._transactions.maxKey()
+        stop = min(stop, head)
+
         if self._last_pack is not None and self._last_pack >= stop:
             if self._last_pack == stop:
                 return
