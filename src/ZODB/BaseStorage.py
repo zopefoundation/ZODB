@@ -59,7 +59,7 @@ class BaseStorage(UndoLogCompatible):
 
     If it stores multiple revisions, it should implement
     loadSerial()
-    loadBefore()
+    loadAt()
 
     Each storage will have two locks that are accessed via lock
     acquire and release methods bound to the instance.  (Yuck.)
@@ -267,9 +267,8 @@ class BaseStorage(UndoLogCompatible):
         raise POSException.Unsupported(
             "Retrieval of historical revisions is not supported")
 
-    def loadBefore(self, oid, tid):
-        """Return most recent revision of oid before tid committed."""
-        return None
+    # do not provide loadAt/loadBefore here in BaseStorage - if child forgets
+    # to override it - storage will always return "no data" instead of failing.
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.

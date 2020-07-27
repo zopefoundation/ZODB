@@ -23,6 +23,7 @@ from ZODB.tests import (
     StorageTestBase,
     Synchronization,
     )
+from ZODB.tests.MinPO import MinPO
 
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
@@ -33,7 +34,9 @@ import random
 import re
 import transaction
 import unittest
+import ZODB.Connection
 import ZODB.DemoStorage
+import ZODB.FileStorage
 import ZODB.tests.hexstorage
 import ZODB.tests.util
 import ZODB.utils
@@ -264,6 +267,101 @@ def load_before_base_storage_current():
     >>> base.close()
     """
 
+# additional DemoStorage tests that do not fit into common DemoStorageTests setup.
+class DemoStorageTests2(ZODB.tests.util.TestCase):
+    def checkLoadAfterDelete(self):
+        """Verify that DemoStorage correctly handles load requests for objects
+           deleted in read-write part of the storage.
+
+           https://github.com/zopefoundation/ZODB/issues/318
+        """
+        FileStorage = ZODB.FileStorage.FileStorage
+        DemoStorage = ZODB.DemoStorage.DemoStorage
+        TransactionMetaData = ZODB.Connection.TransactionMetaData
+
+        # mkbase prepares base part of the storage.
+        def mkbase(): # -> zbase
+            zbase = FileStorage("base.fs")
+            db    = DB(zbase)
+            conn  = db.open()
+            root  = conn.root()
+
+            root['obj'] = obj = MinPO(0)
+            transaction.commit()
+
+            obj.value += 1
+            transaction.commit()
+
+            conn.close()
+            db.close()
+            zbase.close()
+
+            zbase = FileStorage("base.fs", read_only=True)
+            return zbase
+
+        # prepare base + overlay
+        zbase    = mkbase()
+        zoverlay = FileStorage("overlay.fs")
+        zdemo    = DemoStorage(base=zbase, changes=zoverlay)
+
+        # overlay: modify obj and root
+        db   = DB(zdemo)
+        conn = db.open()
+        root = conn.root()
+        obj = root['obj']
+        oid = obj._p_oid
+        obj.value += 1
+        # modify root as well so that there is root revision saved in overlay that points to obj
+        root['x'] = 1
+        transaction.commit()
+        atLive = obj._p_serial
+
+        # overlay: delete obj from root making it a garbage
+        del root['obj']
+        transaction.commit()
+        atUnlink = root._p_serial
+
+        # unmount DemoStorage
+        conn.close()
+        db.close()
+        zdemo.close() # closes zbase and zoverlay as well
+        del zbase, zoverlay
+
+        # simulate GC on base+overlay
+        zoverlay = FileStorage("overlay.fs")
+        txn = transaction.get()
+        txn_meta = TransactionMetaData(txn.user, txn.description, txn.extension)
+        zoverlay.tpc_begin(txn_meta)
+        zoverlay.deleteObject(oid, atLive, txn_meta)
+        zoverlay.tpc_vote(txn_meta)
+        atGC = zoverlay.tpc_finish(txn_meta)
+
+        # remount base+overlay
+        zbase = FileStorage("base.fs", read_only=True)
+        zdemo = ZODB.DemoStorage.DemoStorage(base=zbase, changes=zoverlay)
+        db  = DB(zdemo)
+
+        # verify:
+        # load(obj, atLive)     -> 2
+        # load(obj, atUnlink)   -> 2  (garbage, but still in DB)
+        # load(obj, atGC)       -> POSKeyError, not 1 from base
+        def getObjAt(at):
+            conn = db.open(at=at)
+            obj = conn.get(oid)
+            self.assertIsInstance(obj, MinPO)
+            v = obj.value
+            conn.close()
+            return v
+
+        self.assertEqual(getObjAt(atLive),   2)
+        self.assertEqual(getObjAt(atUnlink), 2)
+        self.assertRaises(ZODB.POSException.POSKeyError, getObjAt, atGC)
+
+        # end
+        db.close()
+        zdemo.close() # closes zbase and zoverlay as well
+
+
 def test_suite():
     suite = unittest.TestSuite((
         doctest.DocTestSuite(
@@ -285,4 +383,5 @@ def test_suite():
                                      'check'))
     suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage,
                                      'check'))
+    suite.addTest(unittest.makeSuite(DemoStorageTests2, 'check'))
     return suite

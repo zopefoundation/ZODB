@@ -20,10 +20,11 @@ storage tests against the test storage.
 """
 import bisect
 import unittest
+import warnings
 
 from ZODB.BaseStorage import BaseStorage
 from ZODB import POSException
-from ZODB.utils import z64
+from ZODB.utils import p64, u64, z64
 
 from ZODB.tests import StorageTestBase
 from ZODB.tests import BasicStorage, MTStorage, Synchronization
@@ -105,6 +106,11 @@ class MinimalMemoryStorage(BaseStorage, object):
             self._ltid = self._tid
 
     def loadBefore(self, the_oid, the_tid):
+        warnings.warn("loadBefore is deprecated - use loadAt instead",
+                DeprecationWarning, stacklevel=2)
+        return self._loadBefore(the_oid, the_tid)
+
+    def _loadBefore(self, the_oid, the_tid):
         # It's okay if loadBefore() is really expensive, because this
         # storage is just used for testing.
         with self._lock:
@@ -125,6 +131,17 @@ class MinimalMemoryStorage(BaseStorage, object):
             self.hook(the_oid, self._cur[the_oid], '')
 
             return self._index[(the_oid, tid)], tid, end_tid
+
+    def loadAt(self, oid, at):
+        try:
+            r = self._loadBefore(oid, p64(u64(at)+1))
+        except KeyError:
+            return None, z64
+        if r is None:
+            # not-yet created (deleteObject not supported -> serial=0)
+            return None, z64
+        data, serial, _ = r
+        return data, serial
 
     def loadSerial(self, oid, serial):
         return self._index[(oid, serial)]

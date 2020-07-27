@@ -39,6 +39,13 @@ class HexStorage(object):
                 setattr(self, name, v)
 
         zope.interface.directlyProvides(self, zope.interface.providedBy(base))
+        if hasattr(base, 'loadAt') and 'loadAt' not in self.copied_methods:
+            def loadAt(oid, at):
+                data, serial = self.base.loadAt(oid, at)
+                if data is not None:
+                    data = unhexlify(data[2:])
+                return data, serial
+            self.loadAt = loadAt
 
     def __getattr__(self, name):
         return getattr(self.base, name)
@@ -130,7 +137,7 @@ class ServerHexStorage(HexStorage):
     """
 
     copied_methods = HexStorage.copied_methods + (
-        'load', 'loadBefore', 'loadSerial', 'store', 'restore',
+        'load', 'loadAt', 'loadBefore', 'loadSerial', 'store', 'restore',
         'iterator', 'storeBlob', 'restoreBlob', 'record_iternext',
         )
 

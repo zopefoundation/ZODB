@@ -16,6 +16,7 @@ A create_storage function is provided that creates a storage.
     >>> transaction.commit()
     >>> oid0 = conn.root()[0]._p_oid
     >>> oid1 = conn.root()[1]._p_oid
+    >>> atLive = conn.root()._p_serial
     >>> del conn.root()[0]
     >>> del conn.root()[1]
     >>> transaction.commit()
@@ -66,9 +67,10 @@ Now if we try to load data for the objects, we get a POSKeyError:
 
 We can still get the data if we load before the time we deleted.
 
-    >>> storage.loadBefore(oid0, conn.root()._p_serial) == (p0, s0, tid)
+    >>> from ZODB.utils import loadAt, z64
+    >>> loadAt(storage, oid0, atLive) == (p0, s0)
     True
-    >>> storage.loadBefore(oid1, conn.root()._p_serial) == (p1, s1, tid)
+    >>> loadAt(storage, oid1, atLive) == (p1, s1)
     True
     >>> with open(storage.loadBlob(oid1, s1)) as fp: fp.read()
     'some data'
@@ -92,15 +94,11 @@ gone:
     ...
     POSKeyError: ...
 
-    >>> storage.loadBefore(oid0, conn.root()._p_serial) # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    POSKeyError: ...
+    >>> loadAt(storage, oid0, atLive) == (None, z64)
+    True
 
-    >>> storage.loadBefore(oid1, conn.root()._p_serial) # doctest: +ELLIPSIS
-    Traceback (most recent call last):
-    ...
-    POSKeyError: ...
+    >>> loadAt(storage, oid1, atLive) == (None, z64)
+    True
 
     >>> storage.loadBlob(oid1, s1) # doctest: +ELLIPSIS
     Traceback (most recent call last):

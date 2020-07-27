@@ -17,6 +17,7 @@ import struct
 import sys
 import time
 import threading
+import warnings
 from binascii import hexlify, unhexlify
 
 from tempfile import mkstemp
@@ -382,8 +383,51 @@ def load_current(storage, oid, version=''):
     some time in the future.
     """
     assert not version
-    r = storage.loadBefore(oid, maxtid)
-    if r is None:
+    data, serial = loadAt(storage, oid, maxtid)
+    if data is None:
         raise ZODB.POSException.POSKeyError(oid)
-    assert r[2] is None
-    return r[:2]
+    return data, serial
+
+
+_loadAtWarned = set() # of storage class
+def loadAt(storage, oid, at):
+    """loadAt provides IStorageLoadAt semantic for all storages.
+
+    Storages that do not implement loadAt are served via loadBefore.
+    """
+    load_at = getattr(storage, 'loadAt', None)
+    if load_at is not None:
+        return load_at(oid, at)
+
+    # storage does not provide IStorageLoadAt - warn + fall back to loadBefore
+    if type(storage) not in _loadAtWarned:
+        # there is potential race around _loadAtWarned access, but due to the
+        # GIL this race cannot result in that set corruption, and can only lead
+        # to us emitting the warning twice instead of just once.
+        # -> do not spend CPU on lock and just ignore it.
+        warnings.warn(
+            "FIXME %s does not provide loadAt - emulating it via loadBefore, but ...\n"
+            "\t... 1) access will be potentially slower, and\n"
+            "\t... 2) not full semantic of loadAt could be provided.\n"
+            "\t...    this can lead to data corruption.\n"
+            "\t... -> please see https://github.com/zopefoundation/ZODB/issues/318 for details." %
+            type(storage), DeprecationWarning)
+        _loadAtWarned.add(type(storage))
+
+    if at == maxtid:
+        before = at
+    else:
+        before = p64(u64(at)+1)
+
+    try:
+        r = storage.loadBefore(oid, before)
+    except ZODB.POSException.POSKeyError:
+        return (None, z64)  # object does not exist at all
+
+    if r is None:
+        # object was removed; however loadBefore does not tell when.
+        # return serial=0 - this is the "data corruption" case talked about above.
+        return (None, z64)
+
+    data, serial, next_serial = r
+    return (data, serial)

@@ -1314,7 +1314,16 @@ class StubStorage(object):
             raise TypeError('StubStorage does not support versions.')
         return self._data[oid]
 
+    def loadAt(self, oid, at):
+        try:
+            data, serial = self._transdata[oid]
+        except KeyError:
+            return None, z64
+        return data, serial
+
     def loadBefore(self, oid, tid):
+        warnings.warn("loadBefore is deprecated - use loadAt instead",
+                DeprecationWarning, stacklevel=2)
         return self._data[oid] + (None, )
 
     def store(self, oid, serial, p, version, transaction):

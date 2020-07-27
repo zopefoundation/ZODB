@@ -19,6 +19,7 @@ storage without distracting storage details.
 
 import BTrees
 import time
+import warnings
 import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
@@ -30,6 +31,7 @@ import zope.interface
 @zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
+        ZODB.interfaces.IStorageLoadAt,
         )
 class MappingStorage(object):
     """In-memory storage implementation
@@ -148,9 +150,26 @@ class MappingStorage(object):
 
     load = ZODB.utils.load_current
 
+    # ZODB.interfaces.IStorageLoadAt
+    @ZODB.utils.locked(opened)
+    def loadAt(self, oid, at):
+        z64 = ZODB.utils.z64
+        tid_data = self._data.get(oid)
+        if not tid_data:
+            return None, z64
+        if at == z64:
+            return None, z64
+        tids_at = tid_data.keys(None, at)
+        if not tids_at:
+            return None, z64
+        serial = tids_at[-1]
+        return tid_data[serial], serial
+
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def loadBefore(self, oid, tid):
+        warnings.warn("loadBefore is deprecated - use loadAt instead",
+                DeprecationWarning, stacklevel=2)
         tid_data = self._data.get(oid)
         if tid_data:
             before = ZODB.utils.u64(tid)

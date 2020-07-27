@@ -866,10 +866,10 @@ class BlobStorage(BlobStorageMixin):
             for oid in self.fshelper.getOIDsForSerial(serial_id):
                 # we want to find the serial id of the previous revision
                 # of this blob object.
-                load_result = self.loadBefore(oid, serial_id)
+                at_before = utils.p64(utils.u64(serial_id)-1)
+                _, serial_before = utils.loadAt(self, oid, at_before)
 
-                if load_result is None:
-
+                if serial_before == utils.z64:
                     # There was no previous revision of this blob
                     # object.  The blob was created in the transaction
                     # represented by serial_id.  We copy the blob data
@@ -884,7 +884,6 @@ class BlobStorage(BlobStorageMixin):
                     # transaction implied by "serial_id".  We copy the blob
                     # data to a new file that references the undo transaction
                     # in case a user wishes to undo this undo.
-                    data, serial_before, serial_after = load_result
                     orig_fn = self.fshelper.getBlobFilename(oid, serial_before)
                     new_fn = self.fshelper.getBlobFilename(oid, undo_serial)
                 with open(orig_fn, "rb") as orig:

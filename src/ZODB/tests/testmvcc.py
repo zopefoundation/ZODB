@@ -35,7 +35,7 @@ MinimalMemoryStorage that implements MVCC support, but not much else.
 ***IMPORTANT***: The MVCC approach has changed since these tests were
 originally written. The new approach is much simpler because we no
 longer call load to get the current state of an object. We call
-loadBefore instead, having gotten a transaction time at the start of a
+loadAt instead, having gotten a transaction time at the start of a
 transaction.  As a result, the rhythm of the tests is a little odd,
 because we no longer need to probe a complex dance that doesn't exist any more.
 
@@ -290,7 +290,7 @@ first connection's state for b "old".
 
 Now deactivate "b" in the first connection, and (re)fetch it.  The first
 connection should still see 1, due to MVCC, but to get this old state
-TmpStore needs to handle the loadBefore() method.
+TmpStore needs to handle the loadAt() or loadBefore() methods.
 
 >>> r1["b"]._p_deactivate()
 
@@ -322,7 +322,7 @@ why ZODB no-longer calls load. :)
 
 Rather than add all the complexity of ZEO to these tests, the
 MinimalMemoryStorage has a hook.  We'll write a subclass that will
-deliver an invalidation when it loads (or loadBefore's) an object.
+deliver an invalidation when it loads (or loadAt's) an object.
 The hook allows us to test the Connection code.
 
 >>> class TestStorage(MinimalMemoryStorage):
