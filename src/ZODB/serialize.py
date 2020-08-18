@@ -699,7 +699,7 @@ def get_refs(a_pickle):
         if isinstance(reference, tuple):
             oid, klass = reference
         elif isinstance(reference, (bytes, str)):
-            data, klass = reference, None
+            oid, klass = reference, None
         else:
             assert isinstance(reference, list)
             continue
