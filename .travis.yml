@@ -22,7 +22,9 @@ jobs:
 
 install:
     - pip install -U pip
-    - pip install -U setuptools zc.buildout
+    # BBB use older setuptools on pypy, setuptools 50.0.0 is not compatible with pypy 7.1.1-beta0
+    - if [[ $TRAVIS_PYTHON_VERSION == pypy3* ]]; then pip install -U setuptools==49.6.0 zc.buildout; fi
+    - if [[ $TRAVIS_PYTHON_VERSION != pypy3* ]]; then pip install -U setuptools zc.buildout; fi
     - buildout $BUILOUT_OPTIONS
 script:
     - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then bin/coverage run bin/coverage-test -v; fi
