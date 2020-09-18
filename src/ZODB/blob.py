@@ -754,12 +754,10 @@ class BlobStorage(BlobStorageMixin):
         self._blobs_pack_is_in_progress = False
 
         if ZODB.interfaces.IStorageRestoreable.providedBy(storage):
-            iblob = ZODB.interfaces.IBlobStorageRestoreable
-        else:
-            iblob = ZODB.interfaces.IBlobStorage
-
-        zope.interface.directlyProvides(
-            self, iblob, zope.interface.providedBy(storage))
+            zope.interface.directlyProvides(
+                self,
+                ZODB.interfaces.IBlobStorageRestoreable,
+                zope.interface.providedBy(storage))
 
     def __getattr__(self, name):
         return getattr(self.__storage, name)

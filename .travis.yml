@@ -1,20 +1,35 @@
 language: python
-dist: xenial
+
+env:
+  global:
+    ZOPE_INTERFACE_STRICT_IRO: 1
+
 python:
   - 2.7
   - 3.5
   - 3.6
   - 3.7
+  - 3.8
   - pypy
   - pypy3
 
+jobs:
+  include:
+    # Special Linux builds
+    - name: "Python: 3.8, pure (no C extensions)"
+      python: 3.8
+      env: PURE_PYTHON=1
+
 install:
     - pip install -U pip
-    - pip install -U setuptools zc.buildout
+    # BBB use older setuptools on pypy, setuptools 50.0.0 is not compatible with pypy 7.1.1-beta0
+    - if [[ $TRAVIS_PYTHON_VERSION == pypy3* ]]; then pip install -U setuptools==49.6.0 zc.buildout; fi
+    - if [[ $TRAVIS_PYTHON_VERSION != pypy3* ]]; then pip install -U setuptools zc.buildout; fi
     - buildout $BUILOUT_OPTIONS
 script:
     - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then bin/coverage run bin/coverage-test -v; fi
     - if [[ $TRAVIS_PYTHON_VERSION == pypy* ]]; then bin/test -v; fi
+    - if [[ $TRAVIS_PYTHON_VERSION != pypy3* ]]; then pip install --upgrade --requirement doc/requirements.txt; fi
     - if [[ $TRAVIS_PYTHON_VERSION != pypy3* ]]; then make -C doc html; fi
     - if [[ $TRAVIS_PYTHON_VERSION != pypy* ]]; then pip install coveralls; fi # install early enough to get into the cache
 after_success:

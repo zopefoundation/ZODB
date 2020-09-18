@@ -14,17 +14,18 @@
 import unittest
 import warnings
 
-from .._compat import dumps, loads, _protocol
+from .._compat import dumps, loads
 from ..Connection import TransactionMetaData
 
 class TransactionMetaDataTests(unittest.TestCase):
 
     def test_basic(self):
-        t = TransactionMetaData(
-            u'user\x80', u'description\x80', dict(foo='FOO'))
+        extension = dict(foo='FOO')
+        t = TransactionMetaData(u'user\x80', u'description\x80', extension)
         self.assertEqual(t.user, b'user\xc2\x80')
         self.assertEqual(t.description, b'description\xc2\x80')
-        self.assertEqual(t.extension, dict(foo='FOO'))
+        self.assertEqual(t.extension, extension)
+        self.assertEqual(loads(t.extension_bytes), extension)
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             self.assertEqual(t._extension, t.extension)
@@ -33,14 +34,16 @@ class TransactionMetaDataTests(unittest.TestCase):
             self.assertTrue("_extension is deprecated" in str(w[-1].message))
 
     def test_basic_no_encoding(self):
-        t = TransactionMetaData(
-            b'user', b'description', dumps(dict(foo='FOO'), _protocol))
+        extension = dict(foo='FOO')
+        extension_bytes = dumps(extension)
+        t = TransactionMetaData(b'user', b'description', extension_bytes)
         self.assertEqual(t.user, b'user')
         self.assertEqual(t.description, b'description')
-        self.assertEqual(t.extension, dict(foo='FOO'))
+        self.assertEqual(t.extension, extension)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.assertEqual(t._extension, t.extension)
+        self.assertIs(t.extension_bytes, extension_bytes)
 
     def test_constructor_default_args(self):
         t = TransactionMetaData()
@@ -52,23 +55,28 @@ class TransactionMetaDataTests(unittest.TestCase):
             self.assertEqual(t._extension, t.extension)
 
     def test_set_extension(self):
-        t = TransactionMetaData(u'', u'', b'')
+        data = {}
+        t = TransactionMetaData(u'', u'', data)
         self.assertEqual(t.user, b'')
         self.assertEqual(t.description, b'')
-        self.assertEqual(t.extension, {})
+        self.assertIs(t.extension, data)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.assertEqual(t._extension, t.extension)
+            self.assertEqual(t.extension_bytes, b'')
 
             for name in 'extension', '_extension':
                 data = {name: name + 'foo'}
                 setattr(t, name, data)
-                self.assertEqual(t.extension, data)
-                self.assertEqual(t._extension, t.extension)
-                data = {}
-                setattr(t, name, data)
-                self.assertEqual(t.extension, data)
-                self.assertEqual(t._extension, t.extension)
+                self.assertIs(t.extension, data)
+                self.assertIs(t._extension, t.extension)
+                extension_bytes = t.extension_bytes
+                self.assertEqual(loads(extension_bytes), data)
+                empty = {}
+                setattr(t, name, empty)
+                self.assertIs(t.extension, empty)
+                self.assertIs(t._extension, t.extension)
+                self.assertEqual(t.extension_bytes, b'')
 
     def test_used_by_connection(self):
         import ZODB

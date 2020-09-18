@@ -56,15 +56,15 @@ ordering.
 The hot points for ConflictErrors are the catalogue indexes. Some of the
 indexes do not support conflict resolution and you will see ConflictErrors
 under write-intensive loads. On solution is to defer catalogue updates using
-`QueueCatalog <http://pypi.python.org/pypi/Products.QueueCatalog>`_
+`QueueCatalog <https://pypi.org/project/Products.QueueCatalog/>`_
 (`PloneQueueCatalog
-<http://pypi.python.org/pypi/Products.PloneQueueCatalog>`_), which allows
+<https://pypi.org/project/Products.PloneQueueCatalog/>`_), which allows
 indexing operations to be serialized using a seperate ZEO client. This can
 bring big performance benefits as request retries are reduced, but the
 downside is that index updates are no longer reflected immediately in the
 application. Another alternative is to offload text indexing to a dedicated
 search engine using `collective.solr
-<http://pypi.python.org/pypi/collective.solr>`_.
+<https://pypi.org/project/collective.solr/>`_.
 
 This brings us to **Atomicity**, the other key feature of ZODB transactions. A
 transaction will either succeed or fail, your data is never left in an
@@ -76,7 +76,7 @@ ConflictError occurs Zope will attempt to replay a transaction up to three
 times. Interactions with an external system should be made through a Data
 Manager that participates in the transaction. If you’re talking to a database
 use a Zope DA or a SQLAlchemy wrapper like `zope.sqlalchemy
-<http://pypi.python.org/pypi/zope.sqlalchemy>`_.
+<https://pypi.org/project/zope.sqlalchemy/>`_.
 
 Unfortunately the default MailHost implementation used by Plone is not
 transaction aware. With it you can see duplicate emails sent. If this is a
@@ -115,7 +115,7 @@ file per object revision. Does not require the Data.fs.index to be rebuilt on
 an unclean shutdown (which can take a significant time for a large database).
 Small number of users.
 
-**RelStorage** (`pypi <http://pypi.python.org/pypi/RelStorage>`_) stores
+**RelStorage** (`pypi <https://pypi.org/project/RelStorage/>`_) stores
 pickles in a relational database. PostgreSQL, MySQL and Oracle are supported
 and no ZEO server is required. You benefit from the faster network layers of
 these database adapters. However, conflict resolution is moved to the

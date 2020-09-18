@@ -25,9 +25,8 @@ ZODB guarantees execution-time consistency: A single transaction will
 always see a consistent view of the database while it is executing.
 If transaction A is running, has already read an object O1, and a
 different transaction B modifies object O2, then transaction A can no
-longer read the current revision of O2.  It must either read the
-version of O2 that is consistent with O1 or raise a ReadConflictError.
-When MVCC is in use, A will do the former.
+longer read the current revision of O2.  It must read the
+version of O2 that is consistent with O1.
 
 This note includes doctests that explain how MVCC is implemented (and
 test that the implementation is correct).  The tests use a
@@ -87,10 +86,10 @@ storage has seen.
 
 >>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
->>> cn.db()._mvcc_storage.invalidate(100, dict.fromkeys([1, 2]))
+>>> cn.db()._mvcc_storage.invalidate(p64(100), dict.fromkeys([1, 2]))
 >>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
->>> cn.db()._mvcc_storage.invalidate(200, dict.fromkeys([1, 2]))
+>>> cn.db()._mvcc_storage.invalidate(p64(200), dict.fromkeys([1, 2]))
 >>> cn._storage._start == p64(u64(st.lastTransaction()) + 1)
 True
 

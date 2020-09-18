@@ -238,7 +238,7 @@ New Features
 
 - The mkzeoinst script has been moved to a separate project:
 
-    http://pypi.python.org/pypi/zope.mkzeoinstance
+    https://pypi.org/project/zope.mkzeoinstance/
 
   and is no-longer included with ZODB.
 

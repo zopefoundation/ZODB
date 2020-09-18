@@ -14,32 +14,30 @@
 """Database objects
 """
 from __future__ import print_function
+
 import sys
 import logging
 import datetime
 import time
 import warnings
-
-from . import utils
-
-from ZODB.broken import find_global
-from ZODB.utils import z64
-from ZODB.Connection import Connection, TransactionMetaData, noop
-from ZODB._compat import Pickler, _protocol, BytesIO
-import ZODB.serialize
-
-import transaction.weakset
-
-from zope.interface import implementer
-from ZODB.interfaces import IDatabase
-from ZODB.interfaces import IMVCCStorage
-
-import transaction
+import weakref
+from itertools import chain
 
 from persistent.TimeStamp import TimeStamp
 import six
 
-from . import POSException, valuedoc
+import transaction
+
+from zope.interface import implementer
+
+from ZODB import utils
+from ZODB.interfaces import IDatabase
+from ZODB.interfaces import IMVCCStorage
+from ZODB.broken import find_global
+from ZODB.utils import z64
+from ZODB.Connection import Connection, TransactionMetaData, noop
+import ZODB.serialize
+from ZODB import valuedoc
 
 logger = logging.getLogger('ZODB.DB')
 
@@ -80,7 +78,7 @@ class AbstractConnectionPool(object):
         # A weak set of all connections we've seen.  A connection vanishes
         # from this set if pop() hands it out, it's not reregistered via
         # repush(), and it becomes unreachable.
-        self.all = transaction.weakset.WeakSet()
+        self.all = weakref.WeakSet()
 
     def setSize(self, size):
         """Change our belief about the expected maximum # of live connections.
@@ -122,6 +120,9 @@ class ConnectionPool(AbstractConnectionPool):
         # pop() pops this stack.  There are never more than size entries
         # in this stack.
         self.available = []
+
+    def __iter__(self):
+        return iter(self.all)
 
     def _append(self, c):
         available = self.available
@@ -208,10 +209,6 @@ class ConnectionPool(AbstractConnectionPool):
             assert result in self.all
         return result
 
-    def map(self, f):
-        """For every live connection c, invoke f(c)."""
-        self.all.map(f)
-
     def availableGC(self):
         """Perform garbage collection on available connections.
 
@@ -251,6 +248,9 @@ class KeyedConnectionPool(AbstractConnectionPool):
         super(KeyedConnectionPool, self).__init__(size, timeout)
         self.pools = {}
 
+    def __iter__(self):
+        return chain(*self.pools.values())
+
     def setSize(self, v):
         self._size = v
         for pool in self.pools.values():
@@ -284,10 +284,6 @@ class KeyedConnectionPool(AbstractConnectionPool):
         if pool is not None:
             return pool.pop()
 
-    def map(self, f):
-        for pool in six.itervalues(self.pools):
-            pool.map(f)
-
     def availableGC(self):
         for key, pool in list(self.pools.items()):
             pool.availableGC()
@@ -298,20 +294,6 @@ class KeyedConnectionPool(AbstractConnectionPool):
         for pool in self.pools.values():
             pool.clear()
         self.pools.clear()
-
-    @property
-    def test_all(self):
-        result = set()
-        for pool in six.itervalues(self.pools):
-            result.update(pool.all)
-        return frozenset(result)
-
-    @property
-    def test_available(self):
-        result = []
-        for pool in six.itervalues(self.pools):
-            result.extend(pool.available)
-        return tuple(result)
 
 
 def toTimeStamp(dt):
@@ -515,8 +497,10 @@ class DB(object):
         """Call f(c) for all connections c in all pools, live and historical.
         """
         with self._lock:
-            self.pool.map(f)
-            self.historical_pool.map(f)
+            for c in self.pool:
+                f(c)
+            for c in self.historical_pool:
+                f(c)
 
     def cacheDetail(self):
         """Return object counts by class accross all connections.
@@ -868,36 +852,32 @@ class DB(object):
         """
         with self._lock:
             self._cache_size = size
-            def setsize(c):
+            for c in self.pool:
                 c._cache.cache_size = size
-            self.pool.map(setsize)
 
     def setCacheSizeBytes(self, size):
         """Reconfigure the cache total size in bytes
         """
         with self._lock:
             self._cache_size_bytes = size
-            def setsize(c):
+            for c in self.pool:
                 c._cache.cache_size_bytes = size
-            self.pool.map(setsize)
 
     def setHistoricalCacheSize(self, size):
         """Reconfigure the historical cache size (non-ghost object count)
         """
         with self._lock:
             self._historical_cache_size = size
-            def setsize(c):
+            for c in self.historical_pool:
                 c._cache.cache_size = size
-            self.historical_pool.map(setsize)
 
     def setHistoricalCacheSizeBytes(self, size):
         """Reconfigure the historical cache total size in bytes
         """
         with self._lock:
             self._historical_cache_size_bytes = size
-            def setsize(c):
+            for c in self.historical_pool:
                 c._cache.cache_size_bytes = size
-            self.historical_pool.map(setsize)
 
     def setPoolSize(self, size):
         """Reconfigure the connection pool size
@@ -1056,19 +1036,43 @@ class TransactionalUndo(object):
 
     def __init__(self, db, tids):
         self._db = db
-        self._storage = getattr(
-            db._mvcc_storage, 'undo_instance', db._mvcc_storage.new_instance)()
         self._tids = tids
+        self._storage = None
 
     def abort(self, transaction):
         pass
 
+    def close(self):
+        if self._storage is not None:
+            # We actually want to release the storage we've created,
+            # not close it. releasing it frees external resources
+            # dedicated to this instance, closing might make permanent
+            # changes that affect other instances.
+            self._storage.release()
+            self._storage = None
+
     def tpc_begin(self, transaction):
+        assert self._storage is None, "Already in an active transaction"
+
         tdata = TransactionMetaData(
             transaction.user,
             transaction.description,
             transaction.extension)
         transaction.set_data(self, tdata)
+        # `undo_instance` is not part of any IStorage interface;
+        # it is defined in our MVCCAdapter. Regardless, we're opening
+        # a new storage instance, and so we must close it to be sure
+        # to reclaim resources in a timely manner.
+        #
+        # Once the tpc_begin method has been called, the transaction manager will
+        # guarantee to call either `tpc_finish` or `tpc_abort`, so those are the only
+        # methods we need to be concerned about calling close() from.
+        db_mvcc_storage = self._db._mvcc_storage
+        self._storage = getattr(
+            db_mvcc_storage,
+            'undo_instance',
+            db_mvcc_storage.new_instance)()
+
         self._storage.tpc_begin(tdata)
 
     def commit(self, transaction):
@@ -1081,15 +1085,27 @@ class TransactionalUndo(object):
         self._storage.tpc_vote(transaction)
 
     def tpc_finish(self, transaction):
-        transaction = transaction.data(self)
-        self._storage.tpc_finish(transaction)
+        try:
+            transaction = transaction.data(self)
+            self._storage.tpc_finish(transaction)
+        finally:
+            self.close()
 
     def tpc_abort(self, transaction):
-        transaction = transaction.data(self)
-        self._storage.tpc_abort(transaction)
+        try:
+            transaction = transaction.data(self)
+            self._storage.tpc_abort(transaction)
+        finally:
+            self.close()
 
     def sortKey(self):
-        return "%s:%s" % (self._storage.sortKey(), id(self))
+        # The transaction sorts data managers first before it calls
+        # `tpc_begin`, so we can't use our own storage because it's
+        # not open yet. Fortunately new_instances of a storage are
+        # supposed to return the same sort key as the original storage
+        # did.
+        return "%s:%s" % (self._db._mvcc_storage.sortKey(), id(self))
+
 
 def connection(*args, **kw):
     """Create a database :class:`connection <ZODB.Connection.Connection>`.

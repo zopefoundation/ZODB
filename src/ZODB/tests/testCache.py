@@ -383,6 +383,13 @@ class CacheErrors(unittest.TestCase):
             # to None actually go *down* by a few. Possibly it has to
             # do with the lazy tracking of frames?
             # (https://github.com/python/cpython/commit/5a625d0aa6a6d9ec6574ee8344b41d63dcb9897e)
+            #
+            # Likewise, on 3.8 with PURE_PYTHON it sometimes increases
+            # by 1; this is cleared up by a garbage collection (it's
+            # not clear where/why)
+            new_nones = rc(None)
+            if new_nones > nones:
+                gc.collect()
             self.assertLessEqual(rc(None), nones)
 
     def testTwoCaches(self):

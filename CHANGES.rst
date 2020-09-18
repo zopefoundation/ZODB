@@ -2,8 +2,26 @@
  Change History
 ================
 
-5.6.0 (unreleased)
+5.6.1 (unreleased)
 ==================
+
+- Make ``PersistentReference`` hashable (`#278
+  <https://github.com/zopefoundation/ZODB/issues/278>`_).
+
+
+5.6.0 (2020-06-11)
+==================
+
+- Fix race with invalidations when starting a new transaction. The bug
+  affected Storage implementations that rely on mvccadapter, and could result
+  in data corruption (oid loaded at wrong serial after a concurrent commit).
+  See `issue 290 <https://github.com/zopefoundation/ZODB/issues/290>`_.
+  As mentionned in pull request #307, interfaces are clarified about the fact
+  that storage implementations must update at a precise moment the value that
+  is returned by lastTransaction(): just after invalidate() or
+  tpc_finish callback.
+
+- Improve volatile attribute ``_v_`` documentation.
 
 - Make repozo's recover mode atomic by recovering the backup in a
   temporary file which is then moved to the expected output file.
@@ -13,14 +31,37 @@
 
 - Drop support for Python 3.4.
 
-- Make ``PersistentReference`` hashable (`#278
-  <https://github.com/zopefoundation/ZODB/issues/278>`_).
+- Add support for Python 3.8.
+
+- Fix ``DB.undo()`` and ``DB.undoMultiple()`` to close the storage
+  they open behind the scenes when the transaction is committed or
+  rolled back. See `issue 268
+  <https://github.com/zopefoundation/ZODB/issues/268>`_.
+
+- Make TransactionMetaData in charge of (de)serializing extension data.
+  A new ``extension_bytes`` attribute converts automatically from
+  ``extension``, or vice-versa. During storage iteration, ``extension_bytes``
+  holds bytes as they are stored (i.e. no deserialization happens).
+  See `issue 207 <https://github.com/zopefoundation/ZODB/pull/207>`_.
+
+- Make a connection's savepoint storage implement its own
+  (approximate) ``getSize`` method instead of relying on the original
+  storage. Previously, this produced confusing DEBUG logging. See
+  `issue 282 <https://github.com/zopefoundation/ZODB/issues/282>`_.
+
+- Fix tests with transaction 3.0.
+
+- Fix inconsistent resolution order with zope.interface v5.
+
+- Remove ``ConnectionPool.map()``. Instead, ``ConnectionPool`` is now
+  iterable. See `PR 280
+  <https://github.com/zopefoundation/ZODB/pull/280>`_.
 
 5.5.1 (2018-10-25)
 ==================
 
 - Fix KeyError on releasing resources of a Connection when closing the DB.
-  This requires at least version 2.4 of the `transaction` package.
+  This requires at least version 2.4 of the ``transaction`` package.
   See `issue 208 <https://github.com/zopefoundation/ZODB/issues/208>`_.
 
 5.5.0 (2018-10-13)

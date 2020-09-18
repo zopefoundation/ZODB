@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Adapt IStorage objects to IMVCCStorage
 
 This is a largely internal implementation of ZODB, especially DB and
@@ -9,7 +10,7 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, Lock
+from .utils import p64, u64, Lock, oid_repr, tid_repr
 
 class Base(object):
 
@@ -77,13 +78,13 @@ class MVCCAdapter(Base):
     def invalidate(self, transaction_id, oids):
         with self._lock:
             for instance in self._instances:
-                instance._invalidate(oids)
+                instance._invalidate(transaction_id, oids)
 
-    def _invalidate_finish(self, oids, committing_instance):
+    def _invalidate_finish(self, tid, oids, committing_instance):
         with self._lock:
             for instance in self._instances:
                 if instance is not committing_instance:
-                    instance._invalidate(oids)
+                    instance._invalidate(tid, oids)
 
     references = serialize.referencesf
     transform_record_data = untransform_record_data = lambda self, data: data
@@ -98,12 +99,14 @@ class MVCCAdapterInstance(Base):
         'checkCurrentSerialInTransaction', 'tpc_abort',
         )
 
+    _start = None # Transaction start time
+    _ltid = b''   # Last storage transaction id
+
     def __init__(self, base):
         self._base = base
         Base.__init__(self, base._storage)
         self._lock = Lock()
         self._invalidations = set()
-        self._start = None # Transaction start time
         self._sync = getattr(self._storage, 'sync', lambda : None)
 
     def release(self):
@@ -115,8 +118,9 @@ class MVCCAdapterInstance(Base):
         with self._lock:
             self._invalidations = None
 
-    def _invalidate(self, oids):
+    def _invalidate(self, tid, oids):
         with self._lock:
+            self._ltid = tid
             try:
                 self._invalidations.update(oids)
             except AttributeError:
@@ -128,8 +132,15 @@ class MVCCAdapterInstance(Base):
             self._sync()
 
     def poll_invalidations(self):
-        self._start = p64(u64(self._storage.lastTransaction()) + 1)
+        # Storage implementations don't always call invalidate() when
+        # the last TID changes, e.g. after network reconnection,
+        # so we still have to poll.
+        ltid = self._storage.lastTransaction()
+        # But at this precise moment, a transaction may be committed and
+        # we have already received the new tid, along with invalidations.
         with self._lock:
+            # So we must pick the greatest value.
+            self._start = p64(u64(max(ltid, self._ltid)) + 1)
             if self._invalidations is None:
                 self._invalidations = set()
                 return None
@@ -142,7 +153,31 @@ class MVCCAdapterInstance(Base):
         assert self._start is not None
         r = self._storage.loadBefore(oid, self._start)
         if r is None:
-            raise POSException.ReadConflictError(repr(oid))
+            # object was deleted or not-yet-created.
+            # raise ReadConflictError - not - POSKeyError due to backward
+            # compatibility: a pack(t+δ) could be running simultaneously to our
+            # transaction that observes database as of t state. Such pack,
+            # because it packs the storage from a "future-to-us" point of view,
+            # can remove object revisions that we can try to load, for example:
+            #
+            #   txn1            <-- t
+            #        obj.revA
+            #
+            #   txn2            <-- t+δ
+            #        obj.revB
+            #
+            # for such case we want user transaction to be restarted - not
+            # failed - by raising ConflictError subclass.
+            #
+            # XXX we don't detect for pack to be actually running - just assume
+            # the worst. It would be good if storage could provide information
+            # whether pack is/was actually running and its details, take that
+            # into account, and raise ReadConflictError only in the presence of
+            # database being simultaneously updated from back of its log.
+            raise POSException.ReadConflictError(
+                    "load %s @%s: object deleted, likely by simultaneous pack" %
+                    (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
+
         return r[:2]
 
     def prefetch(self, oids):
@@ -175,7 +210,8 @@ class MVCCAdapterInstance(Base):
         self._modified = None
 
         def invalidate_finish(tid):
-            self._base._invalidate_finish(modified, self)
+            self._base._invalidate_finish(tid, modified, self)
+            self._ltid = tid
             func(tid)
 
         return self._storage.tpc_finish(transaction, invalidate_finish)
@@ -260,7 +296,7 @@ class UndoAdapterInstance(Base):
     def tpc_finish(self, transaction, func = lambda tid: None):
 
         def invalidate_finish(tid):
-            self._base._invalidate_finish(self._undone, None)
+            self._base._invalidate_finish(tid, self._undone, None)
             func(tid)
 
         self._storage.tpc_finish(transaction, invalidate_finish)

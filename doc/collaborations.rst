@@ -2,6 +2,10 @@
 Collabortation Diagrams
 =======================
 
+.. caution::
+    This document hasn't been reviewed since 2005
+    and is likely out of date.
+
 This file contains several collaboration diagrams for the ZODB.
 
 Simple fetch, modify, commit

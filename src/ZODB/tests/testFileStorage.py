@@ -56,6 +56,8 @@ class FileStorageTests(
     ReadOnlyStorage.ReadOnlyStorage
     ):
 
+    use_extension_bytes = True
+
     def open(self, **kwargs):
         self._storage = ZODB.FileStorage.FileStorage('FileStorageTests.fs',
                                                      **kwargs)
@@ -77,7 +79,13 @@ class FileStorageTests(
         except POSException.StorageError:
             pass
         else:
-            self.fail("expect long user field to raise error")
+            self.fail("expect long description field to raise error")
+        try:
+            self._dostore(extension={s: 1})
+        except POSException.StorageError:
+            pass
+        else:
+            self.fail("expect long extension field to raise error")
 
     def check_use_fsIndex(self):
 
@@ -317,6 +325,35 @@ class FileStorageTests(
         def checkFlushNeededAfterTruncate(self):
             self._storage._files.flush = lambda: None
             self.checkFlushAfterTruncate(True)
+
+    def checkCommitWithEmptyData(self):
+        """
+        Verify that transaction is persisted even if it has no data, or even
+        both no data and empty metadata.
+        """
+
+        # verify:
+        # - commit with empty data but non-empty metadata
+        # - commit with empty data and empty metadata
+        #   (the fact of commit carries information by itself)
+        stor = self._storage
+        for description in (u'commit with empty data', u''):
+            t = TransactionMetaData(description=description)
+            stor.tpc_begin(t)
+            stor.tpc_vote(t)
+            head = stor.tpc_finish(t)
+            self.assertEqual(head, stor.lastTransaction())
+
+            v = list( stor.iterator(start=head, stop=head) )
+            self.assertEqual(len(v), 1)
+            trec = v[0] # FileStorage.TransactionRecord or hexstorage.Transaction
+            self.assertEqual(trec.tid, head)
+            self.assertEqual(trec.user,          b'')
+            self.assertEqual(trec.description,   description.encode('utf-8'))
+            self.assertEqual(trec.extension,     {})
+            drecv = list(trec)
+            self.assertEqual(drecv, [])
+
 
 class FileStorageHexTests(FileStorageTests):
 

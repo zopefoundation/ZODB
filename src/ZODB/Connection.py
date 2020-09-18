@@ -49,10 +49,10 @@ from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
 import six
 
+from ._compat import dumps, loads, _protocol
 from .mvccadapter import HistoricalStorageAdapter
 
 from . import valuedoc
-from . import _compat
 
 global_reset_counter = 0
 
@@ -148,10 +148,8 @@ class Connection(ExportImport, object):
         self._pre_cache = {}
 
         # List of all objects (not oids) registered as modified by the
-        # persistence machinery, or by add(), or whose access caused a
-        # ReadConflictError (just to be able to clean them up from the
-        # cache on abort with the other modified objects). All objects
-        # of this list are either in _cache or in _added.
+        # persistence machinery.
+        # All objects of this list are either in _cache or in _added.
         self._registered_objects = [] # [object]
 
         # ids and serials of objects for which readCurrent was called
@@ -181,15 +179,6 @@ class Connection(ExportImport, object):
         # List of oids of modified objects, which have to be invalidated
         # in the cache on abort and in other connections on finish.
         self._modified = [] # [oid]
-
-        # We intend to prevent committing a transaction in which
-        # ReadConflictError occurs.  _conflicts is the set of oids that
-        # experienced ReadConflictError.  Any time we raise ReadConflictError,
-        # the oid should be added to this set, and we should be sure that the
-        # object is registered.  Because it's registered, Connection.commit()
-        # will raise ReadConflictError again (because the oid is in
-        # _conflicts).
-        self._conflicts = {}
 
         # To support importFile(), implemented in the ExportImport base
         # class, we need to run _importDuringCommit() from our commit()
@@ -460,7 +449,6 @@ class Connection(ExportImport, object):
 
     def _tpc_cleanup(self):
         """Performs cleanup operations to support tpc_finish and tpc_abort."""
-        self._conflicts.clear()
         self._needs_to_join = True
         self._registered_objects = []
         self._creating.clear()
@@ -528,8 +516,6 @@ class Connection(ExportImport, object):
         for obj in self._registered_objects:
             oid = obj._p_oid
             assert oid
-            if oid in self._conflicts:
-                raise ReadConflictError(object=obj)
 
             if obj._p_jar is not self:
                 raise InvalidObjectReference(obj, obj._p_jar)
@@ -1135,20 +1121,22 @@ class TmpStore(object):
     def __init__(self, storage):
         self._storage = storage
         for method in (
-            'getName', 'new_oid', 'getSize', 'sortKey',
+            'getName', 'new_oid', 'sortKey',
             'isReadOnly'
             ):
             setattr(self, method, getattr(storage, method))
 
         self._file = tempfile.TemporaryFile(prefix='TmpStore')
-        # position: current file position
-        # _tpos: file position at last commit point
+        # position: current file position. If objects are only stored
+        # once, this is approximately the byte size of object data stored.
         self.position = 0
         # index: map oid to pos of last committed version
         self.index = {}
         self.creating = {}
-
         self._blob_dir = None
+
+    def getSize(self):
+        return self.position
 
     def __len__(self):
         return len(self.index)
@@ -1303,10 +1291,24 @@ large-record-size option in a configuration file) to specify a larger
 size.
 """
 
+class overridable_property(object):
+    """
+    Same as property() with only a getter, except that setting a
+    value overrides the property rather than raising AttributeError.
+    """
+
+    def __init__(self, func):
+        self.__doc__ = func.__doc__
+        self.func = func
+
+    def __get__(self, obj, cls):
+        return self if obj is None else self.func(obj)
+
+
 @implementer(IStorageTransactionMetaData)
 class TransactionMetaData(object):
 
-    def __init__(self, user=u'', description=u'', extension=b''):
+    def __init__(self, user=u'', description=u'', extension=None):
         if not isinstance(user, bytes):
             user = user.encode('utf-8')
         self.user = user
@@ -1315,9 +1317,20 @@ class TransactionMetaData(object):
             description = description.encode('utf-8')
         self.description = description
 
-        if not isinstance(extension, dict):
-            extension = _compat.loads(extension) if extension else {}
-        self.extension = extension
+        if isinstance(extension, bytes):
+            self.extension_bytes = extension
+        else:
+            self.extension = {} if extension is None else extension
+
+    @overridable_property
+    def extension(self):
+        extension_bytes = self.extension_bytes
+        return loads(extension_bytes) if extension_bytes else {}
+
+    @overridable_property
+    def extension_bytes(self):
+        extension = self.extension
+        return dumps(extension, _protocol) if extension else b''
 
     def note(self, text): # for tests
         text = text.strip()

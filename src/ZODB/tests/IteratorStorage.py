@@ -21,6 +21,7 @@ all these tests.
 from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
+from ZODB.tests.StorageTestBase import ZERO
 from ZODB.utils import U64, p64, load_current
 
 import ZODB.blob
@@ -48,6 +49,10 @@ class IteratorCompare(object):
 
 
 class IteratorStorage(IteratorCompare):
+
+    # Override this in tests for storages that delegate to TransactionMetaData
+    # the task to (de)serialize extension data.
+    use_extension_bytes = False
 
     def checkSimpleIteration(self):
         # Store a bunch of revisions of a single object
@@ -85,14 +90,28 @@ class IteratorStorage(IteratorCompare):
         self.assertEqual(rec.data, None)
 
     def checkTransactionExtensionFromIterator(self):
+        # It will be deserialized into a simple dict, which will be serialized
+        # differently. This simulates that 'dumps(loads(x), ...)' does not
+        # always return x.
+        class ext(dict):
+            def __reduce__(self):
+                return dict,(tuple(self.items()),)
+        ext = ext(foo=1)
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=MinPO(1))
-        iter = self._storage.iterator()
-        count = 0
-        for txn in iter:
-            self.assertEqual(txn.extension, {})
-            count +=1
-        self.assertEqual(count, 1)
+        revid = self._dostore(oid, data=MinPO(1), extension=ext)
+        txn, = self._storage.iterator()
+        self.assertEqual(txn.extension, ext)
+        try:
+            extension_bytes = txn.extension_bytes
+        except AttributeError:
+            # Volatile storages often don't serialize extension because it
+            # would be useless.
+            return
+        txn.extension = ext
+        if self.use_extension_bytes:
+            self.assertEqual(extension_bytes, txn.extension_bytes)
+        else:
+            self.assertNotEqual(extension_bytes, txn.extension_bytes)
 
     def checkIterationIntraTransaction(self):
         # TODO:  Try this test with logging enabled.  If you see something
@@ -108,7 +127,7 @@ class IteratorStorage(IteratorCompare):
         data = zodb_pickle(MinPO(0))
         try:
             self._storage.tpc_begin(t)
-            self._storage.store(oid, '\0'*8, data, '', t)
+            self._storage.store(oid, ZERO, data, '', t)
             self._storage.tpc_vote(t)
             # Don't do tpc_finish yet
             it = self._storage.iterator()
@@ -215,6 +234,7 @@ class IteratorDeepCompare(object):
             eq(txn1.user,        txn2.user)
             eq(txn1.description, txn2.description)
             eq(txn1.extension,  txn2.extension)
+            eq(txn1.extension_bytes, txn2.extension_bytes)
             itxn1 = iter(txn1)
             itxn2 = iter(txn2)
             for rec1, rec2 in zip(itxn1, itxn2):
