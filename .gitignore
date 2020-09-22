@@ -4,12 +4,13 @@ develop-eggs
 parts
 .installed.cfg
 build
-docs/_build
+doc/_build
 __pycache__
 *.pyc
 *.so
 .tox
 .coverage
+.coverage.*
 nosetests.xml
 coverage.xml
 *.egg-info

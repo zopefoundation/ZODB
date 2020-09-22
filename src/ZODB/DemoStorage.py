@@ -52,7 +52,7 @@ class DemoStorage(ConflictResolvingStorage):
     Demo storages are also handy for staging appplications where a
     read-only snapshot of a production database (often accomplished
     using a `beforestorage
-    <https://pypi.python.org/pypi/zc.beforestorage>`_) is combined
+    <https://pypi.org/project/zc.beforestorage/>`_) is combined
     with a changes database implemented with a
     :class:`~ZODB.FileStorage.FileStorage.FileStorage`.
     """

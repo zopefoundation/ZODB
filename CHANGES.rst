@@ -2,7 +2,13 @@
  Change History
 ================
 
-5.6.0 (unreleased)
+5.6.1 (unreleased)
+==================
+
+- Nothing changed yet.
+
+
+5.6.0 (2020-06-11)
 ==================
 
 - Fix UnboundLocalError when running fsoids.py script.
@@ -12,6 +18,10 @@
   affected Storage implementations that rely on mvccadapter, and could result
   in data corruption (oid loaded at wrong serial after a concurrent commit).
   See `issue 290 <https://github.com/zopefoundation/ZODB/issues/290>`_.
+  As mentionned in pull request #307, interfaces are clarified about the fact
+  that storage implementations must update at a precise moment the value that
+  is returned by lastTransaction(): just after invalidate() or
+  tpc_finish callback.
 
 - Improve volatile attribute ``_v_`` documentation.
 
@@ -42,6 +52,12 @@
   `issue 282 <https://github.com/zopefoundation/ZODB/issues/282>`_.
 
 - Fix tests with transaction 3.0.
+
+- Fix inconsistent resolution order with zope.interface v5.
+
+- Remove ``ConnectionPool.map()``. Instead, ``ConnectionPool`` is now
+  iterable. See `PR 280
+  <https://github.com/zopefoundation/ZODB/pull/280>`_.
 
 5.5.1 (2018-10-25)
 ==================

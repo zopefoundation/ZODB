@@ -148,10 +148,8 @@ class Connection(ExportImport, object):
         self._pre_cache = {}
 
         # List of all objects (not oids) registered as modified by the
-        # persistence machinery, or by add(), or whose access caused a
-        # ReadConflictError (just to be able to clean them up from the
-        # cache on abort with the other modified objects). All objects
-        # of this list are either in _cache or in _added.
+        # persistence machinery.
+        # All objects of this list are either in _cache or in _added.
         self._registered_objects = [] # [object]
 
         # ids and serials of objects for which readCurrent was called
@@ -181,15 +179,6 @@ class Connection(ExportImport, object):
         # List of oids of modified objects, which have to be invalidated
         # in the cache on abort and in other connections on finish.
         self._modified = [] # [oid]
-
-        # We intend to prevent committing a transaction in which
-        # ReadConflictError occurs.  _conflicts is the set of oids that
-        # experienced ReadConflictError.  Any time we raise ReadConflictError,
-        # the oid should be added to this set, and we should be sure that the
-        # object is registered.  Because it's registered, Connection.commit()
-        # will raise ReadConflictError again (because the oid is in
-        # _conflicts).
-        self._conflicts = {}
 
         # To support importFile(), implemented in the ExportImport base
         # class, we need to run _importDuringCommit() from our commit()
@@ -460,7 +449,6 @@ class Connection(ExportImport, object):
 
     def _tpc_cleanup(self):
         """Performs cleanup operations to support tpc_finish and tpc_abort."""
-        self._conflicts.clear()
         self._needs_to_join = True
         self._registered_objects = []
         self._creating.clear()
@@ -528,8 +516,6 @@ class Connection(ExportImport, object):
         for obj in self._registered_objects:
             oid = obj._p_oid
             assert oid
-            if oid in self._conflicts:
-                raise ReadConflictError(object=obj)
 
             if obj._p_jar is not self:
                 raise InvalidObjectReference(obj, obj._p_jar)

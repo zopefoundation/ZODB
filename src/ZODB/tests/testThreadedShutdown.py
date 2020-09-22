@@ -7,7 +7,7 @@ import ZODB
 
 class ZODBClientThread(threading.Thread):
 
-    sleep_time = 15
+    sleep_time = 3
 
     def __init__(self, db, test):
         threading.Thread.__init__(self)

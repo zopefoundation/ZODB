@@ -1,5 +1,6 @@
-ZODB Utilits Module
-===================
+=====================
+ZODB Utilities Module
+=====================
 
 The ZODB.utils module provides a number of helpful, somewhat random
 :), utility functions.
@@ -10,7 +11,7 @@ This document documents a few of them. Over time, it may document
 more.
 
 64-bit integers and strings
----------------------------------
+===========================
 
 ZODB uses 64-bit transaction ids that are typically represented as
 strings, but are sometimes manipulated as integers.  Object ids are
@@ -31,7 +32,7 @@ The contant z64 has zero packed as a 64-bit string:
     '\x00\x00\x00\x00\x00\x00\x00\x00'
 
 Transaction id generation
--------------------------
+=========================
 
 Storages assign transaction ids as transactions are committed.  These
 are based on UTC time, but must be strictly increasing.  The
@@ -86,7 +87,7 @@ time, the time stamp we get will be based on the time:
 
 
 Locking support
----------------
+===============
 
 Storages are required to be thread safe.  The locking descriptor helps
 automate that. It arranges for a lock to be acquired when a function
@@ -147,7 +148,7 @@ attribute.
     #as first argument (got C2 instance instead)
 
 Preconditions
--------------
+=============
 
 Often, we want to supply method preconditions. The locking descriptor
 supports optional method preconditions [1]_.

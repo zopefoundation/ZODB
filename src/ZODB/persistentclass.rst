@@ -177,7 +177,7 @@ until we sync:
     'red'
 
 Instances of Persistent Classes
--------------------------------
+===============================
 
 We can, of course, store instances of persistent classes in the
 database:
@@ -196,7 +196,7 @@ NOTE: If a non-persistent instance of a persistent class is copied,
 
 
 Persistent instances of persistent classes
-------------------------------------------
+==========================================
 
 Persistent instances of persistent classes are handled differently
 than normal instances.  When we copy a persistent instances of a
@@ -267,7 +267,7 @@ Now, we can read the object:
     'blue'
 
 Copying
--------
+=======
 
 If we copy an instance via export/import, the copy and the original
 share the same class:

@@ -536,13 +536,13 @@ class InvalidationTests(unittest.TestCase):
 
         >>> mvcc_storage.invalidate(p64(1), {p1._p_oid: 1})
 
-        Transaction start times are based on storage's last transaction,
-        which is known from invalidations. (Previousely, they were
-        based on the first invalidation seen in a transaction.)
+        Transaction start times are based on storage's last
+        transaction. (Previousely, they were based on the first
+        invalidation seen in a transaction.)
 
         >>> mvcc_instance.poll_invalidations() == [p1._p_oid]
         True
-        >>> mvcc_instance._start == p64(2)
+        >>> mvcc_instance._start == p64(u64(db.storage.lastTransaction()) + 1)
         True
 
         >>> mvcc_storage.invalidate(p64(10), {p2._p_oid: 1, p64(76): 1})

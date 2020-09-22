@@ -1,4 +1,6 @@
+=============
 Event support
+=============
 
 Sometimes, you want to react when ZODB does certain things.  In the
 past, ZODB provided ad hoc hook functions for this. Going forward,

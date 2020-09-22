@@ -2,7 +2,7 @@
 ZODB documentation
 ==================
 
-``zodbdocs`` is the source documentation for the website http://zodb.org. It
+``zodbdocs`` is the source documentation for the website http://zodb-docs.readthedocs.io. It
 contains all ZODB relevant documentation like "ZODB/ZEO Programming Guide",
 some ZODB articles and links to the ZODB release notes.
 

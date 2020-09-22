@@ -127,17 +127,11 @@ then, + 1 for the root object:
     True
 
 Making a savepoint at this time used to leave the cache holding the same
-number of objects.  Make sure the cache shrinks now instead.
+number of objects. Make sure the cache shrinks now instead. (Implementations that use
+weak references, such as PyPy, may need a garbage collection.)
 
     >>> dummy = transaction.savepoint()
-
-Jython needs a GC, and needs to actually access the cache data to be
-sure the size is updated (it uses "eventually consistent" implementations for
-its weak dictionaries):
-
     >>> _ = gc.collect()
-    >>> _ = getattr(cn._cache, 'data', {}).values()
-    >>> _ = getattr(cn._cache, 'data', {}).keys()
     >>> len(cn._cache) <= CACHESIZE + 1
     True
 

@@ -13,7 +13,7 @@
 ##############################################################################
 from setuptools import setup, find_packages
 
-version = '5.6.0.dev0'
+version = '5.6.1.dev0'
 
 classifiers = """\
 Intended Audience :: Developers
@@ -58,7 +58,7 @@ setup(
     keywords="database nosql python zope",
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    url='http://www.zodb.org/',
+    url='http://zodb-docs.readthedocs.io',
     license="ZPL 2.1",
     platforms=["any"],
     classifiers=list(filter(None, classifiers.split("\n"))),

@@ -3,7 +3,7 @@ Using zc.zodbdgc (fix PosKeyError's)
 
 *This article was written by Hanno Schlichting*
 
-The `zc.zodbdgc <http://pypi.python.org/pypi/zc.zodbdgc>`_ library contains two
+The `zc.zodbdgc <https://pypi.org/project/zc.zodbdgc/>`_ library contains two
 useful features. On the one hand it supports advanced ZODB packing and garbage
 collection approaches and on the other hand it includes the ability to create a
 database of all persistent references.
@@ -18,7 +18,7 @@ persistent object(s) that point to the lost object.
 
 .. note:: 
     Unless you're using multi-databases, this documentation does not apply to
-    `RelStorage <http://pypi.python.org/pypi/RelStorage>`_ which has the same
+    `RelStorage <https://pypi.org/project/RelStorage/>`_ which has the same
     features built-in, but accessible in different ways. Look at the options for
     the ``zodbpack`` script. The ``--prepack`` option creates a table containing the
     same information as we are creating in the reference database. 

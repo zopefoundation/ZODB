@@ -15,13 +15,11 @@ install:
   - "SET PATH=C:\\Python%PYTHON%;c:\\Python%PYTHON%\\scripts;%PATH%"
   - echo "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat"
   - python -m pip install -U pip setuptools wheel
-  - pip install -U -e .
-  - pip install -U zope.testrunner zope.testing manuel
-  - pip install -U zc.buildout zc.recipe.testrunner zc.recipe.egg
+  - pip install -U -e .[test]
 
 build_script:
-  - buildout bootstrap
-  - bin\buildout parts=test
+  - python -m pip install -U wheel
+  - python -W ignore setup.py -q bdist_wheel
 
 test_script:
-  - bin\test -vvv
+  - zope-testrunner --test-path=src -vvv --auto-color

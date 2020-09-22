@@ -156,6 +156,6 @@ class ExampleClass(object):
 def test_suite():
     suite = unittest.defaultTestLoader.loadTestsFromName(__name__)
     suite.addTest(
-        doctest.DocFileSuite('../utils.txt', checker=checker)
+        doctest.DocFileSuite('../utils.rst', checker=checker)
     )
     return suite

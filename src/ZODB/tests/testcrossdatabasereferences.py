@@ -183,13 +183,13 @@ def tearDownDbs(test):
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-                '../cross-database-references.txt',
+                '../cross-database-references.rst',
                 globs=dict(MyClass=MyClass),
                 tearDown=tearDownDbs,
                 checker=ZODB.tests.util.checker,
                 ),
         doctest.DocFileSuite(
-                '../cross-database-references.txt',
+                '../cross-database-references.rst',
                 globs=dict(MyClass=MyClass_w_getnewargs),
                 tearDown=tearDownDbs,
                 checker=ZODB.tests.util.checker,

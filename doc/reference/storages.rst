@@ -192,24 +192,24 @@ ZRS
   For more information, see https://github.com/zc/zrs.
 
 zlibstorage
-  `zlibstorage <https://pypi.python.org/pypi/zc.zlibstorage>`_
+  `zlibstorage <https://pypi.org/project/zc.zlibstorage/>`_
   compresses database records using the compression
   algorithm used by `gzip <http://www.gzip.org/>`_.
 
-  For more information, see https://pypi.python.org/pypi/zc.zlibstorage.
+  For more information, see https://pypi.org/project/zc.zlibstorage/.
 
 beforestorage
-  `beforestorage <https://pypi.python.org/pypi/zc.beforestorage>`_
+  `beforestorage <https://pypi.org/project/zc.beforestorage/>`_
   provides a point-in-time view of a database that might
   be changing.  This can be useful to provide a non-changing view of a
   production database for use with a :class:`~ZODB.DemoStorage.DemoStorage`.
 
-  For more information, see https://pypi.python.org/pypi/zc.beforestorage.
+  For more information, see https://pypi.org/project/zc.beforestorage/.
 
 cipher.encryptingstorage
   `cipher.encryptingstorage
-  <https://pypi.python.org/pypi/cipher.encryptingstorage/>`_ provided
+  <https://pypi.org/project/cipher.encryptingstorage/>`_ provided
   compression and encryption of database records.
 
   For more information, see
-  https://pypi.python.org/pypi/cipher.encryptingstorage/.
+  https://pypi.org/project/cipher.encryptingstorage/.

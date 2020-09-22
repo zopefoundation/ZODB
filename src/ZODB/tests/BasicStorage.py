@@ -348,16 +348,12 @@ class BasicStorage(object):
 
 
         @run_in_thread
-        def lastTransaction():
-            update_attempts()
-            results['lastTransaction'] = self._storage.lastTransaction()
-
-        @run_in_thread
         def load():
             update_attempts()
             results['load'] = utils.load_current(self._storage, ZERO)[1]
+            results['lastTransaction'] = self._storage.lastTransaction()
 
-        expected_attempts = 2
+        expected_attempts = 1
 
         if hasattr(self._storage, 'getTid'):
             expected_attempts += 1

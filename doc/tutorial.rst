@@ -220,7 +220,7 @@ individual topics.
 
 .. [#changed] 
    You can manually mark an object as changed by setting its
-   ``_p_changed__`` attribute to ``True``. You might do this if you
+   ``_p_changed`` attribute to ``True``. You might do this if you
    update a subobject, such as a standard Python ``list`` or ``set``,
    that doesn't subclass ``Persistent``.
 

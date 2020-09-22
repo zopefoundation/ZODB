@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Adapt IStorage objects to IMVCCStorage
 
 This is a largely internal implementation of ZODB, especially DB and
@@ -9,7 +10,7 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, Lock
+from .utils import p64, u64, Lock, oid_repr, tid_repr
 
 class Base(object):
 
@@ -49,7 +50,6 @@ class MVCCAdapter(Base):
         instance = MVCCAdapterInstance(self)
         with self._lock:
             self._instances.add(instance)
-        instance._lastTransaction()
         return instance
 
     def before_instance(self, before=None):
@@ -100,7 +100,7 @@ class MVCCAdapterInstance(Base):
         )
 
     _start = None # Transaction start time
-    _ltid = None # Last storage transaction id
+    _ltid = b''   # Last storage transaction id
 
     def __init__(self, base):
         self._base = base
@@ -108,16 +108,6 @@ class MVCCAdapterInstance(Base):
         self._lock = Lock()
         self._invalidations = set()
         self._sync = getattr(self._storage, 'sync', lambda : None)
-
-    def _lastTransaction(self):
-        ltid = self._storage.lastTransaction()
-        # At this precise moment, a transaction may be
-        # committed and we have already received the new tid.
-        with self._lock:
-            # So make sure we won't override with a smaller value.
-            if self._ltid is None:
-                # Calling lastTransaction() here could result in a deadlock.
-                self._ltid = ltid
 
     def release(self):
         self._base._release(self)
@@ -142,8 +132,15 @@ class MVCCAdapterInstance(Base):
             self._sync()
 
     def poll_invalidations(self):
+        # Storage implementations don't always call invalidate() when
+        # the last TID changes, e.g. after network reconnection,
+        # so we still have to poll.
+        ltid = self._storage.lastTransaction()
+        # But at this precise moment, a transaction may be committed and
+        # we have already received the new tid, along with invalidations.
         with self._lock:
-            self._start = p64(u64(self._ltid) + 1)
+            # So we must pick the greatest value.
+            self._start = p64(u64(max(ltid, self._ltid)) + 1)
             if self._invalidations is None:
                 self._invalidations = set()
                 return None
@@ -156,7 +153,31 @@ class MVCCAdapterInstance(Base):
         assert self._start is not None
         r = self._storage.loadBefore(oid, self._start)
         if r is None:
-            raise POSException.ReadConflictError(repr(oid))
+            # object was deleted or not-yet-created.
+            # raise ReadConflictError - not - POSKeyError due to backward
+            # compatibility: a pack(t+δ) could be running simultaneously to our
+            # transaction that observes database as of t state. Such pack,
+            # because it packs the storage from a "future-to-us" point of view,
+            # can remove object revisions that we can try to load, for example:
+            #
+            #   txn1            <-- t
+            #        obj.revA
+            #
+            #   txn2            <-- t+δ
+            #        obj.revB
+            #
+            # for such case we want user transaction to be restarted - not
+            # failed - by raising ConflictError subclass.
+            #
+            # XXX we don't detect for pack to be actually running - just assume
+            # the worst. It would be good if storage could provide information
+            # whether pack is/was actually running and its details, take that
+            # into account, and raise ReadConflictError only in the presence of
+            # database being simultaneously updated from back of its log.
+            raise POSException.ReadConflictError(
+                    "load %s @%s: object deleted, likely by simultaneous pack" %
+                    (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
+
         return r[:2]
 
     def prefetch(self, oids):

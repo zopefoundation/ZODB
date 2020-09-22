@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (c) Zope Corporation and Contributors.
@@ -77,12 +78,6 @@ class IConnection(Interface):
 
     Two options affect consistency.  By default, the mvcc and synch
     options are enabled by default.
-
-    If you pass mvcc=False to db.open(), the Connection will never read
-    non-current revisions of an object.  Instead it will raise a
-    ReadConflictError to indicate that the current revision is
-    unavailable because it was written after the current transaction
-    began.
 
     The logic for handling modifications assumes that the thread that
     opened a Connection (called db.open()) is the thread that will use
@@ -280,9 +275,9 @@ class IStorageWrapper(Interface):
     - Out-of-band invalidation support
 
       A storage can notify it's wrapper of object invalidations that
-      don't occur due to direct operations on the storage.  Currently
-      this is only used by ZEO client storages to pass invalidation
-      messages sent from a server.
+      don't occur due to direct operations on the storage. This is used
+      by the client part of non-IMVCCStorage storages like ZEO and NEO
+      to pass invalidation messages sent from a storage server.
 
     - Record-reference extraction
 
@@ -317,6 +312,15 @@ class IStorageWrapper(Interface):
         """Invalidate object ids committed by the given transaction
 
         The oids argument is an iterable of object identifiers.
+
+        Unless the cache needs to be completely cleared via
+        invalidateCache event, the wrapped storage calls invalidate for
+        all transactions in the order as they are committed. For every
+        transaction the full set of its objects - both modified and just
+        created - is reported.
+
+        invalidate(tid) is always called before the storage starts to
+        report its lastTransaction() ≥ tid.
 
         The version argument is provided for backward
         compatibility. If passed, it must be an empty string.
@@ -684,6 +688,14 @@ class IStorage(Interface):
 
     def lastTransaction():
         """Return the id of the last committed transaction.
+
+        For proper MVCC operation, the return value is the id of the last
+        transaction for which invalidation notifications are completed.
+
+        In particular for client-server implementations, lastTransaction
+        should return a cached value (rather than querying the server).
+        A preliminary call to sync() can be done to get the actual last
+        TID at the wanted time.
 
         If no transactions have been committed, return a string of 8
         null (0) characters.
@@ -1201,13 +1213,18 @@ class IMVCCStorage(IStorage):
     def poll_invalidations():
         """Poll the storage for external changes.
 
-        Returns either a sequence of OIDs that have changed, or None.  When a
-        sequence is returned, the corresponding objects should be removed
-        from the ZODB in-memory cache.  When None is returned, the storage is
-        indicating that so much time has elapsed since the last poll that it
-        is no longer possible to enumerate all of the changed OIDs, since the
-        previous transaction seen by the connection has already been packed.
-        In that case, the ZODB in-memory cache should be cleared.
+        Returns either None, or a sequence of OIDs with the full set of
+        objects that have been created or changed since the previous
+        call to poll_invalidations.
+
+        When a sequence is returned, the corresponding objects should be
+        removed from the ZODB in-memory cache.
+
+        When None is returned, the storage is indicating that so much time has
+        elapsed since the last poll that it is no longer possible to enumerate
+        all of the changed OIDs, since the previous transaction seen by the
+        connection has already been packed. In that case, the ZODB in-memory
+        cache should be cleared.
         """
 
     def sync(force=True):
