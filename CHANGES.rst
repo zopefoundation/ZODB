@@ -5,14 +5,12 @@
 5.6.1 (unreleased)
 ==================
 
-- Nothing changed yet.
+- Fix UnboundLocalError when running fsoids.py script.
+  See `issue 268 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
 
 5.6.0 (2020-06-11)
 ==================
-
-- Fix UnboundLocalError when running fsoids.py script.
-  See `issue 268 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
 - Fix race with invalidations when starting a new transaction. The bug
   affected Storage implementations that rely on mvccadapter, and could result
