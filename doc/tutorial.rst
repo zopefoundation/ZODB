@@ -83,7 +83,7 @@ storage, a database and finally a connection::
     storage = ZODB.FileStorage.FileStorage('mydata.fs')
     db = ZODB.DB(storage)
     connection = db.open()
-    root = connection.root
+    root = connection.root()
 
 ZODB has a pluggable storage framework.  This means there are a
 variety of storage implementations to meet different needs, from
@@ -136,7 +136,7 @@ collection object [#root]_::
     import account, BTrees.OOBTree
 
     root.accounts = BTrees.OOBTree.BTree()
-    root.accounts['account-1'] = Account()
+    root.accounts['account-1'] = account.Account()
 
 Another common practice is to store a persistent object in the root of
 the database that provides an application-specific root::
