@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (c) Zope Corporation and Contributors.
@@ -108,10 +109,15 @@ class DemoStorage(ConflictResolvingStorage):
             if close_changes_on_close is None:
                 close_changes_on_close = False
         else:
+            self._temporary_changes = False
             if ZODB.interfaces.IBlobStorage.providedBy(changes):
                 zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
             if close_changes_on_close is None:
                 close_changes_on_close = True
+
+        if ZODB.interfaces.IExternalGC.providedBy(changes):
+            zope.interface.alsoProvides(self, ZODB.interfaces.IExternalGC)
+            self.deleteObject = self._storeDelete
 
         self.changes = changes
         self.close_changes_on_close = close_changes_on_close
@@ -375,6 +381,40 @@ class DemoStorage(ConflictResolvingStorage):
             self._resolved.append(oid)
         else:
             self.changes.store(oid, serial, data, '', transaction)
+
+    # _storeDelete serves deleteObject when .changes implements IExternalGC.
+    def _storeDelete(self, oid, oldserial, transaction):
+        if transaction is not self._transaction:
+            raise ZODB.POSException.StorageTransactionError(self, transaction)
+
+        # oldserial ∈ changes  -> changes.deleteObject
+        baseHead = self.base.lastTransaction()
+        if oldserial > baseHead:
+            self.changes.deleteObject(oid, oldserial, transaction)
+            return
+
+        # oldserial ∈ base  -> find out it is indeed the latest there and then
+        # call changes.deleteObject(oldserial=z64)
+
+        _, serial = ZODB.utils.loadAt(self.changes, oid, self.changes.lastTransaction())
+        if serial != ZODB.utils.z64:
+            # object has data or deletion record in changes
+            raise ZODB.POSException.ConflictError(oid=oid, serials=(serial, oldserial))
+
+        _, serial = ZODB.utils.loadAt(self.base, oid, baseHead)
+        if serial != oldserial:
+            raise ZODB.POSException.ConflictError(oid=oid, serials=(serial, oldserial))
+
+        # object has no data/deletion record in changes and its latest revision in base == oldserial
+        # -> changes.deleteObject(oldserial=z64) + correct oldserial back on conflict.
+        try:
+            self.changes.deleteObject(oid, ZODB.utils.z64, transaction)
+        except ZODB.POSException.ConflictError as e:
+            assert len(e.serials) == 2
+            assert e.serials[1] == ZODB.utils.z64
+            e.serials = (e.serials[0], oldserial)
+            raise
+
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):

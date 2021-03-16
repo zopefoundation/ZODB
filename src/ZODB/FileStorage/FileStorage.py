@@ -661,9 +661,10 @@ class FileStorage(
         with self._lock:
             old = self._index_get(oid, 0)
             if not old:
-                raise POSKeyError(oid)
-            h = self._read_data_header(old, oid)
-            committed_tid = h.tid
+                committed_tid = z64
+            else:
+                h = self._read_data_header(old, oid)
+                committed_tid = h.tid
 
             if oldserial != committed_tid:
                 raise ConflictError(

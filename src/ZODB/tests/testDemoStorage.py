@@ -384,4 +384,12 @@ def test_suite():
     suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage,
                                      'check'))
     suite.addTest(unittest.makeSuite(DemoStorageTests2, 'check'))
+
+    def demo_for_gctest():
+        from ZODB.FileStorage import FileStorage
+        base = ZODB.FileStorage.FileStorage('data.fs', blob_dir="data_blobs")
+        changes = ZODB.FileStorage.FileStorage('changes.fs', blob_dir="changes_blobs", pack_gc=False)
+        return ZODB.DemoStorage.DemoStorage(base=base, changes=changes)
+    suite.addTest(PackableStorage.IExternalGC_suite(demo_for_gctest))
+
     return suite
