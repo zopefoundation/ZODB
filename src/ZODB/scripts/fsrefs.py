@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (c) 2002 Zope Foundation and Contributors.
@@ -118,30 +119,38 @@ def main(path=None):
     # This does not include oids in undone.
     noload = {}
 
-    for oid in fs._index.keys():
+    #print("# building references graph ...")
+    graph = {} # oid -> refs
+
+    posoidv = list((pos, oid) for (oid, pos) in fs._index.items()) # [] of (pos, oid)
+    posoidv.sort() # access objects in order of pos↑  (optimize disk IO)
+    for _,oid in posoidv:
         try:
             data, serial = load_current(fs, oid)
         except (KeyboardInterrupt, SystemExit):
             raise
         except POSKeyError:
             undone[oid] = 1
+            continue
         except:
             if verbose:
                 traceback.print_exc()
             noload[oid] = 1
-
-    inactive = noload.copy()
-    inactive.update(undone)
-    for oid in fs._index.keys():
-        if oid in inactive:
             continue
-        data, serial = load_current(fs, oid)
+
         refs = get_refs(data)
+        graph[oid] = refs
+
+    #print("# verifying reachability ...")
+    oidv = list(graph.keys())
+    oidv.sort() # verify objects in order of oid↑  (useful for human perception; stable output)
+    for oid in oidv:
+        refs = graph[oid]
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for ref, klass in refs:
             if klass is None:
                 klass = '<unknown>'
-            if ref not in fs._index:
+            if ref not in graph:
                 missing.append((ref, klass, "missing"))
             if ref in noload:
                 missing.append((ref, klass, "failed to load"))
