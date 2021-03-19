@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 ##############################################################################
 #
 # Copyright (c) 2002 Zope Foundation and Contributors.
@@ -62,14 +61,19 @@ of objects, it does not attempt to load objects in versions, or non-current
 revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
+
+# implementation note: to save RAM we work with OIDs as with 64-bit integers
+# and keep references graph in LOBTree.
+
 from __future__ import print_function
 import traceback
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr, get_pickle_metadata, load_current
+from ZODB.utils import u64, p64, oid_repr, get_pickle_metadata, load_current
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
+from BTrees.LOBTree import LOBTree, TreeSet as LTreeSet
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
@@ -81,7 +85,7 @@ def report(oid, data, serial, missing):
     else:
         plural = ""
     ts = TimeStamp(serial)
-    print("oid %s %s.%s" % (hex(u64(oid)), from_mod, from_class))
+    print("oid %s %s.%s" % (hex(oid), from_mod, from_class))
     print("last updated: %s, tid=%s" % (ts, hex(u64(serial))))
     print("refers to invalid object%s:" % plural)
     for oid, info, reason in missing:
@@ -89,7 +93,7 @@ def report(oid, data, serial, missing):
             description = "%s.%s" % info
         else:
             description = str(info)
-        print("\toid %s %s: %r" % (oid_repr(oid), reason, description))
+        print("\toid %s %s: %r" % (oid_repr(p64(oid)), reason, description))
     print()
 
 def main(path=None):
@@ -113,39 +117,39 @@ def main(path=None):
     # the object (the oid is still in the index, but its current data
     # record has a backpointer of 0, and POSKeyError is raised then
     # because of that backpointer).
-    undone = {}
+    undone = LTreeSet() # of oid
 
     # Set of oids that were present in the index but failed to load.
     # This does not include oids in undone.
-    noload = {}
+    noload = LTreeSet() # of oid
 
     #print("# building references graph ...")
-    graph = {} # oid -> refs
+    graph = LOBTree() # oid -> refs   ; refs = [] of (oid, klass)
 
-    posoidv = list((pos, oid) for (oid, pos) in fs._index.items()) # [] of (pos, oid)
-    posoidv.sort() # access objects in order of pos↑  (optimize disk IO)
+    posoidv = list((pos, u64(oid)) for (oid, pos) in fs._index.items()) # [] of (pos, oid)
+    posoidv.sort() # access objects in order of ascending file position  (optimize disk IO)
     for _,oid in posoidv:
         try:
-            data, serial = load_current(fs, oid)
+            data, serial = load_current(fs, p64(oid))
         except (KeyboardInterrupt, SystemExit):
             raise
         except POSKeyError:
-            undone[oid] = 1
+            undone.add(oid)
             continue
         except:
             if verbose:
                 traceback.print_exc()
-            noload[oid] = 1
+            noload.add(oid)
             continue
 
         refs = get_refs(data)
+        refs = tuple((u64(oid), klass) for (oid,klass) in refs)
         graph[oid] = refs
+    del posoidv
 
     #print("# verifying reachability ...")
-    oidv = list(graph.keys())
-    oidv.sort() # verify objects in order of oid↑  (useful for human perception; stable output)
-    for oid in oidv:
-        refs = graph[oid]
+    # verify objects in order of ascending oid  (useful for human perception; stable output)
+    for oid, refs in graph.iteritems():
         missing = [] # contains 3-tuples of oid, klass-metadata, reason
         for ref, klass in refs:
             if klass is None:
