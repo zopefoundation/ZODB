@@ -63,7 +63,7 @@ in non-current revisions.
 """
 
 # implementation note: to save RAM we work with OIDs as with 64-bit integers
-# and keep references graph in LOBTree.
+# and keep references graph in QOBTree.
 
 from __future__ import print_function
 import traceback
@@ -73,7 +73,7 @@ from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64, p64, oid_repr, get_pickle_metadata, load_current
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
-from BTrees.LOBTree import LOBTree, TreeSet as LTreeSet
+from BTrees.QOBTree import QOBTree, TreeSet as QTreeSet
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
@@ -117,14 +117,14 @@ def main(path=None):
     # the object (the oid is still in the index, but its current data
     # record has a backpointer of 0, and POSKeyError is raised then
     # because of that backpointer).
-    undone = LTreeSet() # of oid
+    undone = QTreeSet() # of oid
 
     # Set of oids that were present in the index but failed to load.
     # This does not include oids in undone.
-    noload = LTreeSet() # of oid
+    noload = QTreeSet() # of oid
 
     #print("# building references graph ...")
-    graph = LOBTree() # oid -> refs   ; refs = [] of (oid, klass)
+    graph = QOBTree() # oid -> refs   ; refs = [] of (oid, klass)
 
     posoidv = list((pos, u64(oid)) for (oid, pos) in fs._index.items()) # [] of (pos, oid)
     posoidv.sort() # access objects in order of ascending file position  (optimize disk IO)
