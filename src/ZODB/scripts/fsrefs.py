@@ -74,6 +74,7 @@ from ZODB.utils import u64, p64, oid_repr, get_pickle_metadata, load_current
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
 from BTrees.QOBTree import QOBTree, TreeSet as QTreeSet
+from BTrees.QQBTree import QQBTree, Set as QSet
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
@@ -109,8 +110,21 @@ def main(path=None):
 
         path, = args
 
+    import os, psutil, time
+    myproc = psutil.Process(os.getpid())
+    KB = 1024.
+    MB = 1024*KB
+    t0 = time.time()
+    def print_meminfo(subj):
+      now = time.time()
+      m = myproc.memory_info()
+      print('[%.1fs]\t%s:\tVIRT: %i MB\tRSS: %iMB' % (now-t0, subj, m.vms//MB, m.rss//MB))
+
+    print_meminfo("start")
 
     fs = FileStorage(path, read_only=1)
+
+    print_meminfo("open")
 
     # Set of oids in the index that failed to load due to POSKeyError.
     # This is what happens if undo is applied to the transaction creating
@@ -123,12 +137,21 @@ def main(path=None):
     # This does not include oids in undone.
     noload = QTreeSet() # of oid
 
-    #print("# building references graph ...")
-    graph = QOBTree() # oid -> refs   ; refs = [] of (oid, klass)
+    print("# building pos2oid index ...")
+    pos2oid = QQBTree()
+    nobjects = 0
+    for oid, pos in fs._index.iteritems():
+        pos2oid[pos] = u64(oid)
+        nobjects += 1
+    print_meminfo('pos2oid')
 
-    posoidv = list((pos, u64(oid)) for (oid, pos) in fs._index.items()) # [] of (pos, oid)
-    posoidv.sort() # access objects in order of ascending file position  (optimize disk IO)
-    for _,oid in posoidv:
+    print("# building references graph ...")
+    graph = QOBTree() # oid -> refs   ; refs = QSet of oid
+    i = 0
+    for oid in pos2oid.itervalues(): # access objects in order of ascending file position  (optimize disk IO)
+        i += 1
+        if i % 1000000 == 0:
+            print_meminfo('%d / %d (%.1f %%)' % (i, nobjects, 100.*i/nobjects)
         try:
             data, serial = load_current(fs, p64(oid))
         except (KeyboardInterrupt, SystemExit):
@@ -143,25 +166,70 @@ def main(path=None):
             continue
 
         refs = get_refs(data)
-        refs = tuple((u64(oid), klass) for (oid,klass) in refs)
-        graph[oid] = refs
-    del posoidv
+        if refs:
+            refs = QSet(u64(ref) for (ref,klass) in refs)  # without klass
+            #print('%s\t -> %s' % (oid, refs,))
+            graph[oid] = refs
 
-    #print("# verifying reachability ...")
-    # verify objects in order of ascending oid  (useful for human perception; stable output)
+    del pos2oid
+    print_meminfo('graph')
+
+    """
+    print()
     for oid, refs in graph.iteritems():
-        missing = [] # contains 3-tuples of oid, klass-metadata, reason
-        for ref, klass in refs:
+        print('%s -> %s' % (oid, refs))
+    print()
+    """
+
+    print("# verifying reachability ...")
+
+    # Missing collects and reports problems when oid's ref is missing.
+    class Missing(object):
+        def __init__(self, oid):
+            self.oid = oid
+            self.data = None      # oid data    (initialized lazily when/if we need it)
+            self.serial = None    # oid serial  (----//----)
+            self.full_refs = None # full result of get_refs(oid)  (----//----)
+            self.missing = []     # contains 3-tuples of oid, klass-metadata, reason
+
+        # appends records that ref, pointed to by .oid, is missing due to reason
+        def append(self, ref, reason):
+            # init .full_refs lazily because we need to know klass with which oid->ref came.
+            # graph (see below) does not store klass in RAM because ... XXX
+            if self.full_refs is None:
+                self.data, self.serial = load_current(fs, p64(self.oid)) # must not raise - oid is in graph keys
+                refs = get_refs(self.data)
+                self.full_refs = tuple((u64(ref), klass) for (ref,klass) in refs)
+
+            klass = None
+            for ref_, klass_ in self.full_refs:
+                if ref == ref_:
+                    klass = klass_
+                    break
+                # XXX assert that ref is in .full_refs
             if klass is None:
                 klass = '<unknown>'
-            if ref not in graph:
-                missing.append((ref, klass, "missing"))
+
+            self.missing.append((ref, klass, reason))
+
+        def __bool__(self):
+            return len(self.missing) != 0
+
+        def report(self):
+            report(self.oid, self.data, self.serial, self.missing)
+
+    # verify objects in order of ascending oid  (useful for human perception; stable output)
+    for oid, refs in graph.iteritems():
+        missing = Missing(oid)
+        for ref in refs:
+            if not (ref in graph  or  p64(ref) in fs._index):
+                missing.append(ref, "missing")
             if ref in noload:
-                missing.append((ref, klass, "failed to load"))
+                missing.append(ref, "failed to load")
             if ref in undone:
-                missing.append((ref, klass, "object creation was undone"))
+                missing.append(ref, "object creation was undone")
         if missing:
-            report(oid, data, serial, missing)
+            missing.report()
 
 if __name__ == "__main__":
     main()
