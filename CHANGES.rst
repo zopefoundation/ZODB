@@ -8,8 +8,8 @@
 - Fix UnboundLocalError when running fsoids.py script.
   See `issue 268 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
-- Rework `fsrefs` script to work significantly faster by optimizing how it does
-  IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`.
+- Rework ``fsrefs`` script to work significantly faster by optimizing how it does
+  IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`_.
 
 5.6.0 (2020-06-11)
 ==================

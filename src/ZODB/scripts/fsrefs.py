@@ -122,7 +122,6 @@ def main(path=None):
     # build {pos -> oid} index that is reverse to {oid -> pos} fs._index
     # we'll need this to iterate objects in order of ascending file position to
     # optimize disk IO.
-    #print("# building pos2oid index ...")
     pos2oid = QQBTree() # pos -> u64(oid)
     for oid, pos in fs._index.iteritems():
         pos2oid[pos] = u64(oid)
@@ -130,7 +129,6 @@ def main(path=None):
     # pass 1: load all objects listed in the index and remember those objects
     # that are deleted or load with an error. Iterate objects in order of
     # ascending file position to optimize disk IO.
-    #print("# pass 1 ...")
     for oid64 in pos2oid.itervalues():
         oid = p64(oid64)
         try:
@@ -147,7 +145,6 @@ def main(path=None):
     # pass 2: go through all objects again and verify that their references do
     # not point to problematic object set. Iterate objects in order of ascending
     # file position to optimize disk IO.
-    #print("# pass 2 ...")
     inactive = noload.copy()
     inactive.update(undone)
     for oid64 in pos2oid.itervalues():
