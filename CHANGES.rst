@@ -6,7 +6,7 @@
 ==================
 
 - Fix UnboundLocalError when running fsoids.py script.
-  See `issue 268 <https://github.com/zopefoundation/ZODB/issues/285>`_.
+  See `issue 285 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
 - Rework ``fsrefs`` script to work significantly faster by optimizing how it does
   IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`_.
