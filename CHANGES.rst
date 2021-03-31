@@ -11,6 +11,9 @@
 - Rework ``fsrefs`` script to work significantly faster by optimizing how it does
   IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`_.
 
+- Require Python 3 to build the documentation.
+
+
 5.6.0 (2020-06-11)
 ==================
 
