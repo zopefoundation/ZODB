@@ -5,6 +5,12 @@
 5.6.1 (unreleased)
 ==================
 
+- ``MVCCAdapter`` instances mark their ``tpc_finish`` callbacks
+  with the attribute ``invalidateTransaction == True``.
+  This can help storages to fullfil the requirement of ``ZODB>=5.6``
+  to let the value of ``lastTransaction`` change only after
+  invalidation processing.
+
 - Fix UnboundLocalError when running fsoids.py script.
   See `issue 285 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 

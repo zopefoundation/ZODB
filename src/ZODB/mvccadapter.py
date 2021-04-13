@@ -214,6 +214,9 @@ class MVCCAdapterInstance(Base):
             self._ltid = tid
             func(tid)
 
+        # inform the storage that the callback implements an
+        # optimized ``invalidateTransaction``
+        invalidate_finish.invalidateTransaction = True
         return self._storage.tpc_finish(transaction, invalidate_finish)
 
 def read_only_writer(self, *a, **kw):
@@ -299,4 +302,6 @@ class UndoAdapterInstance(Base):
             self._base._invalidate_finish(tid, self._undone, None)
             func(tid)
 
+        # tell the storage that the callback does the invalidation
+        invalidate_finish.invalidateTransaction = True
         self._storage.tpc_finish(transaction, invalidate_finish)
