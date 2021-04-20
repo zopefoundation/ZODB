@@ -19,6 +19,7 @@ import atexit
 import os
 import persistent
 import re
+import sys
 import tempfile
 import time
 import transaction
@@ -338,3 +339,41 @@ class MonotonicallyIncreasingTimeMinimalTestLayer(MininalTestLayer):
     def testTearDown(self):
         self.time_manager.close()
         reset_monotonic_time()
+
+
+def with_high_concurrency(f):
+    """
+    with_high_concurrency decorates f to run with high frequency of thread context switches.
+
+    It is useful for tests that try to probabilistically reproduce race
+    condition scenarios.
+    """
+    @functools.wraps(f)
+    def _(*argv, **kw):
+        if six.PY3:
+            # Python3, by default, switches every 5ms, which turns threads in
+            # intended "high concurrency" scenarios to execute almost serially.
+            # Raise the frequency of context switches in order to increase the
+            # probability to reproduce interesting/tricky overlapping of threads.
+            #
+            # See https://github.com/zopefoundation/ZODB/pull/345#issuecomment-822188305 and
+            # https://github.com/zopefoundation/ZEO/issues/168#issuecomment-821829116 for details.
+            _ = sys.getswitchinterval()
+            def restore():
+                sys.setswitchinterval(_)
+            sys.setswitchinterval(5e-6) # ~ 100 simple instructions on modern hardware
+
+        else:
+            # Python2, by default, switches threads every "100 instructions".
+            # Just make sure we run f with that default.
+            _ = sys.getcheckinterval()
+            def restore():
+                sys.setcheckinterval(_)
+            sys.setcheckinterval(100)
+
+        try:
+            return f(*argv, **kw)
+        finally:
+            restore()
+
+    return _
