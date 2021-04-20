@@ -24,6 +24,7 @@ from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
 from ZODB.tests.StorageTestBase import ZERO
+from ZODB.tests.util import with_high_concurrency
 
 import threading
 import time
@@ -392,6 +393,7 @@ class BasicStorage(object):
     # verify storage/Connection for race in between load/open and local invalidations.
     # https://github.com/zopefoundation/ZEO/issues/166
     # https://github.com/zopefoundation/ZODB/issues/290
+    @with_high_concurrency
     def check_race_loadopen_vs_local_invalidate(self):
         db = DB(self._storage)
 
@@ -498,6 +500,7 @@ class BasicStorage(object):
     # This test is similar to check_race_loadopen_vs_local_invalidate but does
     # not reuse its code because the probability to reproduce external
     # invalidation bug with only 1 mutator + 1 verifier is low.
+    @with_high_concurrency
     def check_race_load_vs_external_invalidate(self):
         # dbopen creates new client storage connection and wraps it with DB.
         def dbopen():
