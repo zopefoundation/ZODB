@@ -1,6 +1,8 @@
 Sphinx
 # Silence dependabot claiming a security issue in older versions:
-pygments >= 2.7.4
+pygments >= 2.7.4 ; python_version >= 3
+# pygments 2.6 stopped supporting py2
+pygments <  2.6   ; python_version <  3
 docutils
 ZODB
 sphinxcontrib_zopeext
