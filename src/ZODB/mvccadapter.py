@@ -154,11 +154,12 @@ class MVCCAdapterInstance(Base):
         r = self._storage.loadBefore(oid, self._start)
         if r is None:
             # object was deleted or not-yet-created.
-            # raise ReadConflictError - not - POSKeyError due to backward
-            # compatibility: a pack(t+δ) could be running simultaneously to our
-            # transaction that observes database as of t state. Such pack,
-            # because it packs the storage from a "future-to-us" point of view,
-            # can remove object revisions that we can try to load, for example:
+            # raise POSKeyError, or ReadConflictError, if the deletion is
+            # potentially due to simultaneous pack: a pack(t+δ) could be
+            # running simultaneously to our transaction that observes database
+            # as of t state. Such pack, because it packs the storage from a
+            # "future-to-us" point of view, can remove object revisions that we
+            # can try to load, for example:
             #
             #   txn1            <-- t
             #        obj.revA
@@ -168,15 +169,22 @@ class MVCCAdapterInstance(Base):
             #
             # for such case we want user transaction to be restarted - not
             # failed - by raising ConflictError subclass.
-            #
-            # XXX we don't detect for pack to be actually running - just assume
-            # the worst. It would be good if storage could provide information
-            # whether pack is/was actually running and its details, take that
-            # into account, and raise ReadConflictError only in the presence of
-            # database being simultaneously updated from back of its log.
-            raise POSException.ReadConflictError(
-                    "load %s @%s: object deleted, likely by simultaneous pack" %
-                    (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
+            if hasattr(self._storage, 'pack'):
+                lastPack = getattr(self._storage, 'lastPack', None)
+                if lastPack is not None:
+                    packed = lastPack()
+                    packConflict = (p64(u64(self._start)-1) < packed)
+                else:
+                    packConflict = True # no lastPack information - assume the worst
+
+                if packConflict:
+                    # database simultaneously packed from back of its log over our view of it
+                    raise POSException.ReadConflictError(
+                            "load %s @%s: object deleted, likely by simultaneous pack" %
+                            (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
+
+            # no simultaneous pack detected, or lastPack was before our view of the database
+            raise POSException.POSKeyError(oid)
 
         return r[:2]
 

@@ -104,13 +104,19 @@ class DemoStorage(ConflictResolvingStorage):
             self._temporary_changes = True
             changes = ZODB.MappingStorage.MappingStorage()
             zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
+            zope.interface.alsoProvides(self, ZODB.interfaces.IStorageLastPack)
             if close_changes_on_close is None:
                 close_changes_on_close = False
         else:
             if ZODB.interfaces.IBlobStorage.providedBy(changes):
                 zope.interface.alsoProvides(self, ZODB.interfaces.IBlobStorage)
+            if ZODB.interfaces.IStorageLastPack.providedBy(changes):
+                zope.interface.alsoProvides(self, ZODB.interfaces.IStorageLastPack)
             if close_changes_on_close is None:
                 close_changes_on_close = True
+
+        if ZODB.interfaces.IStorageLastPack.providedBy(self):
+            self.lastPack = changes.lastPack
 
         self.changes = changes
         self.close_changes_on_close = close_changes_on_close

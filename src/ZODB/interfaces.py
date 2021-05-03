@@ -759,6 +759,8 @@ class IStorage(Interface):
         extract object references from database records.  This is
         needed to determine which objects are referenced from object
         revisions.
+
+        See also: IStorageLastPack.
         """
 
     def registerDB(wrapper):
@@ -884,6 +886,34 @@ class IPrefetchStorage(IStorage):
 
         The oids argument is an iterable that should be iterated no
         more than once.
+        """
+
+class IStorageLastPack(Interface):
+
+    def lastPack(): # -> pack-cut-point (tid)
+        """lastPack returns ID of the last transaction used as pack cut point.
+
+        For a database view with at ≥ lastPack, the storage guarantees to
+        persist all objects revisions to represent such view. For a database
+        view with at < lastPack, the storage does not provide such guarantee.
+        In particular pack can remove objects revisions that were non-current as
+        of lastPack database view at pack time.
+
+        Similarly, the storage gurantees to persist all transactions in
+        [lastPack, lastTransaction] range, while for [0, lastPack) range there
+        is no such guarantee. In particular pack can remove transactions with
+        only non-current objects revisions as of lastPack database view.
+
+        lastPack is non-decreasing - it can only grow, or stay equal over time.
+
+        lastPack is always ≤ IStorage.lastTransaction.
+
+        lastPack is related to pack_time passed to IStorage.pack - internally
+        that time is converted to transaction ID format after clipping into
+        valid range and looking up nearby transaction.
+
+        lastPack value cannot be cached - for client/storage case the call has
+        to perform round-trip and synchronize with the server.
         """
 
 

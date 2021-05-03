@@ -282,6 +282,20 @@ class UserMethodTests(unittest.TestCase):
         Traceback (most recent call last):
           ...
         POSKeyError: 0x01
+
+        A request for an object that doesn't exist yet as of connection view of
+        the database will raise a POSKeyError too.
+        >>> tm2 = transaction.TransactionManager()
+        >>> cn2 = db.open(transaction_manager=tm2)
+        >>> root2 = cn2.root()
+        >>> obj2 = Persistent()
+        >>> root2[2] = obj2
+        >>> tm2.commit()
+
+        >>> cn.get(obj2._p_oid) # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+          ...
+        POSKeyError: ...
         """
 
     def doctest_close(self):

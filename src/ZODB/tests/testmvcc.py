@@ -386,7 +386,7 @@ No earlier revision available
 
 We'll reuse the code from the example above, except that there will
 only be a single revision of "b."  As a result, the attempt to
-activate "b" will result in a ReadConflictError.
+activate "b" will result in a POSKeyError.
 
 >>> ts = TestStorage()
 >>> db = DB(ts)
@@ -413,7 +413,7 @@ False
 >>> r1["b"]._p_activate() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ReadConflictError: ...
+POSKeyError: ...
 
 >>> db.close()
 """
@@ -427,7 +427,7 @@ checker = renormalizing.RENormalizing([
     (re.compile("b('.*?')"), r"\1"),
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
-    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
+    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
     ])
 
 def test_suite():

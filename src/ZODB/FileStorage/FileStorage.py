@@ -57,6 +57,7 @@ from ZODB.interfaces import IStorageCurrentRecordIteration
 from ZODB.interfaces import IStorageIteration
 from ZODB.interfaces import IStorageRestoreable
 from ZODB.interfaces import IStorageUndoable
+from ZODB.interfaces import IStorageLastPack
 from ZODB.POSException import ConflictError
 from ZODB.POSException import MultipleUndoErrors
 from ZODB.POSException import POSKeyError
@@ -133,6 +134,7 @@ class TempFormatter(FileStorageFormatter):
         IStorageCurrentRecordIteration,
         IExternalGC,
         IStorage,
+        IStorageLastPack,
         )
 class FileStorage(
     FileStorageFormatter,
@@ -145,6 +147,11 @@ class FileStorage(
 
     # Set True while a pack is in progress; undo is blocked for the duration.
     _pack_is_in_progress = False
+    # last tid used as pack cut-point
+    # TODO save/load _lastPack with index - for it not to go to z64 on next
+    #      file reopen. Currently lastPack is used only to detect race of load
+    #      wrt simultaneous pack, so not persisting lastPack is practically ok.
+    _lastPack = z64
 
     def __init__(self, file_name, create=False, read_only=False, stop=None,
                  quota=None, pack_gc=True, pack_keep_old=True, packer=None,
@@ -1183,6 +1190,11 @@ class FileStorage(
         finally:
             p.close()
 
+    def lastPack(self):
+        """lastPack implements IStorageLastPack."""
+        with self._lock:
+            return self._lastPack
+
     def pack(self, t, referencesf, gc=None):
         """Copy data from the current database file to a packed file
 
@@ -1207,6 +1219,7 @@ class FileStorage(
             if self._pack_is_in_progress:
                 raise FileStorageError('Already packing')
             self._pack_is_in_progress = True
+            stop = min(stop, self._ltid)
 
         if gc is None:
             gc = self._pack_gc
@@ -1245,6 +1258,8 @@ class FileStorage(
                     self._file = open(self._file_name, 'r+b')
                     self._initIndex(index, self._tindex)
                     self._pos = opos
+                    if stop > self._lastPack:
+                        self._lastPack = stop
 
             # We're basically done.  Now we need to deal with removed
             # blobs and removing the .old file (see further down).
