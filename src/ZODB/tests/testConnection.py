@@ -1322,8 +1322,6 @@ class StubStorage(object):
         return data, serial
 
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
-                DeprecationWarning, stacklevel=2)
         return self._data[oid] + (None, )
 
     def store(self, oid, serial, p, version, transaction):

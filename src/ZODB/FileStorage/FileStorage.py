@@ -21,7 +21,6 @@ import errno
 import logging
 import os
 import time
-import warnings
 from struct import pack
 from struct import unpack
 
@@ -594,8 +593,6 @@ class FileStorage(
                 return None, h.tid
 
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
-                DeprecationWarning, stacklevel=2)
         with self._files.get() as _file:
             pos = self._lookup_pos(oid)
             end_tid = None

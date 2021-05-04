@@ -19,7 +19,6 @@ storage without distracting storage details.
 
 import BTrees
 import time
-import warnings
 import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
@@ -169,8 +168,6 @@ class MappingStorage(object):
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
-                DeprecationWarning, stacklevel=2)
         tid_data = self._data.get(oid)
         if tid_data:
             before = ZODB.utils.u64(tid)

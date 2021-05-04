@@ -24,7 +24,6 @@ import os
 import random
 import weakref
 import tempfile
-import warnings
 import ZODB.BaseStorage
 import ZODB.blob
 import ZODB.interfaces
@@ -228,9 +227,6 @@ class DemoStorage(ConflictResolvingStorage):
         return ZODB.utils.loadBeforeEx(self.base, oid, before)
 
     def loadBefore(self, oid, before):
-        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
-                DeprecationWarning, stacklevel=2)
-
         data, serial = self.loadBeforeEx(oid, before)
 
         # find out next_serial.
