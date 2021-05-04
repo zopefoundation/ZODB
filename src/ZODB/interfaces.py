@@ -711,7 +711,7 @@ class IStorage(Interface):
         """Load the object data written before a transaction id
 
         ( This method is deprecated and kept for backward-compatibility.
-          Please use loadAt instead. )
+          Please use loadBeforeEx instead. )
 
         If there isn't data before the object before the given
         transaction, then None is returned, otherwise three values are
@@ -889,20 +889,20 @@ class IPrefetchStorage(IStorage):
         more than once.
         """
 
-class IStorageLoadAt(Interface):
+class IStorageLoadBeforeEx(Interface):
 
-    def loadAt(oid, at): # -> (data, serial)
-        """Load object data as observed at given database state.
+    def loadBeforeEx(oid, before): # -> (data, serial)
+        """Load object data as observed before given database state.
 
-        loadAt returns data for object with given object ID as observed by
-        database state ≤ at. Two values are returned:
+        loadBeforeEx returns data for object with given object ID as observed by
+        most recent database transaction with ID < before. Two values are returned:
 
         - The data record,
         - The transaction ID of the data record.
 
-        If the object does not exist, or is deleted as of `at` database state,
-        loadAt returns data=None, and serial indicates transaction ID of the
-        most recent deletion done in transaction with ID ≤ at, or null tid if
+        If the object does not exist, or is deleted as of requested database state,
+        loadBeforeEx returns data=None, and serial indicates transaction ID of the
+        most recent deletion done in transaction with ID < before, or null tid if
         there is no such deletion.
 
         Note: no POSKeyError is raised even if object id is not in the storage.

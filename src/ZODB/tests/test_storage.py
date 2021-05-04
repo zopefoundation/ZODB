@@ -24,7 +24,7 @@ import warnings
 
 from ZODB.BaseStorage import BaseStorage
 from ZODB import POSException
-from ZODB.utils import p64, u64, z64
+from ZODB.utils import z64
 
 from ZODB.tests import StorageTestBase
 from ZODB.tests import BasicStorage, MTStorage, Synchronization
@@ -106,7 +106,7 @@ class MinimalMemoryStorage(BaseStorage, object):
             self._ltid = self._tid
 
     def loadBefore(self, the_oid, the_tid):
-        warnings.warn("loadBefore is deprecated - use loadAt instead",
+        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
                 DeprecationWarning, stacklevel=2)
         return self._loadBefore(the_oid, the_tid)
 
@@ -132,9 +132,9 @@ class MinimalMemoryStorage(BaseStorage, object):
 
             return self._index[(the_oid, tid)], tid, end_tid
 
-    def loadAt(self, oid, at):
+    def loadBeforeEx(self, oid, before):
         try:
-            r = self._loadBefore(oid, p64(u64(at)+1))
+            r = self._loadBefore(oid, before)
         except KeyError:
             return None, z64
         if r is None:

@@ -218,34 +218,27 @@ class DemoStorage(ConflictResolvingStorage):
     # still want load for old clients (e.g. zeo servers)
     load = load_current
 
-    def loadAt(self, oid, at):
-        data, serial = ZODB.utils.loadAt(self.changes, oid, at)
+    def loadBeforeEx(self, oid, before):
+        data, serial = ZODB.utils.loadBeforeEx(self.changes, oid, before)
         if (data is not None) or (serial != ZODB.utils.z64):
             # object is present in changes either as data or deletion record.
             return data, serial
 
         # object is not present in changes at all - use base
-        return ZODB.utils.loadAt(self.base, oid, at)
+        return ZODB.utils.loadBeforeEx(self.base, oid, before)
 
     def loadBefore(self, oid, before):
-        warnings.warn("loadBefore is deprecated - use loadAt instead",
+        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
                 DeprecationWarning, stacklevel=2)
-        p64 = ZODB.utils.p64
-        u64 = ZODB.utils.u64
 
-        if before in (maxtid, ZODB.utils.z64):
-            at = before
-        else:
-            at = p64(u64(before)-1)
-
-        data, serial = self.loadAt(oid, at)
+        data, serial = self.loadBeforeEx(oid, before)
 
         # find out next_serial.
         # it is ok to use dumb/slow implementation since loadBefore should not
         # be used and is provided only for backward compatibility.
         next_serial = maxtid
         while 1:
-            _, s = self.loadAt(oid, p64(u64(next_serial)-1))
+            _, s = self.loadBeforeEx(oid, next_serial)
             assert s >= serial
             if s == serial:
                 # found - next_serial is serial of the next data record

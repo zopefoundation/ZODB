@@ -383,41 +383,36 @@ def load_current(storage, oid, version=''):
     some time in the future.
     """
     assert not version
-    data, serial = loadAt(storage, oid, maxtid)
+    data, serial = loadBeforeEx(storage, oid, maxtid)
     if data is None:
         raise ZODB.POSException.POSKeyError(oid)
     return data, serial
 
 
-_loadAtWarned = set() # of storage class
-def loadAt(storage, oid, at):
-    """loadAt provides IStorageLoadAt semantic for all storages.
+_loadBeforeExWarned = set() # of storage class
+def loadBeforeEx(storage, oid, before):
+    """loadBeforeEx provides IStorageLoadBeforeEx semantic for all storages.
 
-    Storages that do not implement loadAt are served via loadBefore.
+    Storages that do not implement loadBeforeEx are served via loadBefore.
     """
-    load_at = getattr(storage, 'loadAt', None)
-    if load_at is not None:
-        return load_at(oid, at)
+    loadBeforeEx = getattr(storage, 'loadBeforeEx', None)
+    if loadBeforeEx is not None:
+        return loadBeforeEx(oid, before)
 
-    # storage does not provide IStorageLoadAt - warn + fall back to loadBefore
-    if type(storage) not in _loadAtWarned:
-        # there is potential race around _loadAtWarned access, but due to the
+    # storage does not provide IStorageLoadBeforeEx - warn + fall back to loadBefore
+    if type(storage) not in _loadBeforeExWarned:
+        # there is potential race around _loadBeforeExWarned access, but due to the
         # GIL this race cannot result in that set corruption, and can only lead
         # to us emitting the warning twice instead of just once.
         # -> do not spend CPU on lock and just ignore it.
         warnings.warn(
-            "FIXME %s does not provide loadAt - emulating it via loadBefore, but ...\n"
+            "FIXME %s does not provide loadBeforeEx - emulating it via loadBefore, but ...\n"
             "\t... 1) access will be potentially slower, and\n"
-            "\t... 2) not full semantic of loadAt could be provided.\n"
+            "\t... 2) not full semantic of loadBeforeEx could be provided.\n"
             "\t...    this can lead to data corruption.\n"
             "\t... -> please see https://github.com/zopefoundation/ZODB/issues/318 for details." %
             type(storage), DeprecationWarning)
-        _loadAtWarned.add(type(storage))
-
-    if at == maxtid:
-        before = at
-    else:
-        before = p64(u64(at)+1)
+        _loadBeforeExWarned.add(type(storage))
 
     try:
         r = storage.loadBefore(oid, before)

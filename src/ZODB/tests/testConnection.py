@@ -1314,7 +1314,7 @@ class StubStorage(object):
             raise TypeError('StubStorage does not support versions.')
         return self._data[oid]
 
-    def loadAt(self, oid, at):
+    def loadBeforeEx(self, oid, before):
         try:
             data, serial = self._transdata[oid]
         except KeyError:
@@ -1322,7 +1322,7 @@ class StubStorage(object):
         return data, serial
 
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadAt instead",
+        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
                 DeprecationWarning, stacklevel=2)
         return self._data[oid] + (None, )
 

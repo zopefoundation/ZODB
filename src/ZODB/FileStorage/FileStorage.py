@@ -58,7 +58,7 @@ from ZODB.interfaces import IStorageCurrentRecordIteration
 from ZODB.interfaces import IStorageIteration
 from ZODB.interfaces import IStorageRestoreable
 from ZODB.interfaces import IStorageUndoable
-from ZODB.interfaces import IStorageLoadAt
+from ZODB.interfaces import IStorageLoadBeforeEx
 from ZODB.POSException import ConflictError
 from ZODB.POSException import MultipleUndoErrors
 from ZODB.POSException import POSKeyError
@@ -135,7 +135,7 @@ class TempFormatter(FileStorageFormatter):
         IStorageCurrentRecordIteration,
         IExternalGC,
         IStorage,
-        IStorageLoadAt,
+        IStorageLoadBeforeEx,
         )
 class FileStorage(
     FileStorageFormatter,
@@ -562,8 +562,8 @@ class FileStorage(
             else:
                 return self._loadBack_impl(oid, h.back)[0]
 
-    def loadAt(self, oid, at):
-        """loadAt implements IStorageLoadAt."""
+    def loadBeforeEx(self, oid, before):
+        """loadBeforeEx implements IStorageLoadBeforeEx."""
         with self._files.get() as _file:
             try:
                 pos = self._lookup_pos(oid)
@@ -573,14 +573,14 @@ class FileStorage(
 
             while 1:
                 h = self._read_data_header(pos, oid, _file)
-                if h.tid <= at:
+                if h.tid < before:
                     break
                 pos = h.prev
                 if not pos:
-                    # object not yet created as of at
+                    # object not yet created as of <before
                     return None, z64
 
-            # h is the most recent DataHeader with .tid <= at
+            # h is the most recent DataHeader with .tid < before
             if h.plen:
                 # regular data record
                 return _file.read(h.plen), h.tid
@@ -594,7 +594,7 @@ class FileStorage(
                 return None, h.tid
 
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadAt instead",
+        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
                 DeprecationWarning, stacklevel=2)
         with self._files.get() as _file:
             pos = self._lookup_pos(oid)

@@ -10,7 +10,7 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, z64, maxtid, Lock, loadAt, oid_repr, tid_repr
+from .utils import p64, u64, z64, maxtid, Lock, loadBeforeEx, oid_repr, tid_repr
 
 class Base(object):
 
@@ -99,7 +99,7 @@ class MVCCAdapterInstance(Base):
         'checkCurrentSerialInTransaction', 'tpc_abort',
         )
 
-    _start = None # Transaction start time (before)
+    _start = None # Transaction start time
     _ltid = b''   # Last storage transaction id
 
     def __init__(self, base):
@@ -151,16 +151,15 @@ class MVCCAdapterInstance(Base):
 
     def load(self, oid):
         assert self._start is not None
-        at = p64(u64(self._start)-1)
-        data, serial = loadAt(self._storage, oid, at)
+        data, serial = loadBeforeEx(self._storage, oid, self._start)
         if data is None:
             # raise POSKeyError if object does not exist at all
             # TODO raise POSKeyError always and switch to raising ReadOnlyError only when
             # actually detecting that load is being affected by simultaneous pack (see below).
             if serial == z64:
-                # XXX second call to loadAt - it will become unneeded once we
+                # XXX second call to loadBeforeEx - it will become unneeded once we
                 # switch to raising POSKeyError.
-                _, serial_exists = loadAt(self._storage, oid, maxtid)
+                _, serial_exists = loadBeforeEx(self._storage, oid, maxtid)
                 if serial_exists == z64:
                     # object does not exist at all
                     raise POSException.POSKeyError(oid)
@@ -272,8 +271,7 @@ class HistoricalStorageAdapter(Base):
     new_oid = pack = store = read_only_writer
 
     def load(self, oid, version=''):
-        at = p64(u64(self._before)-1)
-        data, serial = loadAt(self._storage, oid, at)
+        data, serial = loadBeforeEx(self._storage, oid, self._before)
         if data is None:
             raise POSException.POSKeyError(oid)
         return data, serial

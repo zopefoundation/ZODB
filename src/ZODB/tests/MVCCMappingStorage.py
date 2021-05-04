@@ -46,7 +46,7 @@ class MVCCMappingStorage(MappingStorage):
         inst.new_oid = self.new_oid
         inst.pack = self.pack
         inst.loadBefore = self.loadBefore
-        inst.loadAt = self.loadAt
+        inst.loadBeforeEx = self.loadBeforeEx
         inst._ltid = self._ltid
         inst._main_lock = self._lock
         return inst

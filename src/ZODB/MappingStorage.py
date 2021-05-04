@@ -31,7 +31,7 @@ import zope.interface
 @zope.interface.implementer(
         ZODB.interfaces.IStorage,
         ZODB.interfaces.IStorageIteration,
-        ZODB.interfaces.IStorageLoadAt,
+        ZODB.interfaces.IStorageLoadBeforeEx,
         )
 class MappingStorage(object):
     """In-memory storage implementation
@@ -150,15 +150,16 @@ class MappingStorage(object):
 
     load = ZODB.utils.load_current
 
-    # ZODB.interfaces.IStorageLoadAt
+    # ZODB.interfaces.IStorageLoadBeforeEx
     @ZODB.utils.locked(opened)
-    def loadAt(self, oid, at):
+    def loadBeforeEx(self, oid, before):
         z64 = ZODB.utils.z64
         tid_data = self._data.get(oid)
         if not tid_data:
             return None, z64
-        if at == z64:
+        if before == z64:
             return None, z64
+        at = ZODB.utils.p64(ZODB.utils.u64(before)-1)
         tids_at = tid_data.keys(None, at)
         if not tids_at:
             return None, z64
@@ -168,7 +169,7 @@ class MappingStorage(object):
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadAt instead",
+        warnings.warn("loadBefore is deprecated - use loadBeforeEx instead",
                 DeprecationWarning, stacklevel=2)
         tid_data = self._data.get(oid)
         if tid_data:

@@ -866,8 +866,7 @@ class BlobStorage(BlobStorageMixin):
             for oid in self.fshelper.getOIDsForSerial(serial_id):
                 # we want to find the serial id of the previous revision
                 # of this blob object.
-                at_before = utils.p64(utils.u64(serial_id)-1)
-                _, serial_before = utils.loadAt(self, oid, at_before)
+                _, serial_before = utils.loadBeforeEx(self, oid, serial_id)
 
                 if serial_before == utils.z64:
                     # There was no previous revision of this blob
