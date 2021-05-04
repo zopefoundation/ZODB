@@ -268,8 +268,15 @@ class BaseStorage(UndoLogCompatible):
         raise POSException.Unsupported(
             "Retrieval of historical revisions is not supported")
 
-    # do not provide loadBeforeEx/loadBefore here in BaseStorage - if child forgets
-    # to override it - storage will always return "no data" instead of failing.
+    def loadBefore(self, oid, tid):
+        """Return most recent revision of oid before tid committed."""
+        raise NotImplementedError
+
+    def loadBeforeEx(self, oid, before):
+        """Return most recent revision of oid as of <before database state.
+           (see IStorageLoadBeforeEx).
+        """
+        raise NotImplementedError
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.

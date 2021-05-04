@@ -397,7 +397,10 @@ def loadBeforeEx(storage, oid, before):
     """
     loadBeforeEx = getattr(storage, 'loadBeforeEx', None)
     if loadBeforeEx is not None:
-        return loadBeforeEx(oid, before)
+        try:
+            return loadBeforeEx(oid, before)
+        except NotImplementedError:
+            pass
 
     # storage does not provide IStorageLoadBeforeEx - warn + fall back to loadBefore
     if type(storage) not in _loadBeforeExWarned:
