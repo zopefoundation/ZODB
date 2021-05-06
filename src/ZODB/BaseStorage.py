@@ -272,8 +272,8 @@ class BaseStorage(UndoLogCompatible):
         """Return most recent revision of oid before tid committed."""
         raise NotImplementedError
 
-    def loadBeforeEx(self, oid, before):
-        """Return most recent revision of oid as of <before database state.
+    def loadBeforeEx(self, oid, tid):
+        """Return most recent revision of oid before tid committed.
            (see IStorageLoadBeforeEx).
         """
         raise NotImplementedError
