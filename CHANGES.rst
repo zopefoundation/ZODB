@@ -5,6 +5,13 @@
 5.6.1 (unreleased)
 ==================
 
+- Fix DemoStorage data corruption in the presence of whiteouts.
+  This change is implemented via introducing new ``loadBeforeEx`` interface
+  that extends and corrects ``loadBefore`` semantic.
+  See `issue 318 <https://github.com/zopefoundation/ZODB/issues/318>`_
+  and `PR 323 <https://github.com/zopefoundation/ZODB/pull/323>`_
+  for details.
+
 - Fix UnboundLocalError when running fsoids.py script.
   See `issue 268 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
