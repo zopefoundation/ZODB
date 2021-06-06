@@ -5,7 +5,7 @@
 5.6.1 (unreleased)
 ==================
 
-- Introduce a new ``loadBeforeEx`` interface and deprecate ``loadBefore``:
+- Introduce a new ``loadBeforeEx`` interface that complements ``loadBefore``:
   ``loadBeforeEx`` is simpler, provides better information for object delete
   records and can be more efficiently implemented by many storages.
   ``loadBeforeEx`` is used (and required) to fix a ``DemoStorage`` data corruption

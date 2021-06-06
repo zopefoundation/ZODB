@@ -710,9 +710,6 @@ class IStorage(Interface):
     def loadBefore(oid, tid):
         """Load the object data written before a transaction id
 
-        ( This method is deprecated and kept for backward-compatibility.
-          Please use loadBeforeEx instead. )
-
         If there isn't data before the object before the given
         transaction, then None is returned, otherwise three values are
         returned:
@@ -724,6 +721,8 @@ class IStorage(Interface):
         - The transaction id of the following revision, if any, or None.
 
         If the object id isn't in the storage, then POSKeyError is raised.
+
+        See also: IStorageLoadBeforeEx.loadBeforeEx .
         """
 
     def loadSerial(oid, serial):
