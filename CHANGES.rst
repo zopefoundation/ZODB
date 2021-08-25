@@ -5,6 +5,9 @@
 5.6.1 (unreleased)
 ==================
 
+- Fix ``TypeError: can't concat str to bytes`` when running fsoids.py script with Python 3.
+  See `issue 350 <https://github.com/zopefoundation/ZODB/issues/350>`_.
+
 - Fix UnboundLocalError when running fsoids.py script.
   See `issue 285 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
