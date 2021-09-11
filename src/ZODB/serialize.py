@@ -696,6 +696,7 @@ def get_refs(a_pickle):
     result = []
 
     for reference in refs:
+        oid = None
         if isinstance(reference, tuple):
             oid, klass = reference
         elif isinstance(reference, (bytes, str)):
@@ -704,7 +705,7 @@ def get_refs(a_pickle):
             assert isinstance(reference, list)
             continue
 
-        if not isinstance(oid, bytes):
+        if oid is not None and not isinstance(oid, bytes):
             assert isinstance(oid, str)
             # this happens on Python 3 when all bytes in the oid are < 0x80
             oid = oid.encode('ascii')
