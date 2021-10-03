@@ -7,7 +7,7 @@ import six
 from six.moves import filter
 
 rx_txn = re.compile("tid=([0-9a-f]+).*size=(\d+)")
-rx_data = re.compile("oid=([0-9a-f]+) class=(\S+) size=(\d+)")
+rx_data = re.compile("oid=([0-9a-f]+) size=(\d+) class=(\S+)")
 
 def sort_byhsize(seq, reverse=False):
     L = [(v.size(), k, v) for k, v in seq]
@@ -50,7 +50,10 @@ class Histogram(dict):
         return mode
 
     def make_bins(self, binsize):
-        maxkey = max(six.iterkeys(self))
+        try:
+            maxkey = max(six.iterkeys(self))
+        except ValueError:
+            maxkey = 0
         self.binsize = binsize
         self.bins = [0] * (1 + maxkey / binsize)
         for k, v in six.iteritems(self):
@@ -104,7 +107,7 @@ def class_detail(class_size):
     # per class details
     for klass, h in sort_byhsize(six.iteritems(class_size), reverse=True):
         h.make_bins(50)
-        if len(filter(None, h.bins)) == 1:
+        if len(tuple(filter(None, h.bins))) == 1:
             continue
         h.report("Object size for %s" % klass, usebins=True)
 
@@ -146,7 +149,7 @@ def main(path=None):
             m = rx_data.search(line)
             if not m:
                 continue
-            oid, klass, size = m.groups()
+            oid, size, klass = m.groups()
             size = int(size)
 
             obj_size.add(size)
