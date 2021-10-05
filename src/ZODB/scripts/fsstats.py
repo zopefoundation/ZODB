@@ -181,6 +181,8 @@ def main(path=None):
             objects = 0
 
             txn_bytes.add(size)
+    if objects:
+        txn_objects.add(objects)
     f.close()
 
     print("Summary: %d txns, %d objects, %d revisions" % (
