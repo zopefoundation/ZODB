@@ -31,8 +31,7 @@ class Histogram(dict):
     def median(self):
         # close enough?
         n = self.size() / 2
-        L = self.keys()
-        L.sort()
+        L = sorted(self.keys())
         L.reverse()
         while 1:
             k = L.pop()
@@ -55,9 +54,9 @@ class Histogram(dict):
         except ValueError:
             maxkey = 0
         self.binsize = binsize
-        self.bins = [0] * (1 + maxkey / binsize)
+        self.bins = [0] * (1 + maxkey // binsize)
         for k, v in six.iteritems(self):
-            b = k / binsize
+            b = k // binsize
             self.bins[b] += v
 
     def report(self, name, binsize=50, usebins=False, gaps=True, skip=True):
@@ -91,7 +90,7 @@ class Histogram(dict):
             cum += n
             pc = 100 * cum / tot
             print("%6d %6d %3d%% %3d%% %s" % (
-                i * binsize, n, p, pc, "*" * (n / dot)))
+                i * binsize, n, p, pc, "*" * (n // dot)))
         print()
 
 def class_detail(class_size):
