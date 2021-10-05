@@ -141,7 +141,7 @@ def main(path=None):
     objects = 0
     tid = None
 
-    f = open(path, "rb")
+    f = open(path, "r")
     for i, line in enumerate(f):
         if MAX and i > MAX:
             break
