@@ -5,6 +5,12 @@
 5.6.1 (unreleased)
 ==================
 
+- Readd transaction size information to ``fsdump`` output;
+  adapt `fsstats` to ``fsdump``'s exchanged order for ``size`` and ``class``
+  information in data records;
+  (fixes `#354 <https://github.com/zopefoundation/ZODB/issues/354>_).
+  Make ``fsdump`` callable via Python's ``-m`` command line option.
+
 - Fix UnboundLocalError when running fsoids.py script.
   See `issue 285 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 

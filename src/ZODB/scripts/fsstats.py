@@ -7,7 +7,7 @@ import six
 from six.moves import filter
 
 rx_txn = re.compile("tid=([0-9a-f]+).*size=(\d+)")
-rx_data = re.compile("oid=([0-9a-f]+) class=(\S+) size=(\d+)")
+rx_data = re.compile("oid=([0-9a-f]+) size=(\d+) class=(\S+)")
 
 def sort_byhsize(seq, reverse=False):
     L = [(v.size(), k, v) for k, v in seq]
@@ -31,8 +31,7 @@ class Histogram(dict):
     def median(self):
         # close enough?
         n = self.size() / 2
-        L = self.keys()
-        L.sort()
+        L = sorted(self.keys())
         L.reverse()
         while 1:
             k = L.pop()
@@ -50,11 +49,14 @@ class Histogram(dict):
         return mode
 
     def make_bins(self, binsize):
-        maxkey = max(six.iterkeys(self))
+        try:
+            maxkey = max(six.iterkeys(self))
+        except ValueError:
+            maxkey = 0
         self.binsize = binsize
-        self.bins = [0] * (1 + maxkey / binsize)
+        self.bins = [0] * (1 + maxkey // binsize)
         for k, v in six.iteritems(self):
-            b = k / binsize
+            b = k // binsize
             self.bins[b] += v
 
     def report(self, name, binsize=50, usebins=False, gaps=True, skip=True):
@@ -88,7 +90,7 @@ class Histogram(dict):
             cum += n
             pc = 100 * cum / tot
             print("%6d %6d %3d%% %3d%% %s" % (
-                i * binsize, n, p, pc, "*" * (n / dot)))
+                i * binsize, n, p, pc, "*" * (n // dot)))
         print()
 
 def class_detail(class_size):
@@ -104,7 +106,7 @@ def class_detail(class_size):
     # per class details
     for klass, h in sort_byhsize(six.iteritems(class_size), reverse=True):
         h.make_bins(50)
-        if len(filter(None, h.bins)) == 1:
+        if len(tuple(filter(None, h.bins))) == 1:
             continue
         h.report("Object size for %s" % klass, usebins=True)
 
@@ -138,7 +140,7 @@ def main(path=None):
     objects = 0
     tid = None
 
-    f = open(path, "rb")
+    f = open(path, "r")
     for i, line in enumerate(f):
         if MAX and i > MAX:
             break
@@ -146,7 +148,7 @@ def main(path=None):
             m = rx_data.search(line)
             if not m:
                 continue
-            oid, klass, size = m.groups()
+            oid, size, klass = m.groups()
             size = int(size)
 
             obj_size.add(size)
@@ -178,6 +180,8 @@ def main(path=None):
             objects = 0
 
             txn_bytes.add(size)
+    if objects:
+        txn_objects.add(objects)
     f.close()
 
     print("Summary: %d txns, %d objects, %d revisions" % (
