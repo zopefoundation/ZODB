@@ -12,7 +12,7 @@ class ZODBClientThread(threading.Thread):
     def __init__(self, db, test):
         threading.Thread.__init__(self)
         self._exc_info = None
-        self.setDaemon(True)
+        self.daemon = True
         self.db = db
         self.test = test
         self.event = threading.Event()

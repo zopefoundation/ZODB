@@ -19,6 +19,8 @@
 
 - Require Python 3 to build the documentation.
 
+- Fix deprecation warnings occurring on Python 3.10.
+
 
 5.6.0 (2020-06-11)
 ==================

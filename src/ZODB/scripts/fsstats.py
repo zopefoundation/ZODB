@@ -6,8 +6,8 @@ import sys
 import six
 from six.moves import filter
 
-rx_txn = re.compile("tid=([0-9a-f]+).*size=(\d+)")
-rx_data = re.compile("oid=([0-9a-f]+) size=(\d+) class=(\S+)")
+rx_txn = re.compile(r"tid=([0-9a-f]+).*size=(\d+)")
+rx_data = re.compile(r"oid=([0-9a-f]+) size=(\d+) class=(\S+)")
 
 def sort_byhsize(seq, reverse=False):
     L = [(v.size(), k, v) for k, v in seq]
