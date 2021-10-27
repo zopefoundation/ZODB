@@ -209,7 +209,7 @@ class BasicStorage(object):
         # We'll run the competing trans in a separate thread:
         thread = threading.Thread(name='T2',
             target=self._dostore, args=(oid,), kwargs=dict(revid=revid))
-        thread.setDaemon(True)
+        thread.daemon = True
         thread.start()
         thread.join(.1)
         return thread
@@ -324,7 +324,7 @@ class BasicStorage(object):
         to_join = []
         def run_in_thread(func):
             t = threading.Thread(target=func)
-            t.setDaemon(True)
+            t.daemon = True
             t.start()
             to_join.append(t)
 
@@ -347,7 +347,7 @@ class BasicStorage(object):
         def update_attempts():
             with attempts_cond:
                 attempts.append(1)
-                attempts_cond.notifyAll()
+                attempts_cond.notify_all()
 
 
         @run_in_thread

@@ -2161,7 +2161,7 @@ class FilePool(object):
                 self.writing = False
                 if self.writers > 0:
                     self.writers -= 1
-                self._cond.notifyAll()
+                self._cond.notify_all()
 
     @contextlib.contextmanager
     def get(self):
@@ -2186,7 +2186,7 @@ class FilePool(object):
             if not self._out:
                 with self._cond:
                     if self.writers and not self._out:
-                        self._cond.notifyAll()
+                        self._cond.notify_all()
 
     def empty(self):
         while self._files:

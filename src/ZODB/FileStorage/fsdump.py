@@ -23,12 +23,14 @@ from ZODB.utils import u64, get_pickle_metadata
 def fsdump(path, file=None, with_offset=1):
     iter = FileIterator(path)
     for i, trans in enumerate(iter):
+        size = trans._tend - trans._tpos
         if with_offset:
-            print(("Trans #%05d tid=%016x time=%s offset=%d" %
-                  (i, u64(trans.tid), TimeStamp(trans.tid), trans._pos)), file=file)
+            print(("Trans #%05d tid=%016x size=%d time=%s offset=%d" %
+                  (i, u64(trans.tid), size,
+                   TimeStamp(trans.tid), trans._pos)), file=file)
         else:
-            print(("Trans #%05d tid=%016x time=%s" %
-                  (i, u64(trans.tid), TimeStamp(trans.tid))), file=file)
+            print(("Trans #%05d tid=%016x size=%d time=%s" %
+                  (i, u64(trans.tid), size, TimeStamp(trans.tid))), file=file)
         print(("    status=%r user=%r description=%r" %
               (trans.status, trans.user, trans.description)), file=file)
 
@@ -122,3 +124,7 @@ class Dumper(object):
 def main():
     import sys
     fsdump(sys.argv[1])
+
+
+if __name__ == "__main__":
+    main()
