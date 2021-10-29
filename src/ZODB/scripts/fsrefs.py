@@ -66,9 +66,10 @@ import traceback
 
 from ZODB.FileStorage import FileStorage
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, oid_repr, get_pickle_metadata, load_current
+from ZODB.utils import u64, p64, oid_repr, get_pickle_metadata, load_current
 from ZODB.serialize import get_refs
 from ZODB.POSException import POSKeyError
+from BTrees.QQBTree import QQBTree
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
@@ -118,7 +119,18 @@ def main(path=None):
     # This does not include oids in undone.
     noload = {}
 
-    for oid in fs._index.keys():
+    # build {pos -> oid} index that is reverse to {oid -> pos} fs._index
+    # we'll need this to iterate objects in order of ascending file position to
+    # optimize disk IO.
+    pos2oid = QQBTree() # pos -> u64(oid)
+    for oid, pos in fs._index.iteritems():
+        pos2oid[pos] = u64(oid)
+
+    # pass 1: load all objects listed in the index and remember those objects
+    # that are deleted or load with an error. Iterate objects in order of
+    # ascending file position to optimize disk IO.
+    for oid64 in pos2oid.itervalues():
+        oid = p64(oid64)
         try:
             data, serial = load_current(fs, oid)
         except (KeyboardInterrupt, SystemExit):
@@ -130,9 +142,13 @@ def main(path=None):
                 traceback.print_exc()
             noload[oid] = 1
 
+    # pass 2: go through all objects again and verify that their references do
+    # not point to problematic object set. Iterate objects in order of ascending
+    # file position to optimize disk IO.
     inactive = noload.copy()
     inactive.update(undone)
-    for oid in fs._index.keys():
+    for oid64 in pos2oid.itervalues():
+        oid = p64(oid64)
         if oid in inactive:
             continue
         data, serial = load_current(fs, oid)

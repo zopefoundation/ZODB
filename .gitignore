@@ -22,3 +22,7 @@ testing.log
 htmlcov
 tmp
 *~
+.*.swp
+lib/
+lib64
+pyvenv.cfg

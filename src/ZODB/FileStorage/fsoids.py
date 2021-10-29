@@ -29,7 +29,11 @@ def shorten(s, size=50):
     navail = size - 5
     nleading = navail // 2
     ntrailing = size - nleading
-    return s[:nleading] + " ... " + s[-ntrailing:]
+    if isinstance(s, bytes):
+        sep = b" ... "
+    else:
+        sep = " ... "
+    return s[:nleading] + sep + s[-ntrailing:]
 
 class Tracer(object):
     """Trace all occurrences of a set of oids in a FileStorage.

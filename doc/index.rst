@@ -44,6 +44,19 @@ Learning more
 
 * `The ZODB Book (in progress) <http://zodb.readthedocs.org/en/latest/>`_
 
+
+What is the expansion of "ZODB"?
+================================
+
+The expansion of "ZODB" is the Z Object Database.  But, of course, we
+usually just use "ZODB".
+
+In the past, it was the Zope Object Database, because it was
+developed as part of the Zope project.  But ZODB doesn't depend on
+Zope in any way and is used in many projects that have nothing to do
+with Zope.
+
+
 Downloads
 =========
 

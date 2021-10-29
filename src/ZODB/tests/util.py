@@ -16,9 +16,13 @@
 from ZODB.MappingStorage import DB
 
 import atexit
+import doctest
 import os
+import pdb
 import persistent
 import re
+import runpy
+import sys
 import tempfile
 import time
 import transaction
@@ -338,3 +342,66 @@ class MonotonicallyIncreasingTimeMinimalTestLayer(MininalTestLayer):
     def testTearDown(self):
         self.time_manager.close()
         reset_monotonic_time()
+
+
+def with_high_concurrency(f):
+    """
+    with_high_concurrency decorates f to run with high frequency of thread context switches.
+
+    It is useful for tests that try to probabilistically reproduce race
+    condition scenarios.
+    """
+    @functools.wraps(f)
+    def _(*argv, **kw):
+        if six.PY3:
+            # Python3, by default, switches every 5ms, which turns threads in
+            # intended "high concurrency" scenarios to execute almost serially.
+            # Raise the frequency of context switches in order to increase the
+            # probability to reproduce interesting/tricky overlapping of threads.
+            #
+            # See https://github.com/zopefoundation/ZODB/pull/345#issuecomment-822188305 and
+            # https://github.com/zopefoundation/ZEO/issues/168#issuecomment-821829116 for details.
+            _ = sys.getswitchinterval()
+            def restore():
+                sys.setswitchinterval(_)
+            sys.setswitchinterval(5e-6) # ~ 100 simple instructions on modern hardware
+
+        else:
+            # Python2, by default, switches threads every "100 instructions".
+            # Just make sure we run f with that default.
+            _ = sys.getcheckinterval()
+            def restore():
+                sys.setcheckinterval(_)
+            sys.setcheckinterval(100)
+
+        try:
+            return f(*argv, **kw)
+        finally:
+            restore()
+
+    return _
+
+
+def run_module_as_script(mod, args, stdout="stdout", stderr="stderr"):
+    """run module *mod* as script with arguments *arg*.
+
+    stdout and stderr are redirected to files given by the
+    correcponding parameters.
+
+    The function is usually called in a ``setUp/tearDown`` frame
+    which will remove the created files.
+    """
+    sargv, sout, serr = sys.argv, sys.stdout, sys.stderr
+    s_set_trace = pdb.set_trace
+    try:
+        sys.argv = [sargv[0]] + args
+        sys.stdout = open(stdout, "w")
+        sys.stderr = open(stderr, "w")
+        # to allow debugging
+        pdb.set_trace = doctest._OutputRedirectingPdb(sout)
+        runpy.run_module(mod, run_name="__main__", alter_sys=True)
+    finally:
+        sys.stdout.close()
+        sys.stderr.close()
+        pdb.set_trace = s_set_trace
+        sys.argv, sys.stdout, sys.stderr = sargv, sout, serr  

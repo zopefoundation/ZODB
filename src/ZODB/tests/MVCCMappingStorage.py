@@ -113,11 +113,13 @@ class MVCCMappingStorage(MappingStorage):
 
     def tpc_finish(self, transaction, func = lambda tid: None):
         self._data_snapshot = None
-        return MappingStorage.tpc_finish(self, transaction, func)
+        with self._main_lock:
+            return MappingStorage.tpc_finish(self, transaction, func)
 
     def tpc_abort(self, transaction):
         self._data_snapshot = None
-        MappingStorage.tpc_abort(self, transaction)
+        with self._main_lock:
+            MappingStorage.tpc_abort(self, transaction)
 
     def pack(self, t, referencesf, gc=True):
         # prevent all concurrent commits during packing

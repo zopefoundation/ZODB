@@ -14,8 +14,24 @@
   and `PR 323 <https://github.com/zopefoundation/ZODB/pull/323>`_
   for details.
 
+- Fix ``TypeError: can't concat str to bytes`` when running fsoids.py script with Python 3.
+  See `issue 350 <https://github.com/zopefoundation/ZODB/issues/350>`_.
+
+- Readd transaction size information to ``fsdump`` output;
+  adapt `fsstats` to ``fsdump``'s exchanged order for ``size`` and ``class``
+  information in data records;
+  (fixes `#354 <https://github.com/zopefoundation/ZODB/issues/354>_).
+  Make ``fsdump`` callable via Python's ``-m`` command line option.
+
 - Fix UnboundLocalError when running fsoids.py script.
-  See `issue 268 <https://github.com/zopefoundation/ZODB/issues/285>`_.
+  See `issue 285 <https://github.com/zopefoundation/ZODB/issues/285>`_.
+
+- Rework ``fsrefs`` script to work significantly faster by optimizing how it does
+  IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`_.
+
+- Require Python 3 to build the documentation.
+
+- Fix deprecation warnings occurring on Python 3.10.
 
 
 5.6.0 (2020-06-11)
