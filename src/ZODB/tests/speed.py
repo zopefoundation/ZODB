@@ -1,4 +1,13 @@
 from __future__ import print_function
+import time
+import string
+import getopt
+import os
+import ZODB.FileStorage
+import ZODB
+import sys
+import transaction
+import persistent
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Foundation and Contributors.
@@ -12,7 +21,7 @@ from __future__ import print_function
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-usage="""Test speed of a ZODB storage
+usage = """Test speed of a ZODB storage
 
 Options:
 
@@ -36,92 +45,100 @@ Options:
     -M         Output means only
 """
 
-import sys, os, getopt, string, time
 sys.path.insert(0, os.getcwd())
 
-import ZODB, ZODB.FileStorage
-import persistent
-import transaction
 
-class P(persistent.Persistent): pass
+class P(persistent.Persistent):
+    pass
+
 
 def main(args):
 
     opts, args = getopt.getopt(args, 'zd:n:Ds:LM')
-    z=s=None
-    data=sys.argv[0]
-    nrep=5
-    minimize=0
-    detailed=1
+    z = s = None
+    data = sys.argv[0]
+    nrep = 5
+    minimize = 0
+    detailed = 1
     for o, v in opts:
-        if o=='-n': nrep=string.atoi(v)
-        elif o=='-d': data=v
-        elif o=='-s': s=v
-        elif o=='-z':
+        if o == '-n':
+            nrep = string.atoi(v)
+        elif o == '-d':
+            data = v
+        elif o == '-s':
+            s = v
+        elif o == '-z':
             global zlib
             import zlib
-            z=compress
-        elif o=='-L':
-            minimize=1
-        elif o=='-M':
-            detailed=0
-        elif o=='-D':
+            z = compress
+        elif o == '-L':
+            minimize = 1
+        elif o == '-M':
+            detailed = 0
+        elif o == '-D':
             global debug
-            os.environ['STUPID_LOG_FILE']=''
-            os.environ['STUPID_LOG_SEVERITY']='-999'
+            os.environ['STUPID_LOG_FILE'] = ''
+            os.environ['STUPID_LOG_SEVERITY'] = '-999'
 
     if s:
-        s=__import__(s, globals(), globals(), ('__doc__',))
-        s=s.Storage
+        s = __import__(s, globals(), globals(), ('__doc__',))
+        s = s.Storage
     else:
-        s=ZODB.FileStorage.FileStorage('zeo_speed.fs', create=1)
+        s = ZODB.FileStorage.FileStorage('zeo_speed.fs', create=1)
 
     with open(data) as fp:
         data = fp.read()
-    db=ZODB.DB(s,
-               # disable cache deactivation
-               cache_size=4000,
-               cache_deactivate_after=6000,)
+    db = ZODB.DB(s,
+                 # disable cache deactivation
+                 cache_size=4000,
+                 cache_deactivate_after=6000,)
 
-    results={1:0, 10:0, 100:0, 1000:0}
+    results = {1: 0, 10: 0, 100: 0, 1000: 0}
     for j in range(nrep):
         for r in 1, 10, 100, 1000:
-            t=time.time()
-            jar=db.open()
+            t = time.time()
+            jar = db.open()
             transaction.begin()
-            rt=jar.root()
-            key='s%s' % r
-            if key in rt: p=rt[key]
-            else: rt[key]=p=P()
+            rt = jar.root()
+            key = 's%s' % r
+            if key in rt:
+                p = rt[key]
+            else:
+                rt[key] = p = P()
             for i in range(r):
-                if z is not None: d=z(data)
-                else: d=data
-                v=getattr(p, str(i), P())
-                v.d=d
-                setattr(p,str(i),v)
+                if z is not None:
+                    d = z(data)
+                else:
+                    d = data
+                v = getattr(p, str(i), P())
+                v.d = d
+                setattr(p, str(i), v)
             transaction.commit()
             jar.close()
-            t=time.time()-t
+            t = time.time()-t
             if detailed:
                 sys.stderr.write("%s\t%s\t%.4f\n" % (j, r, t))
                 sys.stdout.flush()
-            results[r]=results[r]+t
-            rt=d=p=v=None # release all references
+            results[r] = results[r]+t
+            rt = d = p = v = None  # release all references
             if minimize:
                 time.sleep(3)
                 jar.cacheMinimize(3)
 
-    if detailed: print('-'*24)
+    if detailed:
+        print('-'*24)
     for r in 1, 10, 100, 1000:
-        t=results[r]/nrep
+        t = results[r]/nrep
         sys.stderr.write("mean:\t%s\t%.4f\t%.4f (s/o)\n" % (r, t, t/r))
 
     db.close()
 
 
 def compress(s):
-    c=zlib.compressobj()
-    o=c.compress(s)
+    c = zlib.compressobj()
+    o = c.compress(s)
     return o+c.flush()
 
-if __name__=='__main__': main(sys.argv[1:])
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

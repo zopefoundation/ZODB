@@ -29,6 +29,7 @@ from ZODB.tests import StorageTestBase
 from ZODB.tests import BasicStorage, MTStorage, Synchronization
 from ZODB.tests import RevisionStorage
 
+
 class Transaction(object):
     """Hold data for current transaction for MinimalMemoryStorage."""
 
@@ -41,6 +42,7 @@ class Transaction(object):
 
     def cur(self):
         return dict.fromkeys([oid for oid, tid in self.index.keys()], self.tid)
+
 
 class MinimalMemoryStorage(BaseStorage, object):
     """Simple in-memory storage that supports revisions.
@@ -134,6 +136,7 @@ class MinimalMemoryStorage(BaseStorage, object):
 
     cleanup = close
 
+
 class MinimalTestSuite(StorageTestBase.StorageTestBase,
                        BasicStorage.BasicStorage,
                        MTStorage.MTStorage,
@@ -149,6 +152,7 @@ class MinimalTestSuite(StorageTestBase.StorageTestBase,
 
     def checkLoadBeforeUndo(self):
         pass
+
 
 def test_suite():
     return unittest.makeSuite(MinimalTestSuite, "check")

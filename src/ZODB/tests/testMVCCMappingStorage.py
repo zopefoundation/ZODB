@@ -31,7 +31,8 @@ from ZODB.tests import (
     RevisionStorage,
     StorageTestBase,
     Synchronization,
-    )
+)
+
 
 class MVCCTests(object):
 
@@ -146,7 +147,7 @@ class MVCCMappingStorageTests(
     RevisionStorage.RevisionStorage,
     Synchronization.SynchronizedStorage,
     MVCCTests
-    ):
+):
 
     def setUp(self):
         self._storage = MVCCMappingStorage()
@@ -155,13 +156,10 @@ class MVCCMappingStorageTests(
         self._storage.close()
 
     def checkLoadBeforeUndo(self):
-        pass # we don't support undo yet
+        pass  # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
     def checkTransactionIdIncreases(self):
-        import time
-        from ZODB.utils import newTid
-        from ZODB.TimeStamp import TimeStamp
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
@@ -178,9 +176,11 @@ class MVCCMappingStorageTests(
         self._storage.tpc_begin(t)
         self.assertEqual(self._storage._tid, b'zzzzzzzz')
 
+
 def create_blob_storage(name, blob_dir):
     s = MVCCMappingStorage(name)
     return ZODB.blob.BlobStorage(blob_dir, s)
+
 
 def test_suite():
     suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')
@@ -191,10 +191,5 @@ def test_suite():
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'MVCCMapping', create_blob_storage,
         test_undo=False,
-        ))
+    ))
     return suite
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)

@@ -72,7 +72,7 @@ class ActivityMonitor(object):
                 'loads': 0,
                 'stores': 0,
                 'connections': 0,
-                })
+            })
 
         div = res[0]
         div_end = div['end']

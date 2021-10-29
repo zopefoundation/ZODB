@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.6.1 (unreleased)
+5.7.0 (unreleased)
 ==================
 
 - Fix ``TypeError: can't concat str to bytes`` when running fsoids.py script with Python 3.
@@ -23,6 +23,8 @@
 - Require Python 3 to build the documentation.
 
 - Fix deprecation warnings occurring on Python 3.10.
+
+- Add support for Python 3.9 and 3.10.
 
 
 5.6.0 (2020-06-11)

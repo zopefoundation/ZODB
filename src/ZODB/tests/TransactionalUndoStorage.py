@@ -21,7 +21,6 @@ from six import PY3
 
 from persistent import Persistent
 import transaction
-from transaction import Transaction
 
 from ZODB import POSException
 from ZODB.Connection import TransactionMetaData
@@ -37,6 +36,7 @@ from ZODB.tests.StorageTestBase import ZERO
 class C(Persistent):
     pass
 
+
 def snooze():
     # In Windows, it's possible that two successive time.time() calls return
     # the same value.  Tim guarantees that time never runs backwards.  You
@@ -46,12 +46,14 @@ def snooze():
     while now == time.time():
         time.sleep(0.1)
 
+
 def listeq(L1, L2):
     """Return True if L1.sort() == L2.sort()
 
     Also support iterators.
     """
     return sorted(L1) == sorted(L2)
+
 
 class TransactionalUndoStorage(object):
 
@@ -218,7 +220,6 @@ class TransactionalUndoStorage(object):
     def checkTwoObjectUndoAtOnce(self):
         # Convenience
         eq = self.assertEqual
-        unless = self.assertTrue
         p30, p31, p32, p50, p51, p52 = map(zodb_pickle,
                                            map(MinPO,
                                                (30, 31, 32, 50, 51, 52)))
@@ -470,6 +471,7 @@ class TransactionalUndoStorage(object):
             root = cn.root()
 
             pack_times = []
+
             def set_pack_time():
                 pack_times.append(time.time())
                 snooze()
@@ -520,7 +522,6 @@ class TransactionalUndoStorage(object):
         finally:
             cn.close()
             db.close()
-
 
     def checkPackAfterUndoManyTimes(self):
         db = DB(self._storage)
@@ -664,7 +665,7 @@ class TransactionalUndoStorage(object):
         t = transaction.get()
         t.note(u't1')
         t.setExtendedInfo('k2', 'this is transaction metadata')
-        t.setUser(u'u3',path=u'p3')
+        t.setUser(u'u3', path=u'p3')
         db = DB(self._storage)
         conn = db.open()
         try:
@@ -673,9 +674,9 @@ class TransactionalUndoStorage(object):
             root['obj'] = o1
             txn = transaction.get()
             txn.commit()
-            l = self._storage.undoLog()
-            self.assertEqual(len(l),2)
-            d = l[0]
+            log = self._storage.undoLog()
+            self.assertEqual(len(log), 2)
+            d = log[0]
             self.assertEqual(d['description'], b't1')
             self.assertEqual(d['k2'], 'this is transaction metadata')
             self.assertEqual(d['user_name'], b'p3 u3')
@@ -724,7 +725,7 @@ class TransactionalUndoStorage(object):
         # Try a slice that doesn't start at 0.
         oddball = info_func(first=11, last=17)
         self.assertEqual(len(oddball), 17-11)
-        self.assertEqual(oddball, allofem[11 : 11+len(oddball)])
+        self.assertEqual(oddball, allofem[11: 11+len(oddball)])
 
         # And another way to spell the same thing.
         redundant = info_func(first=11, last=-6)
@@ -754,10 +755,10 @@ class TransactionalUndoStorage(object):
             for i in range(4):
                 with db.transaction() as conn:
                     conn.transaction_manager.get().note(
-                        (str if PY3 else unicode)(i))
+                        (str if PY3 else unicode)(i))  # noqa: F821 undef name
                     conn.root.x.inc()
 
-            ids = [l['id'] for l in db.undoLog(1, 3)]
+            ids = [log['id'] for log in db.undoLog(1, 3)]
             if reverse:
                 ids.reverse()
 

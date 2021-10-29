@@ -19,18 +19,21 @@ oids_seen = {}
 
 # Append (obj, path) to L if and only if obj is a persistent object
 # and we haven't seen it before.
+
+
 def add_if_new_persistent(L, obj, path):
     global oids_seen
 
-    getattr(obj, '_', None) # unghostify
+    getattr(obj, '_', None)  # unghostify
     if hasattr(obj, '_p_oid'):
         oid = obj._p_oid
         if oid not in oids_seen:
             L.append((obj, path))
             oids_seen[oid] = 1
 
+
 def get_subobjects(obj):
-    getattr(obj, '_', None) # unghostify
+    getattr(obj, '_', None)  # unghostify
     sub = []
     try:
         attrs = obj.__dict__.items()
@@ -55,22 +58,23 @@ def get_subobjects(obj):
     while 1:
         try:
             elt = obj[i]
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             break
         sub.append(("[%d]" % i, elt))
         i += 1
 
     return sub
 
+
 def main(fname=None):
     if fname is None:
         import sys
         try:
             fname, = sys.argv[1:]
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             print(__doc__)
             sys.exit(2)
-        
+
     fs = FileStorage(fname, read_only=1)
     cn = ZODB.DB(fs).open()
     rt = cn.root()
@@ -115,6 +119,7 @@ def main(fname=None):
             add_if_new_persistent(todo, v, newpath)
 
     print("total", len(fs._index), "found", found)
+
 
 if __name__ == "__main__":
     main()

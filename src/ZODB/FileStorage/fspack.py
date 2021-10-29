@@ -36,8 +36,10 @@ import ZODB.POSException
 
 logger = logging.getLogger(__name__)
 
+
 class PackError(ZODB.POSException.POSError):
     pass
+
 
 class PackCopier(FileStorageFormatter):
 
@@ -54,7 +56,7 @@ class PackCopier(FileStorageFormatter):
             self._file.seek(pos - 8)
             pos = pos - u64(self._file.read(8)) - 8
             self._file.seek(pos)
-            h = self._file.read(TRANS_HDR_LEN) # XXX bytes
+            h = self._file.read(TRANS_HDR_LEN)  # XXX bytes
             _tid = h[:8]
             if _tid == tid:
                 return pos
@@ -143,6 +145,7 @@ class PackCopier(FileStorageFormatter):
             return prev_pos
         finally:
             self._file.seek(pos)
+
 
 class GC(FileStorageFormatter):
 
@@ -330,6 +333,7 @@ class GC(FileStorageFormatter):
         else:
             return []
 
+
 class FileStoragePacker(FileStorageFormatter):
 
     # path is the storage file path.
@@ -409,15 +413,15 @@ class FileStoragePacker(FileStorageFormatter):
             # try our best, but don't fail
             try:
                 self._tfile.close()
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 pass
             try:
                 self._file.close()
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 pass
             try:
                 os.remove(self._name + ".pack")
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 pass
             if self.blob_removed is not None:
                 self.blob_removed.close()
@@ -459,8 +463,8 @@ class FileStoragePacker(FileStorageFormatter):
                 # argument, and then on every platform except native
                 # Windows it was observed that we could read stale
                 # data from the tail end of the file.
-                self._file.close() # else self.gc keeps the original
-                                   # alive & open
+                self._file.close()  # else self.gc keeps the original
+                # alive & open
                 self._file = open(self._path, "rb", 0)
                 self._file.seek(0, 2)
                 self.file_end = self._file.tell()
@@ -483,13 +487,12 @@ class FileStoragePacker(FileStorageFormatter):
             if self.locked:
                 self._commit_lock.release()
             raise  # don't succeed silently
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             if self.locked:
                 self._commit_lock.release()
             raise
 
     def copyToPacktime(self):
-        offset = 0  # the amount of space freed by packing
         pos = self._metadata_size
         new_pos = pos
 
@@ -505,7 +508,6 @@ class FileStoragePacker(FileStorageFormatter):
                 self._tfile.write(p64(tlen))
                 self._tfile.seek(new_pos - 8)
                 self._tfile.write(p64(tlen))
-
 
             tlen = self._read_num(pos)
             if tlen != th.tlen:
@@ -546,8 +548,8 @@ class FileStoragePacker(FileStorageFormatter):
                         # record. There's a bug in ZEO blob support that causes
                         # duplicate data records.
                         rpos = self.gc.reachable.get(h.oid)
-                        is_dup = (rpos
-                                  and self._read_data_header(rpos).tid == h.tid)
+                        is_dup = (
+                            rpos and self._read_data_header(rpos).tid == h.tid)
                         if not is_dup:
                             if h.oid not in self.gc.reachable:
                                 self.blob_removed.write(
@@ -569,7 +571,6 @@ class FileStoragePacker(FileStorageFormatter):
                 s = th.asString()
                 new_tpos = self._tfile.tell()
                 self._tfile.write(s)
-                new_pos = new_tpos + len(s)
                 copy = 1
 
             if h.plen:
@@ -578,7 +579,6 @@ class FileStoragePacker(FileStorageFormatter):
                 data = self.fetchDataViaBackpointer(h.oid, h.back)
 
             self.writePackedDataRecord(h, data, new_tpos)
-            new_pos = self._tfile.tell()
 
         return new_tpos, pos
 

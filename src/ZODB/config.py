@@ -29,17 +29,20 @@ _db_schema = None
 s_schema_path = os.path.join(ZODB.__path__[0], "storage.xml")
 _s_schema = None
 
+
 def getDbSchema():
     global _db_schema
     if _db_schema is None:
         _db_schema = ZConfig.loadSchema(db_schema_path)
     return _db_schema
 
+
 def getStorageSchema():
     global _s_schema
     if _s_schema is None:
         _s_schema = ZConfig.loadSchema(s_schema_path)
     return _s_schema
+
 
 def databaseFromString(s):
     """Create a database from a database-configuration string.
@@ -56,6 +59,7 @@ def databaseFromString(s):
     """
     return databaseFromFile(StringIO(s))
 
+
 def databaseFromFile(f):
     """Create a database from a file object that provides configuration.
 
@@ -64,6 +68,7 @@ def databaseFromFile(f):
     config, handle = ZConfig.loadConfigFile(getDbSchema(), f)
     return databaseFromConfig(config.database)
 
+
 def databaseFromURL(url):
     """Load a database from URL (or file name) that provides configuration.
 
@@ -71,6 +76,7 @@ def databaseFromURL(url):
     """
     config, handler = ZConfig.loadConfig(getDbSchema(), url)
     return databaseFromConfig(config.database)
+
 
 def databaseFromConfig(database_factories):
     databases = {}
@@ -82,16 +88,19 @@ def databaseFromConfig(database_factories):
 
     return first
 
+
 def storageFromString(s):
     """Create a storage from a storage-configuration string.
     """
     return storageFromFile(StringIO(s))
+
 
 def storageFromFile(f):
     """Create a storage from a file object providing storage-configuration.
     """
     config, handle = ZConfig.loadConfigFile(getStorageSchema(), f)
     return storageFromConfig(config.storage)
+
 
 def storageFromURL(url):
     """\
@@ -100,8 +109,10 @@ def storageFromURL(url):
     config, handler = ZConfig.loadConfig(getStorageSchema(), url)
     return storageFromConfig(config.storage)
 
+
 def storageFromConfig(section):
     return section.open()
+
 
 class BaseConfig(object):
     """Object representing a configured storage or database.
@@ -123,6 +134,7 @@ class BaseConfig(object):
     def open(self, database_name='unnamed', databases=None):
         """Open and return the storage object."""
         raise NotImplementedError
+
 
 class ZODBDatabase(BaseConfig):
 
@@ -150,20 +162,22 @@ class ZODBDatabase(BaseConfig):
                 cache_size_bytes=section.cache_size_bytes,
                 historical_pool_size=section.historical_pool_size,
                 historical_cache_size=section.historical_cache_size,
-                historical_cache_size_bytes=section.historical_cache_size_bytes,
+                historical_cache_size_bytes=section.historical_cache_size_bytes,  # noqa: E501 line too long
                 historical_timeout=section.historical_timeout,
                 database_name=section.database_name or self.name or '',
                 databases=databases,
                 **options)
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             storage.close()
             raise
+
 
 class MappingStorage(BaseConfig):
 
     def open(self):
         from ZODB.MappingStorage import MappingStorage
         return MappingStorage(self.config.name)
+
 
 class DemoStorage(BaseConfig):
 
@@ -180,6 +194,7 @@ class DemoStorage(BaseConfig):
 
         from ZODB.DemoStorage import DemoStorage
         return DemoStorage(self.config.name, base=base, changes=changes)
+
 
 class FileStorage(BaseConfig):
 
@@ -206,6 +221,7 @@ class FileStorage(BaseConfig):
 
         return FileStorage(config.path, **options)
 
+
 class BlobStorage(BaseConfig):
 
     def open(self):
@@ -225,7 +241,8 @@ class ZEOClient(BaseConfig):
         if self.config.blob_cache_size is not None:
             options['blob_cache_size'] = self.config.blob_cache_size
         if self.config.blob_cache_size_check is not None:
-            options['blob_cache_size_check'] = self.config.blob_cache_size_check
+            options['blob_cache_size_check'] = (
+                self.config.blob_cache_size_check)
         if self.config.client_label is not None:
             options['client_label'] = self.config.client_label
 
@@ -249,6 +266,7 @@ class ZEOClient(BaseConfig):
             realm=self.config.realm,
             **options)
 
+
 class BDBStorage(BaseConfig):
 
     def open(self):
@@ -261,11 +279,13 @@ class BDBStorage(BaseConfig):
             setattr(bconf, name, getattr(self.config, name))
         return storageclass(self.config.envdir, config=bconf)
 
+
 class BDBMinimalStorage(BDBStorage):
 
     def get_storageclass(self):
         import BDBStorage.BDBMinimalStorage
         return BDBStorage.BDBMinimalStorage.BDBMinimalStorage
+
 
 class BDBFullStorage(BDBStorage):
 

@@ -15,7 +15,6 @@
 """
 from __future__ import print_function
 import logging
-import sys
 import tempfile
 import warnings
 import os
@@ -43,7 +42,6 @@ from ZODB import POSException
 from ZODB.POSException import InvalidObjectReference, ConnectionStateError
 from ZODB.POSException import ConflictError, ReadConflictError
 from ZODB.POSException import Unsupported, ReadOnlyHistoryError
-from ZODB.POSException import POSKeyError
 from ZODB.serialize import ObjectWriter, ObjectReader
 from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
@@ -56,7 +54,10 @@ from . import valuedoc
 
 global_reset_counter = 0
 
-noop = lambda : None
+
+def noop():
+    return None
+
 
 def resetCaches():
     """Causes all connection caches to be reset as connections are reopened.
@@ -131,7 +132,7 @@ class Connection(ExportImport, object):
         # Do we need to join a txn manager?
         self._needs_to_join = True
         self.transaction_manager = None
-        self.opened = None # time.time() when DB.open() opened us
+        self.opened = None  # time.time() when DB.open() opened us
 
         self._reset_counter = global_reset_counter
         self._load_count = 0   # Number of objects unghosted
@@ -150,17 +151,17 @@ class Connection(ExportImport, object):
         # List of all objects (not oids) registered as modified by the
         # persistence machinery.
         # All objects of this list are either in _cache or in _added.
-        self._registered_objects = [] # [object]
+        self._registered_objects = []  # [object]
 
         # ids and serials of objects for which readCurrent was called
         # in a transaction.
-        self._readCurrent = {} # {oid ->serial}
+        self._readCurrent = {}  # {oid ->serial}
 
         # Dict of oid->obj added explicitly through add(). Used as a
         # preliminary cache until commit time when objects are all moved
         # to the real _cache. The objects are moved to _creating at
         # commit time.
-        self._added = {} # {oid -> object}
+        self._added = {}  # {oid -> object}
 
         # During commit this is turned into a list, which receives
         # objects added as a side-effect of storing a modified object.
@@ -174,11 +175,11 @@ class Connection(ExportImport, object):
         # adding. Used during abort to remove created objects from the
         # _cache, and by persistent_id to check that a new object isn't
         # reachable from multiple databases.
-        self._creating = {} # {oid -> implicitly_added_flag}
+        self._creating = {}  # {oid -> implicitly_added_flag}
 
         # List of oids of modified objects, which have to be invalidated
         # in the cache on abort and in other connections on finish.
-        self._modified = [] # [oid]
+        self._modified = []  # [oid]
 
         # To support importFile(), implemented in the ExportImport base
         # class, we need to run _importDuringCommit() from our commit()
@@ -259,6 +260,7 @@ class Connection(ExportImport, object):
             connection._cache.incrgc()
 
     __onCloseCallbacks = None
+
     def onCloseCallback(self, f):
         """Register a callable, f, to be called by close()."""
         if self.__onCloseCallbacks is None:
@@ -272,7 +274,7 @@ class Connection(ExportImport, object):
             raise ConnectionStateError("Cannot close a connection joined to "
                                        "a transaction")
 
-        self._cache.incrgc() # This is a good time to do some GC
+        self._cache.incrgc()  # This is a good time to do some GC
 
         # Call the close callbacks.
         if self.__onCloseCallbacks is not None:
@@ -281,17 +283,17 @@ class Connection(ExportImport, object):
             for f in callbacks:
                 try:
                     f()
-                except: # except what?
+                except:  # noqa: E722 do not use bare 'except'
                     f = getattr(f, 'im_self', f)
                     self._log.exception("Close callback failed for %s", f)
 
         self._debug_info = ()
 
         if self.opened and self.transaction_manager is not None:
-            # transaction_manager could be None if one of the __onCloseCallbacks
-            # closed the DB already, .e.g, ZODB.connection() does this.
+            # transaction_manager could be None if one of the
+            # __onCloseCallbacks closed the DB already, .e.g, ZODB.connection()
+            # does this.
             self.transaction_manager.unregisterSynch(self)
-
 
         am = self._db._activity_monitor
         if am is not None:
@@ -322,7 +324,6 @@ class Connection(ExportImport, object):
         # We may have been reused by another thread at this point so
         # we can't manipulate or check the state of `self` any more.
 
-
     def db(self):
         """Returns a handle to the database this connection belongs to."""
         return self._db
@@ -345,7 +346,7 @@ class Connection(ExportImport, object):
             new_con = self._db.databases[database_name].open(
                 transaction_manager=self.transaction_manager,
                 before=self.before,
-                )
+            )
             self.connections.update(new_con.connections)
             new_con.connections = self.connections
             connection = new_con
@@ -541,12 +542,11 @@ class Connection(ExportImport, object):
             serial = getattr(obj, "_p_serial", z64)
 
             if ((serial == z64)
-                and
-                ((self._savepoint_storage is None)
-                 or (oid not in self._savepoint_storage.creating)
-                 or self._savepoint_storage.creating[oid]
-                 )
-                ):
+                    and
+                    ((self._savepoint_storage is None)
+                     or (oid not in self._savepoint_storage.creating)
+                     or self._savepoint_storage.creating[oid]
+                     )):
 
                 # obj is a new object
 
@@ -574,8 +574,8 @@ class Connection(ExportImport, object):
                     raise ValueError("Can't commit with opened blobs.")
                 blobfilename = obj._uncommitted()
                 if blobfilename is None:
-                    assert serial is not None # See _uncommitted
-                    self._modified.pop() # not modified
+                    assert serial is not None  # See _uncommitted
+                    self._modified.pop()  # not modified
                     continue
                 s = self._storage.storeBlob(oid, serial, p, blobfilename,
                                             '', transaction)
@@ -593,7 +593,7 @@ class Connection(ExportImport, object):
             # serial number for a newly created object
             try:
                 self._cache[oid] = obj
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 # Dang, I bet it's wrapped:
                 # TODO:  Deprecate, then remove, this.
                 if hasattr(obj, 'aq_base'):
@@ -609,7 +609,7 @@ class Connection(ExportImport, object):
             self._readCurrent.pop(oid, None)
             if s:
                 # savepoint
-                obj._p_changed = 0 # transition from changed to up-to-date
+                obj._p_changed = 0  # transition from changed to up-to-date
                 obj._p_serial = s
 
     def tpc_abort(self, transaction):
@@ -664,7 +664,6 @@ class Connection(ExportImport, object):
                 del o._p_jar
                 del o._p_oid
 
-
     def tpc_vote(self, transaction):
         """Verify that a data manager can commit the transaction."""
         try:
@@ -685,7 +684,7 @@ class Connection(ExportImport, object):
             for oid in s:
                 obj = self._cache.get(oid)
                 if obj is not None:
-                    del obj._p_changed # transition from changed to ghost
+                    del obj._p_changed  # transition from changed to ghost
 
     def tpc_finish(self, transaction):
         """Indicate confirmation that the transaction is done.
@@ -769,7 +768,7 @@ class Connection(ExportImport, object):
                    % (className(obj), oid_repr(oid)))
             try:
                 raise ConnectionStateError(msg)
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 self._log.exception(msg)
                 raise
 
@@ -790,7 +789,7 @@ class Connection(ExportImport, object):
 
         except ConflictError:
             raise
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             self._log.exception("Couldn't load state for %s %s",
                                 className(obj), oid_repr(oid))
             raise
@@ -847,7 +846,7 @@ class Connection(ExportImport, object):
         # fine everything. some on the lru list, some not
         everything = self._cache.cache_data
         # remove those items that are on the lru list
-        for k,v in items:
+        for k, v in items:
             del everything[k]
         # return a list of [ghosts....not recently used.....recently used]
         return list(everything.items()) + items
@@ -908,7 +907,7 @@ class Connection(ExportImport, object):
 
         transaction_manager.registerSynch(self)
 
-        self._cache.incrgc() # This is a good time to do some GC
+        self._cache.incrgc()  # This is a good time to do some GC
 
         if delegate:
             # delegate open to secondary connections
@@ -1043,7 +1042,7 @@ class Connection(ExportImport, object):
                 else:
                     self._storage.store(oid, serial, data, '', transaction)
 
-                self._readCurrent.pop(oid, None) # same as in _store_objects()
+                self._readCurrent.pop(oid, None)  # same as in _store_objects()
         finally:
             src.close()
 
@@ -1102,6 +1101,7 @@ class Connection(ExportImport, object):
                     else:
                         yield ob._p_oid
 
+
 @implementer(IDataManagerSavepoint)
 class Savepoint(object):
 
@@ -1117,13 +1117,12 @@ class Savepoint(object):
 class TmpStore(object):
     """A storage-like thing to support savepoints."""
 
-
     def __init__(self, storage):
         self._storage = storage
         for method in (
             'getName', 'new_oid', 'sortKey',
             'isReadOnly'
-            ):
+        ):
             setattr(self, method, getattr(storage, method))
 
         self._file = tempfile.TemporaryFile(prefix='TmpStore')
@@ -1167,14 +1166,14 @@ class TmpStore(object):
         # commit logic
         assert version == ''
         self._file.seek(self.position)
-        l = len(data)
+        lenght = len(data)
         if serial is None:
             serial = z64
-        header = p64(len(oid)) + oid + serial + p64(l)
+        header = p64(len(oid)) + oid + serial + p64(lenght)
         self._file.write(header)
         self._file.write(data)
         self.index[oid] = self.position
-        self.position += l + len(header)
+        self.position += lenght + len(header)
         return serial
 
     def storeBlob(self, oid, serial, data, blobfilename, version,
@@ -1221,7 +1220,7 @@ class TmpStore(object):
             self._getBlobPath(),
             "%s-%s%s" % (utils.oid_repr(oid), utils.tid_repr(tid),
                          SAVEPOINT_SUFFIX,)
-            )
+        )
 
     def temporaryDirectory(self):
         return self._storage.temporaryDirectory()
@@ -1271,6 +1270,7 @@ class RootConvenience(object):
             names = names[:57].rsplit(' ', 1)[0] + ' ...'
         return "<root: %s>" % names
 
+
 large_object_message = """The %s
 object you're saving is large. (%s bytes.)
 
@@ -1290,6 +1290,7 @@ large_record_size option of the ZODB.DB constructor (or the
 large-record-size option in a configuration file) to specify a larger
 size.
 """
+
 
 class overridable_property(object):
     """
@@ -1332,7 +1333,7 @@ class TransactionMetaData(object):
         extension = self.extension
         return dumps(extension, _protocol) if extension else b''
 
-    def note(self, text): # for tests
+    def note(self, text):  # for tests
         text = text.strip()
         if not isinstance(text, bytes):
             text = text.encode('utf-8')

@@ -23,6 +23,7 @@ from ZODB.utils import load_current
 
 from .StorageTestBase import StorageTestBase
 
+
 class FileStorageCorruptTests(StorageTestBase):
 
     def setUp(self):

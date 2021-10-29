@@ -17,6 +17,7 @@ from ZODB.utils import load_current
 
 SHORT_DELAY = 0.01
 
+
 class TestThread(threading.Thread):
     """Base class for defining threads that run from unittest.
 
@@ -35,7 +36,7 @@ class TestThread(threading.Thread):
     def run(self):
         try:
             self.runtest()
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             self._exc_info = sys.exc_info()
 
     def join(self, timeout=None):
@@ -43,6 +44,7 @@ class TestThread(threading.Thread):
         if self._exc_info:
             raise six.reraise(
                 self._exc_info[0], self._exc_info[1], self._exc_info[2])
+
 
 class ZODBClientThread(TestThread):
 
@@ -107,6 +109,7 @@ class ZODBClientThread(TestThread):
 
         raise ConflictError("Exceeded %d attempts to read" % MAXRETRIES)
 
+
 class StorageClientThread(TestThread):
 
     __super_init = TestThread.__init__
@@ -159,6 +162,7 @@ class StorageClientThread(TestThread):
         self.pause()
         self.oids[oid] = revid
 
+
 class ExtStorageClientThread(StorageClientThread):
 
     def runtest(self):
@@ -210,6 +214,7 @@ class ExtStorageClientThread(StorageClientThread):
             return
         for obj in iter:
             pass
+
 
 class MTStorage(object):
     "Test a storage with multiple client threads executing concurrently."

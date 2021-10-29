@@ -31,6 +31,7 @@ import ZODB.tests.util
 
 ZERO = z64
 
+
 def snooze():
     # In Windows, it's possible that two successive time.time() calls return
     # the same value.  Tim guarantees that time never runs backwards.  You
@@ -40,12 +41,14 @@ def snooze():
     while now == time.time():
         time.sleep(0.1)
 
+
 def _persistent_id(obj):
     oid = getattr(obj, "_p_oid", None)
     if getattr(oid, "__get__", None) is not None:
         return None
     else:
         return oid
+
 
 def zodb_pickle(obj):
     """Create a pickle in the format expected by ZODB."""
@@ -65,9 +68,11 @@ def zodb_pickle(obj):
     p.dump(state)
     return f.getvalue()
 
+
 def persistent_load(pid):
     # helper for zodb_unpickle
     return "ref to %s.%s oid=%s" % (pid[1][0], pid[1][1], u64(pid[0]))
+
 
 def zodb_unpickle(data):
     """Unpickle an object stored using the format expected by ZODB."""
@@ -101,6 +106,7 @@ def zodb_unpickle(data):
     inst.__setstate__(state)
     return inst
 
+
 def import_helper(name):
     __import__(name)
     return sys.modules[name]
@@ -124,7 +130,8 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.tearDown(self)
 
     def _dostore(self, oid=None, revid=None, data=None,
-                 already_pickled=0, user=None, description=None, extension=None):
+                 already_pickled=0, user=None, description=None,
+                 extension=None):
         """Do a complete storage transaction.  The defaults are:
 
          - oid=None, ask the storage for a new oid
@@ -152,11 +159,11 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         try:
             self._storage.tpc_begin(t)
             # Store an object
-            r1 = self._storage.store(oid, revid, data, '', t)
+            self._storage.store(oid, revid, data, '', t)
             # Finish the transaction
-            r2 = self._storage.tpc_vote(t)
+            self._storage.tpc_vote(t)
             revid = self._storage.tpc_finish(t)
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             self._storage.tpc_abort(t)
             raise
         return revid

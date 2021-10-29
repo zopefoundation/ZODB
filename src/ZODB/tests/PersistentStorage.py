@@ -15,12 +15,13 @@
 
 from ZODB.utils import load_current
 
+
 class PersistentStorage(object):
 
     def checkUpdatesPersist(self):
         oids = []
 
-        def new_oid_wrapper(l=oids, new_oid=self._storage.new_oid):
+        def new_oid_wrapper(l=oids, new_oid=self._storage.new_oid):  # noqa: E741 E501 ambiguous variable name 'l' and line too long
             oid = new_oid()
             l.append(oid)
             return oid

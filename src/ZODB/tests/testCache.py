@@ -40,7 +40,7 @@ class CacheTestBase(ZODB.tests.util.TestCase):
         ZODB.tests.util.TestCase.setUp(self)
         store = ZODB.MappingStorage.MappingStorage()
         self.db = ZODB.DB(store,
-                          cache_size = self.CACHE_SIZE)
+                          cache_size=self.CACHE_SIZE)
         self.conns = []
 
     def tearDown(self):
@@ -73,9 +73,10 @@ class CacheTestBase(ZODB.tests.util.TestCase):
         transaction.commit()
 
 
-
 # CantGetRidOfMe is used by checkMinimizeTerminates.
 make_trouble = True
+
+
 class CantGetRidOfMe(MinPO):
     def __init__(self, value):
         MinPO.__init__(self, value)
@@ -87,6 +88,7 @@ class CantGetRidOfMe(MinPO):
         # self.
         if make_trouble:
             self.an_attribute
+
 
 class DBMethods(CacheTestBase):
 
@@ -194,6 +196,7 @@ class DBMethods(CacheTestBase):
         c = self.conns[0]._cache
         c.klass_items()
 
+
 class LRUCacheTests(CacheTestBase):
 
     def testLRU(self):
@@ -205,30 +208,30 @@ class LRUCacheTests(CacheTestBase):
         self.db.setCacheSize(CACHE_SIZE)
         c = self.db.open()
         r = c.root()
-        l = {}
+        l_ = {}
         # the root is the only thing in the cache, because all the
         # other objects are new
         self.assertEqual(len(c._cache), 1)
         # run several transactions
         for t in range(5):
             for i in range(dataset_size):
-                l[(t,i)] = r[i] = MinPO(i)
+                l_[(t, i)] = r[i] = MinPO(i)
             transaction.commit()
             # commit() will register the objects, placing them in the
             # cache.  at the end of commit, the cache will be reduced
             # down to CACHE_SIZE items
-            if len(l)>CACHE_SIZE:
+            if len(l_) > CACHE_SIZE:
                 self.assertEqual(c._cache.ringlen(), CACHE_SIZE)
         for i in range(dataset_size):
             # Check objects added in the first two transactions.
             # They must all be ghostified.
-            self.assertEqual(l[(0,i)]._p_changed, None)
-            self.assertEqual(l[(1,i)]._p_changed, None)
+            self.assertEqual(l_[(0, i)]._p_changed, None)
+            self.assertEqual(l_[(1, i)]._p_changed, None)
             # Check objects added in the last two transactions.
             # They must all still exist in memory, but have
             # had their changes flushed
-            self.assertEqual(l[(3,i)]._p_changed, 0)
-            self.assertEqual(l[(4,i)]._p_changed, 0)
+            self.assertEqual(l_[(3, i)]._p_changed, 0)
+            self.assertEqual(l_[(4, i)]._p_changed, 0)
             # Of the objects added in the middle transaction, most
             # will have been ghostified. There is one cache slot
             # that may be occupied by either one of those objects or
@@ -257,7 +260,7 @@ class LRUCacheTests(CacheTestBase):
             # The cache *usually* contains non-ghosts, so that the
             # size normally exceeds the target size.
 
-            #self.assertEqual(d['size'], CACHE_SIZE)
+            # self.assertEqual(d['size'], CACHE_SIZE)
 
     def testDetail(self):
         CACHE_SIZE = 10
@@ -288,7 +291,6 @@ class LRUCacheTests(CacheTestBase):
         # This test really needs to be thought through and documented
         # better.
 
-
         for klass, count in self.db.cacheDetail():
             if klass.endswith('MinPO'):
                 self.assertEqual(count, CONNS * CACHE_SIZE)
@@ -307,12 +309,15 @@ class LRUCacheTests(CacheTestBase):
             if details['state'] is None:    # i.e., it's a ghost
                 self.assertTrue(details['rc'] > 0)
 
+
 class StubDataManager(object):
     def setklassstate(self, object):
         pass
 
+
 class StubObject(Persistent):
     pass
+
 
 class CacheErrors(unittest.TestCase):
 
@@ -448,6 +453,7 @@ class CacheErrors(unittest.TestCase):
                              "A different object already has the same oid")
         else:
             self.fail("two objects with the same oid should have failed")
+
 
 def test_basic_cache_size_estimation():
     """Make sure the basic accounting is correct:

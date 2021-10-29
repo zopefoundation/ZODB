@@ -94,11 +94,14 @@ def die(mess='', show_docstring=False):
         print(__doc__ % sys.argv[0], file=sys.stderr)
     sys.exit(1)
 
+
 class ErrorFound(Exception):
     pass
 
+
 def error(mess, *args):
     raise ErrorFound(mess % args)
+
 
 def read_txn_header(f, pos, file_size, outp, ltid):
     # Read the transaction record
@@ -107,7 +110,7 @@ def read_txn_header(f, pos, file_size, outp, ltid):
     if len(h) < 23:
         raise EOFError
 
-    tid, stl, status, ul, dl, el = unpack(">8s8scHHH",h)
+    tid, stl, status, ul, dl, el = unpack(">8s8scHHH", h)
     status = as_text(status)
     tl = u64(stl)
 
@@ -157,6 +160,7 @@ def read_txn_header(f, pos, file_size, outp, ltid):
 
     return pos, result, tid
 
+
 def truncate(f, pos, file_size, outp):
     """Copy data from pos to end of f to a .trNNN file."""
 
@@ -176,6 +180,7 @@ def truncate(f, pos, file_size, outp):
     f.seek(pos)
     tr.close()
 
+
 def copy(src, dst, n):
     while n:
         buf = src.read(8096)
@@ -185,6 +190,7 @@ def copy(src, dst, n):
             buf = buf[:n]
         dst.write(buf)
         n -= len(buf)
+
 
 def scan(f, pos):
     """Return a potential transaction location following pos in f.
@@ -206,19 +212,20 @@ def scan(f, pos):
 
         s = 0
         while 1:
-            l = data.find(b".", s)
-            if l < 0:
+            l_ = data.find(b".", s)
+            if l_ < 0:
                 pos += len(data)
                 break
             # If we are less than 8 bytes from the end of the
             # string, we need to read more data.
-            s = l + 1
+            s = l_ + 1
             if s > len(data) - 8:
-                pos += l
+                pos += l_
                 break
             tl = u64(data[s:s+8])
             if tl < pos:
                 return pos + s + 8
+
 
 def iprogress(i):
     if i % 2:
@@ -227,9 +234,11 @@ def iprogress(i):
         print((i/2) % 10, end=' ')
     sys.stdout.flush()
 
+
 def progress(p):
     for i in range(p):
         iprogress(i)
+
 
 def main():
     try:
@@ -256,6 +265,7 @@ def main():
 
     recover(inp, outp, verbose, partial, force, pack)
 
+
 def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
     print("Recovering", inp, "into", outp)
 
@@ -266,7 +276,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
     if f.read(4) != ZODB.FileStorage.packed_version:
         die("input is not a file storage")
 
-    f.seek(0,2)
+    f.seek(0, 2)
     file_size = f.tell()
 
     ofs = ZODB.FileStorage.FileStorage(outp, create=1)
@@ -332,11 +342,11 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
             for r in txn:
                 if verbose > 1:
                     if r.data is None:
-                        l = "bp"
+                        l_ = "bp"
                     else:
-                        l = len(r.data)
+                        l_ = len(r.data)
 
-                    print("%7d %s %s" % (u64(r.oid), l))
+                    print("%7d %s" % (u64(r.oid), l_))
                 ofs.restore(r.oid, r.tid, r.data, '', r.data_txn,
                             txn)
                 nrec += 1
@@ -370,7 +380,6 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
                 prog1 = prog1 + 1
                 iprogress(prog1)
 
-
     bad = file_size - undone - ofs._pos
 
     print("\n%s bytes removed during recovery" % bad)
@@ -384,6 +393,7 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
 
     ofs.close()
     f.close()
+
 
 if __name__ == "__main__":
     main()

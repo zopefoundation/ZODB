@@ -13,7 +13,8 @@
 ##############################################################################
 """Conventience function for creating test databases
 """
-from ZODB.MappingStorage import DB
+# BBB
+from ZODB.MappingStorage import DB  # noqa: F401 import unused
 
 import atexit
 import doctest
@@ -43,7 +44,6 @@ import functools
 from time import time as _real_time
 from time import gmtime as _real_gmtime
 _current_time = _real_time()
-
 
 
 checker = renormalizing.RENormalizing([
@@ -80,7 +80,8 @@ checker = renormalizing.RENormalizing([
      r"Unsupported"),
     (re.compile("ZConfig.ConfigurationSyntaxError"),
      r"ConfigurationSyntaxError"),
-    ])
+])
+
 
 def setUp(test, name='test'):
     clear_transaction_syncs()
@@ -94,9 +95,11 @@ def setUp(test, name='test'):
     os.chdir(d)
     zope.testing.setupstack.register(test, transaction.abort)
 
+
 def tearDown(test):
     clear_transaction_syncs()
     zope.testing.setupstack.tearDown(test)
+
 
 class TestCase(unittest.TestCase):
 
@@ -110,8 +113,10 @@ class TestCase(unittest.TestCase):
 
     tearDown = tearDown
 
+
 def pack(db):
     db.pack(time.time()+1)
+
 
 class P(persistent.Persistent):
 
@@ -121,10 +126,12 @@ class P(persistent.Persistent):
     def __repr__(self):
         return 'P(%s)' % self.name
 
+
 class MininalTestLayer(object):
 
     __bases__ = ()
     __module__ = ''
+
     def __init__(self, name):
         self.__name__ = name
 
@@ -142,9 +149,11 @@ class MininalTestLayer(object):
 
     testSetUp = testTearDown = lambda self: None
 
+
 def clean(tmp):
     if os.path.isdir(tmp):
         zope.testing.setupstack.rmtree(tmp)
+
 
 class AAAA_Test_Runner_Hack(unittest.TestCase):
     """Hack to work around a bug in the test runner.
@@ -157,18 +166,21 @@ class AAAA_Test_Runner_Hack(unittest.TestCase):
     def testNothing(self):
         pass
 
+
 def assert_warning(category, func, warning_text=''):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter('default')
         result = func()
         for warning in w:
             if ((warning.category is category)
-                and (warning_text in str(warning.message))):
+                    and (warning_text in str(warning.message))):
                 return result
         raise AssertionError(w)
 
+
 def assert_deprecated(func, warning_text=''):
     return assert_warning(DeprecationWarning, func, warning_text)
+
 
 def wait(func=None, timeout=30):
     if func is None:
@@ -178,6 +190,7 @@ def wait(func=None, timeout=30):
             return
         time.sleep(.01)
     raise AssertionError
+
 
 def store(storage, oid, value='x', serial=ZODB.utils.z64):
     if not isinstance(oid, bytes):
@@ -190,8 +203,10 @@ def store(storage, oid, value='x', serial=ZODB.utils.z64):
     storage.tpc_vote(t)
     storage.tpc_finish(t)
 
+
 def mess_with_time(test=None, globs=None, now=1278864701.5):
     now = [now]
+
     def faux_time():
         now[0] += 1
         return now[0]
@@ -204,10 +219,11 @@ def mess_with_time(test=None, globs=None, now=1278864701.5):
     import time
     zope.testing.setupstack.register(test, setattr, time, 'time', time.time)
 
-    if isinstance(time,type):
-        time.time = staticmethod(faux_time) # jython
+    if isinstance(time, type):
+        time.time = staticmethod(faux_time)  # jython
     else:
         time.time = faux_time
+
 
 def clear_transaction_syncs():
     """Clear data managers registered with the global transaction manager
@@ -236,9 +252,10 @@ class _TimeWrapper(object):
 
     def _configure_fakes(self):
         def incr():
-            global _current_time # pylint:disable=global-statement
+            global _current_time  # pylint:disable=global-statement
             with self._lock:
-                _current_time = max(_real_time(), _current_time + self._granularity)
+                _current_time = max(
+                    _real_time(), _current_time + self._granularity)
             return _current_time
         self.fake_time.side_effect = incr
 
@@ -329,7 +346,7 @@ def reset_monotonic_time(value=0.0):
     call.
     """
 
-    global _current_time # pylint:disable=global-statement
+    global _current_time  # pylint:disable=global-statement
     _current_time = value
 
 
@@ -346,7 +363,8 @@ class MonotonicallyIncreasingTimeMinimalTestLayer(MininalTestLayer):
 
 def with_high_concurrency(f):
     """
-    with_high_concurrency decorates f to run with high frequency of thread context switches.
+    with_high_concurrency decorates f to run with high frequency of thread
+    context switches.
 
     It is useful for tests that try to probabilistically reproduce race
     condition scenarios.
@@ -357,19 +375,23 @@ def with_high_concurrency(f):
             # Python3, by default, switches every 5ms, which turns threads in
             # intended "high concurrency" scenarios to execute almost serially.
             # Raise the frequency of context switches in order to increase the
-            # probability to reproduce interesting/tricky overlapping of threads.
+            # probability to reproduce interesting/tricky overlapping of
+            # threads.
             #
-            # See https://github.com/zopefoundation/ZODB/pull/345#issuecomment-822188305 and
-            # https://github.com/zopefoundation/ZEO/issues/168#issuecomment-821829116 for details.
+            # See https://github.com/zopefoundation/ZODB/pull/345#issuecomment-822188305 and  # noqa: E501 line too long
+            # https://github.com/zopefoundation/ZEO/issues/168#issuecomment-821829116 for details.  # noqa: E501 line too long
             _ = sys.getswitchinterval()
+
             def restore():
                 sys.setswitchinterval(_)
-            sys.setswitchinterval(5e-6) # ~ 100 simple instructions on modern hardware
+            # ~ 100 simple instructions on modern hardware
+            sys.setswitchinterval(5e-6)
 
         else:
             # Python2, by default, switches threads every "100 instructions".
             # Just make sure we run f with that default.
             _ = sys.getcheckinterval()
+
             def restore():
                 sys.setcheckinterval(_)
             sys.setcheckinterval(100)
@@ -404,4 +426,4 @@ def run_module_as_script(mod, args, stdout="stdout", stderr="stderr"):
         sys.stdout.close()
         sys.stderr.close()
         pdb.set_trace = s_set_trace
-        sys.argv, sys.stdout, sys.stderr = sargv, sout, serr  
+        sys.argv, sys.stdout, sys.stderr = sargv, sout, serr

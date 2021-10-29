@@ -33,6 +33,7 @@ except ImportError:
     # Py3
     import io as StringIO
 
+
 class RecoverTest(ZODB.tests.util.TestCase):
 
     path = None
@@ -101,8 +102,9 @@ class RecoverTest(ZODB.tests.util.TestCase):
         try:
             sys.stdout = faux_stdout
             try:
-                ZODB.fsrecover.recover(self.path, self.dest,
-                        verbose=0, partial=True, force=False, pack=1)
+                ZODB.fsrecover.recover(
+                    self.path, self.dest, verbose=0, partial=True, force=False,
+                    pack=1)
             except SystemExit:
                 raise RuntimeError("recover tried to exit")
         finally:

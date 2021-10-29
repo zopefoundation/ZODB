@@ -29,17 +29,17 @@ from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 
 logger = logging.getLogger('ZODB.ExportImport')
 
+
 class ExportImport(object):
 
     def exportFile(self, oid, f=None, bufsize=64 * 1024):
         if f is None:
             f = TemporaryFile(prefix="EXP")
         elif isinstance(f, six.string_types):
-            f = open(f,'w+b')
+            f = open(f, 'w+b')
         f.write(b'ZEXP')
         oids = [oid]
         done_oids = {}
-        done = done_oids.__contains__
         load = self._storage.load
         supports_blobs = IBlobStorage.providedBy(self._storage)
         while oids:
@@ -49,7 +49,7 @@ class ExportImport(object):
             done_oids[oid] = True
             try:
                 p, serial = load(oid)
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 logger.debug("broken reference for oid %s", repr(oid),
                              exc_info=True)
             else:
@@ -58,7 +58,7 @@ class ExportImport(object):
 
                 if supports_blobs:
                     if not isinstance(self._reader.getGhost(p), Blob):
-                        continue # not a blob
+                        continue  # not a blob
 
                     blobfilename = self._storage.loadBlob(oid, serial)
                     f.write(blob_begin_marker)
@@ -159,8 +159,7 @@ class ExportImport(object):
                 return_oid_list.append(oid)
 
             if (b'blob' in data and
-                isinstance(self._reader.getGhost(data), Blob)
-                ):
+                    isinstance(self._reader.getGhost(data), Blob)):
                 # Blob support
 
                 # Make sure we have a (redundant, overly) blob marker.
@@ -198,10 +197,13 @@ class ExportImport(object):
 export_end_marker = b'\377'*16
 blob_begin_marker = b'\000BLOBSTART'
 
+
 class Ghost(object):
     __slots__ = ("oid",)
+
     def __init__(self, oid):
         self.oid = oid
+
 
 def persistent_id(obj):
     if isinstance(obj, Ghost):

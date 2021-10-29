@@ -23,17 +23,17 @@ from ZODB.blob import FilesystemHelper
 from ZODB.utils import oid_repr
 
 
-def link_or_copy(f1, f2):
-    try:
-        os.link(f1, f2)
-    except OSError:
-        shutil.copy(f1, f2)
-
 # Check if we actually have link
 try:
     os.link
 except AttributeError:
     link_or_copy = shutil.copy
+else:
+    def link_or_copy(f1, f2):
+        try:
+            os.link(f1, f2)
+        except OSError:
+            shutil.copy(f1, f2)
 
 
 def migrate(source, dest, layout):

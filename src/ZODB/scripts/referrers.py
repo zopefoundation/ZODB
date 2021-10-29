@@ -18,6 +18,7 @@ $Id$
 
 from ZODB.serialize import referencesf
 
+
 def referrers(storage):
     result = {}
     for transaction in storage.iterator():
