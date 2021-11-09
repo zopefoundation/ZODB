@@ -18,6 +18,7 @@ import unittest
 import ZODB.persistentclass
 import ZODB.tests.util
 
+
 def class_with_circular_ref_to_self():
     """
 It should be possible for a class to reger to itself.
@@ -37,6 +38,7 @@ It should be possible for a class to reger to itself.
     'C'
 
 """
+
 
 def test_new_ghost_w_persistent_class():
     """
@@ -67,6 +69,8 @@ def test_new_ghost_w_persistent_class():
     """
 
 # XXX need to update files to get newer testing package
+
+
 class FakeModule(object):
     def __init__(self, name, dict):
         self.__dict__ = dict
@@ -79,19 +83,18 @@ def setUp(test):
     module = FakeModule('ZODB.persistentclass_txt', test.globs)
     sys.modules[module.__name__] = module
 
+
 def tearDown(test):
     test.globs['some_database'].close()
     del sys.modules['ZODB.persistentclass_txt']
     ZODB.tests.util.tearDown(test)
 
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-                "../persistentclass.rst",
-                setUp=setUp, tearDown=tearDown,
-                checker=ZODB.tests.util.checker),
+            "../persistentclass.rst",
+            setUp=setUp, tearDown=tearDown,
+            checker=ZODB.tests.util.checker),
         doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
-        ))
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+    ))

@@ -14,6 +14,7 @@
 """Sample objects for use in tests
 """
 
+
 class DataManager(object):
     """Sample data manager
 
@@ -148,7 +149,7 @@ class DataManager(object):
 
     def _checkTransaction(self, transaction):
         if (transaction is not self.transaction
-            and self.transaction is not None):
+                and self.transaction is not None):
             raise TypeError("Transaction missmatch",
                             transaction, self.transaction)
 
@@ -383,6 +384,7 @@ class DataManager(object):
         self.transaction = transaction
         self.sp += 1
         return Rollback(self)
+
 
 class Rollback(object):
 

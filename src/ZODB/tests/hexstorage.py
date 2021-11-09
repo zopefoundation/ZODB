@@ -17,17 +17,17 @@ import ZODB.utils
 import zope.interface
 from binascii import hexlify, unhexlify
 
+
 @zope.interface.implementer(ZODB.interfaces.IStorageWrapper)
 class HexStorage(object):
 
-
     copied_methods = (
-            'close', 'getName', 'getSize', 'history', 'isReadOnly',
-            'lastTransaction', 'new_oid', 'sortKey',
-            'tpc_abort', 'tpc_begin', 'tpc_finish', 'tpc_vote',
-            'loadBlob', 'openCommittedBlobFile', 'temporaryDirectory',
-            'supportsUndo', 'undo', 'undoLog', 'undoInfo',
-            )
+        'close', 'getName', 'getSize', 'history', 'isReadOnly',
+        'lastTransaction', 'new_oid', 'sortKey',
+        'tpc_abort', 'tpc_begin', 'tpc_finish', 'tpc_vote',
+        'loadBlob', 'openCommittedBlobFile', 'temporaryDirectory',
+        'supportsUndo', 'undo', 'undoLog', 'undoInfo',
+    )
 
     def __init__(self, base):
         self.base = base
@@ -122,6 +122,7 @@ class HexStorage(object):
     def copyTransactionsFrom(self, other):
         ZODB.blob.copyTransactionsFromTo(other, self)
 
+
 class ServerHexStorage(HexStorage):
     """Use on ZEO storage server when Hex is used on client
 
@@ -132,7 +133,8 @@ class ServerHexStorage(HexStorage):
     copied_methods = HexStorage.copied_methods + (
         'load', 'loadBefore', 'loadSerial', 'store', 'restore',
         'iterator', 'storeBlob', 'restoreBlob', 'record_iternext',
-        )
+    )
+
 
 class Transaction(object):
 
@@ -149,6 +151,7 @@ class Transaction(object):
     def __getattr__(self, name):
         return getattr(self.__trans, name)
 
+
 class ZConfigHex(object):
 
     _factory = HexStorage
@@ -160,6 +163,7 @@ class ZConfigHex(object):
     def open(self):
         base = self.config.base.open()
         return self._factory(base)
+
 
 class ZConfigServerHex(ZConfigHex):
 

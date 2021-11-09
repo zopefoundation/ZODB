@@ -100,6 +100,7 @@ class TxnHeader(object):
         tlen = u64(self._file.read(8))
         return TxnHeader(self._file, self._pos - (tlen + 8))
 
+
 class DataHeader(object):
     """Object representing a data record header.
 
@@ -111,7 +112,7 @@ class DataHeader(object):
     txn_pos            24-32    position of txn header
     version_len        32-34    length of version (always 0)
     data_len           34-42    length of data
-    
+
     """
 
     def __init__(self, file, pos):
@@ -129,14 +130,15 @@ class DataHeader(object):
         self.prev_rec_pos = u64(prev_rec_pos)
         self.txn_pos = u64(txn_pos)
         self.data_len = u64(data_len)
-        
+
     def next_offset(self):
         """Return offset of next record."""
         off = self._pos + self.data_len
         off += DATA_HDR_LEN
         if self.data_len == 0:
-            off += 8 # backpointer
+            off += 8  # backpointer
         return off
+
 
 def prev_txn(f):
     """Return transaction located before current file position."""

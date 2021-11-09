@@ -35,7 +35,6 @@ from ZODB._compat import BytesIO
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import decodebytes
 from ZODB._compat import ascii_bytes
-from ZODB._compat import INT_TYPES
 from ZODB._compat import PY3
 
 
@@ -62,20 +61,21 @@ valid_modes = 'r', 'w', 'r+', 'a', 'c'
 # of a weakref when the weakref object dies at the same time
 # as the object it refers to. In other words, this doesn't work:
 #    self._ref = weakref.ref(self, lambda ref: ...)
-# because the function never gets called (https://bitbucket.org/pypy/pypy/issue/2030).
+# because the function never gets called
+# (https://bitbucket.org/pypy/pypy/issue/2030).
 # The Blob class used to use that pattern to clean up uncommitted
 # files; now we use this module-level global (but still keep a
 # reference in the Blob in case we need premature cleanup).
 _blob_close_refs = []
 
+
 @zope.interface.implementer(ZODB.interfaces.IBlob)
 class Blob(persistent.Persistent):
     """A BLOB supports efficient handling of large data within ZODB."""
 
-
     _p_blob_uncommitted = None  # Filename of the uncommitted (dirty) data
-    _p_blob_committed = None    # Filename of the committed data
-    _p_blob_ref = None          # weakreference to self; also in _blob_close_refs
+    _p_blob_committed = None  # Filename of the committed data
+    _p_blob_ref = None  # weakreference to self; also in _blob_close_refs
 
     readers = writers = None
 
@@ -140,11 +140,10 @@ class Blob(persistent.Persistent):
 
         if mode == 'c':
             if (self._p_blob_uncommitted
-                or
-                not self._p_blob_committed
-                or
-                self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
-                ):
+                    or
+                    not self._p_blob_committed
+                    or
+                    self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)):
                 raise BlobError('Uncommitted changes')
             return self._p_jar._storage.openCommittedBlobFile(
                 self._p_oid, self._p_serial)
@@ -186,7 +185,7 @@ class Blob(persistent.Persistent):
                 if self._p_blob_uncommitted is None:
                     self._create_uncommitted_file()
                 result = BlobFile(self._p_blob_uncommitted, mode, self)
-            else: # 'r+' and 'a'
+            else:  # 'r+' and 'a'
                 if self._p_blob_uncommitted is None:
                     # Create a new working copy
                     self._create_uncommitted_file()
@@ -214,11 +213,10 @@ class Blob(persistent.Persistent):
 
     def committed(self):
         if (self._p_blob_uncommitted
-            or
-            not self._p_blob_committed
-            or
-            self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)
-            ):
+                or
+                not self._p_blob_committed
+                or
+                self._p_blob_committed.endswith(SAVEPOINT_SUFFIX)):
             raise BlobError('Uncommitted changes')
 
         result = self._p_blob_committed
@@ -254,7 +252,7 @@ class Blob(persistent.Persistent):
 
         try:
             rename_or_copy_blob(filename, target, chmod=False)
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             # Recover from the failed consumption: First remove the file, it
             # might exist and mark the pointer to the uncommitted file.
             self._p_blob_uncommitted = None
@@ -317,6 +315,7 @@ class Blob(persistent.Persistent):
         self._p_blob_uncommitted = self._p_blob_ref = None
         return filename
 
+
 class BlobFile(file):
     """A BlobFile that holds a file handle to actual blob data.
 
@@ -348,7 +347,9 @@ class BlobFile(file):
         # prohibit it on all versions.
         raise TypeError("Pickling a BlobFile is not allowed")
 
+
 _pid = str(os.getpid())
+
 
 def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
     message = "(%s) %s" % (subsys, msg)
@@ -394,8 +395,8 @@ class FilesystemHelper(object):
                 layout = layout_marker.read().strip()
             if layout != self.layout_name:
                 raise ValueError(
-                    "Directory layout `%s` selected for blob directory %s, but "
-                    "marker found for layout `%s`" %
+                    "Directory layout `%s` selected for blob directory %s, but"
+                    " marker found for layout `%s`" %
                     (self.layout_name, self.base_dir, layout))
 
     def isSecure(self, path):
@@ -541,6 +542,7 @@ class NoBlobsFileSystemHelper(object):
 class BlobStorageError(Exception):
     """The blob storage encountered an invalid state."""
 
+
 def auto_layout_select(path):
     # A heuristic to look at a path and determine which directory layout to
     # use.
@@ -593,7 +595,7 @@ class BushyLayout(object):
         directories = [b'0x' + hex_bytes[x:x+2]
                        for x in range(0, 16, 2)]
 
-        if bytes is not str: # py3
+        if bytes is not str:  # py3
             sep_bytes = os.path.sep.encode('ascii')
             path_bytes = sep_bytes.join(directories)
             return path_bytes.decode('ascii')
@@ -618,7 +620,9 @@ class BushyLayout(object):
         filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
         return os.path.join(oid_path, filename)
 
+
 LAYOUTS['bushy'] = BushyLayout()
+
 
 class LawnLayout(BushyLayout):
     """A shallow directory layout for blob directories.
@@ -640,7 +644,9 @@ class LawnLayout(BushyLayout):
         except (TypeError, binascii.Error):
             raise ValueError('Not a valid OID path: `%s`' % path)
 
+
 LAYOUTS['lawn'] = LawnLayout()
+
 
 class BlobStorageMixin(object):
     """A mix-in to help storages support blobs."""
@@ -738,7 +744,6 @@ class BlobStorage(BlobStorageMixin):
     """A wrapper/proxy storage to support blobs.
     """
 
-
     def __init__(self, base_directory, storage, layout='automatic'):
         assert not ZODB.interfaces.IBlobStorage.providedBy(storage)
         self.__storage = storage
@@ -780,8 +785,8 @@ class BlobStorage(BlobStorageMixin):
 
     def tpc_abort(self, *arg, **kw):
         # We need to override the base storage's abort instead of
-        # providing an _abort method because methods found on the proxied object
-        # aren't rebound to the proxy
+        # providing an _abort method because methods found on the proxied
+        # object aren't rebound to the proxy
         self.__storage.tpc_abort(*arg, **kw)
         self._blob_tpc_abort()
 
@@ -814,7 +819,7 @@ class BlobStorage(BlobStorageMixin):
             if exists:
                 files = os.listdir(oid_path)
                 files.sort()
-                latest = files[-1] # depends on ever-increasing tids
+                latest = files[-1]  # depends on ever-increasing tids
                 files.remove(latest)
                 for f in files:
                     remove_committed(os.path.join(oid_path, f))
@@ -905,7 +910,10 @@ class BlobStorage(BlobStorageMixin):
         res = BlobStorage(base_dir, s)
         return res
 
+
 copied = logging.getLogger('ZODB.blob.copied').debug
+
+
 def rename_or_copy_blob(f1, f2, chmod=True):
     """Try to rename f1 to f2, fallback to copy.
 
@@ -925,6 +933,7 @@ def rename_or_copy_blob(f1, f2, chmod=True):
 
     if chmod:
         set_not_writable(f2)
+
 
 if sys.platform == 'win32':
     # On Windows, you can't remove read-only files, so make the
@@ -952,6 +961,7 @@ def find_global_Blob(module, class_):
     if module == 'ZODB.blob' and class_ == 'Blob':
         return Blob
 
+
 def is_blob_record(record):
     """Check whether a database record is a blob record.
 
@@ -960,7 +970,8 @@ def is_blob_record(record):
 
     """
     if record and (b'ZODB.blob' in record):
-        unpickler = PersistentUnpickler(find_global_Blob, None, BytesIO(record))
+        unpickler = PersistentUnpickler(
+            find_global_Blob, None, BytesIO(record))
 
         try:
             return unpickler.load() is Blob
@@ -970,6 +981,7 @@ def is_blob_record(record):
             pass
 
     return False
+
 
 def copyTransactionsFromTo(source, destination):
     for trans in source.iterator():
@@ -990,10 +1002,10 @@ def copyTransactionsFromTo(source, destination):
                     with open(name, 'wb') as df:
                         utils.cp(sf, df)
                 destination.restoreBlob(record.oid, record.tid, record.data,
-                                 name, record.data_txn, trans)
+                                        name, record.data_txn, trans)
             else:
                 destination.restore(record.oid, record.tid, record.data,
-                             '', record.data_txn, trans)
+                                    '', record.data_txn, trans)
 
         destination.tpc_vote(trans)
         destination.tpc_finish(trans)
@@ -1001,6 +1013,8 @@ def copyTransactionsFromTo(source, destination):
 
 NO_WRITE = ~ (stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
 READ_PERMS = stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH
+
+
 def set_not_writable(path):
     perms = stat.S_IMODE(os.lstat(path).st_mode)
 

@@ -15,7 +15,7 @@ import doctest
 import unittest
 
 __test__ = dict(
-    cross_db_refs_to_blank_db_name = """
+    cross_db_refs_to_blank_db_name="""
 
     There was a bug that caused bad refs to be generated is a database
     name was blank.
@@ -41,7 +41,7 @@ __test__ = dict(
     >>> db2.close()
     >>> db1.close()
     """,
-    )
+)
 
 
 def test_suite():

@@ -126,6 +126,7 @@ def database_xrefs_config():
     False
     """
 
+
 def multi_atabases():
     r"""If there are multiple codb sections -> multidatabase
 
@@ -194,6 +195,7 @@ def multi_atabases():
     ValueError: database_name '' already in databases
 
     """
+
 
 def test_suite():
     suite = unittest.TestSuite()

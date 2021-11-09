@@ -44,7 +44,7 @@ checker = renormalizing.RENormalizing([
     (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
     (re.compile("ZODB.POSException.ConnectionStateError"),
      r"ConnectionStateError"),
-    ])
+])
 
 
 class ConnectionDotAdd(ZODB.tests.util.TestCase):
@@ -131,7 +131,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         self.assertTrue(obj._p_jar is self.datamgr)
 
         # This next assertTrue is covered by an assert in tpc_finish.
-        ##self.assertTrue(not self.datamgr._added)
+        # self.assertTrue(not self.datamgr._added)
 
         self.assertEqual(self.db.storage._stored, [oid])
         self.assertEqual(self.db.storage._finished, [oid])
@@ -148,7 +148,7 @@ class ConnectionDotAdd(ZODB.tests.util.TestCase):
         storage = self.db.storage
         self.assertTrue(obj._p_oid in storage._stored, "object was not stored")
         self.assertTrue(subobj._p_oid in storage._stored,
-                "subobject was not stored")
+                        "subobject was not stored")
         self.assertTrue(member._p_oid in storage._stored,
                         "member was not stored")
         self.assertTrue(self.datamgr._added_during_commit is None)
@@ -176,8 +176,7 @@ class SetstateErrorLoggingTests(ZODB.tests.util.TestCase):
 
     def setUp(self):
         ZODB.tests.util.TestCase.setUp(self)
-        from ZODB.Connection import Connection
-        self.db = db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
+        self.db = databaseFromString("<zodb>\n<mappingstorage/>\n</zodb>")
         self.datamgr = self.db.open()
         self.object = StubObject()
         self.datamgr.add(self.object)
@@ -188,7 +187,6 @@ class SetstateErrorLoggingTests(ZODB.tests.util.TestCase):
         self.handler.uninstall()
 
     def test_closed_connection_wont_setstate(self):
-        oid = self.object._p_oid
         self.object._p_deactivate()
         self.datamgr.close()
         self.assertRaises(
@@ -476,6 +474,7 @@ class UserMethodTests(unittest.TestCase):
         -1
         """
 
+
 def doctest_transaction_retry_convenience():
     """
     Simple test to verify integration with the transaction retry
@@ -505,6 +504,7 @@ def doctest_transaction_retry_convenience():
     0 1
     0 2
     """
+
 
 class InvalidationTests(unittest.TestCase):
 
@@ -588,6 +588,7 @@ class InvalidationTests(unittest.TestCase):
             c2.root()['b'] = 1
             s1 = c1._storage
             l1 = s1._lock
+
             @contextmanager
             def beforeLock1():
                 s1._lock = l1
@@ -600,6 +601,7 @@ class InvalidationTests(unittest.TestCase):
             self.assertIn('b', r1)
         finally:
             db.close()
+
 
 def doctest_invalidateCache():
     """The invalidateCache method invalidates a connection's cache.
@@ -655,6 +657,7 @@ def doctest_invalidateCache():
         >>> db.close()
     """
 
+
 def doctest_connection_root_convenience():
     """Connection root attributes can now be used as objects with attributes
 
@@ -692,9 +695,11 @@ def doctest_connection_root_convenience():
     <root: rather_long_name rather_long_name2 rather_long_name4 ...>
     """
 
+
 class proper_ghost_initialization_with_empty__p_deactivate_class(Persistent):
     def _p_deactivate(self):
         pass
+
 
 def doctest_proper_ghost_initialization_with_empty__p_deactivate():
     """
@@ -714,6 +719,7 @@ def doctest_proper_ghost_initialization_with_empty__p_deactivate():
     1
 
     """
+
 
 def doctest_readCurrent():
     r"""
@@ -868,6 +874,7 @@ def doctest_readCurrent():
 
     """
 
+
 def doctest_cache_management_of_subconnections():
     """Make that cache management works for subconnections.
 
@@ -934,6 +941,7 @@ def doctest_cache_management_of_subconnections():
 
     """
 
+
 class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
     def __init__(self):
         self.settings = 1
@@ -943,7 +951,8 @@ class C_invalidations_of_new_objects_work_after_savepoint(Persistent):
         Persistent._p_invalidate(self)
         print(self.settings)   # POSKeyError here
 
-def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():
+
+def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_break():  # noqa: E501 line too long
     r"""
     Before, the following would fail with a POSKeyError, which was
     somewhat surprising, in a very edgy sort of way. :)
@@ -969,11 +978,13 @@ def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_b
 
     """
 
+
 class Clp9460655(Persistent):
     def __init__(self, word, id):
         super(Clp9460655, self).__init__()
         self.id = id
         self._word = word
+
 
 def doctest_lp9460655():
     r"""
@@ -1001,6 +1012,7 @@ def doctest_lp9460655():
 
     """
 
+
 def doctest_lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
     r"""
 
@@ -1022,11 +1034,13 @@ def doctest_lp615758_transaction_abort_Incomplete_cleanup_for_new_objects():
     >>> c.close()
     """
 
+
 class Clp485456_setattr_in_getstate_doesnt_cause_multiple_stores(Persistent):
 
     def __getstate__(self):
         self.got = 1
         return self.__dict__.copy()
+
 
 def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     r"""
@@ -1096,6 +1110,7 @@ class _PlayPersistent(Persistent):
     def setValueWithSize(self, size=0): self.value = size*' '
     __init__ = setValueWithSize
 
+
 class EstimatedSizeTests(ZODB.tests.util.TestCase):
     """check that size estimations are handled correctly."""
 
@@ -1134,7 +1149,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
                          cache_size + new_size - size)
 
     def test_size_set_on_load(self):
-        c = self.db.open() # new connection
+        c = self.db.open()  # new connection
         obj = c.root()['obj']
         # the object is still a ghost and '_p_estimated_size' not yet set
         # access to unghost
@@ -1183,7 +1198,6 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
                                     )
             self.assertEqual(db.getCacheSizeBytes(), 0x1 << 33)
 
-
     def test_cache_garbage_collection(self):
         db = self.db
         # activate size based cache garbage collection
@@ -1203,7 +1217,7 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
         db = self.db
         # activate size based cache garbage collection
         db.setCacheSizeBytes(1000)
-        obj, conn, cache = self.obj, self.conn, self.conn._cache
+        obj, cache = self.obj, self.conn._cache
         # verify the change worked as expected
         self.assertEqual(cache.cache_size_bytes, 1000)
         # verify our entrance assumption is fulfilled
@@ -1222,16 +1236,20 @@ class EstimatedSizeTests(ZODB.tests.util.TestCase):
 
 # ---- stubs
 
+
 class StubObject(Persistent):
     pass
 
+
 class ErrorOnGetstateException(Exception):
     pass
+
 
 class ErrorOnGetstateObject(Persistent):
 
     def __getstate__(self):
         raise ErrorOnGetstateException
+
 
 class ModifyOnGetStateObject(Persistent):
 
@@ -1346,7 +1364,7 @@ class TestConnection(unittest.TestCase):
         db = ZODB.DB(None)
         conn = db.open()
         data = []
-        conn._storage.afterCompletion = lambda : data.append(None)
+        conn._storage.afterCompletion = lambda: data.append(None)
         conn.transaction_manager.commit()
         self.assertEqual(len(data), 1)
         conn.close()
@@ -1359,9 +1377,11 @@ class TestConnection(unittest.TestCase):
         storage = MVCCMappingStorage()
 
         new_instance = storage.new_instance
+
         def new_instance2():
             inst = new_instance()
             sync = inst.sync
+
             def sync2(*args):
                 sync()
                 syncs.append(1)
@@ -1371,8 +1391,8 @@ class TestConnection(unittest.TestCase):
         storage.new_instance = new_instance2
 
         db = ZODB.DB(storage)
-        del syncs[:] # Need to do this to clear effect of getting the
-                     # root object
+        del syncs[:]  # Need to do this to clear effect of getting the
+        # root object
 
         # We don't want to depend on latest transaction package, so
         # just set attr for test:
@@ -1404,6 +1424,7 @@ class TestConnection(unittest.TestCase):
 
         db.close()
 
+
 class StubDatabase(object):
 
     def __init__(self):
@@ -1418,7 +1439,8 @@ class StubDatabase(object):
     def invalidate(self, transaction, dict_with_oid_keys, connection):
         pass
 
-    large_record_size = 1<<30
+    large_record_size = 1 << 30
+
 
 def test_suite():
     s = unittest.makeSuite(ConnectionDotAdd)

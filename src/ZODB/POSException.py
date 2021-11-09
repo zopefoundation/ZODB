@@ -18,19 +18,25 @@ $Id$"""
 from ZODB.utils import oid_repr, readable_tid_repr
 
 # BBB: We moved the two transactions to the transaction package
-from transaction.interfaces import TransactionError, TransactionFailedError
+from transaction.interfaces import TransactionError  # noqa: F401 import unused
+from transaction.interfaces import TransactionFailedError  # noqa: F401
 
 import transaction.interfaces
+
 
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
     return "Undo error %s%s" % (oid_repr(oid), s)
 
+
 def _recon(class_, state):
     err = class_.__new__(class_)
     err.__setstate__(state)
     return err
+
+
 _recon.__no_side_effects__ = True
+
 
 class POSError(Exception):
     """Persistent object system error."""
@@ -49,8 +55,9 @@ class POSError(Exception):
         # the args would then get lost, leading to unprintable exceptions
         # and worse. Manually assign to args from the state to be sure
         # this doesn't happen.
-        super(POSError,self).__setstate__(state)
+        super(POSError, self).__setstate__(state)
         self.args = state['args']
+
 
 class POSKeyError(POSError, KeyError):
     """Key not found in database."""
@@ -143,6 +150,7 @@ class ConflictError(POSError, transaction.interfaces.TransientError):
     def get_serials(self):
         return self.serials
 
+
 class ReadConflictError(ConflictError):
     """Conflict detected when object was requested to stay unchanged.
 
@@ -156,64 +164,67 @@ class ReadConflictError(ConflictError):
       - object is found to be removed, and
       - there is possibility that database pack was running simultaneously.
     """
+
     def __init__(self, message=None, object=None, serials=None, **kw):
         if message is None:
             message = "database read conflict error"
         ConflictError.__init__(self, message=message, object=object,
                                serials=serials, **kw)
 
+
 class BTreesConflictError(ConflictError):
     """A special subclass for BTrees conflict errors."""
 
-    msgs = [# 0; i2 or i3 bucket split; positions are all -1
-            'Conflicting bucket split',
+    msgs = [
+        # 0; i2 or i3 bucket split; positions are all -1
+        'Conflicting bucket split',
 
-            # 1; keys the same, but i2 and i3 values differ, and both values
-            # differ from i1's value
-            'Conflicting changes',
+        # 1; keys the same, but i2 and i3 values differ, and both values
+        # differ from i1's value
+        'Conflicting changes',
 
-            # 2; i1's value changed in i2, but key+value deleted in i3
-            'Conflicting delete and change',
+        # 2; i1's value changed in i2, but key+value deleted in i3
+        'Conflicting delete and change',
 
-            # 3; i1's value changed in i3, but key+value deleted in i2
-            'Conflicting delete and change',
+        # 3; i1's value changed in i3, but key+value deleted in i2
+        'Conflicting delete and change',
 
-            # 4; i1 and i2 both added the same key, or both deleted the
-            # same key
-            'Conflicting inserts or deletes',
+        # 4; i1 and i2 both added the same key, or both deleted the
+        # same key
+        'Conflicting inserts or deletes',
 
-            # 5;  i2 and i3 both deleted the same key
-            'Conflicting deletes',
+        # 5;  i2 and i3 both deleted the same key
+        'Conflicting deletes',
 
-            # 6; i2 and i3 both added the same key
-            'Conflicting inserts',
+        # 6; i2 and i3 both added the same key
+        'Conflicting inserts',
 
-            # 7; i2 and i3 both deleted the same key, or i2 changed the value
-            # associated with a key and i3 deleted that key
-            'Conflicting deletes, or delete and change',
+        # 7; i2 and i3 both deleted the same key, or i2 changed the value
+        # associated with a key and i3 deleted that key
+        'Conflicting deletes, or delete and change',
 
-            # 8; i2 and i3 both deleted the same key, or i3 changed the value
-            # associated with a key and i2 deleted that key
-            'Conflicting deletes, or delete and change',
+        # 8; i2 and i3 both deleted the same key, or i3 changed the value
+        # associated with a key and i2 deleted that key
+        'Conflicting deletes, or delete and change',
 
-            # 9; i2 and i3 both deleted the same key
-            'Conflicting deletes',
+        # 9; i2 and i3 both deleted the same key
+        'Conflicting deletes',
 
-            # 10; i2 and i3 deleted all the keys, and didn't insert any,
-            # leaving an empty bucket; conflict resolution doesn't have
-            # enough info to unlink an empty bucket from its containing
-            # BTree correctly
-            'Empty bucket from deleting all keys',
+        # 10; i2 and i3 deleted all the keys, and didn't insert any,
+        # leaving an empty bucket; conflict resolution doesn't have
+        # enough info to unlink an empty bucket from its containing
+        # BTree correctly
+        'Empty bucket from deleting all keys',
 
-            # 11; conflicting changes in an internal BTree node
-            'Conflicting changes in an internal BTree node',
+        # 11; conflicting changes in an internal BTree node
+        'Conflicting changes in an internal BTree node',
 
-            # 12; i2 or i3 was empty
-            'Empty bucket in a transaction',
+        # 12; i2 or i3 was empty
+        'Empty bucket in a transaction',
 
-            # 13; delete of first key, which causes change to parent node
-            'Delete of first key',
-            ]
+        # 13; delete of first key, which causes change to parent node
+        'Delete of first key',
+    ]
 
     def __init__(self, p1, p2, p3, reason):
         self.p1 = p1
@@ -226,11 +237,14 @@ class BTreesConflictError(ConflictError):
                                                         self.p2,
                                                         self.p3,
                                                         self.reason)
+
     def __str__(self):
         return "BTrees conflict error at %d/%d/%d: %s" % (
             self.p1, self.p2, self.p3, self.msgs[self.reason])
 
-class DanglingReferenceError(POSError, transaction.interfaces.TransactionError):
+
+class DanglingReferenceError(
+        POSError, transaction.interfaces.TransactionError):
     """An object has a persistent reference to a missing object.
 
     If an object is stored and it has a reference to another object
@@ -258,8 +272,10 @@ class DanglingReferenceError(POSError, transaction.interfaces.TransactionError):
 class VersionError(POSError):
     """An error in handling versions occurred."""
 
+
 class VersionCommitError(VersionError):
     """An invalid combination of versions was used in a version commit."""
+
 
 class VersionLockError(VersionError, transaction.interfaces.TransactionError):
     """Modification to an object modified in an unsaved version.
@@ -268,6 +284,7 @@ class VersionLockError(VersionError, transaction.interfaces.TransactionError):
     unsaved version.
     """
 ############################################################################
+
 
 class UndoError(POSError):
     """An attempt was made to undo a non-undoable transaction."""
@@ -278,6 +295,7 @@ class UndoError(POSError):
 
     def __str__(self):
         return _fmt_undo(self._oid, self._reason)
+
 
 class MultipleUndoErrors(UndoError):
     """Several undo errors occurred during a single transaction."""
@@ -290,32 +308,42 @@ class MultipleUndoErrors(UndoError):
     def __str__(self):
         return "\n".join([_fmt_undo(*pair) for pair in self._errs])
 
+
 class StorageError(POSError):
     """Base class for storage based exceptions."""
+
 
 class StorageTransactionError(StorageError):
     """An operation was invoked for an invalid transaction or state."""
 
+
 class StorageSystemError(StorageError):
     """Panic! Internal storage error!"""
+
 
 class MountedStorageError(StorageError):
     """Unable to access mounted storage."""
 
+
 class ReadOnlyError(StorageError):
     """Unable to modify objects in a read-only storage."""
+
 
 class TransactionTooLargeError(StorageTransactionError):
     """The transaction exhausted some finite storage resource."""
 
+
 class ExportError(POSError):
     """An export file doesn't have the right format."""
+
 
 class Unsupported(POSError):
     """A feature was used that is not supported by the storage."""
 
+
 class ReadOnlyHistoryError(POSError):
     """Unable to add or modify objects in an historical connection."""
+
 
 class InvalidObjectReference(POSError):
     """An object contains an invalid reference to another object.
@@ -328,6 +356,7 @@ class InvalidObjectReference(POSError):
 
     TODO:  The exception ought to have a member that is the invalid object.
     """
+
 
 class ConnectionStateError(POSError):
     """A Connection isn't in the required state for an operation.

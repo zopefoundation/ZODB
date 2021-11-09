@@ -9,7 +9,6 @@ from ZODB.FileStorage import FileStorage
 from ZODB._compat import PersistentUnpickler, BytesIO
 
 
-
 class FakeError(Exception):
     def __init__(self, module, name):
         Exception.__init__(self)
@@ -41,19 +40,21 @@ class Report(object):
         self.FOIDS = 0
         self.FBYTES = 0
 
+
 def shorten(s, n):
-    l = len(s)
-    if l <= n:
+    length = len(s)
+    if length <= n:
         return s
-    while len(s) + 3 > n: # account for ...
+    while len(s) + 3 > n:  # account for ...
         i = s.find(".")
         if i == -1:
             # In the worst case, just return the rightmost n bytes
             return s[-n:]
         else:
             s = s[i + 1:]
-            l = len(s)
+            length = len(s)
     return "..." + s
+
 
 def report(rep):
     print("Processed %d records in %d transactions" % (rep.OIDS, rep.TIDS))
@@ -63,8 +64,8 @@ def report(rep):
 
     print("Types used:")
     fmt = "%-46s %7s %9s %6s %7s"
-    fmtp = "%-46s %7d %9d %5.1f%% %7.2f" # per-class format
-    fmts = "%46s %7d %8dk %5.1f%% %7.2f" # summary format
+    fmtp = "%-46s %7d %9d %5.1f%% %7.2f"  # per-class format
+    fmts = "%46s %7d %8dk %5.1f%% %7.2f"  # summary format
     print(fmt % ("Class Name", "Count", "TBytes", "Pct", "AvgSize"))
     print(fmt % ('-'*46, '-'*7, '-'*9, '-'*5, '-'*7))
     typemap = sorted(rep.TYPEMAP)
@@ -76,8 +77,9 @@ def report(rep):
                       pct, rep.TYPESIZE[t] * 1.0 / rep.TYPEMAP[t]))
 
     print(fmt % ('='*46, '='*7, '='*9, '='*5, '='*7))
-    print("%46s %7d %9s %6s %6.2fk" % ('Total Transactions', rep.TIDS, ' ',
-        ' ', rep.DBYTES * 1.0 / rep.TIDS / 1024.0))
+    print("%46s %7d %9s %6s %6.2fk" % (
+        'Total Transactions', rep.TIDS, ' ', ' ',
+        rep.DBYTES * 1.0 / rep.TIDS / 1024.0))
     print(fmts % ('Total Records', rep.OIDS, rep.DBYTES / 1024.0, cumpct,
                   rep.DBYTES * 1.0 / rep.OIDS))
 
@@ -89,6 +91,7 @@ def report(rep):
                       rep.FBYTES * 100.0 / rep.DBYTES,
                       rep.FBYTES * 1.0 / rep.FOIDS))
 
+
 def analyze(path):
     fs = FileStorage(path, read_only=1)
     fsi = fs.iterator()
@@ -97,10 +100,12 @@ def analyze(path):
         analyze_trans(report, txn)
     return report
 
+
 def analyze_trans(report, txn):
     report.TIDS += 1
     for rec in txn:
         analyze_rec(report, rec)
+
 
 def get_type(record):
     try:
@@ -114,6 +119,7 @@ def get_type(record):
     else:
         return str(classinfo)
 
+
 def analyze_rec(report, record):
     oid = record.oid
     report.OIDS += 1
@@ -121,7 +127,7 @@ def analyze_rec(report, record):
         # No pickle -- aborted version or undo of object creation.
         return
     try:
-        size = len(record.data) # Ignores various overhead
+        size = len(record.data)  # Ignores various overhead
         report.DBYTES += size
         if oid not in report.OIDMAP:
             type = get_type(record)
@@ -141,6 +147,7 @@ def analyze_rec(report, record):
         report.TYPESIZE[type] = report.TYPESIZE.get(type, 0) + size
     except Exception as err:
         print(err)
+
 
 if __name__ == "__main__":
     path = sys.argv[1]

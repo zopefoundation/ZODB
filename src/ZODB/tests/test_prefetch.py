@@ -5,12 +5,14 @@ import ZODB
 
 from .MVCCMappingStorage import MVCCMappingStorage
 
+
 class PrefetchTests(unittest.TestCase):
 
     def test_prefetch(self):
         db = ZODB.DB(None)
 
         fetched = []
+
         def prefetch(oids, tid):
             fetched.append((list(map(u64, oids)), tid))
 

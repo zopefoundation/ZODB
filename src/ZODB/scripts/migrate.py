@@ -82,7 +82,7 @@ import profile
 
 from persistent.timestamp import TimeStamp
 from ZODB import utils
-from ZODB import StorageTypes # XXX: This import does not exist
+from ZODB import StorageTypes  # XXX: This import does not exist
 
 
 PROGRAM = sys.argv[0]
@@ -130,7 +130,7 @@ def main():
         elif opt in ('-v', '--verbose'):
             options.verbose += 1
         elif opt in ('-T', '--storage_types'):
-            print_types()
+            print('Unknown option.')
             sys.exit(0)
         elif opt in ('-S', '--stype'):
             options.stype = arg
@@ -247,16 +247,16 @@ def doit(srcdb, dstdb, options):
             t = TimeStamp(tid)
             if t <= ts:
                 if ok:
-                    print((
-                        'Time stamps are out of order %s, %s' % (ts, t)), file=sys.stderr)
+                    print('Time stamps are out of order %s, %s' % (ts, t),
+                          file=sys.stderr)
                     ok = False
                     ts = t.laterThan(ts)
                     tid = ts.raw()
                 else:
                     ts = t
                     if not ok:
-                        print((
-                            'Time stamps are back in order %s' % t), file=sys.stderr)
+                        print('Time stamps are back in order %s' % t,
+                              file=sys.stderr)
                         ok = True
         if verbose > 1:
             print(ts)
@@ -310,7 +310,7 @@ def doit(srcdb, dstdb, options):
             tidstr = utils.U64(tid)
             format = "%4d. %20s %6d %8d %6.4f %6.4f %6.4f %6.4f %6.4f"
         print(format % (skipper, tidstr, objects, size,
-                                  t4-t0, t1-t0, t2-t1, t3-t2, t4-t3), file=outfp)
+                        t4-t0, t1-t0, t2-t1, t3-t2, t4-t3), file=outfp)
         total_pickle_size += size
         total_object_count += objects
 

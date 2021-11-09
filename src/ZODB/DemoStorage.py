@@ -35,10 +35,11 @@ import zope.interface
 from .ConflictResolution import ConflictResolvingStorage
 from .utils import load_current, maxtid
 
+
 @zope.interface.implementer(
-        ZODB.interfaces.IStorage,
-        ZODB.interfaces.IStorageIteration,
-        )
+    ZODB.interfaces.IStorage,
+    ZODB.interfaces.IStorageIteration,
+)
 class DemoStorage(ConflictResolvingStorage):
     """A storage that stores changes against a read-only base database
 
@@ -99,7 +100,6 @@ class DemoStorage(ConflictResolvingStorage):
         self.base = base
         self.close_base_on_close = close_base_on_close
 
-
         if changes is None:
             self._temporary_changes = True
             changes = ZODB.MappingStorage.MappingStorage()
@@ -128,16 +128,15 @@ class DemoStorage(ConflictResolvingStorage):
 
         self._copy_methods_from_changes(changes)
 
-        self._next_oid = random.randint(1, 1<<62)
+        self._next_oid = random.randint(1, 1 << 62)
 
     def _blobify(self):
         if (self._temporary_changes and
-            isinstance(self.changes, ZODB.MappingStorage.MappingStorage)
-            ):
+                isinstance(self.changes, ZODB.MappingStorage.MappingStorage)):
             blob_dir = tempfile.mkdtemp('.demoblobs')
             _temporary_blobdirs[
                 weakref.ref(self, cleanup_temporary_blobdir)
-                ] = blob_dir
+            ] = blob_dir
             self.changes = ZODB.blob.BlobStorage(blob_dir, self.changes)
             self._copy_methods_from_changes(self.changes)
             return True
@@ -147,6 +146,7 @@ class DemoStorage(ConflictResolvingStorage):
         self.changes.cleanup()
 
     __opened = True
+
     def opened(self):
         return self.__opened
 
@@ -162,7 +162,7 @@ class DemoStorage(ConflictResolvingStorage):
             '_lock',
             'getSize', 'isReadOnly',
             'sortKey', 'tpc_transaction',
-            ):
+        ):
             setattr(self, meth, getattr(changes, meth))
 
         supportsUndo = getattr(changes, 'supportsUndo', None)
@@ -253,7 +253,7 @@ class DemoStorage(ConflictResolvingStorage):
                         t = self.changes.loadBefore(oid, end_tid)
                     result = result[:2] + (
                         end_tid if end_tid != maxtid else None,
-                        )
+                    )
 
         return result
 
@@ -296,7 +296,7 @@ class DemoStorage(ConflictResolvingStorage):
     def new_oid(self):
         with self._lock:
             while 1:
-                oid = ZODB.utils.p64(self._next_oid )
+                oid = ZODB.utils.p64(self._next_oid)
                 if oid not in self._issued_oids:
                     try:
                         load_current(self.changes, oid)
@@ -308,7 +308,7 @@ class DemoStorage(ConflictResolvingStorage):
                             self._issued_oids.add(oid)
                             return oid
 
-                self._next_oid = random.randint(1, 1<<62)
+                self._next_oid = random.randint(1, 1 << 62)
 
     def pack(self, t, referencesf, gc=None):
         if gc is None:
@@ -325,7 +325,7 @@ class DemoStorage(ConflictResolvingStorage):
             self.changes.pack(t, referencesf, gc=False)
         except TypeError as v:
             if 'gc' in str(v):
-                pass # The gc arg isn't supported. Don't pack
+                pass  # The gc arg isn't supported. Don't pack
             raise
 
     def pop(self):
@@ -344,7 +344,7 @@ class DemoStorage(ConflictResolvingStorage):
                               close_base_on_close=False)
 
     def store(self, oid, serial, data, version, transaction):
-        assert version=='', "versions aren't supported"
+        assert version == '', "versions aren't supported"
         if transaction is not self._transaction:
             raise ZODB.POSException.StorageTransactionError(self, transaction)
 
@@ -367,7 +367,7 @@ class DemoStorage(ConflictResolvingStorage):
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
-        assert version=='', "versions aren't supported"
+        assert version == '', "versions aren't supported"
         if transaction is not self._transaction:
             raise ZODB.POSException.StorageTransactionError(self, transaction)
 
@@ -425,7 +425,7 @@ class DemoStorage(ConflictResolvingStorage):
                 "Unexpected resolved conflicts")
         return self._resolved
 
-    def tpc_finish(self, transaction, func = lambda tid: None):
+    def tpc_finish(self, transaction, func=lambda tid: None):
         with self._lock:
             if (transaction is not self._transaction):
                 raise ZODB.POSException.StorageTransactionError(
@@ -437,11 +437,14 @@ class DemoStorage(ConflictResolvingStorage):
             self._commit_lock.release()
         return tid
 
+
 _temporary_blobdirs = {}
+
+
 def cleanup_temporary_blobdir(
     ref,
-    _temporary_blobdirs=_temporary_blobdirs, # Make sure it stays around
-    ):
+    _temporary_blobdirs=_temporary_blobdirs,  # Make sure it stays around
+):
     blob_dir = _temporary_blobdirs.pop(ref, None)
     if blob_dir and os.path.exists(blob_dir):
         ZODB.blob.remove_committed_dir(blob_dir)

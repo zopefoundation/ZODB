@@ -85,6 +85,7 @@ Options for -V/--verify:
         Verify file sizes only (skip md5 checksums).
 """
 from __future__ import print_function
+import re
 import os
 import shutil
 import sys
@@ -176,7 +177,7 @@ def parseargs(argv):
                                     'date=',
                                     'output=',
                                     'with-verification',
-                                   ])
+                                    ])
     except getopt.error as msg:
         usage(1, msg)
 
@@ -299,6 +300,8 @@ def fsync(afile):
 # Return the total number of bytes read == the total number of bytes
 # passed in all to func().  Leaves the file position just after the
 # last byte read.
+
+
 def dofile(func, fp, n=None):
     bytesread = 0
     while n is None or n > 0:
@@ -320,6 +323,7 @@ def dofile(func, fp, n=None):
 def checksum(fp, n):
     # Checksum the first n bytes of the specified file
     sum = md5()
+
     def func(data):
         sum.update(data)
     dofile(func, fp, n)
@@ -336,6 +340,7 @@ def file_size(fp):
 def checksum_and_size(fp):
     # Checksum and return it with the size of the file
     sum = md5()
+
     def func(data):
         sum.update(data)
     size = dofile(func, fp, None)
@@ -374,6 +379,7 @@ def concat(files, ofp=None):
     # given.  Return the number of bytes written and the md5 checksum of the
     # bytes.
     sum = md5()
+
     def func(data):
         sum.update(data)
         if ofp:
@@ -392,6 +398,7 @@ def concat(files, ofp=None):
 
 def gen_filedate(options):
     return getattr(options, 'test_now', time.gmtime()[:6])
+
 
 def gen_filename(options, ext=None, now=None):
     if ext is None:
@@ -412,9 +419,10 @@ def gen_filename(options, ext=None, now=None):
 # files, from the time of the most recent full backup preceding
 # options.date, up to options.date.
 
-import re
+
 is_data_file = re.compile(r'\d{4}(?:-\d\d){5}\.(?:delta)?fsz?$').match
 del re
+
 
 def find_files(options):
     when = options.date
@@ -455,10 +463,11 @@ def find_files(options):
 #
 #     None, None, None, None
 
+
 def scandat(repofiles):
     fullfile = repofiles[0]
     datfile = os.path.splitext(fullfile)[0] + '.dat'
-    fn = startpos = endpos = sum = None # assume .dat file missing or empty
+    fn = startpos = endpos = sum = None  # assume .dat file missing or empty
     try:
         fp = open(datfile)
     except IOError as e:
@@ -474,6 +483,7 @@ def scandat(repofiles):
             endpos = int(endpos)
 
     return fn, startpos, endpos, sum
+
 
 def delete_old_backups(options):
     # Delete all full backup files except for the most recent full backup file
@@ -514,6 +524,7 @@ def delete_old_backups(options):
         except OSError:
             pass
         os.unlink(os.path.join(options.repository, fname))
+
 
 def do_full_backup(options):
     options.full = True
@@ -714,7 +725,8 @@ def do_recover(options):
                         "%s has checksum %s instead of %s" % (
                             repofile, reposum, expected_truth['sum']))
                 totalsz += reposz
-                log("Recovered chunk %s : %s bytes, md5: %s", repofile, reposz, reposum)
+                log("Recovered chunk %s : %s bytes, md5: %s",
+                    repofile, reposz, reposum)
             log("Recovered a total of %s bytes", totalsz)
         else:
             reposz, reposum = concat(repofiles, outfp)
@@ -725,7 +737,8 @@ def do_recover(options):
             source_index = '%s.index' % last_base
             target_index = '%s.index' % options.output
             if os.path.exists(source_index):
-                log('Restoring index file %s to %s', source_index, target_index)
+                log('Restoring index file %s to %s',
+                    source_index, target_index)
                 shutil.copyfile(source_index, target_index)
             else:
                 log('No index file to restore: %s', source_index)
@@ -737,8 +750,8 @@ def do_recover(options):
         try:
             os.rename(temporary_output_file, options.output)
         except OSError:
-            log("ZODB has been fully recovered as %s, but it cannot be renamed into : %s",
-                temporary_output_file, options.output)
+            log("ZODB has been fully recovered as %s, but it cannot be renamed"
+                " into : %s", temporary_output_file, options.output)
             raise
 
 
@@ -759,10 +772,12 @@ def do_verify(options):
             log("Verifying %s", filename)
             try:
                 if filename.endswith('fsz'):
-                    actual_sum, size = get_checksum_and_size_of_gzipped_file(filename, options.quick)
+                    actual_sum, size = get_checksum_and_size_of_gzipped_file(
+                        filename, options.quick)
                     when_uncompressed = ' (when uncompressed)'
                 else:
-                    actual_sum, size = get_checksum_and_size_of_file(filename, options.quick)
+                    actual_sum, size = get_checksum_and_size_of_file(
+                        filename, options.quick)
                     when_uncompressed = ''
             except IOError:
                 error("%s is missing", filename)

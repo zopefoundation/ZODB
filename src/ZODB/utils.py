@@ -43,7 +43,7 @@ __all__ = ['z64',
            'readable_tid_repr',
            'get_pickle_metadata',
            'locked',
-          ]
+           ]
 
 
 if PY2:
@@ -70,7 +70,7 @@ else:
         return bytes.decode("ascii")
 
     def byte_ord(byte):
-        return byte # elements of bytes are already ints
+        return byte  # elements of bytes are already ints
 
     def byte_chr(int):
         return bytes((int,))
@@ -96,12 +96,14 @@ def p64(v):
     except struct.error as e:
         raise ValueError(*(e.args + (v,)))
 
+
 def u64(v):
     """Unpack an 8-byte string into a 64-bit long integer."""
     try:
         return _OID_UNPACK(v)[0]
     except struct.error as e:
         raise ValueError(*(e.args + (v,)))
+
 
 U64 = u64
 
@@ -121,7 +123,7 @@ def cp(f1, f2, length=None, bufsize=64 * 1024):
 
     if length is None:
         old_pos = f1.tell()
-        f1.seek(0,2)
+        f1.seek(0, 2)
         length = f1.tell()
         f1.seek(old_pos)
 
@@ -134,9 +136,10 @@ def cp(f1, f2, length=None, bufsize=64 * 1024):
         write(data)
         length -= len(data)
 
+
 def newTid(old):
     t = time.time()
-    ts = TimeStamp(*time.gmtime(t)[:5]+(t%60,))
+    ts = TimeStamp(*time.gmtime(t)[:5]+(t % 60,))
     if old is not None:
         ts = ts.laterThan(TimeStamp(old))
     return ts.raw()
@@ -155,6 +158,7 @@ def oid_repr(oid):
     else:
         return repr(oid)
 
+
 def repr_to_oid(repr):
     repr = ascii_bytes(repr)
     if repr.startswith(b"0x"):
@@ -163,12 +167,15 @@ def repr_to_oid(repr):
     as_bin = b"\x00"*(8-len(as_bin)) + as_bin
     return as_bin
 
+
 serial_repr = oid_repr
 tid_repr = serial_repr
 
 # For example, produce
 #     '0x03441422948b4399 2002-04-14 20:50:34.815000'
 # for 8-byte string tid b'\x03D\x14"\x94\x8bC\x99'.
+
+
 def readable_tid_repr(tid):
     result = tid_repr(tid)
     if isinstance(tid, bytes) and len(tid) == 8:
@@ -184,7 +191,10 @@ def readable_tid_repr(tid):
 # a negative address gives a positive int with the same hex representation as
 # the significant bits in the original.
 
+
 _ADDRESS_MASK = 256 ** struct.calcsize('P')
+
+
 def positive_id(obj):
     """Return id(obj) as a non-negative integer."""
 
@@ -201,6 +211,7 @@ def positive_id(obj):
 # docs to be at least as smart.  The code here doesn't appear to make sense
 # for what serialize.py calls formats 5 and 6.
 
+
 def get_pickle_metadata(data):
     # Returns a 2-tuple of strings.
 
@@ -209,7 +220,7 @@ def get_pickle_metadata(data):
     # pick apart the first here, to extract the module and class names.
     if data[0] in (0x80,    # Py3k indexes bytes -> int
                    b'\x80'  # Python2 indexes bytes -> bytes
-                  ): # protocol marker, protocol > 1
+                   ):  # protocol marker, protocol > 1
         data = data[2:]
     if data.startswith(b'(c'):   # pickle MARK GLOBAL opcode sequence
         global_prefix = 2
@@ -233,7 +244,7 @@ def get_pickle_metadata(data):
     u = Unpickler(f)
     try:
         class_info = u.load()
-    except Exception as err:
+    except Exception:
         return '', ''
     if isinstance(class_info, tuple):
         if isinstance(class_info[0], tuple):
@@ -248,17 +259,20 @@ def get_pickle_metadata(data):
         classname = ''
     return modname, classname
 
+
 def mktemp(dir=None, prefix='tmp'):
     """Create a temp file, known by name, in a semi-secure manner."""
     handle, filename = mkstemp(dir=dir, prefix=prefix)
     os.close(handle)
     return filename
 
+
 def check_precondition(precondition):
     if not precondition():
         raise AssertionError(
             "Failed precondition: ",
             precondition.__doc__.strip())
+
 
 class Locked(object):
 
@@ -287,6 +301,7 @@ class Locked(object):
 
             return func(*args, **kw)
 
+
 class locked(object):
 
     def __init__(self, *preconditions):
@@ -302,7 +317,7 @@ class locked(object):
         return Locked(func, preconditions=self.preconditions)
 
 
-if os.environ.get('DEBUG_LOCKING'): # pragma: no cover
+if os.environ.get('DEBUG_LOCKING'):  # pragma: no cover
     # NOTE: This only works on Python 3.
     class Lock(object):
 
@@ -363,10 +378,11 @@ if os.environ.get('DEBUG_LOCKING'): # pragma: no cover
 
 else:
 
-    from threading import Condition, Lock, RLock
+    from threading import Condition, Lock, RLock  # noqa: F401 import unused
 
 
-import ZODB.POSException
+import ZODB.POSException  # noqa: E402 module level import not at top of file
+
 
 def load_current(storage, oid, version=''):
     """Load the most recent revision of an object by calling loadBefore

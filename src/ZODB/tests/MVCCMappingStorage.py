@@ -110,7 +110,7 @@ class MVCCMappingStorage(MappingStorage):
         self._polled_tid = self._ltid = new_tid
         return list(changed_oids)
 
-    def tpc_finish(self, transaction, func = lambda tid: None):
+    def tpc_finish(self, transaction, func=lambda tid: None):
         self._data_snapshot = None
         with self._main_lock:
             return MappingStorage.tpc_finish(self, transaction, func)

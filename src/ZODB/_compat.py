@@ -11,13 +11,13 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
+from zodbpickle import binary  # noqa: F401 import unused
 import sys
 from six import PY3
 
 IS_JYTHON = sys.platform.startswith('java')
 
 _protocol = 3
-from zodbpickle import binary
 
 if not PY3:
     # Python 2.x
@@ -42,7 +42,8 @@ else:
     # http://bugs.python.org/issue6784
     import zodbpickle.pickle
     HIGHEST_PROTOCOL = 3
-    from _compat_pickle import IMPORT_MAPPING, NAME_MAPPING
+    from _compat_pickle import IMPORT_MAPPING  # noqa: F401 import unused
+    from _compat_pickle import NAME_MAPPING  # noqa: F401 import unused
 
     class Pickler(zodbpickle.pickle.Pickler):
         def __init__(self, f, protocol=None):
@@ -92,6 +93,7 @@ def PersistentPickler(persistent_id, *args, **kwargs):
     p.persistent_id = persistent_id
     return p
 
+
 def PersistentUnpickler(find_global, load_persistent, *args, **kwargs):
     """
     Returns a :class:`Unpickler` that will use the given `find_global` function
@@ -104,7 +106,8 @@ def PersistentUnpickler(find_global, load_persistent, *args, **kwargs):
     if find_global is not None:
         unpickler.find_global = find_global
         try:
-            unpickler.find_class = find_global # PyPy, zodbpickle, the non-c-accelerated version
+            # PyPy, zodbpickle, the non-c-accelerated version
+            unpickler.find_class = find_global
         except AttributeError:
             pass
     if load_persistent is not None:
@@ -118,7 +121,7 @@ try:
     from cStringIO import StringIO as BytesIO
 except ImportError:
     # Python 3.x
-    from io import BytesIO
+    from io import BytesIO  # noqa: F401 import unused
 
 
 try:
@@ -126,14 +129,15 @@ try:
     from base64 import decodebytes, encodebytes
 except ImportError:
     # Python 2.x
-    from base64 import decodestring as decodebytes, encodestring as encodebytes
+    from base64 import decodestring as decodebytes  # noqa: F401 import unused
+    from base64 import encodestring as encodebytes  # noqa: F401 import unused
 
 
 # Python 3.x: ``hasattr()`` swallows only AttributeError.
 def py2_hasattr(obj, name):
     try:
         getattr(obj, name)
-    except:
+    except:  # noqa: E722 do not use bare 'except'
         return False
     return True
 
@@ -151,8 +155,9 @@ else:
 
 try:
     TEXT = unicode
-except NameError: #pragma NO COVER Py3k
+except NameError:  # pragma NO COVER Py3k
     TEXT = str
+
 
 def ascii_bytes(x):
     if isinstance(x, TEXT):

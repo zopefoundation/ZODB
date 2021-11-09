@@ -18,14 +18,15 @@ import unittest
 from persistent import Persistent
 from persistent.wref import WeakRef
 
-import zope.testing.setupstack
-
 import ZODB.tests.util
 from ZODB import serialize
-from ZODB._compat import Pickler, PersistentUnpickler, BytesIO, _protocol, IS_JYTHON
+from ZODB._compat import Pickler, PersistentUnpickler, BytesIO, _protocol
+from ZODB._compat import IS_JYTHON
+
 
 class PersistentObject(Persistent):
     pass
+
 
 class ClassWithNewargs(int):
     def __new__(cls, value):
@@ -34,9 +35,11 @@ class ClassWithNewargs(int):
     def __getnewargs__(self):
         return int(self),
 
+
 class ClassWithoutNewargs(object):
     def __init__(self, value):
         self.value = value
+
 
 def make_pickle(ob):
     sio = BytesIO()
@@ -47,6 +50,7 @@ def make_pickle(ob):
 
 def _factory(conn, module_name, name):
     return globals()[name]
+
 
 class SerializerTestCase(unittest.TestCase):
 
@@ -104,6 +108,7 @@ class SerializerTestCase(unittest.TestCase):
 
         class OldStyle(object):
             bar = "bar"
+
             def __getattr__(self, name):
                 if name == "error":
                     raise ValueError("whee!")
@@ -112,6 +117,7 @@ class SerializerTestCase(unittest.TestCase):
 
         class NewStyle(object):
             bar = "bar"
+
             def _raise(self):
                 raise ValueError("whee!")
             error = property(_raise)
@@ -150,7 +156,7 @@ class SerializerTestCase(unittest.TestCase):
 
     def test_protocol_3_binary_handling(self):
         from ZODB.serialize import _protocol
-        self.assertEqual(3, _protocol) # Yeah, whitebox
+        self.assertEqual(3, _protocol)  # Yeah, whitebox
         o = PersistentObject()
         o._p_oid = b'o'
         o.o = PersistentObject()
@@ -160,6 +166,7 @@ class SerializerTestCase(unittest.TestCase):
         # Make sure the persistent id is pickled using the 'C',
         # SHORT_BINBYTES opcode:
         self.assertTrue(b'C\x03o.o' in pickle)
+
 
 class SerializerFunctestCase(unittest.TestCase):
 
@@ -188,7 +195,9 @@ class SerializerFunctestCase(unittest.TestCase):
             # it can't import '_jythonlib' and the whole process fails
             # We would use multiprocessing here, but it doesn't exist on jython
             sys_path = [x for x in sys.path
-                        if not x.endswith('Lib') and x != '__classpath__' and x!= '__pyclasspath__/']
+                        if not x.endswith('Lib')
+                        and x != '__classpath__'
+                        and x != '__pyclasspath__/']
         else:
             sys_path = sys.path
         environ['PYTHONPATH'] = os.pathsep.join(sys_path)
@@ -198,12 +207,14 @@ class SerializerFunctestCase(unittest.TestCase):
                      '_functest_load(%s)' % repr(fqn)]
         subprocess.call(load_args, env=environ)
 
+
 def _working_failing_datetimes():
     import datetime
     WORKING = datetime.datetime(5375, 12, 31, 23, 59, 59)
     # Any date after 5375 A.D. appears to trigger this bug.
     FAILING = datetime.datetime(5376, 12, 31, 23, 59, 59)
     return WORKING, FAILING
+
 
 def _functest_prep(fqn):
     # Prepare the database with a BTree which won't deserialize
@@ -221,9 +232,10 @@ def _functest_prep(fqn):
         tree[WORKING] = 'working'
         tree[FAILING] = 'failing'
         transaction.commit()
-    finally: # Windoze
+    finally:  # Windoze
         conn.close()
         db.close()
+
 
 def _functest_load(fqn):
     # Open the database and attempt to deserialize the tree
@@ -237,9 +249,10 @@ def _functest_load(fqn):
         tree = root['tree']
         assert tree[WORKING] == 'working'
         assert tree[FAILING] == 'failing'
-    finally: # Windoze
+    finally:  # Windoze
         conn.close()
         db.close()
+
 
 def test_suite():
     return unittest.TestSuite((

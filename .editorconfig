@@ -1,0 +1,39 @@
+# Generated from:
+# https://github.com/zopefoundation/meta/tree/master/config/pure-python
+#
+# EditorConfig Configuration file, for more details see:
+# http://EditorConfig.org
+# EditorConfig is a convention description, that could be interpreted
+# by multiple editors to enforce common coding conventions for specific
+# file types
+
+# top-most EditorConfig file:
+# Will ignore other EditorConfig files in Home directory or upper tree level.
+root = true
+
+
+[*]  # For All Files
+# Unix-style newlines with a newline ending every file
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+# Set default charset
+charset = utf-8
+# Indent style default
+indent_style = space
+# Max Line Length - a hard line wrap, should be disabled
+max_line_length = off
+
+[*.{py,cfg,ini}]
+# 4 space indentation
+indent_size = 4
+
+[*.{yml,zpt,pt,dtml,zcml}]
+# 2 space indentation
+indent_size = 2
+
+[{Makefile,.gitmodules}]
+# Tab indentation (no size specified, but view as 4 spaces)
+indent_style = tab
+indent_size = unset
+tab_width = unset

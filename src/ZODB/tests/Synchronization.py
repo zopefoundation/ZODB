@@ -69,6 +69,7 @@ OID = "\000" * 8
 SERIALNO = "\000" * 8
 TID = "\000" * 8
 
+
 class SynchronizedStorage(object):
 
     def verifyNotCommitting(self, callable, *args):

@@ -89,15 +89,19 @@ packed_version = FILESTORAGE_MAGIC
 
 logger = logging.getLogger('ZODB.FileStorage')
 
+
 def panic(message, *data):
     logger.critical(message, *data)
     raise CorruptedTransactionError(message % data)
 
+
 class FileStorageError(StorageError):
     pass
 
+
 class PackError(FileStorageError):
     pass
+
 
 class FileStorageFormatError(FileStorageError):
     """Invalid file format
@@ -105,20 +109,26 @@ class FileStorageFormatError(FileStorageError):
     The format of the given file is not valid.
     """
 
+
 class CorruptedFileStorageError(FileStorageError,
                                 StorageSystemError):
     """Corrupted file storage."""
 
+
 class CorruptedTransactionError(CorruptedFileStorageError):
     pass
+
 
 class FileStorageQuotaError(FileStorageError,
                             StorageSystemError):
     """File storage quota exceeded."""
 
 # Intended to be raised only in fspack.py, and ignored here.
+
+
 class RedundantPackWarning(FileStorageError):
     pass
+
 
 class TempFormatter(FileStorageFormatter):
     """Helper class used to read formatted FileStorage data."""
@@ -126,20 +136,21 @@ class TempFormatter(FileStorageFormatter):
     def __init__(self, afile):
         self._file = afile
 
+
 @implementer(
-        IStorageRestoreable,
-        IStorageIteration,
-        IStorageUndoable,
-        IStorageCurrentRecordIteration,
-        IExternalGC,
-        IStorage,
-        )
+    IStorageRestoreable,
+    IStorageIteration,
+    IStorageUndoable,
+    IStorageCurrentRecordIteration,
+    IExternalGC,
+    IStorage,
+)
 class FileStorage(
     FileStorageFormatter,
     BlobStorageMixin,
     ConflictResolvingStorage,
     BaseStorage,
-    ):
+):
     """Storage that saves data in a file
     """
 
@@ -224,7 +235,7 @@ class FileStorage(
         of packing, the ``.old`` file is removed, if it exists, and
         the data file is renamed to the ``.old`` file and finally the
         ``.pack`` file is rewritten to the data file.
-        """
+        """  # noqa: E501 line too long
 
         if read_only:
             self._is_read_only = True
@@ -291,20 +302,20 @@ class FileStorage(
         self._files = FilePool(self._file_name)
         r = self._restore_index()
         if r is not None:
-            self._used_index = 1 # Marker for testing
+            self._used_index = 1  # Marker for testing
             index, start, ltid = r
 
             self._initIndex(index, tindex)
             self._pos, self._oid, tid = read_index(
                 self._file, file_name, index, tindex, stop,
                 ltid=ltid, start=start, read_only=read_only,
-                )
+            )
         else:
-            self._used_index = 0 # Marker for testing
+            self._used_index = 0  # Marker for testing
             self._pos, self._oid, tid = read_index(
                 self._file, file_name, index, tindex, stop,
                 read_only=read_only,
-                )
+            )
             self._save_index()
 
         self._ltid = tid
@@ -344,9 +355,9 @@ class FileStorage(
             return BaseStorage.copyTransactionsFrom(self, other)
 
     def _initIndex(self, index, tindex):
-        self._index=index
-        self._tindex=tindex
-        self._index_get=index.get
+        self._index = index
+        self._tindex = tindex
+        self._index_get = index.get
 
     def __len__(self):
         return len(self._index)
@@ -356,6 +367,7 @@ class FileStorage(
         return fsIndex(), {}
 
     _saved = 0
+
     def _save_index(self):
         """Write the database index to a file to support quick startup."""
 
@@ -373,7 +385,8 @@ class FileStorage(
             except OSError:
                 pass
             os.rename(tmp_name, index_name)
-        except: pass
+        except:  # noqa: E722 do not use bare 'except'
+            pass
 
         self._saved += 1
 
@@ -401,10 +414,10 @@ class FileStorage(
     def _check_sanity(self, index, pos):
 
         if pos < 100:
-            return 0 # insane
+            return 0  # insane
         self._file.seek(0, 2)
         if self._file.tell() < pos:
-            return 0 # insane
+            return 0  # insane
         ltid = None
 
         max_checked = 5
@@ -416,22 +429,22 @@ class FileStorage(
             tl = u64(rstl)
             pos = pos - tl - 8
             if pos < 4:
-                return 0 # insane
+                return 0  # insane
             h = self._read_txn_header(pos)
             if not ltid:
                 ltid = h.tid
             if h.tlen != tl:
-                return 0 # inconsistent lengths
+                return 0  # inconsistent lengths
             if h.status == 'u':
-                continue # undone trans, search back
+                continue  # undone trans, search back
             if h.status not in ' p':
-                return 0 # insane
+                return 0  # insane
             if tl < h.headerlen():
-                return 0 # insane
+                return 0  # insane
             tend = pos + tl
             opos = pos + h.headerlen()
             if opos == tend:
-                continue # empty trans
+                continue  # empty trans
 
             while opos < tend and checked < max_checked:
                 # Read the data records for this transaction
@@ -441,7 +454,7 @@ class FileStorage(
                     return 0
 
                 if index.get(h.oid, 0) != opos:
-                    return 0 # insane
+                    return 0  # insane
 
                 checked += 1
 
@@ -457,13 +470,13 @@ class FileStorage(
         # fsIndex here, and, if we're not in read-only mode, the .index
         # file is rewritten with the converted fsIndex so we don't need to
         # convert it again the next time.
-        file_name=self.__name__
-        index_name=file_name+'.index'
+        file_name = self.__name__
+        index_name = file_name+'.index'
 
         if os.path.exists(index_name):
             try:
                 info = fsIndex.load(index_name)
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 logger.exception('loading index')
                 return None
         else:
@@ -503,13 +516,13 @@ class FileStorage(
     def close(self):
         self._file.close()
         self._files.close()
-        if hasattr(self,'_lock_file'):
+        if hasattr(self, '_lock_file'):
             self._lock_file.close()
         if self._tfile:
             self._tfile.close()
         try:
             self._save_index()
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             # Log the error and continue
             logger.exception("Error saving index on close()")
 
@@ -524,7 +537,7 @@ class FileStorage(
         except TypeError:
             raise TypeError("invalid oid %r" % (oid,))
 
-    load = load_current # Keep load for now for old clients
+    load = load_current  # Keep load for now for old clients
 
     def load(self, oid, version=''):
         """Return pickle data and serial number."""
@@ -593,7 +606,6 @@ class FileStorage(
                 self.set_max_oid(oid)
             old = self._index_get(oid, 0)
             committed_tid = None
-            pnv = None
             if old:
                 h = self._read_data_header(old, oid)
                 committed_tid = h.tid
@@ -798,7 +810,7 @@ class FileStorage(
                 cp(self._tfile, self._file, dlen)
                 self._file.write(p64(tl))
                 self._file.flush()
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 # Hm, an error occurred writing out the data. Maybe the
                 # disk is full. We don't want any turd at the end.
                 self._file.truncate(self._pos)
@@ -833,7 +845,7 @@ class FileStorage(
             # At this point, we may have committed the data to disk.
             # If we fail from here, we're in bad shape.
             self._finish_finish(tid)
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             # Ouch.  This is bad.  Let's try to get back to where we were
             # and then roll over and die
             logger.critical("Failure in _finish. Closing.", exc_info=True)
@@ -857,7 +869,7 @@ class FileStorage(
         if self._nextpos:
             self._file.truncate(self._pos)
             self._files.flush()
-            self._nextpos=0
+            self._nextpos = 0
             self._blob_tpc_abort()
 
     def _undoDataInfo(self, oid, pos, tpos):
@@ -883,7 +895,7 @@ class FileStorage(
             pos = h.back
 
         if tpos:
-            self._tfile.seek(tpos) # Restore temp file to end
+            self._tfile.seek(tpos)  # Restore temp file to end
 
         return h.tid, pos, data
 
@@ -909,7 +921,7 @@ class FileStorage(
         pointer 0.
         """
 
-        copy = True # Can we just copy a data pointer
+        copy = True  # Can we just copy a data pointer
 
         # First check if it is possible to undo this record.
         tpos = self._tindex.get(oid, 0)
@@ -1036,13 +1048,13 @@ class FileStorage(
             raise StorageTransactionError(self, transaction)
 
         with self._lock:
-          # Find the right transaction to undo and call _txn_undo_write().
-          tid = decodebytes(transaction_id + b'\n')
-          assert len(tid) == 8
-          tpos = self._txn_find(tid, 1)
-          tindex = self._txn_undo_write(tpos)
-          self._tindex.update(tindex)
-          return self._tid, tindex.keys()
+            # Find the right transaction to undo and call _txn_undo_write().
+            tid = decodebytes(transaction_id + b'\n')
+            assert len(tid) == 8
+            tpos = self._txn_find(tid, 1)
+            tindex = self._txn_undo_write(tpos)
+            self._tindex.update(tindex)
+            return self._tid, tindex.keys()
 
     def _txn_find(self, tid, stop_at_pack):
         pos = self._pos
@@ -1080,7 +1092,7 @@ class FileStorage(
         while pos < tend:
             h = self._read_data_header(pos)
             if h.oid in failures:
-                del failures[h.oid] # second chance!
+                del failures[h.oid]  # second chance!
 
             assert base + self._tfile.tell() == here, (here, base,
                                                        self._tfile.tell())
@@ -1096,14 +1108,14 @@ class FileStorage(
                     try:
                         up, userial = self._loadBackTxn(h.oid, prev)
                     except POSKeyError:
-                        pass # It was removed, so no need to copy data
+                        pass  # It was removed, so no need to copy data
                     else:
                         if self.is_blob_record(up):
                             # We're undoing a blob modification operation.
                             # We have to copy the blob data
                             tmp = mktemp(dir=self.fshelper.temp_dir)
                             with self.openCommittedBlobFile(
-                                h.oid, userial) as sfp:
+                                    h.oid, userial) as sfp:
                                 with open(tmp, 'wb') as dfp:
                                     cp(sfp, dfp)
                             self._blob_storeblob(h.oid, self._tid, tmp)
@@ -1137,7 +1149,8 @@ class FileStorage(
             pos = self._lookup_pos(oid)
 
             while 1:
-                if len(r) >= size: return r
+                if len(r) >= size:
+                    return r
                 h = self._read_data_header(pos)
 
                 th = self._read_txn_header(h.tloc)
@@ -1195,7 +1208,7 @@ class FileStorage(
         if self._is_read_only:
             raise ReadOnlyError()
 
-        stop = TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
+        stop = TimeStamp(*time.gmtime(t)[:5]+(t % 60,)).raw()
         if stop == z64:
             raise FileStorageError('Invalid pack time')
 
@@ -1216,8 +1229,6 @@ class FileStorage(
             os.remove(oldpath)
         if self.blob_dir and os.path.exists(self.blob_dir + ".old"):
             remove_committed_dir(self.blob_dir + ".old")
-
-        cleanup = []
 
         have_commit_lock = False
         try:
@@ -1304,12 +1315,12 @@ class FileStorage(
             if removed:
                 maybe_remove_empty_dir_containing(path, level+1)
 
-
         if self.pack_keep_old:
             # Helpers that move oid dir or revision file to the old dir.
             os.mkdir(old)
             link_or_copy(os.path.join(self.blob_dir, '.layout'),
                          os.path.join(old, '.layout'))
+
             def handle_file(path):
                 newpath = old+path[lblob_dir:]
                 dest = os.path.dirname(newpath)
@@ -1412,7 +1423,7 @@ class FileStorage(
         next_oid = pack(">Q", oid_as_long + 1)
         try:
             next_oid = index.minKey(next_oid)
-        except ValueError: # "empty tree" error
+        except ValueError:  # "empty tree" error
             next_oid = None
 
         data, tid = load_current(self, oid)
@@ -1429,6 +1440,7 @@ class FileStorage(
     #
     ######################################################################
 
+
 def shift_transactions_forward(index, tindex, file, pos, opos):
     """Copy transactions forward in the data file
 
@@ -1436,17 +1448,16 @@ def shift_transactions_forward(index, tindex, file, pos, opos):
     """
 
     # Cache a bunch of methods
-    seek=file.seek
-    read=file.read
-    write=file.write
+    seek = file.seek
+    read = file.read
+    write = file.write
 
-    index_get=index.get
+    index_get = index.get
 
     # Initialize,
-    pv=z64
-    p1=opos
-    p2=pos
-    offset=p2-p1
+    p1 = opos
+    p2 = pos
+    offset = p2-p1
 
     # Copy the data in two stages.  In the packing stage,
     # we skip records that are non-current or that are for
@@ -1456,24 +1467,25 @@ def shift_transactions_forward(index, tindex, file, pos, opos):
     # transactions, however, we have to update various back pointers.
     # We have to have the storage lock in the second phase to keep
     # data from being changed while we're copying.
-    pnv=None
     while 1:
 
         # Read the transaction record
         seek(pos)
-        h=read(TRANS_HDR_LEN)
-        if len(h) < TRANS_HDR_LEN: break
-        tid, stl, status, ul, dl, el = unpack(TRANS_HDR,h)
+        h = read(TRANS_HDR_LEN)
+        if len(h) < TRANS_HDR_LEN:
+            break
+        tid, stl, status, ul, dl, el = unpack(TRANS_HDR, h)
         status = as_text(status)
-        if status=='c': break # Oops. we found a checkpoint flag.
-        tl=u64(stl)
-        tpos=pos
-        tend=tpos+tl
+        if status == 'c':
+            break  # Oops. we found a checkpoint flag.
+        tl = u64(stl)
+        tpos = pos
+        tend = tpos+tl
 
-        otpos=opos # start pos of output trans
+        otpos = opos  # start pos of output trans
 
-        thl=ul+dl+el
-        h2=read(thl)
+        thl = ul+dl+el
+        h2 = read(thl)
         if len(h2) != thl:
             raise PackError(opos)
 
@@ -1482,80 +1494,85 @@ def shift_transactions_forward(index, tindex, file, pos, opos):
         write(h)
         write(h2)
 
-        thl=TRANS_HDR_LEN+thl
-        pos=tpos+thl
-        opos=otpos+thl
+        thl = TRANS_HDR_LEN+thl
+        pos = tpos+thl
+        opos = otpos+thl
 
         while pos < tend:
             # Read the data records for this transaction
             seek(pos)
-            h=read(DATA_HDR_LEN)
-            oid,serial,sprev,stloc,vlen,splen = unpack(DATA_HDR, h)
+            h = read(DATA_HDR_LEN)
+            oid, serial, sprev, stloc, vlen, splen = unpack(DATA_HDR, h)
             assert not vlen
-            plen=u64(splen)
-            dlen=DATA_HDR_LEN+(plen or 8)
+            plen = u64(splen)
+            dlen = DATA_HDR_LEN+(plen or 8)
 
-            tindex[oid]=opos
+            tindex[oid] = opos
 
-            if plen: p=read(plen)
+            if plen:
+                p = read(plen)
             else:
-                p=read(8)
-                p=u64(p)
-                if p >= p2: p=p-offset
+                p = read(8)
+                p = u64(p)
+                if p >= p2:
+                    p = p-offset
                 elif p >= p1:
                     # Ick, we're in trouble. Let's bail
                     # to the index and hope for the best
-                    p=index_get(oid, 0)
-                p=p64(p)
+                    p = index_get(oid, 0)
+                p = p64(p)
 
             # WRITE
             seek(opos)
-            sprev=p64(index_get(oid, 0))
+            sprev = p64(index_get(oid, 0))
             write(pack(DATA_HDR,
                        oid, serial, sprev, p64(otpos), 0, splen))
 
             write(p)
 
-            opos=opos+dlen
-            pos=pos+dlen
+            opos = opos+dlen
+            pos = pos+dlen
 
         # skip the (intentionally redundant) transaction length
-        pos=pos+8
+        pos = pos+8
 
         if status != 'u':
-            index.update(tindex) # Record the position
+            index.update(tindex)  # Record the position
 
         tindex.clear()
 
         write(stl)
-        opos=opos+8
+        opos = opos+8
 
     return opos
 
+
 def search_back(file, pos):
-    seek=file.seek
-    read=file.read
-    seek(0,2)
-    s=p=file.tell()
+    seek = file.seek
+    read = file.read
+    seek(0, 2)
+    s = p = file.tell()
     while p > pos:
         seek(p-8)
-        l=u64(read(8))
-        if l <= 0: break
-        p=p-l-8
+        l_ = u64(read(8))
+        if l_ <= 0:
+            break
+        p = p-l_-8
 
     return p, s
 
+
 def recover(file_name):
-    file=open(file_name, 'r+b')
-    index={}
-    tindex={}
+    file = open(file_name, 'r+b')
+    index = {}
+    tindex = {}
 
     pos, oid, tid = read_index(file, file_name, index, tindex, recover=1)
     if oid is not None:
         print("Nothing to recover")
         return
 
-    opos=pos
+    opos = pos
     pos, sz = search_back(file, pos)
     if pos < sz:
         npos = shift_transactions_forward(index, tindex, file, pos, opos)
@@ -1564,7 +1581,6 @@ def recover(file_name):
 
     print("Recovered file, lost %s, ended up with %s bytes" % (
         pos-opos, npos))
-
 
 
 def read_index(file, name, index, tindex, stop=b'\377'*8,
@@ -1642,7 +1658,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
             logger.warning("%s time-stamp reduction at %s", name, pos)
         ltid = tid
 
-        if pos+(tl+8) > file_size or status=='c':
+        if pos+(tl+8) > file_size or status == 'c':
             # Hm, the data were truncated or the checkpoint flag wasn't
             # cleared.  They may also be corrupted,
             # in which case, we don't want to totally lose the data.
@@ -1671,9 +1687,9 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
                                 name, pos)
                 if not read_only:
                     logger.warning(
-                         "It appears that there is invalid data at the end of "
-                         "the file, possibly due to a system crash.  %s "
-                         "truncated to recover from bad data at end." % name)
+                        "It appears that there is invalid data at the end of "
+                        "the file, possibly due to a system crash.  %s "
+                        "truncated to recover from bad data at end." % name)
                     _truncate(file, name, pos)
                 break
             else:
@@ -1727,7 +1743,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
         if pos != tend:
             if recover:
                 return tpos, None, None
-            panic("%s data records don't add up at %s",name,tpos)
+            panic("%s data records don't add up at %s", name, tpos)
 
         # Read the (intentionally redundant) transaction length
         seek(pos)
@@ -1748,7 +1764,7 @@ def read_index(file, name, index, tindex, stop=b'\377'*8,
         maxoid = index.maxKey()
     except ValueError:
         # The index is empty.
-        pass # maxoid is already equal to z64
+        pass  # maxoid is already equal to z64
 
     return pos, maxoid, ltid
 
@@ -1759,18 +1775,18 @@ def _truncate(file, name, pos):
     try:
         i = 0
         while 1:
-            oname='%s.tr%s' % (name, i)
+            oname = '%s.tr%s' % (name, i)
             if os.path.exists(oname):
                 i += 1
             else:
                 logger.warning("Writing truncated data from %s to %s",
                                name, oname)
-                o = open(oname,'wb')
+                o = open(oname, 'wb')
                 file.seek(pos)
                 cp(file, o, file_size-pos)
                 o.close()
                 break
-    except:
+    except:  # noqa: E722 do not use bare 'except'
         logger.exception("couldn\'t write truncated data for %s", name)
         raise StorageSystemError("Couldn't save truncated data")
 
@@ -1791,7 +1807,7 @@ class FileIterator(FileStorageFormatter):
         self._file_name = filename
         if file.read(4) != packed_version:
             raise FileStorageFormatError(file.name)
-        file.seek(0,2)
+        file.seek(0, 2)
         self._file_size = file.tell()
         if (pos < 4) or pos > self._file_size:
             raise ValueError("Given position is greater than the file size",
@@ -1831,7 +1847,7 @@ class FileIterator(FileStorageFormatter):
         file = self._file
         pos1 = self._pos
         file.seek(pos1)
-        tid1 = file.read(8) # XXX bytes
+        tid1 = file.read(8)  # XXX bytes
         if len(tid1) < 8:
             raise CorruptedError("Couldn't read tid.")
         if start < tid1:
@@ -1852,13 +1868,13 @@ class FileIterator(FileStorageFormatter):
             # case, we'll just scan from the beginning if the file is
             # small enough, otherwise we'll fail.
             file.seek(self._file_size-8)
-            l = u64(file.read(8))
-            if not (l + 12 <= self._file_size and
-                    self._read_num(self._file_size-l) == l):
-                if self._file_size < (1<<20):
+            l_ = u64(file.read(8))
+            if not (l_ + 12 <= self._file_size and
+                    self._read_num(self._file_size-l_) == l_):
+                if self._file_size < (1 << 20):
                     return self._scan_foreward(start)
                 raise ValueError("Can't find last transaction in large file")
-            pos2 = self._file_size-l-8
+            pos2 = self._file_size-l_-8
             file.seek(pos2)
             tid2 = file.read(8)
             if tid2 < tid1:
@@ -1881,7 +1897,6 @@ class FileIterator(FileStorageFormatter):
     def _scan_forward(self, pos, start):
         logger.debug("Scan forward %s:%s looking for %r",
                      self._file_name, pos, start)
-        file = self._file
         while 1:
             # Read the transaction record
             h = self._read_txn_header(pos)
@@ -1968,10 +1983,10 @@ class FileIterator(FileStorageFormatter):
                     logger.critical("%s has invalid transaction header at %s",
                                     self._file.name, pos)
                     logger.warning(
-                         "It appears that there is invalid data at the end of "
-                         "the file, possibly due to a system crash.  %s "
-                         "truncated to recover from bad data at end."
-                         % self._file.name)
+                        "It appears that there is invalid data at the end of "
+                        "the file, possibly due to a system crash.  %s "
+                        "truncated to recover from bad data at end."
+                        % self._file.name)
                     break
                 else:
                     logger.warning("%s has invalid transaction header at %s",
@@ -2016,6 +2031,7 @@ class TransactionRecord(_TransactionRecord):
     def __iter__(self):
         return TransactionRecordIterator(self)
 
+
 class TransactionRecordIterator(FileStorageFormatter):
     """Iterate over the transactions in a FileStorage file."""
 
@@ -2037,7 +2053,7 @@ class TransactionRecordIterator(FileStorageFormatter):
 
             if pos + dlen > self._tend or h.tloc != self._tpos:
                 logger.warning("%s data record exceeds transaction"
-                               " record at %s", file.name, pos)
+                               " record at %s", self._file.name, pos)
                 break
 
             self._pos = pos + dlen
@@ -2122,7 +2138,7 @@ class UndoSearch(object):
         if el:
             try:
                 e = loads(self.file.read(el))
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 pass
         d = {'id': encodebytes(tid).rstrip(),
              'time': TimeStamp(tid).timeTime(),
@@ -2131,6 +2147,7 @@ class UndoSearch(object):
              'description': d}
         d.update(e)
         return d
+
 
 class FilePool(object):
 
@@ -2191,7 +2208,6 @@ class FilePool(object):
     def empty(self):
         while self._files:
             self._files.pop().close()
-
 
     def flush(self):
         """Empty read buffers.

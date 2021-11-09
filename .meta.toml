@@ -1,0 +1,71 @@
+# Generated from:
+# https://github.com/zopefoundation/meta/tree/master/config/pure-python
+[meta]
+template = "pure-python"
+commit-id = "de499940b679dcda1c60b089f30134146da31e9a"
+
+[python]
+with-windows = true
+with-pypy = true
+with-future-python = false
+with-legacy-python = true
+with-docs = true
+with-sphinx-doctests = false
+
+[tox]
+use-flake8 = true
+testenv-setenv = [
+    "ZOPE_INTERFACE_STRICT_IRO=1",
+    ]
+additional-envlist = [
+    "py38-pure",
+    ]
+testenv-additional = [
+    "",
+    "[testenv:py38-pure]",
+    "basepython = python3.8",
+    "setenv =",
+    "    PURE_PYTHON = 1",
+    ]
+
+[coverage]
+fail-under = 80
+
+[flake8]
+additional-config = [
+    "# F401 imported but unused",
+    "per-file-ignores =",
+    "    src/ZODB/FileStorage/__init__.py: F401",
+    "    src/ZODB/__init__.py: F401",
+    ]
+
+[manifest]
+additional-rules = [
+    "include COPYING",
+    "recursive-include docs *.ico",
+    "recursive-include docs *.png",
+    "recursive-include docs *.svg",
+    "recursive-include src *.fs",
+    "recursive-include src *.rst",
+    "recursive-include src *.test",
+    "recursive-include src *.txt",
+    "recursive-include src *.xml",
+    ]
+
+[check-manifest]
+additional-ignores = [
+    "docs/_build/doctest/*/*/*/*",
+    "docs/_build/doctest/*/*/*",
+    "docs/_build/doctest/*/*",
+    "docs/_build/html/*/*/*/*",
+    "docs/_build/html/*/*/*",
+    "docs/_build/html/*/*",
+    ]
+
+[github-actions]
+additional-config = [
+    "- [\"3.8\",   \"py38-pure\"]",
+    ]
+additional-exclude = [
+    "- { os: windows, config: [\"pypy2\", \"pypy\"] }",
+    ]

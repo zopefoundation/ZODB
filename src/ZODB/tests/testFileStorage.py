@@ -11,10 +11,12 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import doctest
 import os
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing import doctest
+else:
+    import doctest
+
 import sys
 import unittest
 import transaction
@@ -38,6 +40,7 @@ from ZODB._compat import dump, dumps, _protocol
 
 from . import util
 
+
 class FileStorageTests(
     StorageTestBase.StorageTestBase,
     BasicStorage.BasicStorage,
@@ -54,7 +57,7 @@ class FileStorageTests(
     PersistentStorage.PersistentStorage,
     MTStorage.MTStorage,
     ReadOnlyStorage.ReadOnlyStorage
-    ):
+):
 
     use_extension_bytes = True
 
@@ -196,9 +199,9 @@ class FileStorageTests(
         giant_oid = b'\xee' * 8
         # Store an object.
         # oid, serial, data, version, transaction
-        r1 = self._storage.store(giant_oid, b'\0'*8, b'data', b'', t)
+        self._storage.store(giant_oid, b'\0'*8, b'data', b'', t)
         # Finish the transaction.
-        r2 = self._storage.tpc_vote(t)
+        self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
@@ -213,9 +216,9 @@ class FileStorageTests(
         giant_oid = b'\xee' * 8
         # Store an object.
         # oid, serial, data, version, prev_txn, transaction
-        r1 = self._storage.restore(giant_oid, b'\0'*8, b'data', b'', None, t)
+        self._storage.restore(giant_oid, b'\0'*8, b'data', b'', None, t)
         # Finish the transaction.
-        r2 = self._storage.tpc_vote(t)
+        self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
@@ -249,7 +252,7 @@ class FileStorageTests(
             pos2 = f.tell() - 8
             f.seek(pos2)
             tlen2 = U64(f.read(8))  # length-8 of the last transaction
-            pos1 = pos2 - tlen2 + 8 # skip over the tid at the start
+            pos1 = pos2 - tlen2 + 8  # skip over the tid at the start
             f.seek(pos1)
             tlen1 = U64(f.read(8))  # should be redundant length-8
             self.assertEqual(tlen1, tlen2)  # verify that it is redundant
@@ -264,7 +267,7 @@ class FileStorageTests(
             self._storage.pack(time.time(), referencesf)
         except CorruptedError as detail:
             self.assertTrue("redundant transaction length does not match "
-                         "initial transaction length" in str(detail))
+                            "initial transaction length" in str(detail))
         else:
             self.fail("expected CorruptedError")
 
@@ -344,9 +347,10 @@ class FileStorageTests(
             head = stor.tpc_finish(t)
             self.assertEqual(head, stor.lastTransaction())
 
-            v = list( stor.iterator(start=head, stop=head) )
+            v = list(stor.iterator(start=head, stop=head))
             self.assertEqual(len(v), 1)
-            trec = v[0] # FileStorage.TransactionRecord or hexstorage.Transaction
+            # FileStorage.TransactionRecord or hexstorage.Transaction
+            trec = v[0]
             self.assertEqual(trec.tid, head)
             self.assertEqual(trec.user,          b'')
             self.assertEqual(trec.description,   description.encode('utf-8'))
@@ -359,7 +363,7 @@ class FileStorageHexTests(FileStorageTests):
 
     def open(self, **kwargs):
         self._storage = ZODB.tests.hexstorage.HexStorage(
-            ZODB.FileStorage.FileStorage('FileStorageTests.fs',**kwargs))
+            ZODB.FileStorage.FileStorage('FileStorageTests.fs', **kwargs))
 
 
 class FileStorageTestsWithBlobsEnabled(FileStorageTests):
@@ -384,7 +388,7 @@ class FileStorageHexTestsWithBlobsEnabled(FileStorageTests):
 class FileStorageRecoveryTest(
     StorageTestBase.StorageTestBase,
     RecoveryStorage.RecoveryStorage,
-    ):
+):
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
@@ -397,6 +401,7 @@ class FileStorageRecoveryTest(
 
     def new_dest(self):
         return ZODB.FileStorage.FileStorage('Dest.fs')
+
 
 class FileStorageHexRecoveryTest(FileStorageRecoveryTest):
 
@@ -454,6 +459,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         module.Broken = Broken
 
         oids = [[self._storage.new_oid(), None] for i in range(3)]
+
         def store(i, data):
             oid, revid = oids[i]
             self._storage.store(oid, revid, data, "", t)
@@ -495,6 +501,8 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
 
 # Raise an exception if the tids in FileStorage fs aren't
 # strictly increasing.
+
+
 def checkIncreasingTids(fs):
     lasttid = b'\0' * 8
     for txn in fs.iterator():
@@ -503,12 +511,15 @@ def checkIncreasingTids(fs):
         lasttid = txn.tid
 
 # Return a TimeStamp object 'minutes' minutes in the future.
+
+
 def timestamp(minutes):
     import time
     from persistent.TimeStamp import TimeStamp
 
     t = time.time() + 60 * minutes
     return TimeStamp(*time.gmtime(t)[:5] + (t % 60,))
+
 
 def testTimeTravelOnOpen():
     """
@@ -586,6 +597,7 @@ def testTimeTravelOnOpen():
     >>> handler.uninstall()
     """
 
+
 def lastInvalidations():
     """
 
@@ -635,6 +647,7 @@ Of course, calling lastInvalidations on an empty storage refturns no data:
 
     >>> fs.close()
     """
+
 
 def deal_with_finish_failures():
     r"""
@@ -690,6 +703,7 @@ def deal_with_finish_failures():
     >>> db.close()
     """
 
+
 def pack_with_open_blob_files():
     """
     Make sure packing works while there are open blob files.
@@ -726,6 +740,7 @@ def pack_with_open_blob_files():
     >>> db.close()
     """
 
+
 def readonly_open_nonexistent_file():
     """
     Make sure error is reported when non-existent file is tried to be opened
@@ -739,6 +754,7 @@ def readonly_open_nonexistent_file():
     error: ... No such file or directory: 'nonexistent.fs'
     """
 
+
 def test_suite():
     suite = unittest.TestSuite()
     for klass in [
@@ -748,7 +764,7 @@ def test_suite():
         FileStorageNoRestoreRecoveryTest,
         FileStorageTestsWithBlobsEnabled, FileStorageHexTestsWithBlobsEnabled,
         AnalyzeDotPyTest,
-        ]:
+    ]:
         suite.addTest(unittest.makeSuite(klass, "check"))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
@@ -760,7 +776,7 @@ def test_suite():
         ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir),
         test_blob_storage_recovery=True,
         test_packing=True,
-        ))
+    ))
     suite.addTest(ZODB.tests.testblob.storage_reusable_suite(
         'BlobFileHexStorage',
         lambda name, blob_dir:
@@ -768,12 +784,9 @@ def test_suite():
             ZODB.FileStorage.FileStorage('%s.fs' % name, blob_dir=blob_dir)),
         test_blob_storage_recovery=True,
         test_packing=True,
-        ))
+    ))
     suite.addTest(PackableStorage.IExternalGC_suite(
-        lambda : ZODB.FileStorage.FileStorage(
+        lambda: ZODB.FileStorage.FileStorage(
             'data.fs', blob_dir='blobs', pack_gc=False)))
     suite.layer = util.MininalTestLayer('testFileStorage')
     return suite
-
-if __name__=='__main__':
-    unittest.main()

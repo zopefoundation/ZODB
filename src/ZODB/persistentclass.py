@@ -63,6 +63,7 @@ class _p_DataDescr(object):
     def __delete__(self, inst):
         raise AttributeError(self.__name__)
 
+
 class _p_oid_or_jar_Descr(_p_DataDescr):
     # Special descr for _p_oid and _p_jar that loads
     # state when set if both are set and _p_changed is None
@@ -78,10 +79,10 @@ class _p_oid_or_jar_Descr(_p_DataDescr):
 
         jar = get('_p_jar')
         if (jar is not None
-            and get('_p_oid') is not None
-            and get('_p_changed') is None
-            ):
+                and get('_p_oid') is not None
+                and get('_p_changed') is None):
             jar.setstate(inst)
+
 
 class _p_ChangedDescr(object):
     # descriptor to handle special weird semantics of _p_changed
@@ -98,6 +99,7 @@ class _p_ChangedDescr(object):
 
     def __delete__(self, inst):
         inst._p_invalidate()
+
 
 class _p_MethodDescr(object):
     """Provide unassignable class attributes
@@ -119,6 +121,7 @@ class _p_MethodDescr(object):
 
 
 special_class_descrs = '__dict__', '__weakref__'
+
 
 class PersistentMetaClass(type):
 
@@ -148,8 +151,8 @@ class PersistentMetaClass(type):
             and
             (get('_p_oid') is not None)
             and
-            (get('_p_changed') == False)
-            ):
+            (get('_p_changed') is False)
+        ):
 
             self._p_changed = True
             data_manager.register(self)
@@ -177,7 +180,6 @@ class PersistentMetaClass(type):
 
     _p_invalidate = _p_MethodDescr(_p_invalidate)
 
-
     def __getstate__(self):
         return (self.__bases__,
                 dict([(k, v) for (k, v) in self.__dict__.items()
@@ -185,7 +187,7 @@ class PersistentMetaClass(type):
                               or k.startswith('_v_')
                               or k in special_class_descrs
                               )
-                     ]),
+                      ]),
                 )
 
     __getstate__ = _p_MethodDescr(__getstate__)

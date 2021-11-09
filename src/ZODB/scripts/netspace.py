@@ -13,6 +13,7 @@ from ZODB.utils import U64, get_pickle_metadata, load_current
 from ZODB.serialize import referencesf
 from six.moves import filter
 
+
 def find_paths(root, maxdist):
     """Find Python attribute traversal paths for objects to maxdist distance.
 
@@ -37,7 +38,7 @@ def find_paths(root, maxdist):
         if oid is not None:
             paths[oid] = path
         if dist < maxdist:
-            getattr(obj, 'foo', None) # unghostify
+            getattr(obj, 'foo', None)  # unghostify
             try:
                 items = obj.__dict__.items()
             except AttributeError:
@@ -47,6 +48,7 @@ def find_paths(root, maxdist):
                 objs.append(("%s.%s" % (path, k), v, oid, dist + 1))
 
     return paths
+
 
 def main(path):
     fs = FileStorage(path, read_only=1)
@@ -60,6 +62,7 @@ def main(path):
     def total_size(oid):
         cache = {}
         cache_size = 1000
+
         def _total_size(oid, seen):
             v = cache.get(oid)
             if v is not None:
@@ -91,9 +94,10 @@ def main(path):
     for oid in keys:
         data, serialno = load_current(fs, oid)
         mod, klass = get_pickle_metadata(data)
-        refs = referencesf(data)
+        referencesf(data)
         path = paths.get(oid, '-')
         print(fmt % (U64(oid), len(data), total_size(oid), path, mod, klass))
+
 
 def Main():
     import sys
@@ -121,6 +125,7 @@ def Main():
         if o == '-v':
             VERBOSE += 1
     main(path)
+
 
 if __name__ == "__main__":
     Main()

@@ -6,11 +6,11 @@ Note:  To run this test script fstest.py must be on your PYTHONPATH.
 from cStringIO import StringIO
 import re
 import struct
-import unittest
 import ZODB.tests.util
 
 import fstest
 from fstest import FormatError, U64
+
 
 class TestCorruptedFS(ZODB.tests.util.TestCase):
 
@@ -117,7 +117,7 @@ class TestCorruptedFS(ZODB.tests.util.TestCase):
         self._file.write(data)
         buf = self._datafs.read(tl - 8)
         self._file.write(buf[0])
-        assert tl <= 1<<16, "can't use this transaction for this test"
+        assert tl <= 1 << 16, "can't use this transaction for this test"
         self._file.write("\777\777")
         self._file.write(buf[3:])
         self.detectsError("invalid transaction header")
@@ -172,6 +172,3 @@ class TestCorruptedFS(ZODB.tests.util.TestCase):
         self._file.write("\000" * 4 + "\077" + "\000" * 3)
         self._file.write(data[32:])
         self.detectsError("record exceeds transaction")
-
-if __name__ == "__main__":
-    unittest.main()

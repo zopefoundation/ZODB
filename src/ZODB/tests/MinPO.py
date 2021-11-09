@@ -14,12 +14,13 @@
 """A minimal persistent object to use for tests"""
 from persistent import Persistent
 
+
 class MinPO(Persistent):
     def __init__(self, value=None):
         self.value = value
 
     def __cmp__(self, aMinPO):
-        return cmp(self.value, aMinPO.value)
+        return cmp(self.value, aMinPO.value)  # noqa: F821 undefined name 'cmp'
 
     def __hash__(self):
         return hash(self.value)

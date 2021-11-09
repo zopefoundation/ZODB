@@ -25,6 +25,7 @@ try:
 except ImportError:
     from sha import sha as sha1
 
+
 def main(path, ntxn):
     with open(path, "rb") as f:
         f.seek(0, 2)
@@ -32,7 +33,6 @@ def main(path, ntxn):
         i = ntxn
         while th and i > 0:
             hash = sha1(th.get_raw_data()).digest()
-            l = len(str(th.get_timestamp())) + 1
             th.read_meta()
             print("%s: hash=%s" % (th.get_timestamp(),
                                    binascii.hexlify(hash).decode()))
@@ -42,6 +42,7 @@ def main(path, ntxn):
             th = th.prev_txn()
             i -= 1
 
+
 def Main():
     ntxn = 10
     opts, args = getopt.getopt(sys.argv[1:], "n:")
@@ -50,6 +51,7 @@ def Main():
         if k == '-n':
             ntxn = int(v)
     main(path, ntxn)
+
 
 if __name__ == "__main__":
     Main()
