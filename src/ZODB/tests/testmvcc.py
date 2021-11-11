@@ -428,7 +428,8 @@ checker = renormalizing.RENormalizing([
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
     (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
-    ])
+])
+
 
 def test_suite():
     return doctest.DocTestSuite(checker=checker)

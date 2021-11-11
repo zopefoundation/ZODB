@@ -41,6 +41,7 @@ from ZODB import valuedoc
 
 logger = logging.getLogger('ZODB.DB')
 
+
 class AbstractConnectionPool(object):
     """Manage a pool of connections.
 
@@ -111,7 +112,7 @@ class AbstractConnectionPool(object):
 
 class ConnectionPool(AbstractConnectionPool):
 
-    def __init__(self, size, timeout=1<<31):
+    def __init__(self, size, timeout=1 << 31):
         super(ConnectionPool, self).__init__(size, timeout)
 
         # A stack of connections available to hand out.  This is a subset
@@ -127,9 +128,8 @@ class ConnectionPool(AbstractConnectionPool):
     def _append(self, c):
         available = self.available
         cactive = c._cache.cache_non_ghost_count
-        if (available and
-            (available[-1][1]._cache.cache_non_ghost_count > cactive)
-            ):
+        if (available
+                and (available[-1][1]._cache.cache_non_ghost_count > cactive)):
             i = len(available) - 1
             while (i and
                    (available[i-1][1]._cache.cache_non_ghost_count > cactive)
@@ -185,7 +185,7 @@ class ConnectionPool(AbstractConnectionPool):
             (len(available) > target)
             or
             (available and available[0][0] < threshhold)
-            ):
+        ):
             t, c = available.pop(0)
             assert not c.opened
             self.all.remove(c)
@@ -244,7 +244,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
 
     # see the comments in ConnectionPool for method descriptions.
 
-    def __init__(self, size, timeout=1<<31):
+    def __init__(self, size, timeout=1 << 31):
         super(KeyedConnectionPool, self).__init__(size, timeout)
         self.pools = {}
 
@@ -303,6 +303,7 @@ def toTimeStamp(dt):
     args = utc_struct[:5]+(utc_struct[5] + dt.microsecond/1000000.0,)
     return TimeStamp(*args)
 
+
 def getTID(at, before):
     if at is not None:
         if before is not None:
@@ -318,6 +319,7 @@ def getTID(at, before):
         else:
             before = TimeStamp(before).raw()
     return before
+
 
 @implementer(IDatabase)
 class DB(object):
@@ -348,7 +350,7 @@ class DB(object):
     def __init__(self,
                  storage,
                  pool_size=7,
-                 pool_timeout=1<<31,
+                 pool_timeout=1 << 31,
                  cache_size=400,
                  cache_size_bytes=0,
                  historical_pool_size=3,
@@ -358,7 +360,7 @@ class DB(object):
                  database_name='unnamed',
                  databases=None,
                  xrefs=True,
-                 large_record_size=1<<24,
+                 large_record_size=1 << 24,
                  **storage_args):
         """Create an object database.
 
@@ -425,10 +427,10 @@ class DB(object):
 
         # Setup storage
         if isinstance(storage, six.string_types):
-            from ZODB import FileStorage
+            from ZODB import FileStorage  # noqa: F401 import unused
             storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
         elif storage is None:
-            from ZODB import MappingStorage
+            from ZODB import MappingStorage  # noqa: F401 import unused
             storage = ZODB.MappingStorage.MappingStorage(**storage_args)
         else:
             assert not storage_args
@@ -507,6 +509,7 @@ class DB(object):
         """
 
         detail = {}
+
         def f(con, detail=detail):
             for oid, ob in con._cache.items():
                 module = getattr(ob.__class__, '__module__', '')
@@ -570,17 +573,18 @@ class DB(object):
                     'rc': (rc(ob) - 3 - (ob._p_changed is not None)
                            if rc else False),
                     'state': ob._p_changed,
-                    #'references': con.references(oid),
-                    })
+                    # 'references': con.references(oid),
+                })
 
         self._connectionMap(f)
         return detail
 
-    def cacheFullSweep(self): # XXX this is the same as cacheMinimize
+    def cacheFullSweep(self):  # XXX this is the same as cacheMinimize
         self._connectionMap(lambda c: c._cache.full_sweep())
 
     def cacheLastGCTime(self):
         m = [0]
+
         def f(con, m=m):
             t = con._cache.cache_last_gc_time
             if t > m[0]:
@@ -598,6 +602,7 @@ class DB(object):
         """Return the total count of non-ghost objects in all object caches
         """
         m = [0]
+
         def f(con, m=m):
             m[0] += con._cache.cache_non_ghost_count
 
@@ -608,6 +613,7 @@ class DB(object):
         """Return non-ghost counts sizes for all connections.
         """
         m = []
+
         def f(con, m=m):
             m.append({'connection': repr(con),
                       'ngsize': con._cache.cache_non_ghost_count,
@@ -731,7 +737,7 @@ class DB(object):
         before = getTID(at, before)
         if (before is not None and
             before > self.lastTransaction() and
-            before > getTID(self.lastTransaction(), None)):
+                before > getTID(self.lastTransaction(), None)):
             raise ValueError(
                 'cannot open an historical connection in the future.')
 
@@ -773,7 +779,6 @@ class DB(object):
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
-
         result.open(transaction_manager)
         return result
 
@@ -808,7 +813,7 @@ class DB(object):
                     t-o)),
                 'info': d,
                 'before': c.before,
-                })
+            })
 
         self._connectionMap(get_info)
         return result
@@ -836,7 +841,7 @@ class DB(object):
         t -= days * 86400
         try:
             self.storage.pack(t, self.references)
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             logger.exception("packing")
             raise
 
@@ -994,7 +999,7 @@ class DB(object):
         Kept for backwards compatibility only. New oids should be
         allocated in a transaction using an open Connection.
         """
-        return self.storage.new_oid() # pragma: no cover
+        return self.storage.new_oid()  # pragma: no cover
 
     def open_then_close_db_when_connection_closes(self):
         """Create and return a connection.
@@ -1029,8 +1034,10 @@ class ContextManager(object):
             self.tm.abort()
         self.conn.close()
 
+
 resource_counter_lock = utils.Lock()
 resource_counter = 0
+
 
 class TransactionalUndo(object):
 
@@ -1064,9 +1071,10 @@ class TransactionalUndo(object):
         # a new storage instance, and so we must close it to be sure
         # to reclaim resources in a timely manner.
         #
-        # Once the tpc_begin method has been called, the transaction manager will
-        # guarantee to call either `tpc_finish` or `tpc_abort`, so those are the only
-        # methods we need to be concerned about calling close() from.
+        # Once the tpc_begin method has been called, the transaction manager
+        # will guarantee to call either `tpc_finish` or `tpc_abort`, so those
+        # are the only methods we need to be concerned about calling close()
+        # from.
         db_mvcc_storage = self._db._mvcc_storage
         self._storage = getattr(
             db_mvcc_storage,
@@ -1117,7 +1125,10 @@ def connection(*args, **kw):
     """
     return DB(*args, **kw).open_then_close_db_when_connection_closes()
 
+
 _transaction_meta_data_text_variables = 'user_name', 'description'
+
+
 def _text_transaction_info(info):
     for d in info:
         for name in _transaction_meta_data_text_variables:

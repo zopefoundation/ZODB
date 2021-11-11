@@ -29,8 +29,10 @@ from pickle import PicklingError
 
 logger = logging.getLogger('ZODB.ConflictResolution')
 
+
 class BadClassName(Exception):
     pass
+
 
 class BadClass(object):
 
@@ -40,8 +42,11 @@ class BadClass(object):
     def __reduce__(self):
         raise BadClassName(*self.args)
 
+
 _class_cache = {}
 _class_cache_get = _class_cache.get
+
+
 def find_global(*args):
     cls = _class_cache_get(args, 0)
     if cls == 0:
@@ -60,13 +65,13 @@ def find_global(*args):
     if cls == 1:
         # Not importable
         if (isinstance(args, tuple) and len(args) == 2 and
-            isinstance(args[0], six.string_types) and
-            isinstance(args[1], six.string_types)
-            ):
+                isinstance(args[0], six.string_types) and
+                isinstance(args[1], six.string_types)):
             return BadClass(*args)
         else:
             raise BadClassName(*args)
     return cls
+
 
 def state(self, oid, serial, prfactory, p=''):
     p = p or self.loadSerial(oid, serial)
@@ -74,8 +79,9 @@ def state(self, oid, serial, prfactory, p=''):
     file = BytesIO(p)
     unpickler = PersistentUnpickler(
         find_global, prfactory.persistent_load, file)
-    unpickler.load() # skip the class tuple
+    unpickler.load()  # skip the class tuple
     return unpickler.load()
+
 
 class IPersistentReference(zope.interface.Interface):
     '''public contract for references to persistent objects from an object
@@ -114,9 +120,9 @@ class IPersistentReference(zope.interface.Interface):
         have two references to the same object that are spelled with different
         data (for instance, one with a class and one without).'''
 
+
 @zope.interface.implementer(IPersistentReference)
 class PersistentReference(object):
-
 
     weak = False
     oid = database_name = klass = None
@@ -134,7 +140,7 @@ class PersistentReference(object):
                 self.data = self.oid, klass.args
         elif isinstance(data, (bytes, str)):
             self.oid = data
-        else: # a list
+        else:  # a list
             reference_type = data[0]
             # 'm' = multi_persistent: (database_name, oid, klass)
             # 'n' = multi_oid: (database_name, oid)
@@ -165,11 +171,11 @@ class PersistentReference(object):
 
     def __cmp__(self, other):
         if self is other or (
-            isinstance(other, PersistentReference) and
-            self.oid == other.oid and
-            self.database_name == other.database_name and
-            not self.weak and
-            not other.weak):
+                isinstance(other, PersistentReference) and
+                self.oid == other.oid and
+                self.database_name == other.database_name and
+                not self.weak and
+                not other.weak):
             return 0
         else:
             raise ValueError(
@@ -211,6 +217,7 @@ class PersistentReference(object):
         elif isinstance(data, list) and data[0] == 'm':
             return data[1][2]
 
+
 class PersistentReferenceFactory(object):
 
     data = None
@@ -218,7 +225,8 @@ class PersistentReferenceFactory(object):
     def persistent_load(self, ref):
         if self.data is None:
             self.data = {}
-        key = tuple(ref) # lists are not hashable; formats are different enough
+        # lists are not hashable; formats are different enough
+        key = tuple(ref)
         # even after eliminating list/tuple distinction
         r = self.data.get(key, None)
         if r is None:
@@ -227,12 +235,16 @@ class PersistentReferenceFactory(object):
 
         return r
 
+
 def persistent_id(object):
     if getattr(object, '__class__', 0) is not PersistentReference:
         return None
     return object.data
 
+
 _unresolvable = {}
+
+
 def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
                          committedData=b''):
     # class_tuple, old, committed, newstate = ('',''), 0, 0, 0
@@ -264,13 +276,12 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
             _unresolvable[klass] = 1
             raise ConflictError
 
-
         oldData = self.loadSerial(oid, oldSerial)
         if not committedData:
-            committedData  = self.loadSerial(oid, committedSerial)
+            committedData = self.loadSerial(oid, committedSerial)
 
         newstate = unpickler.load()
-        old       = state(self, oid, oldSerial, prfactory, oldData)
+        old = state(self, oid, oldSerial, prfactory, oldData)
         committed = state(self, oid, committedSerial, prfactory, committedData)
 
         resolved = resolve(old, committed, newstate)
@@ -284,7 +295,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
         logger.debug(
             "Conflict resolution on %s failed with %s: %s",
             klass, e.__class__.__name__, str(e))
-    except:
+    except:  # noqa: E722 do not use bare 'except'
         # If anything else went wrong, catch it here and avoid passing an
         # arbitrary exception back to the client.  The error here will mask
         # the original ConflictError.  A client can recover from a
@@ -295,6 +306,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
 
     raise ConflictError(oid=oid, serials=(committedSerial, oldSerial),
                         data=newpickle)
+
 
 class ConflictResolvingStorage(object):
     "Mix-in class that provides conflict resolution handling for storages"

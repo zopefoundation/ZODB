@@ -22,7 +22,7 @@ from ZODB.tests import (
     RevisionStorage,
     StorageTestBase,
     Synchronization,
-    )
+)
 from ZODB.tests.MinPO import MinPO
 
 import os
@@ -31,7 +31,6 @@ if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
 else:
     import doctest
 import random
-import re
 import transaction
 import unittest
 import ZODB.Connection
@@ -43,7 +42,6 @@ import ZODB.utils
 
 from ZODB.utils import load_current
 
-from zope.testing import renormalizing
 
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
@@ -56,7 +54,7 @@ class DemoStorageTests(
     PackableStorage.PackableStorage,
     RevisionStorage.RevisionStorage,
     Synchronization.SynchronizedStorage,
-    ):
+):
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
@@ -70,7 +68,7 @@ class DemoStorageTests(
 
     def checkLoadDelegation(self):
         # Minimal test of loadEX w/o version -- ironically
-        db = DB(self._storage) # creates object 0. :)
+        DB(self._storage)  # creates object 0. :)
         s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
         self.assertEqual(load_current(s2, ZODB.utils.z64),
                          load_current(self._storage, ZODB.utils.z64))
@@ -78,7 +76,7 @@ class DemoStorageTests(
     def checkLengthAndBool(self):
         self.assertEqual(len(self._storage), 0)
         self.assertTrue(not self._storage)
-        db = DB(self._storage) # creates object 0. :)
+        db = DB(self._storage)  # creates object 0. :)
         self.assertEqual(len(self._storage), 1)
         self.assertTrue(self._storage)
         with db.transaction() as conn:
@@ -89,7 +87,7 @@ class DemoStorageTests(
         db.close()
 
     def checkLoadBeforeUndo(self):
-        pass # we don't support undo yet
+        pass  # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
     def checkBaseHistory(self):
@@ -100,6 +98,7 @@ class DemoStorageTests(
             self._storage = self._storage.push()
         self._checkHistory(base_only())
         self._storage = self._storage.pop()
+
         def base_and_changes():
             yield 11
             yield 12
@@ -109,12 +108,14 @@ class DemoStorageTests(
         self._checkHistory(base_and_changes())
         self._storage = self._storage.pop()
 
+
 class DemoStorageHexTests(DemoStorageTests):
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.tests.hexstorage.HexStorage(
             ZODB.DemoStorage.DemoStorage())
+
 
 class DemoStorageWrappedBase(DemoStorageTests):
 
@@ -131,11 +132,12 @@ class DemoStorageWrappedBase(DemoStorageTests):
         raise NotImplementedError
 
     def checkPackOnlyOneObject(self):
-        pass # Wrapping demo storages don't do gc
+        pass  # Wrapping demo storages don't do gc
 
     def checkPackWithMultiDatabaseReferences(self):
-        pass # we never do gc
+        pass  # we never do gc
     checkPackAllRevisions = checkPackWithMultiDatabaseReferences
+
 
 class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
 
@@ -143,11 +145,13 @@ class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
         from ZODB.MappingStorage import MappingStorage
         return MappingStorage()
 
+
 class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         from ZODB.FileStorage import FileStorage
         return FileStorage('FileStorageTests.fs')
+
 
 class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
 
@@ -159,6 +163,7 @@ class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
 def setUp(test):
     random.seed(0)
     ZODB.tests.util.setUp(test)
+
 
 def testSomeDelegation():
     r"""
@@ -197,10 +202,8 @@ def testSomeDelegation():
     >>> storage.tpc_begin(1, 2, 3)
     begin 2 3
     >>> storage.tpc_abort(1)
-
-    >>> 
-
     """
+
 
 def blob_pos_key_error_with_non_blob_base():
     """
@@ -217,6 +220,7 @@ def blob_pos_key_error_with_non_blob_base():
 
     """
 
+
 def load_before_base_storage_current():
     """
     Here we'll exercise that DemoStorage's loadBefore method works
@@ -224,7 +228,6 @@ def load_before_base_storage_current():
     base storage.
 
     >>> import time
-    >>> import transaction
     >>> import ZODB.DB
     >>> import ZODB.DemoStorage
     >>> import ZODB.MappingStorage
@@ -367,14 +370,14 @@ def test_suite():
         doctest.DocTestSuite(
             setUp=setUp, tearDown=ZODB.tests.util.tearDown,
             checker=ZODB.tests.util.checker
-            ),
+        ),
         doctest.DocFileSuite(
             '../DemoStorage.test',
             setUp=setUp,
             tearDown=ZODB.tests.util.tearDown,
             checker=ZODB.tests.util.checker,
-            ),
-        ))
+        ),
+    ))
     suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
     suite.addTest(unittest.makeSuite(DemoStorageHexTests, 'check'))
     suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,

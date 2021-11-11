@@ -16,10 +16,11 @@ import manuel.footnote
 import manuel.testing
 import ZODB.tests.util
 
+
 def test_suite():
     return manuel.testing.TestSuite(
         manuel.doctest.Manuel(checker=ZODB.tests.util.checker) +
         manuel.footnote.Manuel(),
         '../historical_connections.rst',
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-        )
+    )

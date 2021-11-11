@@ -74,6 +74,8 @@ from BTrees.QQBTree import QQBTree
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
 # explaining what the problem(s) is(are).
+
+
 def report(oid, data, serial, missing):
     from_mod, from_class = get_pickle_metadata(data)
     if len(missing) > 1:
@@ -92,6 +94,7 @@ def report(oid, data, serial, missing):
         print("\toid %s %s: %r" % (oid_repr(oid), reason, description))
     print()
 
+
 def main(path=None):
     verbose = 0
     if path is None:
@@ -104,7 +107,6 @@ def main(path=None):
                 verbose += 1
 
         path, = args
-
 
     fs = FileStorage(path, read_only=1)
 
@@ -122,7 +124,7 @@ def main(path=None):
     # build {pos -> oid} index that is reverse to {oid -> pos} fs._index
     # we'll need this to iterate objects in order of ascending file position to
     # optimize disk IO.
-    pos2oid = QQBTree() # pos -> u64(oid)
+    pos2oid = QQBTree()  # pos -> u64(oid)
     for oid, pos in fs._index.iteritems():
         pos2oid[pos] = u64(oid)
 
@@ -137,14 +139,14 @@ def main(path=None):
             raise
         except POSKeyError:
             undone[oid] = 1
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             if verbose:
                 traceback.print_exc()
             noload[oid] = 1
 
     # pass 2: go through all objects again and verify that their references do
-    # not point to problematic object set. Iterate objects in order of ascending
-    # file position to optimize disk IO.
+    # not point to problematic object set. Iterate objects in order of
+    # ascending file position to optimize disk IO.
     inactive = noload.copy()
     inactive.update(undone)
     for oid64 in pos2oid.itervalues():
@@ -153,7 +155,7 @@ def main(path=None):
             continue
         data, serial = load_current(fs, oid)
         refs = get_refs(data)
-        missing = [] # contains 3-tuples of oid, klass-metadata, reason
+        missing = []  # contains 3-tuples of oid, klass-metadata, reason
         for ref, klass in refs:
             if klass is None:
                 klass = '<unknown>'
@@ -165,6 +167,7 @@ def main(path=None):
                 missing.append((ref, klass, "object creation was undone"))
         if missing:
             report(oid, data, serial, missing)
+
 
 if __name__ == "__main__":
     main()

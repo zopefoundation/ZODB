@@ -9,12 +9,14 @@ from six.moves import filter
 rx_txn = re.compile(r"tid=([0-9a-f]+).*size=(\d+)")
 rx_data = re.compile(r"oid=([0-9a-f]+) size=(\d+) class=(\S+)")
 
+
 def sort_byhsize(seq, reverse=False):
     L = [(v.size(), k, v) for k, v in seq]
     L.sort()
     if reverse:
         L.reverse()
     return [(k, v) for n, k, v in L]
+
 
 class Histogram(dict):
 
@@ -93,6 +95,7 @@ class Histogram(dict):
                 i * binsize, n, p, pc, "*" * (n // dot)))
         print()
 
+
 def class_detail(class_size):
     # summary of classes
     fmt = "%5s %6s %6s %6s   %-50.50s"
@@ -110,6 +113,7 @@ def class_detail(class_size):
             continue
         h.report("Object size for %s" % klass, usebins=True)
 
+
 def revision_detail(lifetimes, classes):
     # Report per-class details for any object modified more than once
     for name, oids in six.iteritems(classes):
@@ -124,17 +128,18 @@ def revision_detail(lifetimes, classes):
         if keep:
             h.report("Number of revisions for %s" % name, binsize=10)
 
+
 def main(path=None):
     if path is None:
         path = sys.argv[1]
-    txn_objects = Histogram() # histogram of txn size in objects
-    txn_bytes = Histogram() # histogram of txn size in bytes
-    obj_size = Histogram() # histogram of object size
-    n_updates = Histogram() # oid -> num updates
-    n_classes = Histogram() # class -> num objects
-    lifetimes = {} # oid -> list of tids
-    class_size = {} # class -> histogram of object size
-    classes = {} # class -> list of oids
+    txn_objects = Histogram()  # histogram of txn size in objects
+    txn_bytes = Histogram()  # histogram of txn size in bytes
+    obj_size = Histogram()  # histogram of object size
+    n_updates = Histogram()  # oid -> num updates
+    n_classes = Histogram()  # class -> num objects
+    lifetimes = {}  # oid -> list of tids
+    class_size = {}  # class -> histogram of object size
+    classes = {}  # class -> list of oids
 
     MAX = 0
     objects = 0
@@ -202,6 +207,7 @@ def main(path=None):
     revision_detail(lifetimes, classes)
 
     class_detail(class_size)
+
 
 if __name__ == "__main__":
     main()

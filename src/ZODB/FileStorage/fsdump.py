@@ -20,19 +20,20 @@ from ZODB.FileStorage.format import DATA_HDR, DATA_HDR_LEN
 from ZODB.TimeStamp import TimeStamp
 from ZODB.utils import u64, get_pickle_metadata
 
+
 def fsdump(path, file=None, with_offset=1):
     iter = FileIterator(path)
     for i, trans in enumerate(iter):
         size = trans._tend - trans._tpos
         if with_offset:
             print(("Trans #%05d tid=%016x size=%d time=%s offset=%d" %
-                  (i, u64(trans.tid), size,
-                   TimeStamp(trans.tid), trans._pos)), file=file)
+                   (i, u64(trans.tid), size,
+                    TimeStamp(trans.tid), trans._pos)), file=file)
         else:
             print(("Trans #%05d tid=%016x size=%d time=%s" %
-                  (i, u64(trans.tid), size, TimeStamp(trans.tid))), file=file)
+                   (i, u64(trans.tid), size, TimeStamp(trans.tid))), file=file)
         print(("    status=%r user=%r description=%r" %
-              (trans.status, trans.user, trans.description)), file=file)
+               (trans.status, trans.user, trans.description)), file=file)
 
         for j, rec in enumerate(trans):
             if rec.data is None:
@@ -51,12 +52,14 @@ def fsdump(path, file=None, with_offset=1):
                 bp = ""
 
             print(("  data #%05d oid=%016x%s class=%s%s" %
-                  (j, u64(rec.oid), size, fullclass, bp)), file=file)
+                   (j, u64(rec.oid), size, fullclass, bp)), file=file)
     iter.close()
+
 
 def fmt(p64):
     # Return a nicely formatted string for a packaged 64-bit value
     return "%016x" % u64(p64)
+
 
 class Dumper(object):
     """A very verbose dumper for debuggin FileStorage problems."""
@@ -87,13 +90,13 @@ class Dumper(object):
         print("transaction id: %s" % fmt(tid), file=self.dest)
         print("trec len: %d" % tlen, file=self.dest)
         print("status: %r" % status, file=self.dest)
-        user = descr = extra = ""
+        user = descr = ""
         if ul:
             user = self.file.read(ul)
         if dl:
             descr = self.file.read(dl)
         if el:
-            extra = self.file.read(el)
+            self.file.read(el)
         print("user: %r" % user, file=self.dest)
         print("description: %r" % descr, file=self.dest)
         print("len(extra): %d" % el, file=self.dest)
@@ -120,6 +123,7 @@ class Dumper(object):
         if not dlen:
             sbp = self.file.read(8)
             print("backpointer: %d" % u64(sbp), file=self.dest)
+
 
 def main():
     import sys

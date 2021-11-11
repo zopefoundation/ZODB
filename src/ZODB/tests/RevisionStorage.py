@@ -107,7 +107,6 @@ class RevisionStorage(object):
         self.assertEqual(start, revs[11])
         self.assertEqual(end, revs[12])
 
-
     # Unsure:  Is it okay to assume everyone testing against RevisionStorage
     # implements undo?
 
@@ -142,6 +141,7 @@ class RevisionStorage(object):
     def checkLoadBeforeConsecutiveTids(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
+
         def helper(tid, revid, x):
             data = zodb_pickle(MinPO(x))
             t = TransactionMetaData()
@@ -151,13 +151,13 @@ class RevisionStorage(object):
                 # Finish the transaction
                 self._storage.tpc_vote(t)
                 newrevid = self._storage.tpc_finish(t)
-            except:
+            except:  # noqa: E722 do not use bare 'except'
                 self._storage.tpc_abort(t)
                 raise
             return newrevid
         revid1 = helper(1, None, 1)
         revid2 = helper(2, revid1, 2)
-        revid3 = helper(3, revid2, 3)
+        helper(3, revid2, 3)
         data, start_tid, end_tid = self._storage.loadBefore(oid, p64(2))
         eq(zodb_unpickle(data), MinPO(1))
         eq(u64(start_tid), 1)
@@ -167,7 +167,7 @@ class RevisionStorage(object):
         eq = self.assertEqual
         oid1 = self._storage.new_oid()
         oid2 = self._storage.new_oid()
-        revid1 = self._dostore(oid1)
+        self._dostore(oid1)
         revid2 = self._dostore(oid2)
         results = self._storage.loadBefore(oid2, revid2)
         eq(results, None)

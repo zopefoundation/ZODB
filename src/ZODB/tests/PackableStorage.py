@@ -31,7 +31,6 @@ import transaction
 import ZODB.interfaces
 import ZODB.tests.util
 from ZODB.tests.util import time_monotonically_increases
-import zope.testing.setupstack
 
 from ZODB.utils import load_current
 
@@ -81,6 +80,8 @@ class C(Persistent):
 # serialize the persistent id of the object instead of the object's state.
 # That sets the pickle up for proper sniffing by the referencesf machinery.
 # Fun, huh?
+
+
 def dumps(obj):
     def getpersid(obj):
         if hasattr(obj, 'getoid'):
@@ -91,6 +92,7 @@ def dumps(obj):
     p.dump(obj)
     p.dump(None)
     return s.getvalue()
+
 
 def pdumps(obj):
     s = BytesIO()
@@ -245,9 +247,8 @@ class PackableStorage(PackableStorageBase):
             #     True if we got beyond this line, False if it raised an
             #         exception (one possible Conflict cause):
             #             self.root[index].value = MinPO(j)
-            def cmp_by_time(a, b):
-                return cmp((a[1], a[0]), (b[1], b[0]))
-            outcomes.sort(cmp_by_time)
+
+            outcomes.sort(key=lambda x: (x[1], x[0]))
             counts = [0] * 4
             for outcome in outcomes:
                 n = len(outcome)
@@ -528,6 +529,7 @@ class PackableStorage(PackableStorageBase):
         eq(pobj.getoid(), oid2)
         eq(pobj.value, 11)
 
+
 class PackableStorageWithOptionalGC(PackableStorage):
 
     def checkPackAllRevisionsNoGC(self):
@@ -567,7 +569,6 @@ class PackableStorageWithOptionalGC(PackableStorage):
         raises(KeyError, self._storage.loadSerial, oid, revid1)
         raises(KeyError, self._storage.loadSerial, oid, revid2)
         self._storage.loadSerial(oid, revid3)
-
 
 
 class PackableUndoStorage(PackableStorageBase):
@@ -716,13 +717,15 @@ class PackableUndoStorage(PackableStorageBase):
         self._dostoreNP(oid2, revid=revid22,
                         data=pdumps(obj2), description="2-5")
         # Now pack
-        self.assertEqual(6,len(self._storage.undoLog()))
+        self.assertEqual(6, len(self._storage.undoLog()))
         print('\ninitial undoLog was')
-        for r in self._storage.undoLog(): print(r)
+        for r in self._storage.undoLog():
+            print(r)
         self._storage.pack(packtime, referencesf)
         # The undo log contains only two undoable transaction.
         print('\nafter packing undoLog was')
-        for r in self._storage.undoLog(): print(r)
+        for r in self._storage.undoLog():
+            print(r)
         # what can we assert about that?
 
 
@@ -773,6 +776,7 @@ class ClientThread(TestThread):
             alist.append(assign_worked)
 
         conn.close()
+
 
 class ElapsedTimer(object):
     def __init__(self, start_time):

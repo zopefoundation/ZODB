@@ -41,12 +41,15 @@ import struct
 import sys
 from ZODB._compat import FILESTORAGE_MAGIC
 
+
 class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
+
 
 class Status(object):
     checkpoint = b'c'
     undone = b'u'
+
 
 packed_version = FILESTORAGE_MAGIC
 
@@ -54,6 +57,7 @@ TREC_HDR_LEN = 23
 DREC_HDR_LEN = 42
 
 VERBOSE = 0
+
 
 def hexify(s):
     r"""Format an 8-bit string as hex
@@ -64,17 +68,20 @@ def hexify(s):
     """
     return '0x' + binascii.hexlify(s).decode()
 
+
 def chatter(msg, level=1):
     if VERBOSE >= level:
         sys.stdout.write(msg)
 
+
 def U64(v):
     """Unpack an 8-byte string as a 64-bit long"""
-    h, l = struct.unpack(">II", v)
+    h, l_ = struct.unpack(">II", v)
     if h:
-        return (h << 32) + l
+        return (h << 32) + l_
     else:
-        return l
+        return l_
+
 
 def check(path):
     with open(path, 'rb') as file:
@@ -87,7 +94,7 @@ def check(path):
             raise FormatError("invalid file header")
 
         pos = 4
-        tid = b'\000' * 8 # lowest possible tid to start
+        tid = b'\000' * 8  # lowest possible tid to start
         i = 0
         while pos:
             _pos = pos
@@ -106,7 +113,7 @@ def check_trec(path, file, pos, ltid, file_size):
     used for generating error messages.
     """
 
-    h = file.read(TREC_HDR_LEN) #XXX must be bytes under Py3k
+    h = file.read(TREC_HDR_LEN)  # XXX must be bytes under Py3k
     if not h:
         return None, None
     if len(h) != TREC_HDR_LEN:
@@ -120,7 +127,7 @@ def check_trec(path, file, pos, ltid, file_size):
                           (path, pos, hexify(tid), hexify(ltid)))
     ltid = tid
 
-    tl = U64(stl) # transaction record length - 8
+    tl = U64(stl)  # transaction record length - 8
     if pos + tl + 8 > file_size:
         raise FormatError("%s truncated possibly because of"
                           " damaged records at %s" % (path, pos))
@@ -140,7 +147,7 @@ def check_trec(path, file, pos, ltid, file_size):
 
     if status != Status.undone:
         pos = tpos + tmeta_len
-        file.read(ul + dl + el) # skip transaction metadata
+        file.read(ul + dl + el)  # skip transaction metadata
 
         i = 0
         while pos < tend:
@@ -162,6 +169,7 @@ def check_trec(path, file, pos, ltid, file_size):
     pos = tend + 8
     return pos, tid
 
+
 def check_drec(path, file, pos, tpos, tid):
     """Check a data record for the current transaction record"""
 
@@ -170,7 +178,7 @@ def check_drec(path, file, pos, tpos, tid):
         raise FormatError("%s truncated at %s" % (path, pos))
     oid, serial, _prev, _tloc, vlen, _plen = (
         struct.unpack(">8s8s8s8sH8s", h))
-    prev = U64(_prev)
+    U64(_prev)
     tloc = U64(_tloc)
     plen = U64(_plen)
     dlen = DREC_HDR_LEN + (plen or 8)
@@ -178,8 +186,8 @@ def check_drec(path, file, pos, tpos, tid):
     if vlen:
         dlen = dlen + 16 + vlen
         file.seek(8, 1)
-        pv = U64(file.read(8))
-        file.seek(vlen, 1) # skip the version data
+        U64(file.read(8))
+        file.seek(vlen, 1)  # skip the version data
 
     if tloc != tpos:
         raise FormatError("%s data record exceeds transaction record "
@@ -195,8 +203,10 @@ def check_drec(path, file, pos, tpos, tid):
 
     return pos, oid
 
+
 def usage():
     sys.exit(__doc__)
+
 
 def main(args=None):
     if args is None:
@@ -220,6 +230,7 @@ def main(args=None):
         sys.exit(msg)
 
     chatter("no errors detected")
+
 
 if __name__ == "__main__":
     main()

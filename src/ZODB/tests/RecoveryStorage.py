@@ -41,9 +41,9 @@ class RecoveryStorage(IteratorDeepCompare):
         db = DB(self._storage)
         c = db.open()
         r = c.root()
-        obj = r["obj1"] = MinPO(1)
+        r["obj1"] = MinPO(1)
         transaction.commit()
-        obj = r["obj2"] = MinPO(1)
+        r["obj2"] = MinPO(1)
         transaction.commit()
 
         self._dst.copyTransactionsFrom(self._storage)
@@ -57,7 +57,7 @@ class RecoveryStorage(IteratorDeepCompare):
         # Get the last transaction and its record iterator. Record iterators
         # can't be accessed out-of-order, so we need to do this in a bit
         # complicated way:
-        for final  in it:
+        for final in it:
             records = list(final)
 
         self._dst.tpc_begin(final, final.tid, final.status)
@@ -151,7 +151,7 @@ class RecoveryStorage(IteratorDeepCompare):
         tid = info[0]['id']
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        oids = self._storage.undo(tid, t)
+        self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
@@ -175,7 +175,7 @@ class RecoveryStorage(IteratorDeepCompare):
         tid = info[0]['id']
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        oids = self._storage.undo(tid, t)
+        self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 

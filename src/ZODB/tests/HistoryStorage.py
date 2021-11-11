@@ -21,6 +21,7 @@ import sys
 from time import time, sleep
 from ZODB.tests.MinPO import MinPO
 
+
 class HistoryStorage(object):
     def checkSimpleHistory(self):
         self._checkHistory((11, 12, 13))
@@ -29,7 +30,7 @@ class HistoryStorage(object):
         start = time()
         # Store a couple of revisions of the object
         oid = self._storage.new_oid()
-        self.assertRaises(KeyError,self._storage.history,oid)
+        self.assertRaises(KeyError, self._storage.history, oid)
         revids = [None]
         for data in data:
             if sys.platform == 'win32':

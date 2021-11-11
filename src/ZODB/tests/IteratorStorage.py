@@ -32,6 +32,7 @@ except ImportError:
     # Py3: zip() already returns an iterable.
     pass
 
+
 class IteratorCompare(object):
 
     def iter_verify(self, txniter, revids, val0):
@@ -66,14 +67,14 @@ class IteratorStorage(IteratorCompare):
 
     def checkUndoZombie(self):
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=MinPO(94))
+        self._dostore(oid, data=MinPO(94))
         # Get the undo information
         info = self._storage.undoInfo()
         tid = info[0]['id']
         # Undo the creation of the object, rendering it a zombie
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        oids = self._storage.undo(tid, t)
+        self._storage.undo(tid, t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
         # Now attempt to iterator over the storage
@@ -95,10 +96,10 @@ class IteratorStorage(IteratorCompare):
         # always return x.
         class ext(dict):
             def __reduce__(self):
-                return dict,(tuple(self.items()),)
+                return dict, (tuple(self.items()),)
         ext = ext(foo=1)
         oid = self._storage.new_oid()
-        revid = self._dostore(oid, data=MinPO(1), extension=ext)
+        self._dostore(oid, data=MinPO(1), extension=ext)
         txn, = self._storage.iterator()
         self.assertEqual(txn.extension, ext)
         try:

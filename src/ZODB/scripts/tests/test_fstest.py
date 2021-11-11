@@ -19,6 +19,7 @@ import ZODB
 from zope.testing import setupstack
 from zope.testing.renormalizing import RENormalizing
 
+
 def test_fstest_verbose():
     r"""
     >>> db = ZODB.DB('data.fs')
@@ -52,4 +53,3 @@ def test_suite():
         doctest.DocTestSuite(setUp=setupstack.setUpDirectory,
                              tearDown=setupstack.tearDown),
     ])
-

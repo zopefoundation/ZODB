@@ -304,7 +304,7 @@ class ObjectWriter(object):
 
                 oid = obj.oid
                 if oid is None:
-                    target = obj() # get the referenced object
+                    target = obj()  # get the referenced object
                     oid = target._p_oid
                     if oid is None:
                         # Here we are causing the object to be saved in
@@ -326,7 +326,6 @@ class ObjectWriter(object):
                     return ['w', (oid, )]
                 else:
                     return ['w', (oid, obj.database_name)]
-
 
         # Since we have an oid, we have either a persistent instance
         # (an instance of Persistent), or a persistent class.
@@ -357,14 +356,14 @@ class ObjectWriter(object):
                 raise InvalidObjectReference(
                     "Attempt to store an object from a foreign "
                     "database connection", self._jar, obj,
-                    )
+                )
 
             if self._jar.get_connection(database_name) is not obj._p_jar:
                 raise InvalidObjectReference(
                     "Attempt to store a reference to an object from "
                     "a separate connection to the same database or "
                     "multidatabase", self._jar, obj,
-                    )
+                )
 
             # OK, we have an object from another database.
             # Lets make sure the object ws not *just* loaded.
@@ -374,7 +373,7 @@ class ObjectWriter(object):
                     "A new object is reachable from multiple databases. "
                     "Won't try to guess which one was correct!",
                     self._jar, obj,
-                    )
+                )
 
         oid = binary(oid)
         klass = type(obj)
@@ -412,7 +411,7 @@ class ObjectWriter(object):
         # revisit this in the future.
         newargs = getattr(obj, "__getnewargs__", None)
         if (isinstance(getattr(klass, '_p_oid', 0), _oidtypes)
-              and klass.__module__):
+                and klass.__module__):
             # This is a persistent class with a non-empty module.  This
             # uses pickle format #3 or #7.
             klass = klass.__module__, klass.__name__
@@ -443,6 +442,7 @@ class ObjectWriter(object):
     def __iter__(self):
         return NewObjectIterator(self._stack)
 
+
 class NewObjectIterator(object):
 
     # The pickler is used as a forward iterator when the connection
@@ -463,6 +463,7 @@ class NewObjectIterator(object):
 
     next = __next__
 
+
 class ObjectReader(object):
 
     def __init__(self, conn=None, cache=None, factory=None):
@@ -481,7 +482,8 @@ class ObjectReader(object):
 
         def find_global(modulename, name):
             return factory(conn, modulename, name)
-        unpickler = PersistentUnpickler(find_global, self._persistent_load, file)
+        unpickler = PersistentUnpickler(
+            find_global, self._persistent_load, file)
 
         return unpickler
 
@@ -541,7 +543,6 @@ class ObjectReader(object):
         return reader.load_persistent(oid, klass)
 
     loaders['m'] = load_multi_persistent
-
 
     def load_persistent_weakref(self, oid, database_name=None):
         if not isinstance(oid, bytes):
@@ -622,9 +623,9 @@ class ObjectReader(object):
     def getState(self, pickle):
         unpickler = self._get_unpickler(pickle)
         try:
-            unpickler.load() # skip the class metadata
+            unpickler.load()  # skip the class metadata
             return unpickler.load()
-        except EOFError as msg:
+        except EOFError:
             log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
@@ -673,9 +674,11 @@ def referencesf(p, oids=None):
 
     return oids
 
+
 oid_klass_loaders = {
     'w': lambda oid, database_name=None: None,
-    }
+}
+
 
 def get_refs(a_pickle):
     """Return oid and class information for references in a pickle

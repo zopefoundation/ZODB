@@ -23,8 +23,10 @@ from ZODB import DB
 
 from persistent import Persistent
 
+
 class P(Persistent):
     pass
+
 
 def create_dangling_ref(db):
     rt = db.open().root()
@@ -56,11 +58,13 @@ def create_dangling_ref(db):
     transaction.get().note(u"set child on o2")
     transaction.commit()
 
+
 def main():
     fs = FileStorage(u"dangle.fs")
     db = DB(fs)
     create_dangling_ref(db)
     db.close()
+
 
 if __name__ == "__main__":
     main()

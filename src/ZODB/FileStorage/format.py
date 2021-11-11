@@ -90,8 +90,10 @@ from ZODB.POSException import POSKeyError
 from ZODB.utils import u64, oid_repr, as_bytes
 from ZODB._compat import PY3
 
+
 class CorruptedError(Exception):
     pass
+
 
 class CorruptedDataError(CorruptedError):
 
@@ -110,6 +112,7 @@ class CorruptedDataError(CorruptedError):
             msg += " at %d" % self.pos
         return msg
 
+
 # the struct formats for the headers
 TRANS_HDR = ">8sQcHHH"
 DATA_HDR = ">8s8sQQHQ"
@@ -120,6 +123,7 @@ assert struct.calcsize(TRANS_HDR) == TRANS_HDR_LEN
 assert struct.calcsize(DATA_HDR) == DATA_HDR_LEN
 
 logger = logging.getLogger('ZODB.FileStorage.format')
+
 
 class FileStorageFormatter(object):
     """Mixin class that can read and write the low-level format."""
@@ -211,7 +215,7 @@ class FileStorageFormatter(object):
         self.ltid = th.tid
         if th.status == "c":
             self.fail(pos, "transaction with checkpoint flag set")
-        if not th.status in " pu": # recognize " ", "p", and "u" as valid
+        if th.status not in " pu":  # recognize " ", "p", and "u" as valid
             self.fail(pos, "invalid transaction status: %r", th.status)
         if th.tlen < th.headerlen():
             self.fail(pos, "invalid transaction header: "
@@ -232,8 +236,10 @@ class FileStorageFormatter(object):
             if dh.plen:
                 self.fail(pos, "data record has back pointer and data")
 
+
 def DataHeaderFromString(s):
     return DataHeader(*struct.unpack(DATA_HDR, s))
+
 
 class DataHeader(object):
     """Header for a data record."""
@@ -250,7 +256,7 @@ class DataHeader(object):
         self.prev = prev
         self.tloc = tloc
         self.plen = plen
-        self.back = 0 # default
+        self.back = 0  # default
 
     def asString(self):
         return struct.pack(DATA_HDR, self.oid, self.tid, self.prev,
@@ -259,11 +265,13 @@ class DataHeader(object):
     def recordlen(self):
         return DATA_HDR_LEN + (self.plen or 8)
 
+
 def TxnHeaderFromString(s):
     res = TxnHeader(*struct.unpack(TRANS_HDR, s))
     if PY3:
         res.status = res.status.decode('ascii')
     return res
+
 
 class TxnHeader(object):
     """Header for a transaction record."""

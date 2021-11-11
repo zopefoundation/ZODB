@@ -16,7 +16,6 @@
 __docformat__ = "reStructuredText"
 
 
-
 def test_weakrefs_functional():
     """Persistent weak references
 
@@ -29,7 +28,7 @@ def test_weakrefs_functional():
 
     >>> import transaction
     >>> from persistent.wref import WeakRef
-    >>> import persistent, ZODB.tests.MinPO
+    >>> import ZODB.tests.MinPO
     >>> import ZODB.tests.util
     >>> ob = ZODB.tests.MinPO.MinPO()
     >>> ref = WeakRef(ob)
@@ -256,6 +255,7 @@ def test_PersistentWeakKeyDictionary():
 
     """
 
+
 def test_PersistentWeakKeyDictionary_get():
     """
     >>> import ZODB.tests.util
@@ -269,6 +269,7 @@ def test_PersistentWeakKeyDictionary_get():
     >>> d.get(missing, 12)
     12
     """
+
 
 def test_suite():
     from doctest import DocTestSuite

@@ -16,13 +16,16 @@ import persistent
 import unittest
 import ZODB.tests.util
 
+
 class MyClass(persistent.Persistent):
     pass
+
 
 class MyClass_w_getnewargs(persistent.Persistent):
 
     def __getnewargs__(self):
         return ()
+
 
 def test_must_use_consistent_connections():
     """
@@ -34,7 +37,7 @@ work.
 For example, it's tempting to open a second database using the
 database open function, but this doesn't work:
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import ZODB.tests.util, transaction
     >>> databases = {}
     >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
     >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
@@ -82,6 +85,7 @@ different connections to the same database.
 
 """
 
+
 def test_connection_management_doesnt_get_caching_wrong():
     """
 
@@ -89,7 +93,7 @@ If a connection participates in a multidatabase, then it's
 connections must remain so that references between it's cached
 objects remain sane.
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import ZODB.tests.util, transaction
     >>> databases = {}
     >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
     >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
@@ -125,10 +129,11 @@ if we get the same objects:
     >>> db2.close()
 """
 
+
 def test_explicit_adding_with_savepoint():
     """
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import ZODB.tests.util, transaction
     >>> databases = {}
     >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
     >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
@@ -150,10 +155,11 @@ def test_explicit_adding_with_savepoint():
 
 """
 
+
 def test_explicit_adding_with_savepoint2():
     """
 
-    >>> import ZODB.tests.util, transaction, persistent
+    >>> import ZODB.tests.util, transaction
     >>> databases = {}
     >>> db1 = ZODB.tests.util.DB(databases=databases, database_name='1')
     >>> db2 = ZODB.tests.util.DB(databases=databases, database_name='2')
@@ -176,27 +182,25 @@ def test_explicit_adding_with_savepoint2():
 
 """
 
+
 def tearDownDbs(test):
     test.globs['db1'].close()
     test.globs['db2'].close()
 
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-                '../cross-database-references.rst',
-                globs=dict(MyClass=MyClass),
-                tearDown=tearDownDbs,
-                checker=ZODB.tests.util.checker,
-                ),
+            '../cross-database-references.rst',
+            globs=dict(MyClass=MyClass),
+            tearDown=tearDownDbs,
+            checker=ZODB.tests.util.checker,
+        ),
         doctest.DocFileSuite(
-                '../cross-database-references.rst',
-                globs=dict(MyClass=MyClass_w_getnewargs),
-                tearDown=tearDownDbs,
-                checker=ZODB.tests.util.checker,
-                ),
+            '../cross-database-references.rst',
+            globs=dict(MyClass=MyClass_w_getnewargs),
+            tearDown=tearDownDbs,
+            checker=ZODB.tests.util.checker,
+        ),
         doctest.DocTestSuite(checker=ZODB.tests.util.checker),
-        ))
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
-
+    ))

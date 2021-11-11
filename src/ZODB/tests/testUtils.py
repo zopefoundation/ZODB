@@ -27,17 +27,18 @@ NUM = 100
 
 
 checker = renormalizing.RENormalizing([
-        # Python 3 bytes add a "b".
-        (re.compile("b('.*?')"), r"\1"),
-        # Windows shows result from 'u64' as long?
-        (re.compile(r"(\d+)L"), r"\1"),
-    ])
+    # Python 3 bytes add a "b".
+    (re.compile("b('.*?')"), r"\1"),
+    # Windows shows result from 'u64' as long?
+    (re.compile(r"(\d+)L"), r"\1"),
+])
+
 
 class TestUtils(unittest.TestCase):
 
-    small = [random.randrange(1, 1<<32)
+    small = [random.randrange(1, 1 << 32)
              for i in range(NUM)]
-    large = [random.randrange(1<<32, 1<<64)
+    large = [random.randrange(1 << 32, 1 << 64)
              for i in range(NUM)]
     all = small + large
 
@@ -51,14 +52,15 @@ class TestUtils(unittest.TestCase):
 
     def test_KnownConstants(self):
         self.assertEqual(b"\000\000\000\000\000\000\000\001", p64(1))
-        self.assertEqual(b"\000\000\000\001\000\000\000\000", p64(1<<32))
+        self.assertEqual(b"\000\000\000\001\000\000\000\000", p64(1 << 32))
         self.assertEqual(u64(b"\000\000\000\000\000\000\000\001"), 1)
         self.assertEqual(U64(b"\000\000\000\000\000\000\000\001"), 1)
-        self.assertEqual(u64(b"\000\000\000\001\000\000\000\000"), 1<<32)
-        self.assertEqual(U64(b"\000\000\000\001\000\000\000\000"), 1<<32)
+        self.assertEqual(u64(b"\000\000\000\001\000\000\000\000"), 1 << 32)
+        self.assertEqual(U64(b"\000\000\000\001\000\000\000\000"), 1 << 32)
 
     def test_PersistentIdHandlesDescriptor(self):
         from ZODB.serialize import ObjectWriter
+
         class P(Persistent):
             pass
 
@@ -126,7 +128,7 @@ class TestUtils(unittest.TestCase):
         if HIGHEST_PROTOCOL >= 3:
             pickle = dumps(ExampleClass, protocol=3)
             self.assertEqual(get_pickle_metadata(pickle),
-                            (__name__, ExampleClass.__name__))
+                             (__name__, ExampleClass.__name__))
 
     def test_p64_bad_object(self):
         with self.assertRaises(ValueError) as exc:
@@ -149,9 +151,9 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(e.args[-1], b'123456789')
 
 
-
 class ExampleClass(object):
     pass
+
 
 def test_suite():
     suite = unittest.defaultTestLoader.loadTestsFromName(__name__)

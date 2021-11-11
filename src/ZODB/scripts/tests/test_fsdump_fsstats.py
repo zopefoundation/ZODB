@@ -57,6 +57,3 @@ class FsdumpFsstatsTests(TestCase):
         with open("stdout") as f:
             self.assertEqual(f.readline().strip(),
                              "Summary: 1 txns, 1 objects, 1 revisions")
-        
-                    
-                    

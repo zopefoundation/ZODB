@@ -15,7 +15,6 @@ from persistent import Persistent
 from persistent.mapping import PersistentMapping
 from ZODB.POSException import TransactionFailedError
 
-import doctest
 from BTrees.OOBTree import OOBTree
 import transaction
 import unittest
@@ -23,6 +22,7 @@ import ZODB
 import ZODB.FileStorage
 import ZODB.MappingStorage
 import ZODB.tests.util
+
 
 class P(Persistent):
     pass
@@ -83,7 +83,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
                 transaction.abort()
             else:
                 transaction.commit()
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             transaction.abort()
             raise
 
@@ -290,7 +290,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
         # Arrange for commit to fail during tpc_vote.
         poisoned_jar = PoisonedJar(break_tpc_vote=True)
-        poisoned = PoisonedObject(poisoned_jar)
+        PoisonedObject(poisoned_jar)
         transaction.get().join(poisoned_jar)
 
         self.assertRaises(PoisonedError, transaction.get().commit)
@@ -444,10 +444,13 @@ class ZODBTests(ZODB.tests.util.TestCase):
             transaction.abort()
             conn.close()
 
+
 class PoisonedError(Exception):
     pass
 
 # PoisonedJar arranges to raise PoisonedError from interesting places.
+
+
 class PoisonedJar(object):
     def __init__(self, break_tpc_begin=False, break_tpc_vote=False,
                  break_savepoint=False):
@@ -483,10 +486,8 @@ class PoisonedObject(object):
     def __init__(self, poisonedjar):
         self._p_jar = poisonedjar
 
+
 def test_suite():
     return unittest.TestSuite((
         unittest.makeSuite(ZODBTests, 'check'),
-        ))
-
-if __name__ == "__main__":
-    unittest.main(defaultTest="test_suite")
+    ))
