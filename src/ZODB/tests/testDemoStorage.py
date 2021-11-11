@@ -270,7 +270,10 @@ def load_before_base_storage_current():
     >>> base.close()
     """
 
-# additional DemoStorage tests that do not fit into common DemoStorageTests setup.
+# additional DemoStorage tests that do not fit into common DemoStorageTests
+# setup.
+
+
 class DemoStorageTests2(ZODB.tests.util.TestCase):
     def checkLoadAfterDelete(self):
         """Verify that DemoStorage correctly handles load requests for objects
@@ -283,11 +286,11 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
         TransactionMetaData = ZODB.Connection.TransactionMetaData
 
         # mkbase prepares base part of the storage.
-        def mkbase(): # -> zbase
+        def mkbase():  # -> zbase
             zbase = FileStorage("base.fs")
-            db    = DB(zbase)
-            conn  = db.open()
-            root  = conn.root()
+            db = DB(zbase)
+            conn = db.open()
+            root = conn.root()
 
             root['obj'] = obj = MinPO(0)
             transaction.commit()
@@ -303,18 +306,19 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
             return zbase
 
         # prepare base + overlay
-        zbase    = mkbase()
+        zbase = mkbase()
         zoverlay = FileStorage("overlay.fs")
-        zdemo    = DemoStorage(base=zbase, changes=zoverlay)
+        zdemo = DemoStorage(base=zbase, changes=zoverlay)
 
         # overlay: modify obj and root
-        db   = DB(zdemo)
+        db = DB(zdemo)
         conn = db.open()
         root = conn.root()
         obj = root['obj']
         oid = obj._p_oid
         obj.value += 1
-        # modify root as well so that there is root revision saved in overlay that points to obj
+        # modify root as well so that there is root revision saved in overlay
+        # that points to obj
         root['x'] = 1
         transaction.commit()
         atLive = obj._p_serial
@@ -327,13 +331,14 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
         # unmount DemoStorage
         conn.close()
         db.close()
-        zdemo.close() # closes zbase and zoverlay as well
+        zdemo.close()  # closes zbase and zoverlay as well
         del zbase, zoverlay
 
         # simulate GC on base+overlay
         zoverlay = FileStorage("overlay.fs")
         txn = transaction.get()
-        txn_meta = TransactionMetaData(txn.user, txn.description, txn.extension)
+        txn_meta = TransactionMetaData(txn.user, txn.description,
+                                       txn.extension)
         zoverlay.tpc_begin(txn_meta)
         zoverlay.deleteObject(oid, atLive, txn_meta)
         zoverlay.tpc_vote(txn_meta)
@@ -342,7 +347,7 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
         # remount base+overlay
         zbase = FileStorage("base.fs", read_only=True)
         zdemo = ZODB.DemoStorage.DemoStorage(base=zbase, changes=zoverlay)
-        db  = DB(zdemo)
+        db = DB(zdemo)
 
         # verify:
         # load(obj, atLive)     -> 2
@@ -362,7 +367,7 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
 
         # end
         db.close()
-        zdemo.close() # closes zbase and zoverlay as well
+        zdemo.close()  # closes zbase and zoverlay as well
 
 
 def test_suite():

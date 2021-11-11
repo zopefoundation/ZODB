@@ -256,7 +256,6 @@ class DemoStorage(ConflictResolvingStorage):
         # regular data record
         return data, serial, next_serial
 
-
     def loadBlob(self, oid, serial):
         try:
             return self.changes.loadBlob(oid, serial)

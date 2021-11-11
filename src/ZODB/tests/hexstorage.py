@@ -39,7 +39,8 @@ class HexStorage(object):
                 setattr(self, name, v)
 
         zope.interface.directlyProvides(self, zope.interface.providedBy(base))
-        if hasattr(base, 'loadBeforeEx') and 'loadBeforeEx' not in self.copied_methods:
+        if hasattr(base, 'loadBeforeEx') and \
+           'loadBeforeEx' not in self.copied_methods:
             def loadBeforeEx(oid, before):
                 data, serial = self.base.loadBeforeEx(oid, before)
                 if data is not None:

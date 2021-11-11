@@ -405,7 +405,9 @@ def load_current(storage, oid, version=''):
     return data, serial
 
 
-_loadBeforeExWarned = set() # of storage class
+_loadBeforeExWarned = set()  # of storage class
+
+
 def loadBeforeEx(storage, oid, before):
     """loadBeforeEx provides IStorageLoadBeforeEx semantic for all storages.
 
@@ -430,16 +432,21 @@ def loadBeforeEx(storage, oid, before):
         # DemoStorage (https://github.com/zopefoundation/ZODB/issues/318), so
         # emit corresponding warning.
         if type(storage) not in _loadBeforeExWarned:
-            # there is potential race around _loadBeforeExWarned access, but due to the
-            # GIL this race cannot result in that set corruption, and can only lead
-            # to us emitting the warning twice instead of just once.
-            # -> do not spend CPU on lock and just ignore it.
+            # there is potential race around _loadBeforeExWarned access, but
+            # due to the GIL this race cannot result in that set corruption,
+            # and can only lead to us emitting the warning twice instead of
+            # just once.  -> do not spend CPU on lock and just ignore it.
             warnings.warn(
-                "FIXME %s does not provide loadBeforeEx - emulating it via loadBefore, but ...\n"
+                "FIXME %s does not provide loadBeforeEx - emulating it via "
+                "loadBefore, but ...\n"
                 "\t... 1) access is be potentially slower, and\n"
-                "\t... 2) not full semantic of loadBeforeEx could be provided.\n"
-                "\t...    this can lead to data corruption in the presence of delete records.\n"
-                "\t... -> please see https://github.com/zopefoundation/ZODB/issues/318 for details." %
+                "\t... 2) not full semantic of loadBeforeEx could be "
+                "provided.\n"
+                "\t...    this can lead to data corruption in the presence "
+                "of delete records.\n"
+                "\t... -> please see "
+                "https://github.com/zopefoundation/ZODB/issues/318 for "
+                "details." %
                 type(storage), PendingDeprecationWarning)
             _loadBeforeExWarned.add(type(storage))
         return (None, z64)

@@ -10,7 +10,8 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, z64, maxtid, Lock, loadBeforeEx, oid_repr, tid_repr
+from .utils import p64, u64, z64, maxtid, Lock, loadBeforeEx, oid_repr, \
+                   tid_repr
 
 
 class Base(object):
@@ -158,11 +159,12 @@ class MVCCAdapterInstance(Base):
         data, serial = loadBeforeEx(self._storage, oid, self._start)
         if data is None:
             # raise POSKeyError if object does not exist at all
-            # TODO raise POSKeyError always and switch to raising ReadOnlyError only when
-            # actually detecting that load is being affected by simultaneous pack (see below).
+            # TODO raise POSKeyError always and switch to raising ReadOnlyError
+            # only when actually detecting that load is being affected by
+            # simultaneous pack (see below).
             if serial == z64:
-                # XXX second call to loadBeforeEx - it will become unneeded once we
-                # switch to raising POSKeyError.
+                # XXX second call to loadBeforeEx - it will become unneeded
+                # once we switch to raising POSKeyError.
                 _, serial_exists = loadBeforeEx(self._storage, oid, maxtid)
                 if serial_exists == z64:
                     # object does not exist at all

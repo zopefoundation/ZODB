@@ -599,7 +599,7 @@ class FileStorage(
             elif h.back:
                 # backpointer
                 data, _, _, _ = self._loadBack_impl(oid, h.back,
-                                            fail=False, _file=_file)
+                                                    fail=False, _file=_file)
                 return data, h.tid
             else:
                 # deletion
