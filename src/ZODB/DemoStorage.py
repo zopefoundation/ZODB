@@ -385,17 +385,22 @@ class DemoStorage(ConflictResolvingStorage):
         # call changes.deleteObject(oldserial=z64)
 
         changesHead = self.changes.lastTransaction()
-        _, serial = ZODB.utils.loadBeforeEx(self.changes, oid, p64(u64(changesHead) + 1))
+        _, serial = ZODB.utils.loadBeforeEx(self.changes, oid,
+                                            p64(u64(changesHead) + 1))
         if serial != ZODB.utils.z64:
             # object has data or deletion record in changes
-            raise ZODB.POSException.ConflictError(oid=oid, serials=(serial, oldserial))
+            raise ZODB.POSException.ConflictError(oid=oid,
+                                                  serials=(serial, oldserial))
 
-        _, serial = ZODB.utils.loadBeforeEx(self.base, oid, p64(u64(baseHead) + 1))
+        _, serial = ZODB.utils.loadBeforeEx(self.base, oid,
+                                            p64(u64(baseHead) + 1))
         if serial != oldserial:
-            raise ZODB.POSException.ConflictError(oid=oid, serials=(serial, oldserial))
+            raise ZODB.POSException.ConflictError(oid=oid,
+                                                  serials=(serial, oldserial))
 
-        # object has no data/deletion record in changes and its latest revision in base == oldserial
-        # -> changes.deleteObject(oldserial=z64) + correct oldserial back on conflict.
+        # object has no data/deletion record in changes and its latest revision
+        # in base == oldserial. -> changes.deleteObject(oldserial=z64) +
+        # correct oldserial back on conflict.
         try:
             self.changes.deleteObject(oid, ZODB.utils.z64, transaction)
         except ZODB.POSException.ConflictError as e:
@@ -403,7 +408,6 @@ class DemoStorage(ConflictResolvingStorage):
             assert e.serials[1] == ZODB.utils.z64
             e.serials = (e.serials[0], oldserial)
             raise
-
 
     def storeBlob(self, oid, oldserial, data, blobfilename, version,
                   transaction):
