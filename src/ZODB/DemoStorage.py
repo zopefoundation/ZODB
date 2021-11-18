@@ -34,7 +34,7 @@ import ZODB.utils
 import zope.interface
 
 from .ConflictResolution import ConflictResolvingStorage
-from .utils import load_current, maxtid
+from .utils import load_current, maxtid, p64, u64
 
 
 @zope.interface.implementer(
@@ -384,12 +384,13 @@ class DemoStorage(ConflictResolvingStorage):
         # oldserial ∈ base  -> find out it is indeed the latest there and then
         # call changes.deleteObject(oldserial=z64)
 
-        _, serial = ZODB.utils.loadAt(self.changes, oid, self.changes.lastTransaction())
+        changesHead = self.changes.lastTransaction()
+        _, serial = ZODB.utils.loadBeforeEx(self.changes, oid, p64(u64(changesHead) + 1))
         if serial != ZODB.utils.z64:
             # object has data or deletion record in changes
             raise ZODB.POSException.ConflictError(oid=oid, serials=(serial, oldserial))
 
-        _, serial = ZODB.utils.loadAt(self.base, oid, baseHead)
+        _, serial = ZODB.utils.loadBeforeEx(self.base, oid, p64(u64(baseHead) + 1))
         if serial != oldserial:
             raise ZODB.POSException.ConflictError(oid=oid, serials=(serial, oldserial))
 
