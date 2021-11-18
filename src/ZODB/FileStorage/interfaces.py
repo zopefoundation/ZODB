@@ -13,6 +13,7 @@
 ##############################################################################
 import zope.interface
 
+
 class IFileStoragePacker(zope.interface.Interface):
 
     def __call__(storage, referencesf, stop, gc):
@@ -58,20 +59,21 @@ class IFileStoragePacker(zope.interface.Interface):
           corresponding to the file records.
         """
 
+
 class IFileStorage(zope.interface.Interface):
 
     packer = zope.interface.Attribute(
         "The IFileStoragePacker to be used for packing."
-        )
+    )
 
     _file = zope.interface.Attribute(
         "The file object used to access the underlying data."
-        )
+    )
 
     _lock = zope.interface.Attribute(
         "The storage lock."
-        )
+    )
 
     _commit_lock = zope.interface.Attribute(
         "The storage commit lock."
-        )
+    )

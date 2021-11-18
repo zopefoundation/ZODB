@@ -15,9 +15,7 @@ from six import PY2
 
 from ZODB.tests.MinPO import MinPO
 import doctest
-import os
 import re
-import sys
 import time
 import transaction
 import unittest
@@ -31,12 +29,13 @@ checker = renormalizing.RENormalizing([
      r"\1"),
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
-    ])
+])
 
 
 # Return total number of connections across all pools in a db._pools.
 def nconn(pools):
     return sum([len(pool.all) for pool in pools.values()])
+
 
 class DBTests(ZODB.tests.util.TestCase):
 
@@ -99,16 +98,16 @@ class DBTests(ZODB.tests.util.TestCase):
                     self.assertEqual(h[name], expect)
 
                 if PY2:
-                    expect = unicode if text else str
+                    expect = unicode if text else str  # noqa: F821 undef name
                     for name in 'description', 'user_name':
                         self.assertTrue(isinstance(h[name], expect))
 
         check(db.storage.history(z64, 3), False)
-        check(db.storage.undoLog(0, 3)  , False)
-        check(db.storage.undoInfo(0, 3) , False)
+        check(db.storage.undoLog(0, 3), False)
+        check(db.storage.undoInfo(0, 3), False)
         check(db.history(z64, 3), True)
-        check(db.undoLog(0, 3)  , True)
-        check(db.undoInfo(0, 3) , True)
+        check(db.undoLog(0, 3), True)
+        check(db.undoInfo(0, 3), True)
 
 
 class TransactionalUndoTests(unittest.TestCase):
@@ -266,6 +265,7 @@ def test_invalidateCache():
         >>> db.close()
     """
 
+
 def connectionDebugInfo():
     r"""DB.connectionDebugInfo provides information about connections.
 
@@ -310,11 +310,13 @@ def connectionDebugInfo():
 
     """
 
+
 def passing_a_file_name_to_DB():
     """You can pass a file-storage file name to DB.
 
     (Also note that we can access DB in ZODB.)
 
+    >>> import os
     >>> db = ZODB.DB('data.fs')
     >>> db.storage # doctest: +ELLIPSIS
     <ZODB.FileStorage.FileStorage.FileStorage object at ...
@@ -323,6 +325,7 @@ def passing_a_file_name_to_DB():
 
     >>> db.close()
     """
+
 
 def passing_None_to_DB():
     """You can pass None DB to get a MappingStorage.
@@ -334,6 +337,7 @@ def passing_None_to_DB():
     <ZODB.MappingStorage.MappingStorage object at ...
     >>> db.close()
     """
+
 
 def open_convenience():
     """Often, we just want to open a single connection.
@@ -372,6 +376,7 @@ def open_convenience():
 
     """
 
+
 def db_with_transaction():
     """Using databases with with
 
@@ -405,7 +410,7 @@ Let's try again, but this time, we'll have an exception:
 
     >>> with db.transaction() as conn2:
     ...     conn2.root()['y'] = 2
-    ...     XXX #doctest: +IGNORE_EXCEPTION_DETAIL
+    ...     XXX  # noqa: F821 undefined name
     Traceback (most recent call last):
     ...
     NameError: name 'XXX' is not defined
@@ -429,6 +434,7 @@ Let's try again, but this time, we'll have an exception:
     >>> db.close()
     """
 
+
 def connection_allows_empty_version_for_idiots():
     r"""
     >>> db = ZODB.DB('t.fs')
@@ -439,6 +445,7 @@ def connection_allows_empty_version_for_idiots():
     {}
     >>> db.close()
     """
+
 
 def warn_when_data_records_are_big():
     """
@@ -486,7 +493,8 @@ We can also specify it using a configuration option:
     ...    "object you're saving is large.")
 
     >>> db.close()
-    """ # '
+    """  # '
+
 
 def minimally_test_connection_timeout():
     """There's a mechanism to discard old connections.
@@ -507,6 +515,7 @@ def minimally_test_connection_timeout():
     []
 
     """
+
 
 def cleanup_on_close():
     """Verify that various references are cleared on close
@@ -533,10 +542,11 @@ def cleanup_on_close():
     []
 """
 
+
 def test_suite():
     s = unittest.defaultTestLoader.loadTestsFromName(__name__)
     s.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-        checker=checker
-        ))
+        checker=checker, optionflags=doctest.IGNORE_EXCEPTION_DETAIL
+    ))
     return s

@@ -38,6 +38,7 @@ checker = zope.testing.renormalizing.RENormalizing([
      "length=<LENGTH> offset=4 (+48)"),
 ])
 
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
@@ -45,4 +46,4 @@ def test_suite():
             'fstail.txt',
             setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
             checker=checker),
-        ))
+    ))

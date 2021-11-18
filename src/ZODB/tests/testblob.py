@@ -47,6 +47,7 @@ except NameError:
 
 from . import util
 
+
 def new_time():
     """Create a _new_ time stamp.
 
@@ -144,19 +145,19 @@ class BushyLayoutTests(ZODB.tests.util.TestCase):
         non_ascii_oid = b'>\xf1<0\xe9Q\x99\xf0'
         # The argument should already be bytes;
         # os.path.sep is native string type under both 2 and 3
-        # binascii.hexlify takes bytes and produces bytes under both py2 and py3
-        # the result should be the native string type
+        # binascii.hexlify takes bytes and produces bytes under both py2 and
+        # py3 the result should be the native string type
         oid_as_path = BushyLayout().oid_to_path(non_ascii_oid)
         self.assertEqual(
             oid_as_path,
             os.path.sep.join(
-            '0x3e/0xf1/0x3c/0x30/0xe9/0x51/0x99/0xf0'.split('/')))
+                '0x3e/0xf1/0x3c/0x30/0xe9/0x51/0x99/0xf0'.split('/')))
 
         # the reverse holds true as well
         path_as_oid = BushyLayout().path_to_oid(oid_as_path)
         self.assertEqual(
             path_as_oid,
-            non_ascii_oid )
+            non_ascii_oid)
 
 
 class BlobTestBase(ZODB.tests.StorageTestBase.StorageTestBase):
@@ -199,7 +200,6 @@ class BlobUndoTests(BlobTestBase):
         with blob.open('w') as file:
             file.write(b'this is state 2')
         transaction.commit()
-
 
         database.undo(database.undoLog(0, 1)[0]['id'])
         transaction.commit()
@@ -308,7 +308,7 @@ class RecoveryBlobStorage(BlobTestBase,
     def testSimpleBlobRecovery(self):
         self.assertTrue(
             ZODB.interfaces.IBlobStorageRestoreable.providedBy(self._storage)
-            )
+        )
         db = DB(self._storage)
         conn = db.open()
         conn.root()[1] = ZODB.blob.Blob()
@@ -320,10 +320,10 @@ class RecoveryBlobStorage(BlobTestBase,
         conn.root()[3] = ZODB.blob.Blob()
         with conn.root()[3].open('w') as file:
             file.write(
-                (b''.join(struct.pack(">I", random.randint(0, (1<<32)-1))
-                         for i in range(random.randint(10000,20000)))
-                 )[:-random.randint(1,4)]
-                )
+                (b''.join(struct.pack(">I", random.randint(0, (1 << 32)-1))
+                          for i in range(random.randint(10000, 20000)))
+                 )[:-random.randint(1, 4)]
+            )
         transaction.commit()
         conn.root()[2] = ZODB.blob.Blob()
         with conn.root()[2].open('w') as file:
@@ -359,6 +359,7 @@ def gc_blob_removes_uncommitted_data():
     False
     """
 
+
 def commit_from_wrong_partition():
     """
     It should be possible to commit changes even when a blob is on a
@@ -379,7 +380,7 @@ def commit_from_wrong_partition():
     >>> logger.setLevel(logging.DEBUG)
     >>> logger.addHandler(handler)
 
-    >>> blob_storage = create_storage()
+    >>> blob_storage = create_storage()  # noqa: F821 undefined name
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -425,11 +426,10 @@ def packing_with_uncommitted_data_non_undoing():
     blob_directory and confused our packing strategy. We now use a separate
     temporary directory that is ignored while packing.
 
-    >>> import transaction
     >>> from ZODB.DB import DB
     >>> from ZODB.serialize import referencesf
 
-    >>> blob_storage = create_storage()
+    >>> blob_storage = create_storage()  # noqa: F821 undefined name
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -445,6 +445,7 @@ def packing_with_uncommitted_data_non_undoing():
 
     >>> database.close()
     """
+
 
 def packing_with_uncommitted_data_undoing():
     """
@@ -456,7 +457,7 @@ def packing_with_uncommitted_data_undoing():
 
     >>> from ZODB.serialize import referencesf
 
-    >>> blob_storage = create_storage()
+    >>> blob_storage = create_storage()  # noqa: F821 undefined name
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -473,9 +474,10 @@ def packing_with_uncommitted_data_undoing():
     >>> database.close()
     """
 
+
 def test_blob_file_permissions():
     """
-    >>> blob_storage = create_storage()
+    >>> blob_storage = create_storage()  # noqa: F821 undefined name
     >>> conn = ZODB.connection(blob_storage)
     >>> conn.root.x = ZODB.blob.Blob(b'test')
     >>> conn.transaction_manager.commit()
@@ -498,6 +500,7 @@ def test_blob_file_permissions():
     >>> conn.close()
     """
 
+
 def loadblob_tmpstore():
     """
     This is a test for assuring that the TmpStore's loadBlob implementation
@@ -505,7 +508,7 @@ def loadblob_tmpstore():
 
     First, let's setup a regular database and store a blob:
 
-    >>> blob_storage = create_storage()
+    >>> blob_storage = create_storage()  # noqa: F821 undefined name
     >>> database = DB(blob_storage)
     >>> connection = database.open()
     >>> root = connection.root()
@@ -537,11 +540,12 @@ def loadblob_tmpstore():
     >>> database.close()
     """
 
+
 def is_blob_record():
     r"""
     >>> from ZODB.utils import load_current
 
-    >>> bs = create_storage()
+    >>> bs = create_storage()  # noqa: F821 undefined name
     >>> db = DB(bs)
     >>> conn = db.open()
     >>> conn.root()['blob'] = ZODB.blob.Blob()
@@ -568,9 +572,10 @@ def is_blob_record():
     >>> db.close()
     """
 
+
 def do_not_depend_on_cwd():
     """
-    >>> bs = create_storage()
+    >>> bs = create_storage()  # noqa: F821 undefined name
     >>> here = os.getcwd()
     >>> os.mkdir('evil')
     >>> os.chdir('evil')
@@ -587,10 +592,11 @@ def do_not_depend_on_cwd():
     >>> db.close()
     """
 
+
 def savepoint_isolation():
     """Make sure savepoint data is distinct accross transactions
 
-    >>> bs = create_storage()
+    >>> bs = create_storage()  # noqa: F821 undefined name
     >>> db = DB(bs)
     >>> conn = db.open()
     >>> conn.root.b = ZODB.blob.Blob(b'initial')
@@ -615,11 +621,12 @@ def savepoint_isolation():
     >>> db.close()
     """
 
+
 def savepoint_commits_without_invalidations_out_of_order():
     """Make sure transactions with blobs can be commited without the
     invalidations out of order error (LP #509801)
 
-    >>> bs = create_storage()
+    >>> bs = create_storage()  # noqa: F821 undefined name
     >>> db = DB(bs)
     >>> tm1 = transaction.TransactionManager()
     >>> conn1 = db.open(transaction_manager=tm1)
@@ -647,10 +654,11 @@ def savepoint_commits_without_invalidations_out_of_order():
     >>> db.close()
     """
 
+
 def savepoint_cleanup():
     """Make sure savepoint data gets cleaned up.
 
-    >>> bs = create_storage()
+    >>> bs = create_storage()  # noqa: F821 undefined name
     >>> tdir = bs.temporaryDirectory()
     >>> os.listdir(tdir)
     []
@@ -676,6 +684,7 @@ def savepoint_cleanup():
     >>> db.close()
     """
 
+
 def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     r"""
     >>> db = ZODB.DB('data.fs', blob_dir='blobs')
@@ -694,18 +703,23 @@ def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     >>> db.close()
     """
 
+
 def setUp(test):
     ZODB.tests.util.setUp(test)
     test.globs['rmtree'] = zope.testing.setupstack.rmtree
 
+
 def timeIncreasesSetUp(test):
     setUp(test)
-    l = test.globs['time_layer'] = ZODB.tests.util.MonotonicallyIncreasingTimeMinimalTestLayer('')
-    l.testSetUp()
+    layer = test.globs['time_layer'] = (
+        ZODB.tests.util.MonotonicallyIncreasingTimeMinimalTestLayer(''))
+    layer.testSetUp()
+
 
 def timeIncreasesTearDown(test):
     test.globs['time_layer'].testTearDown()
     util.tearDown(test)
+
 
 def setUpBlobAdaptedFileStorage(test):
     setUp(test)
@@ -716,6 +730,7 @@ def setUpBlobAdaptedFileStorage(test):
         return ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name))
 
     test.globs['create_storage'] = create_storage
+
 
 def storage_reusable_suite(prefix, factory,
                            test_blob_storage_recovery=False,
@@ -729,6 +744,7 @@ def storage_reusable_suite(prefix, factory,
 
     def setup(test):
         setUp(test)
+
         def create_storage(name='data', blob_dir=None):
             if blob_dir is None:
                 blob_dir = '%s.bobs' % name
@@ -749,33 +765,35 @@ def storage_reusable_suite(prefix, factory,
             (re.compile(r'^b"'), '"'),
             # ...and native strings where Python2 used unicode.
             (re.compile("^POSKeyError: u'No blob file"),
-                        "POSKeyError: 'No blob file"),
+             "POSKeyError: 'No blob file"),
             # Py3k repr's exceptions with dotted names
             (re.compile("^ZODB.interfaces.BlobError:"), "BlobError:"),
-            (re.compile("^ZODB.POSException.ConflictError:"), "ConflictError:"),
+            (re.compile("^ZODB.POSException.ConflictError:"),
+             "ConflictError:"),
             (re.compile("^ZODB.POSException.POSKeyError:"), "POSKeyError:"),
             (re.compile("^ZODB.POSException.Unsupported:"), "Unsupported:"),
             # Normalize out blobfile paths for sake of Windows
             (re.compile(
-                r'([a-zA-Z]:)?\%(sep)s.*\%(sep)s(server-)?blobs\%(sep)s.*\.blob'
-                        % dict(sep=os.path.sep)), '<BLOB STORAGE PATH>')
-            ]),
+                r'([a-zA-Z]:)?\%(sep)s.*\%(sep)s(server-)'
+                r'?blobs\%(sep)s.*\.blob' % dict(sep=os.path.sep)),
+             '<BLOB STORAGE PATH>')
+        ]),
         optionflags=doctest.ELLIPSIS,
-        ))
+    ))
     if test_packing:
         suite.addTest(doctest.DocFileSuite(
             "blob_packing.txt",
             setUp=setup, tearDown=util.tearDown,
-            ))
+        ))
     suite.addTest(doctest.DocTestSuite(
         setUp=setup, tearDown=util.tearDown,
-        checker = (
+        checker=(
             ZODB.tests.util.checker +
             zope.testing.renormalizing.RENormalizing([
                 (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
                 (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
-                ])),
-        ))
+            ])),
+    ))
 
     def create_storage(self, name='data', blob_dir=None):
         if blob_dir is None:
@@ -786,7 +804,7 @@ def storage_reusable_suite(prefix, factory,
         new_class = class_.__class__(
             prefix+class_.__name__, (class_, ),
             dict(create_storage=create_storage),
-            )
+        )
         suite.addTest(unittest.makeSuite(new_class))
 
     if test_blob_storage_recovery:
@@ -794,9 +812,11 @@ def storage_reusable_suite(prefix, factory,
     if test_undo:
         add_test_based_on_test_class(BlobUndoTests)
 
-    suite.layer = ZODB.tests.util.MonotonicallyIncreasingTimeMinimalTestLayer(prefix+'BlobTests')
+    suite.layer = ZODB.tests.util.MonotonicallyIncreasingTimeMinimalTestLayer(
+        prefix+'BlobTests')
 
     return suite
+
 
 def test_suite():
     suite = unittest.TestSuite()
@@ -811,36 +831,33 @@ def test_suite():
         tearDown=util.tearDown,
         optionflags=doctest.ELLIPSIS,
         checker=ZODB.tests.util.checker,
-        ))
+    ))
     suite.addTest(doctest.DocFileSuite(
         "blobstorage_packing.txt",
         setUp=timeIncreasesSetUp,
         tearDown=timeIncreasesTearDown,
         optionflags=doctest.ELLIPSIS,
         checker=ZODB.tests.util.checker,
-        ))
+    ))
     suite.addTest(doctest.DocFileSuite(
         "blob_layout.txt",
-        optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE,
+        optionflags=doctest.ELLIPSIS | doctest.NORMALIZE_WHITESPACE,
         setUp=setUp,
         tearDown=util.tearDown,
         checker=ZODB.tests.util.checker +
-            zope.testing.renormalizing.RENormalizing([
+        zope.testing.renormalizing.RENormalizing([
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
             (re.compile(r"u('[^']*')"), r"\1"),
-            ]),
-        ))
+        ]),
+    ))
     suite.addTest(storage_reusable_suite(
         'BlobAdaptedFileStorage',
         lambda name, blob_dir:
         ZODB.blob.BlobStorage(blob_dir, FileStorage('%s.fs' % name)),
         test_blob_storage_recovery=True,
         test_packing=True,
-        ))
+    ))
 
     return suite
-
-if __name__ == '__main__':
-    unittest.main(defaultTest = 'test_suite')

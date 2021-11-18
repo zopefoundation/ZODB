@@ -46,7 +46,7 @@ class MVCCMappingStorage(MappingStorage):
         inst.new_oid = self.new_oid
         inst.pack = self.pack
         inst.loadBefore = self.loadBefore
-        inst.loadAt = self.loadAt
+        inst.loadBeforeEx = self.loadBeforeEx
         inst._ltid = self._ltid
         inst._main_lock = self._lock
         return inst
@@ -111,13 +111,15 @@ class MVCCMappingStorage(MappingStorage):
         self._polled_tid = self._ltid = new_tid
         return list(changed_oids)
 
-    def tpc_finish(self, transaction, func = lambda tid: None):
+    def tpc_finish(self, transaction, func=lambda tid: None):
         self._data_snapshot = None
-        return MappingStorage.tpc_finish(self, transaction, func)
+        with self._main_lock:
+            return MappingStorage.tpc_finish(self, transaction, func)
 
     def tpc_abort(self, transaction):
         self._data_snapshot = None
-        MappingStorage.tpc_abort(self, transaction)
+        with self._main_lock:
+            MappingStorage.tpc_abort(self, transaction)
 
     def pack(self, t, referencesf, gc=True):
         # prevent all concurrent commits during packing

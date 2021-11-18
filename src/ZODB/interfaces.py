@@ -267,6 +267,7 @@ class IConnection(Interface):
         separate object.
         """
 
+
 class IStorageWrapper(Interface):
     """Storage wrapper interface
 
@@ -296,7 +297,7 @@ class IStorageWrapper(Interface):
 
     This interface may be implemented by storage adapters or other
     intermediaries.  For example, a storage adapter that provides
-    encryption and/or compresssion will apply record transformations
+    encryption and/or compression will apply record transformations
     in it's references method.
     """
 
@@ -343,7 +344,8 @@ class IStorageWrapper(Interface):
         """Return untransformed data
         """
 
-IStorageDB = IStorageWrapper # for backward compatibility
+
+IStorageDB = IStorageWrapper  # for backward compatibility
 
 
 class IDatabase(IStorageDB):
@@ -370,7 +372,6 @@ class IDatabase(IStorageDB):
         application code should rarely, if ever, have a need to use
         this attribute.
         """)
-
 
     def open(transaction_manager=None, serial=''):
         """Return an IConnection object for use by application code.
@@ -421,7 +422,6 @@ class IDatabase(IStorageDB):
         also included if they don't conflict with the keys above.
         """
 
-
     def pack(t=None, days=0):
         """Pack the storage, deleting unused object revisions.
 
@@ -433,7 +433,7 @@ class IDatabase(IStorageDB):
         usually an expensive operation.
 
         There are two optional arguments that can be used to set the
-        pack time: t, pack time in seconds since the epcoh, and days,
+        pack time: t, pack time in seconds since the epoch, and days,
         the number of days to subtract from t or from the current
         time if t is not specified.
         """
@@ -539,6 +539,7 @@ class IDatabase(IStorageDB):
         should also close all the Connections.
         """
 
+
 class IStorageTransactionMetaData(Interface):
     """Provide storage transaction meta data.
 
@@ -628,13 +629,13 @@ class IStorage(Interface):
         The format and interpretation of this name is storage
         dependent. It could be a file name, a database name, etc..
 
-        This is used soley for informational purposes.
+        This is used solely for informational purposes.
         """
 
     def getSize():
         """An approximate size of the database, in bytes.
 
-        This is used soley for informational purposes.
+        This is used solely for informational purposes.
         """
 
     def history(oid, size=1):
@@ -660,7 +661,7 @@ class IStorage(Interface):
 
         user_name
             The bytes user identifier, if any (or an empty string) of the
-            user on whos behalf the revision was committed.
+            user on whose behalf the revision was committed.
 
         description
             The bytes transaction description for the transaction that
@@ -704,14 +705,11 @@ class IStorage(Interface):
     def __len__():
         """The approximate number of objects in the storage
 
-        This is used soley for informational purposes.
+        This is used solely for informational purposes.
         """
 
     def loadBefore(oid, tid):
         """Load the object data written before a transaction id
-
-        ( This method is deprecated and kept for backward-compatibility.
-          Please use loadAt instead. )
 
         If there isn't data before the object before the given
         transaction, then None is returned, otherwise three values are
@@ -724,6 +722,8 @@ class IStorage(Interface):
         - The transaction id of the following revision, if any, or None.
 
         If the object id isn't in the storage, then POSKeyError is raised.
+
+        See also: IStorageLoadBeforeEx.loadBeforeEx .
         """
 
     def loadSerial(oid, serial):
@@ -824,7 +824,7 @@ class IStorage(Interface):
 
         This call is ignored is the storage is not participating in
         two-phase commit or if the given transaction is not the same
-        as the transaction the storage is commiting.
+        as the transaction the storage is committing.
         """
 
     def tpc_begin(transaction):
@@ -840,7 +840,7 @@ class IStorage(Interface):
         current transaction ends (commits or aborts).
         """
 
-    def tpc_finish(transaction, func = lambda tid: None):
+    def tpc_finish(transaction, func=lambda tid: None):
         """Finish the transaction, making any transaction changes permanent.
 
         Changes must be made permanent at this point.
@@ -866,7 +866,7 @@ class IStorage(Interface):
         The argument is the same object passed to tpc_begin.
 
         This call raises a StorageTransactionError if the storage
-        isn't participating in two-phase commit or if it is commiting
+        isn't participating in two-phase commit or if it is committing
         a different transaction.
 
         If a transaction can be committed by a storage, then the
@@ -889,24 +889,27 @@ class IPrefetchStorage(IStorage):
         more than once.
         """
 
-class IStorageLoadAt(Interface):
 
-    def loadAt(oid, at): # -> (data, serial)
-        """Load object data as observed at given database state.
+class IStorageLoadBeforeEx(Interface):
 
-        loadAt returns data for object with given object ID as observed by
-        database state ≤ at. Two values are returned:
+    def loadBeforeEx(oid, before):  # -> (data, serial)
+        """Load object data as observed before given database state.
+
+        loadBeforeEx returns data for object with given object ID as observed
+        by most recent database transaction with ID < before. Two values are
+        returned:
 
         - The data record,
         - The transaction ID of the data record.
 
-        If the object does not exist, or is deleted as of `at` database state,
-        loadAt returns data=None, and serial indicates transaction ID of the
-        most recent deletion done in transaction with ID ≤ at, or null tid if
-        there is no such deletion.
+        If the object does not exist, or is deleted as of requested database
+        state, loadBeforeEx returns data=None, and serial indicates transaction
+        ID of the most recent deletion done in transaction with ID < before, or
+        null tid if there is no such deletion.
 
         Note: no POSKeyError is raised even if object id is not in the storage.
         """
+
 
 class IMultiCommitStorage(IStorage):
     """A multi-commit storage can commit multiple transactions at once.
@@ -922,7 +925,7 @@ class IMultiCommitStorage(IStorage):
         the return value is always None.
         """
 
-    def tpc_finish(transaction, func = lambda tid: None):
+    def tpc_finish(transaction, func=lambda tid: None):
         """Finish the transaction, making any transaction changes permanent.
 
         See IStorage.store. For objects implementing this interface,
@@ -975,7 +978,6 @@ class IStorageRestoreable(IStorage):
         #   including the existing FileStorage implementation), that
         #   failed to take into account records after the pack time.
 
-
     def restore(oid, serial, data, version, prev_txn, transaction):
         """Write data already committed in a separate database
 
@@ -1017,6 +1019,7 @@ class IStorageRecordInformation(Interface):
     data = Attribute("The data record, bytes")
     data_txn = Attribute("The previous transaction id, bytes")
 
+
 class IStorageTransactionInformation(IStorageTransactionMetaData):
     """Provide information about a storage transaction.
 
@@ -1024,7 +1027,7 @@ class IStorageTransactionInformation(IStorageTransactionMetaData):
 
     Note that this may contain a status field used by FileStorage to
     support packing. At some point, this will go away when FileStorage
-    has a better pack algoritm.
+    has a better pack algorithm.
     """
 
     tid = Attribute("Transaction id")
@@ -1054,6 +1057,7 @@ class IStorageIteration(Interface):
         the iterator was retrieved.
 
         """
+
 
 class IStorageUndoable(IStorage):
     """A storage supporting transactional undo.
@@ -1266,6 +1270,7 @@ class IMVCCStorage(IStorage):
         A POSKeyError is raised if there is no record for the object id.
         """
 
+
 class IMVCCPrefetchStorage(IMVCCStorage):
 
     def prefetch(oids):
@@ -1274,6 +1279,7 @@ class IMVCCPrefetchStorage(IMVCCStorage):
         The oids argument is an iterable that should be iterated no
         more than once.
         """
+
 
 class IMVCCAfterCompletionStorage(IMVCCStorage):
 
@@ -1285,6 +1291,7 @@ class IMVCCAfterCompletionStorage(IMVCCStorage):
         See ``transaction.interfaces.ISynchronizer.afterCompletion``.
         """
 
+
 class IStorageCurrentRecordIteration(IStorage):
 
     def record_iternext(next=None):
@@ -1292,6 +1299,7 @@ class IStorageCurrentRecordIteration(IStorage):
 
         Use like this:
 
+            >>> storage = ...
             >>> next = None
             >>> while 1:
             ...     oid, tid, data, next = storage.record_iternext(next)
@@ -1301,24 +1309,26 @@ class IStorageCurrentRecordIteration(IStorage):
 
         """
 
+
 class IExternalGC(IStorage):
 
-   def deleteObject(oid, serial, transaction):
-       """Mark an object as deleted
+    def deleteObject(oid, serial, transaction):
+        """Mark an object as deleted
 
-       This method marks an object as deleted via a new object
-       revision.  Subsequent attempts to load current data for the
-       object will fail with a POSKeyError, but loads for
-       non-current data will suceed if there are previous
-       non-delete records.  The object will be removed from the
-       storage when all not-delete records are removed.
+        This method marks an object as deleted via a new object
+        revision.  Subsequent attempts to load current data for the
+        object will fail with a POSKeyError, but loads for
+        non-current data will succeed if there are previous
+        non-delete records.  The object will be removed from the
+        storage when all not-delete records are removed.
 
-       The serial argument must match the most recently committed
-       serial for the object. This is a seat belt.
+        The serial argument must match the most recently committed
+        serial for the object. This is a seat belt.
 
-       This method can only be called in the first phase of 2-phase
-       commit.
-       """
+        This method can only be called in the first phase of 2-phase
+        commit.
+        """
+
 
 class ReadVerifyingStorage(IStorage):
 
@@ -1336,6 +1346,7 @@ class ReadVerifyingStorage(IStorage):
         through the end of the transaction.
         """
 
+
 class IBlob(Interface):
     """A BLOB supports efficient handling of large data within ZODB."""
 
@@ -1346,7 +1357,7 @@ class IBlob(Interface):
 
         mode: Mode to open the file with. Possible values: r,w,r+,a,c
 
-        The mode 'c' is similar to 'r', except that an orinary file
+        The mode 'c' is similar to 'r', except that an ordinary file
         object is returned and may be used in a separate transaction
         and after the blob's database connection has been closed.
 
@@ -1356,8 +1367,8 @@ class IBlob(Interface):
         """Return a file name for committed data.
 
         The returned file name may be opened for reading or handed to
-        other processes for reading.  The file name isn't guarenteed
-        to be valid indefinately.  The file may be removed in the
+        other processes for reading.  The file name isn't guaranteed
+        to be valid indefinitely.  The file may be removed in the
         future as a result of garbage collection depending on system
         configuration.
 
@@ -1433,6 +1444,7 @@ class IBlobStorage(Interface):
         If Blobs use this, then commits can be performed with a simple rename.
         """
 
+
 class IBlobStorageRestoreable(IBlobStorage, IStorageRestoreable):
 
     def restoreBlob(oid, serial, data, blobfilename, prev_txn, transaction):
@@ -1466,6 +1478,7 @@ class IBroken(Interface):
     __Broken_newargs__ = Attribute("Arguments passed to __new__.")
     __Broken_initargs__ = Attribute("Arguments passed to __init__.")
     __Broken_state__ = Attribute("Value passed to __setstate__.")
+
 
 class BlobError(Exception):
     pass

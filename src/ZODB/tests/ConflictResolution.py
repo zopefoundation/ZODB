@@ -19,7 +19,8 @@ from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
 from transaction import TransactionManager
 
-from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
+from ZODB.tests.StorageTestBase import zodb_pickle
+
 
 class PCounter(Persistent):
 
@@ -42,18 +43,22 @@ class PCounter(Persistent):
     # Insecurity:  What if _p_resolveConflict _thinks_ it resolved the
     # conflict, but did something wrong?
 
+
 class PCounter2(PCounter):
 
     def _p_resolveConflict(self, oldState, savedState, newState):
         raise ConflictError
 
+
 class PCounter3(PCounter):
     def _p_resolveConflict(self, oldState, savedState, newState):
         raise AttributeError("no attribute (testing conflict resolution)")
 
+
 class PCounter4(PCounter):
     def _p_resolveConflict(self, oldState, savedState):
         raise RuntimeError("Can't get here; not enough args")
+
 
 class ConflictResolvingStorage(object):
 
@@ -92,7 +97,6 @@ class ConflictResolvingStorage(object):
 
     def checkZClassesArentResolved(self):
         from ZODB.ConflictResolution import find_global, BadClassName
-        dummy_class_tuple = ('*foobar', ())
         self.assertRaises(BadClassName, find_global, '*foobar', ())
 
     def checkBuggyResolve1(self):
@@ -108,7 +112,7 @@ class ConflictResolvingStorage(object):
         # The effect of committing two transactions with the same
         # pickle is to commit two different transactions relative to
         # revid1 that add two to _value.
-        revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
+        self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         self.assertRaises(ConflictError,
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
@@ -126,10 +130,11 @@ class ConflictResolvingStorage(object):
         # The effect of committing two transactions with the same
         # pickle is to commit two different transactions relative to
         # revid1 that add two to _value.
-        revid2 = self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
+        self._dostoreNP(oid, revid=revid1, data=zodb_pickle(obj))
         self.assertRaises(ConflictError,
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
+
 
 class ConflictResolvingTransUndoStorage(object):
 
@@ -145,7 +150,7 @@ class ConflictResolvingTransUndoStorage(object):
         obj.inc()
         revid_b = self._dostore(oid, revid=revid_a, data=obj)
         obj.inc()
-        revid_c = self._dostore(oid, revid=revid_b, data=obj)
+        self._dostore(oid, revid=revid_b, data=obj)
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']
@@ -167,7 +172,7 @@ class ConflictResolvingTransUndoStorage(object):
         obj.inc()
         revid_b = self._dostore(oid, revid=revid_a, data=obj)
         obj.inc()
-        revid_c = self._dostore(oid, revid=revid_b, data=obj)
+        self._dostore(oid, revid=revid_b, data=obj)
         # Start the undo
         info = self._storage.undoInfo()
         tid = info[1]['id']

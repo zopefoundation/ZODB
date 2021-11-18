@@ -26,6 +26,7 @@ except NameError:
     # Py3: No xrange.
     xrange = range
 
+
 class Test(unittest.TestCase):
 
     def setUp(self):
@@ -55,16 +56,16 @@ class Test(unittest.TestCase):
     def testInserts(self):
         index = self.index
 
-        for i in range(0,200):
-            self.assertEqual((i,index[p64(i*1000)]), (i,(i*1000+1)))
+        for i in range(0, 200):
+            self.assertEqual((i, index[p64(i*1000)]), (i, (i*1000+1)))
 
         self.assertEqual(len(index), 200)
 
-        key=p64(2000)
+        key = p64(2000)
 
         self.assertEqual(index.get(key), 2001)
 
-        key=p64(2001)
+        key = p64(2001)
         self.assertEqual(index.get(key), None)
         self.assertEqual(index.get(key, ''), '')
 
@@ -72,20 +73,20 @@ class Test(unittest.TestCase):
 
     def testUpdate(self):
         index = self.index
-        d={}
+        d = {}
 
         for i in range(200):
-            d[p64(i*1000)]=(i*1000+1)
+            d[p64(i*1000)] = (i*1000+1)
 
         index.update(d)
 
-        for i in range(400,600):
-            d[p64(i*1000)]=(i*1000+1)
+        for i in range(400, 600):
+            d[p64(i*1000)] = (i*1000+1)
 
         index.update(d)
 
         for i in range(100, 500):
-            d[p64(i*1000)]=(i*1000+2)
+            d[p64(i*1000)] = (i*1000+2)
 
         index.update(d)
 
@@ -194,6 +195,7 @@ class Test(unittest.TestCase):
         self.assertEqual(index.minKey(b), c)
         self.assertRaises(ValueError, index.minKey, d)
 
+
 def fsIndex_save_and_load():
     """
 fsIndex objects now have save methods for saving them to disk in a new
@@ -231,6 +233,7 @@ If we save the data in the old format, we can still read it:
     True
 
     """
+
 
 def test_suite():
     suite = unittest.TestSuite()

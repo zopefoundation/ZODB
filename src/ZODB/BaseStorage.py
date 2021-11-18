@@ -20,7 +20,6 @@ from __future__ import print_function
 
 import time
 import logging
-import sys
 from struct import pack as _structpack, unpack as _structunpack
 
 import zope.interface
@@ -34,6 +33,7 @@ from .UndoLogCompatible import UndoLogCompatible
 from ._compat import py2_hasattr
 
 log = logging.getLogger("ZODB.BaseStorage")
+
 
 class BaseStorage(UndoLogCompatible):
     """Base class that supports storage implementations.
@@ -59,7 +59,8 @@ class BaseStorage(UndoLogCompatible):
 
     If it stores multiple revisions, it should implement
     loadSerial()
-    loadAt()
+    loadBefore()
+    loadBeforeEx()
 
     Each storage will have two locks that are accessed via lock
     acquire and release methods bound to the instance.  (Yuck.)
@@ -74,12 +75,12 @@ class BaseStorage(UndoLogCompatible):
     perhaps other things.  It is always held when load() is called, so
     presumably the load() implementation should also acquire the lock.
     """
-    _transaction=None # Transaction that is being committed
-    _tstatus=' '      # Transaction status, used for copying data
+    _transaction = None  # Transaction that is being committed
+    _tstatus = ' '      # Transaction status, used for copying data
     _is_read_only = False
 
     def __init__(self, name, base=None):
-        self.__name__= name
+        self.__name__ = name
         log.debug("create storage %s", self.__name__)
 
         # Allocate locks:
@@ -93,7 +94,7 @@ class BaseStorage(UndoLogCompatible):
         self._commit_lock_release = self._commit_lock.release
 
         t = time.time()
-        t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t%60,)))
+        t = self._ts = TimeStamp(*(time.gmtime(t)[:5] + (t % 60,)))
         self._tid = t.raw()
 
         # ._oid is the highest oid in use (0 is always in use -- it's
@@ -122,7 +123,7 @@ class BaseStorage(UndoLogCompatible):
         return self.__name__
 
     def getSize(self):
-        return len(self)*300 # WAG!
+        return len(self)*300  # WAG!
 
     def history(self, oid, version, length=1, filter=None):
         return ()
@@ -151,7 +152,7 @@ class BaseStorage(UndoLogCompatible):
                 self._oid = possible_new_max_oid
 
     def registerDB(self, db):
-        pass # we don't care
+        pass  # we don't care
 
     def isReadOnly(self):
         return self._is_read_only
@@ -267,8 +268,15 @@ class BaseStorage(UndoLogCompatible):
         raise POSException.Unsupported(
             "Retrieval of historical revisions is not supported")
 
-    # do not provide loadAt/loadBefore here in BaseStorage - if child forgets
-    # to override it - storage will always return "no data" instead of failing.
+    def loadBefore(self, oid, tid):
+        """Return most recent revision of oid before tid committed."""
+        raise NotImplementedError
+
+    def loadBeforeEx(self, oid, tid):
+        """Return most recent revision of oid before tid committed.
+           (see IStorageLoadBeforeEx).
+        """
+        raise NotImplementedError
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.
@@ -278,6 +286,7 @@ class BaseStorage(UndoLogCompatible):
         """
         copy(other, self, verbose)
 
+
 def copy(source, dest, verbose=0):
     """Copy transactions from a source to a destination storage
 
@@ -286,7 +295,7 @@ def copy(source, dest, verbose=0):
     """
     _ts = None
     ok = 1
-    preindex = {};
+    preindex = {}
     preget = preindex.get
     # restore() is a new storage API method which has an identical
     # signature to store() except that it does not return anything.
@@ -309,7 +318,8 @@ def copy(source, dest, verbose=0):
         else:
             t = TimeStamp(tid)
             if t <= _ts:
-                if ok: print(('Time stamps out of order %s, %s' % (_ts, t)))
+                if ok:
+                    print(('Time stamps out of order %s, %s' % (_ts, t)))
                 ok = 0
                 _ts = t.laterThan(_ts)
                 tid = _ts.raw()
@@ -350,22 +360,23 @@ def checkCurrentSerialInTransaction(self, oid, serial, transaction):
         raise POSException.ReadConflictError(
             oid=oid, serials=(committed_tid, serial))
 
+
 BaseStorage.checkCurrentSerialInTransaction = checkCurrentSerialInTransaction
+
 
 @zope.interface.implementer(ZODB.interfaces.IStorageTransactionInformation)
 class TransactionRecord(TransactionMetaData):
     """Abstract base class for iterator protocol"""
-
 
     def __init__(self, tid, status, user, description, extension):
         self.tid = tid
         self.status = status
         TransactionMetaData.__init__(self, user, description, extension)
 
+
 @zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
 class DataRecord(object):
     """Abstract base class for iterator protocol"""
-
 
     version = ''
 

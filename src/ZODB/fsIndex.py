@@ -55,16 +55,20 @@ from ZODB._compat import _protocol
 def num2str(n):
     return struct.pack(">Q", n)[2:]
 
+
 def str2num(s):
     return struct.unpack(">Q", b"\000\000" + s)[0]
+
 
 def prefix_plus_one(s):
     num = str2num(s)
     return num2str(num + 1)
 
+
 def prefix_minus_one(s):
     num = str2num(s)
     return num2str(num - 1)
+
 
 def ensure_bytes(s):
     # on Python 3 we might pickle bytes and unpickle unicode strings
@@ -80,11 +84,11 @@ class fsIndex(object):
 
     def __getstate__(self):
         return dict(
-            state_version = 1,
-            _data = [(k, v.toString())
-                     for (k, v) in six.iteritems(self._data)
-                     ]
-            )
+            state_version=1,
+            _data=[(k, v.toString())
+                   for (k, v) in six.iteritems(self._data)
+                   ]
+        )
 
     def __setstate__(self, state):
         version = state.pop('state_version', 0)
@@ -96,13 +100,13 @@ class fsIndex(object):
         self._data = OOBTree([
             (ensure_bytes(k), v)
             for (k, v) in self._data.items()
-            ])
+        ])
 
     def _setstate_1(self, state):
         self._data = OOBTree([
             (ensure_bytes(k), fsBucket().fromString(ensure_bytes(v)))
             for (k, v) in state['_data']
-            ])
+        ])
 
     def __getitem__(self, key):
         assert isinstance(key, bytes)
@@ -246,7 +250,7 @@ class fsIndex(object):
         else:
             try:
                 smallest_suffix = tree.minKey(key[6:])
-            except ValueError: # 'empty tree' (no suffix >= arg)
+            except ValueError:  # 'empty tree' (no suffix >= arg)
                 next_prefix = prefix_plus_one(smallest_prefix)
                 smallest_prefix = self._data.minKey(next_prefix)
                 tree = self._data[smallest_prefix]
@@ -270,7 +274,7 @@ class fsIndex(object):
         else:
             try:
                 biggest_suffix = tree.maxKey(key[6:])
-            except ValueError: # 'empty tree' (no suffix <= arg)
+            except ValueError:  # 'empty tree' (no suffix <= arg)
                 next_prefix = prefix_minus_one(biggest_prefix)
                 biggest_prefix = self._data.maxKey(next_prefix)
                 tree = self._data[biggest_prefix]

@@ -43,8 +43,10 @@ import sys
 
 from ZODB.FileStorage.fsoids import Tracer
 
+
 def usage():
     print(__doc__)
+
 
 def main():
     import getopt
@@ -64,7 +66,7 @@ def main():
 
     c = Tracer(args[0])
     for oid in args[1:]:
-        as_int = int(oid, 0) # 0 == auto-detect base
+        as_int = int(oid, 0)  # 0 == auto-detect base
         c.register_oids(as_int)
     if path is not None:
         for line in open(path):
@@ -74,6 +76,7 @@ def main():
         raise ValueError("no oids specified")
     c.run()
     c.report()
+
 
 if __name__ == "__main__":
     main()

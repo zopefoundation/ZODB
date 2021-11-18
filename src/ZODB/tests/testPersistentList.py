@@ -23,6 +23,7 @@ l0 = []
 l1 = [0]
 l2 = [0, 1]
 
+
 class TestPList(unittest.TestCase):
     def checkTheWorld(self):
         # Test constructors
@@ -37,11 +38,14 @@ class TestPList(unittest.TestCase):
         uu2 = PersistentList(u2)
 
         v = PersistentList(tuple(u))
+
         class OtherList(object):
             def __init__(self, initlist):
                 self.__data = initlist
+
             def __len__(self):
                 return len(self.__data)
+
             def __getitem__(self, i):
                 return self.__data[i]
         v0 = PersistentList(OtherList(u0))
@@ -59,16 +63,18 @@ class TestPList(unittest.TestCase):
         # Py3: No cmp() or __cmp__ anymore.
         if PY2:
             def mycmp(a, b):
-                r = cmp(a, b)
-                if r < 0: return -1
-                if r > 0: return 1
+                r = cmp(a, b)  # noqa: F821 undefined name 'cmp'
+                if r < 0:
+                    return -1
+                if r > 0:
+                    return 1
                 return r
 
-            all = [l0, l1, l2, u, u0, u1, u2, uu, uu0, uu1, uu2]
+            all = [l0, l1, l2, u, u0, u1, u2, v, v0, vv, uu, uu0, uu1, uu2]
             for a in all:
                 for b in all:
                     eq(mycmp(a, b), mycmp(len(a), len(b)),
-                          "mycmp(a, b) == mycmp(len(a), len(b))")
+                       "mycmp(a, b) == mycmp(len(a), len(b))")
 
         # Test __getitem__
 
@@ -142,9 +148,9 @@ class TestPList(unittest.TestCase):
 
         # Test __add__, __radd__, __mul__ and __rmul__
 
-        #self.assertTrue(u1 + [] == [] + u1 == u1, "u1 + [] == [] + u1 == u1")
+        # self.assertTrue(u1 + [] == [] + u1 == u1, "u1 + [] == [] + u1 == u1")
         self.assertTrue(u1 + [1] == u2, "u1 + [1] == u2")
-        #self.assertTrue([-1] + u1 == [-1, 0], "[-1] + u1 == [-1, 0]")
+        # self.assertTrue([-1] + u1 == [-1, 0], "[-1] + u1 == [-1, 0]")
         self.assertTrue(u2 == u2*1 == 1*u2, "u2 == u2*1 == 1*u2")
         self.assertTrue(u2+u2 == u2*2 == 2*u2, "u2+u2 == u2*2 == 2*u2")
         self.assertTrue(u2+u2+u2 == u2*3 == 3*u2, "u2+u2+u2 == u2*3 == 3*u2")
@@ -180,7 +186,6 @@ class TestPList(unittest.TestCase):
         eq(u.count(0), 3, "u.count(0) == 3")
         eq(u.count(1), 3, "u.count(1) == 3")
         eq(u.count(2), 0, "u.count(2) == 0")
-
 
         # Test index
 
@@ -218,10 +223,6 @@ class TestPList(unittest.TestCase):
         from ZODB.PersistentList import PersistentList as oldPath
         self.assertTrue(oldPath is PersistentList)
 
+
 def test_suite():
     return unittest.makeSuite(TestPList, 'check')
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)

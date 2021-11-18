@@ -14,5 +14,5 @@
 try:
     from zope.event import notify
 except ImportError:
-    notify = lambda event: None
-
+    def notify(event):
+        return None

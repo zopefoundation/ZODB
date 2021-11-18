@@ -16,7 +16,6 @@ import persistent.mapping
 import re
 import transaction
 import unittest
-import ZODB.tests.util
 from zope.testing import renormalizing
 
 checker = renormalizing.RENormalizing([
@@ -25,7 +24,8 @@ checker = renormalizing.RENormalizing([
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.ConnectionStateError"),
      r"ConnectionStateError"),
-    ])
+])
+
 
 def testAddingThenModifyThenAbort():
     """\
@@ -53,6 +53,7 @@ savepoint.
     >>> transaction.abort()
 """
 
+
 def testModifyThenSavePointThenModifySomeMoreThenCommit():
     """\
 We got conflict errors when we committed after we modified an object
@@ -75,6 +76,7 @@ savepoint storage and *then* to commit the savepoint storage.
     >>> transaction.commit()
 """
 
+
 def testCantCloseConnectionWithActiveSavepoint():
     """
     >>> import ZODB.tests.util
@@ -90,6 +92,7 @@ def testCantCloseConnectionWithActiveSavepoint():
 
     >>> db.close()
     """
+
 
 def testSavepointDoesCacheGC():
     """\
@@ -127,8 +130,8 @@ then, + 1 for the root object:
     True
 
 Making a savepoint at this time used to leave the cache holding the same
-number of objects. Make sure the cache shrinks now instead. (Implementations that use
-weak references, such as PyPy, may need a garbage collection.)
+number of objects. Make sure the cache shrinks now instead. (Implementations
+that use weak references, such as PyPy, may need a garbage collection.)
 
     >>> dummy = transaction.savepoint()
     >>> _ = gc.collect()
@@ -149,6 +152,7 @@ Verify all the values are as expected:
     >>> db.close()
 """
 
+
 def testIsReadonly():
     """\
 The connection isReadonly method relies on the _storage to have an isReadOnly.
@@ -164,11 +168,13 @@ We simply rely on the underlying storage method.
     False
 """
 
+
 class SelfActivatingObject(persistent.Persistent):
 
     def _p_invalidate(self):
         super(SelfActivatingObject, self)._p_invalidate()
         self._p_activate()
+
 
 def testInvalidateAfterRollback():
     """\
@@ -196,13 +202,15 @@ the wrong state.
 def tearDown(test):
     transaction.abort()
 
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
-                'testConnectionSavepoint.txt',
-                tearDown=tearDown, checker=checker),
+            'testConnectionSavepoint.txt',
+            tearDown=tearDown, checker=checker),
         doctest.DocTestSuite(tearDown=tearDown, checker=checker),
-        ))
+    ))
+
 
 if __name__ == '__main__':
     unittest.main(defaultTest='test_suite')

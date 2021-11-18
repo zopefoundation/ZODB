@@ -71,6 +71,7 @@ $Id: loggingsupport.py 28349 2004-11-06 00:10:32Z tim_one $
 
 import logging
 
+
 class Handler(logging.Handler):
 
     def __init__(self, *names, **kw):
@@ -111,8 +112,8 @@ class Handler(logging.Handler):
                           if line.strip()])
                )
               )
-              for record in self.records]
-              )
+             for record in self.records]
+        )
 
 
 class InstalledHandler(Handler):

@@ -17,6 +17,7 @@ import warnings
 from .._compat import dumps, loads
 from ..Connection import TransactionMetaData
 
+
 class TransactionMetaDataTests(unittest.TestCase):
 
     def test_basic(self):
@@ -118,8 +119,6 @@ class TransactionMetaDataTests(unittest.TestCase):
             t.data(data)
         self.assertEqual(c.exception.args, (data,))
 
+
 def test_suite():
     return unittest.makeSuite(TransactionMetaDataTests)
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')

@@ -102,6 +102,3 @@ class Tests(unittest.TestCase):
 
 def test_suite():
     return unittest.makeSuite(Tests)
-
-if __name__=='__main__':
-    unittest.main(defaultTest='test_suite')

@@ -17,6 +17,7 @@
 import sys
 import os
 import pkg_resources
+import datetime
 
 # If your extensions are in another directory, add it here. If the directory
 # is relative to the documentation root, use os.path.abspath to make it
@@ -56,7 +57,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ZODB'
-copyright = '2009-2020, Zope Foundation'
+copyright = '2009-{}, Zope Foundation'.format(datetime.date.today().year)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

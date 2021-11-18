@@ -17,17 +17,17 @@ import ZODB.utils
 import zope.interface
 from binascii import hexlify, unhexlify
 
+
 @zope.interface.implementer(ZODB.interfaces.IStorageWrapper)
 class HexStorage(object):
 
-
     copied_methods = (
-            'close', 'getName', 'getSize', 'history', 'isReadOnly',
-            'lastTransaction', 'new_oid', 'sortKey',
-            'tpc_abort', 'tpc_begin', 'tpc_finish', 'tpc_vote',
-            'loadBlob', 'openCommittedBlobFile', 'temporaryDirectory',
-            'supportsUndo', 'undo', 'undoLog', 'undoInfo',
-            )
+        'close', 'getName', 'getSize', 'history', 'isReadOnly',
+        'lastTransaction', 'new_oid', 'sortKey',
+        'tpc_abort', 'tpc_begin', 'tpc_finish', 'tpc_vote',
+        'loadBlob', 'openCommittedBlobFile', 'temporaryDirectory',
+        'supportsUndo', 'undo', 'undoLog', 'undoInfo',
+    )
 
     def __init__(self, base):
         self.base = base
@@ -39,13 +39,14 @@ class HexStorage(object):
                 setattr(self, name, v)
 
         zope.interface.directlyProvides(self, zope.interface.providedBy(base))
-        if hasattr(base, 'loadAt') and 'loadAt' not in self.copied_methods:
-            def loadAt(oid, at):
-                data, serial = self.base.loadAt(oid, at)
+        if hasattr(base, 'loadBeforeEx') and \
+           'loadBeforeEx' not in self.copied_methods:
+            def loadBeforeEx(oid, before):
+                data, serial = self.base.loadBeforeEx(oid, before)
                 if data is not None:
                     data = unhexlify(data[2:])
                 return data, serial
-            self.loadAt = loadAt
+            self.loadBeforeEx = loadBeforeEx
 
     def __getattr__(self, name):
         return getattr(self.base, name)
@@ -129,6 +130,7 @@ class HexStorage(object):
     def copyTransactionsFrom(self, other):
         ZODB.blob.copyTransactionsFromTo(other, self)
 
+
 class ServerHexStorage(HexStorage):
     """Use on ZEO storage server when Hex is used on client
 
@@ -137,9 +139,10 @@ class ServerHexStorage(HexStorage):
     """
 
     copied_methods = HexStorage.copied_methods + (
-        'load', 'loadAt', 'loadBefore', 'loadSerial', 'store', 'restore',
+        'load', 'loadBeforeEx', 'loadBefore', 'loadSerial', 'store', 'restore',
         'iterator', 'storeBlob', 'restoreBlob', 'record_iternext',
-        )
+    )
+
 
 class Transaction(object):
 
@@ -156,6 +159,7 @@ class Transaction(object):
     def __getattr__(self, name):
         return getattr(self.__trans, name)
 
+
 class ZConfigHex(object):
 
     _factory = HexStorage
@@ -167,6 +171,7 @@ class ZConfigHex(object):
     def open(self):
         base = self.config.base.open()
         return self._factory(base)
+
 
 class ZConfigServerHex(ZConfigHex):
 

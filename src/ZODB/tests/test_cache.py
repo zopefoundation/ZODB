@@ -17,6 +17,7 @@ from ZODB.config import databaseFromString
 import transaction
 import doctest
 
+
 class RecalcitrantObject(Persistent):
     """A Persistent object that will not become a ghost."""
 
@@ -29,6 +30,7 @@ class RecalcitrantObject(Persistent):
         cls.deactivations = 0
 
     init = classmethod(init)
+
 
 class RegularObject(Persistent):
 
@@ -49,8 +51,10 @@ class RegularObject(Persistent):
 
     init = classmethod(init)
 
+
 class PersistentObject(Persistent):
     pass
+
 
 class CacheTests(object):
 
@@ -208,6 +212,7 @@ class CacheTests(object):
         >>> RegularObject.deactivations
         4
         """
+
     def test_gc_on_open_connections(self):
         r"""Test that automatic GC is not applied to open connections.
 

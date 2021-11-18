@@ -29,9 +29,10 @@ checker = renormalizing.RENormalizing([
     # Python 3 adds module name to exceptions.
     (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
     (re.compile("ZODB.FileStorage.FileStorage.FileStorageQuotaError"),
-                "FileStorageQuotaError"),
+     "FileStorageQuotaError"),
     (re.compile('data.fs:[0-9]+'), 'data.fs:<OFFSET>'),
 ])
+
 
 def pack_keep_old():
     """Should a copy of the database be kept?
@@ -106,6 +107,7 @@ directory for blobs is kept.)
     >>> db.close()
     """
 
+
 def pack_with_repeated_blob_records():
     """
     There is a bug in ZEO that causes duplicate bloc database records
@@ -143,6 +145,7 @@ def pack_with_repeated_blob_records():
 
     >>> db.close()
     """
+
 
 def _save_index():
     """
@@ -186,6 +189,7 @@ cleanup
     >>> sys.setrecursionlimit(old_limit)
 
     """
+
 
 def pack_disk_full_copyToPacktime():
     """Recover from a disk full situation by removing the `.pack` file
@@ -238,6 +242,7 @@ check the data we added
     'foobar'
     >>> db.close()
     """
+
 
 def pack_disk_full_copyRest():
     """Recover from a disk full situation by removing the `.pack` file
@@ -307,6 +312,7 @@ check the data we added
     >>> db.close()
     """
 
+
 def test_suite():
     return unittest.TestSuite((
         doctest.DocFileSuite(
@@ -319,4 +325,4 @@ def test_suite():
             setUp=ZODB.tests.util.setUp,
             tearDown=ZODB.tests.util.tearDown,
             checker=checker),
-        ))
+    ))

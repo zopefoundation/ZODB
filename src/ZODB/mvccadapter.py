@@ -10,7 +10,9 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, z64, maxtid, Lock, loadAt, oid_repr, tid_repr
+from .utils import p64, u64, z64, maxtid, Lock, loadBeforeEx, oid_repr, \
+                   tid_repr
+
 
 class Base(object):
 
@@ -19,7 +21,7 @@ class Base(object):
         'loadBlob', 'openCommittedBlobFile',
         'isReadOnly', 'supportsUndo', 'undoLog', 'undoInfo',
         'temporaryDirectory',
-        )
+    )
 
     def __init__(self, storage):
         self._storage = storage
@@ -36,6 +38,7 @@ class Base(object):
 
     def __len__(self):
         return len(self._storage)
+
 
 class MVCCAdapter(Base):
 
@@ -63,6 +66,7 @@ class MVCCAdapter(Base):
             self._instances.remove(instance)
 
     closed = False
+
     def close(self):
         if not self.closed:
             self.closed = True
@@ -92,14 +96,15 @@ class MVCCAdapter(Base):
     def pack(self, pack_time, referencesf):
         return self._storage.pack(pack_time, referencesf)
 
+
 class MVCCAdapterInstance(Base):
 
     _copy_methods = Base._copy_methods + (
         'loadSerial', 'new_oid', 'tpc_vote',
         'checkCurrentSerialInTransaction', 'tpc_abort',
-        )
+    )
 
-    _start = None # Transaction start time (before)
+    _start = None  # Transaction start time
     _ltid = b''   # Last storage transaction id
 
     def __init__(self, base):
@@ -107,7 +112,7 @@ class MVCCAdapterInstance(Base):
         Base.__init__(self, base._storage)
         self._lock = Lock()
         self._invalidations = set()
-        self._sync = getattr(self._storage, 'sync', lambda : None)
+        self._sync = getattr(self._storage, 'sync', lambda: None)
 
     def release(self):
         self._base._release(self)
@@ -151,16 +156,16 @@ class MVCCAdapterInstance(Base):
 
     def load(self, oid):
         assert self._start is not None
-        at = p64(u64(self._start)-1)
-        data, serial = loadAt(self._storage, oid, at)
+        data, serial = loadBeforeEx(self._storage, oid, self._start)
         if data is None:
             # raise POSKeyError if object does not exist at all
-            # TODO raise POSKeyError always and switch to raising ReadOnlyError only when
-            # actually detecting that load is being affected by simultaneous pack (see below).
+            # TODO raise POSKeyError always and switch to raising ReadOnlyError
+            # only when actually detecting that load is being affected by
+            # simultaneous pack (see below).
             if serial == z64:
-                # XXX second call to loadAt - it will become unneeded once we
-                # switch to raising POSKeyError.
-                _, serial_exists = loadAt(self._storage, oid, maxtid)
+                # XXX second call to loadBeforeEx - it will become unneeded
+                # once we switch to raising POSKeyError.
+                _, serial_exists = loadBeforeEx(self._storage, oid, maxtid)
                 if serial_exists == z64:
                     # object does not exist at all
                     raise POSException.POSKeyError(oid)
@@ -190,8 +195,8 @@ class MVCCAdapterInstance(Base):
             # See https://github.com/zopefoundation/ZODB/pull/322 for
             # preliminary steps in this direction.
             raise POSException.ReadConflictError(
-                    "load %s @%s: object deleted, likely by simultaneous pack" %
-                    (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
+                "load %s @%s: object deleted, likely by simultaneous pack" %
+                (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
 
         return data, serial
 
@@ -204,8 +209,8 @@ class MVCCAdapterInstance(Base):
             else:
                 raise
 
-    _modified = None # Used to keep track of oids modified within a
-                     # transaction, so we can invalidate them later.
+    _modified = None  # Used to keep track of oids modified within a
+    # transaction, so we can invalidate them later.
 
     def tpc_begin(self, transaction):
         self._storage.tpc_begin(transaction)
@@ -220,7 +225,7 @@ class MVCCAdapterInstance(Base):
             oid, serial, data, blobfilename, '', transaction)
         self._modified.add(oid)
 
-    def tpc_finish(self, transaction, func = lambda tid: None):
+    def tpc_finish(self, transaction, func=lambda tid: None):
         modified = self._modified
         self._modified = None
 
@@ -231,8 +236,10 @@ class MVCCAdapterInstance(Base):
 
         return self._storage.tpc_finish(transaction, invalidate_finish)
 
+
 def read_only_writer(self, *a, **kw):
     raise POSException.ReadOnlyError
+
 
 class HistoricalStorageAdapter(Base):
     """Adapt a storage to a historical storage
@@ -241,7 +248,7 @@ class HistoricalStorageAdapter(Base):
     _copy_methods = Base._copy_methods + (
         'loadSerial', 'tpc_begin', 'tpc_finish', 'tpc_abort', 'tpc_vote',
         'checkCurrentSerialInTransaction',
-        )
+    )
 
     def __init__(self, storage, before=None):
         Base.__init__(self, storage)
@@ -272,8 +279,7 @@ class HistoricalStorageAdapter(Base):
     new_oid = pack = store = read_only_writer
 
     def load(self, oid, version=''):
-        at = p64(u64(self._before)-1)
-        data, serial = loadAt(self._storage, oid, at)
+        data, serial = loadBeforeEx(self._storage, oid, self._before)
         if data is None:
             raise POSException.POSKeyError(oid)
         return data, serial
@@ -283,7 +289,7 @@ class UndoAdapterInstance(Base):
 
     _copy_methods = Base._copy_methods + (
         'tpc_abort',
-        )
+    )
 
     def __init__(self, base):
         self._base = base
@@ -309,7 +315,7 @@ class UndoAdapterInstance(Base):
         if result:
             self._undone.update(result)
 
-    def tpc_finish(self, transaction, func = lambda tid: None):
+    def tpc_finish(self, transaction, func=lambda tid: None):
 
         def invalidate_finish(tid):
             self._base._invalidate_finish(tid, self._undone, None)

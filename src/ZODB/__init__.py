@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+from ZODB.DB import DB, connection
 import sys
 
 from persistent import TimeStamp
@@ -24,5 +25,3 @@ sys.modules['ZODB.PersistentMapping'] = sys.modules['persistent.mapping']
 sys.modules['ZODB.PersistentList'] = sys.modules['persistent.list']
 
 del mapping, list, sys
-
-from ZODB.DB import DB, connection

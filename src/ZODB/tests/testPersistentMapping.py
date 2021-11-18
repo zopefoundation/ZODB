@@ -34,6 +34,7 @@ from six import PY2
 pickle = ('((U\x0bPersistenceq\x01U\x11PersistentMappingtq\x02Nt.}q\x03U\n'
           '_containerq\x04}q\x05U\x07versionq\x06U\x03oldq\x07ss.\n')
 
+
 class PMTests(unittest.TestCase):
 
     def checkOldStyleRoot(self):
@@ -41,7 +42,7 @@ class PMTests(unittest.TestCase):
         # is, but the global `pickle` references it explicitly.  So just
         # bail if Persistence isn't available.
         try:
-            import Persistence
+            import Persistence  # noqa:  F401 'Persistence' imported but unused
         except ImportError:
             return
         # insert the pickle in place of the root
@@ -129,6 +130,7 @@ class PMTests(unittest.TestCase):
             keylist.append(key)
         check(keylist)
 
+
 def find_global(modulename, classname):
     """Helper for this test suite to get special PersistentMapping"""
 
@@ -142,8 +144,6 @@ def find_global(modulename, classname):
         mod = sys.modules[modulename]
         return getattr(mod, classname)
 
+
 def test_suite():
     return unittest.makeSuite(PMTests, 'check')
-
-if __name__ == "__main__":
-    unittest.main()

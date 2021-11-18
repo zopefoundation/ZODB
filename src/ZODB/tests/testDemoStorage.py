@@ -22,7 +22,7 @@ from ZODB.tests import (
     RevisionStorage,
     StorageTestBase,
     Synchronization,
-    )
+)
 from ZODB.tests.MinPO import MinPO
 
 import os
@@ -31,7 +31,6 @@ if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
 else:
     import doctest
 import random
-import re
 import transaction
 import unittest
 import ZODB.Connection
@@ -43,7 +42,6 @@ import ZODB.utils
 
 from ZODB.utils import load_current
 
-from zope.testing import renormalizing
 
 class DemoStorageTests(
     StorageTestBase.StorageTestBase,
@@ -56,7 +54,7 @@ class DemoStorageTests(
     PackableStorage.PackableStorage,
     RevisionStorage.RevisionStorage,
     Synchronization.SynchronizedStorage,
-    ):
+):
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
@@ -70,7 +68,7 @@ class DemoStorageTests(
 
     def checkLoadDelegation(self):
         # Minimal test of loadEX w/o version -- ironically
-        db = DB(self._storage) # creates object 0. :)
+        DB(self._storage)  # creates object 0. :)
         s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
         self.assertEqual(load_current(s2, ZODB.utils.z64),
                          load_current(self._storage, ZODB.utils.z64))
@@ -78,7 +76,7 @@ class DemoStorageTests(
     def checkLengthAndBool(self):
         self.assertEqual(len(self._storage), 0)
         self.assertTrue(not self._storage)
-        db = DB(self._storage) # creates object 0. :)
+        db = DB(self._storage)  # creates object 0. :)
         self.assertEqual(len(self._storage), 1)
         self.assertTrue(self._storage)
         with db.transaction() as conn:
@@ -89,7 +87,7 @@ class DemoStorageTests(
         db.close()
 
     def checkLoadBeforeUndo(self):
-        pass # we don't support undo yet
+        pass  # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
 
     def checkBaseHistory(self):
@@ -100,6 +98,7 @@ class DemoStorageTests(
             self._storage = self._storage.push()
         self._checkHistory(base_only())
         self._storage = self._storage.pop()
+
         def base_and_changes():
             yield 11
             yield 12
@@ -109,12 +108,14 @@ class DemoStorageTests(
         self._checkHistory(base_and_changes())
         self._storage = self._storage.pop()
 
+
 class DemoStorageHexTests(DemoStorageTests):
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.tests.hexstorage.HexStorage(
             ZODB.DemoStorage.DemoStorage())
+
 
 class DemoStorageWrappedBase(DemoStorageTests):
 
@@ -131,11 +132,12 @@ class DemoStorageWrappedBase(DemoStorageTests):
         raise NotImplementedError
 
     def checkPackOnlyOneObject(self):
-        pass # Wrapping demo storages don't do gc
+        pass  # Wrapping demo storages don't do gc
 
     def checkPackWithMultiDatabaseReferences(self):
-        pass # we never do gc
+        pass  # we never do gc
     checkPackAllRevisions = checkPackWithMultiDatabaseReferences
+
 
 class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
 
@@ -143,11 +145,13 @@ class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
         from ZODB.MappingStorage import MappingStorage
         return MappingStorage()
 
+
 class DemoStorageWrappedAroundFileStorage(DemoStorageWrappedBase):
 
     def _makeBaseStorage(self):
         from ZODB.FileStorage import FileStorage
         return FileStorage('FileStorageTests.fs')
+
 
 class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
 
@@ -159,6 +163,7 @@ class DemoStorageWrappedAroundHexMappingStorage(DemoStorageWrappedBase):
 def setUp(test):
     random.seed(0)
     ZODB.tests.util.setUp(test)
+
 
 def testSomeDelegation():
     r"""
@@ -197,10 +202,8 @@ def testSomeDelegation():
     >>> storage.tpc_begin(1, 2, 3)
     begin 2 3
     >>> storage.tpc_abort(1)
-
-    >>> 
-
     """
+
 
 def blob_pos_key_error_with_non_blob_base():
     """
@@ -217,6 +220,7 @@ def blob_pos_key_error_with_non_blob_base():
 
     """
 
+
 def load_before_base_storage_current():
     """
     Here we'll exercise that DemoStorage's loadBefore method works
@@ -224,7 +228,6 @@ def load_before_base_storage_current():
     base storage.
 
     >>> import time
-    >>> import transaction
     >>> import ZODB.DB
     >>> import ZODB.DemoStorage
     >>> import ZODB.MappingStorage
@@ -267,7 +270,10 @@ def load_before_base_storage_current():
     >>> base.close()
     """
 
-# additional DemoStorage tests that do not fit into common DemoStorageTests setup.
+# additional DemoStorage tests that do not fit into common DemoStorageTests
+# setup.
+
+
 class DemoStorageTests2(ZODB.tests.util.TestCase):
     def checkLoadAfterDelete(self):
         """Verify that DemoStorage correctly handles load requests for objects
@@ -280,11 +286,11 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
         TransactionMetaData = ZODB.Connection.TransactionMetaData
 
         # mkbase prepares base part of the storage.
-        def mkbase(): # -> zbase
+        def mkbase():  # -> zbase
             zbase = FileStorage("base.fs")
-            db    = DB(zbase)
-            conn  = db.open()
-            root  = conn.root()
+            db = DB(zbase)
+            conn = db.open()
+            root = conn.root()
 
             root['obj'] = obj = MinPO(0)
             transaction.commit()
@@ -300,18 +306,19 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
             return zbase
 
         # prepare base + overlay
-        zbase    = mkbase()
+        zbase = mkbase()
         zoverlay = FileStorage("overlay.fs")
-        zdemo    = DemoStorage(base=zbase, changes=zoverlay)
+        zdemo = DemoStorage(base=zbase, changes=zoverlay)
 
         # overlay: modify obj and root
-        db   = DB(zdemo)
+        db = DB(zdemo)
         conn = db.open()
         root = conn.root()
         obj = root['obj']
         oid = obj._p_oid
         obj.value += 1
-        # modify root as well so that there is root revision saved in overlay that points to obj
+        # modify root as well so that there is root revision saved in overlay
+        # that points to obj
         root['x'] = 1
         transaction.commit()
         atLive = obj._p_serial
@@ -324,13 +331,14 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
         # unmount DemoStorage
         conn.close()
         db.close()
-        zdemo.close() # closes zbase and zoverlay as well
+        zdemo.close()  # closes zbase and zoverlay as well
         del zbase, zoverlay
 
         # simulate GC on base+overlay
         zoverlay = FileStorage("overlay.fs")
         txn = transaction.get()
-        txn_meta = TransactionMetaData(txn.user, txn.description, txn.extension)
+        txn_meta = TransactionMetaData(txn.user, txn.description,
+                                       txn.extension)
         zoverlay.tpc_begin(txn_meta)
         zoverlay.deleteObject(oid, atLive, txn_meta)
         zoverlay.tpc_vote(txn_meta)
@@ -339,7 +347,7 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
         # remount base+overlay
         zbase = FileStorage("base.fs", read_only=True)
         zdemo = ZODB.DemoStorage.DemoStorage(base=zbase, changes=zoverlay)
-        db  = DB(zdemo)
+        db = DB(zdemo)
 
         # verify:
         # load(obj, atLive)     -> 2
@@ -359,7 +367,7 @@ class DemoStorageTests2(ZODB.tests.util.TestCase):
 
         # end
         db.close()
-        zdemo.close() # closes zbase and zoverlay as well
+        zdemo.close()  # closes zbase and zoverlay as well
 
 
 def test_suite():
@@ -367,14 +375,14 @@ def test_suite():
         doctest.DocTestSuite(
             setUp=setUp, tearDown=ZODB.tests.util.tearDown,
             checker=ZODB.tests.util.checker
-            ),
+        ),
         doctest.DocFileSuite(
             '../DemoStorage.test',
             setUp=setUp,
             tearDown=ZODB.tests.util.tearDown,
             checker=ZODB.tests.util.checker,
-            ),
-        ))
+        ),
+    ))
     suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
     suite.addTest(unittest.makeSuite(DemoStorageHexTests, 'check'))
     suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,

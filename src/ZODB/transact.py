@@ -16,11 +16,13 @@
 from ZODB.POSException import ReadConflictError, ConflictError
 import transaction
 
+
 def _commit(note):
     t = transaction.get()
     if note:
         t.note(note)
     t.commit()
+
 
 def transact(f, note=None, retries=5):
     """Returns transactional version of function argument f.
@@ -42,7 +44,7 @@ def transact(f, note=None, retries=5):
             n -= 1
             try:
                 r = f(*args, **kwargs)
-            except ReadConflictError as msg:
+            except ReadConflictError:
                 # the only way ReadConflictError can happen here is due to
                 # simultaneous pack removing objects revision that f could try
                 # to load.
@@ -52,7 +54,7 @@ def transact(f, note=None, retries=5):
                 continue
             try:
                 _commit(note)
-            except ConflictError as msg:
+            except ConflictError:
                 transaction.abort()
                 if not n:
                     raise

@@ -65,7 +65,7 @@ Now we see two transactions and two changed objects.
 Clean up.
 
 >>> db.close()
-"""
+"""  # noqa: E501 line too long
 
 import re
 import doctest

@@ -13,7 +13,7 @@
 ##############################################################################
 from setuptools import setup, find_packages
 
-version = '5.6.1.dev0'
+version = '5.7.0.dev0'
 
 classifiers = """\
 Intended Audience :: Developers
@@ -26,6 +26,8 @@ Programming Language :: Python :: 3.5
 Programming Language :: Python :: 3.6
 Programming Language :: Python :: 3.7
 Programming Language :: Python :: 3.8
+Programming Language :: Python :: 3.9
+Programming Language :: Python :: 3.10
 Programming Language :: Python :: Implementation :: CPython
 Programming Language :: Python :: Implementation :: PyPy
 Topic :: Database
@@ -35,9 +37,11 @@ Operating System :: Unix
 Framework :: ZODB
 """
 
+
 def read(path):
     with open(path) as f:
         return f.read()
+
 
 long_description = read("README.rst") + "\n\n" + read("CHANGES.rst")
 
@@ -67,6 +71,13 @@ setup(
     tests_require=tests_require,
     extras_require={
         'test': tests_require,
+        'docs': [
+            'Sphinx',
+            'ZODB',
+            'j1m.sphinxautozconfig',
+            'sphinx_rtd_theme',
+            'sphinxcontrib_zopeext',
+        ]
     },
     install_requires=[
         'persistent >= 4.4.0',

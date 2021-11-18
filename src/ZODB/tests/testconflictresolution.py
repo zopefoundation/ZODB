@@ -24,11 +24,13 @@ import ZODB.tests.util
 import ZODB.POSException
 import zope.testing.module
 
+
 def setUp(test):
     ZODB.tests.util.setUp(test)
     zope.testing.module.setUp(test, 'ConflictResolution_txt')
     ZODB.ConflictResolution._class_cache.clear()
     ZODB.ConflictResolution._unresolvable.clear()
+
 
 def tearDown(test):
     zope.testing.module.tearDown(test)
@@ -51,8 +53,10 @@ class ResolveableWhenStateDoesNotChange(persistent.Persistent):
         # 3-way merge
         raise ZODB.POSException.ConflictError
 
+
 class Unresolvable(persistent.Persistent):
     pass
+
 
 def succeed_with_resolution_when_state_is_unchanged():
     """
@@ -130,6 +134,7 @@ mechanism.
     >>> db.close()
     """
 
+
 class Resolveable(persistent.Persistent):
 
     def _p_resolveConflict(self, old, committed, new):
@@ -170,6 +175,7 @@ class Resolveable(persistent.Persistent):
             resolved[k] = committed[k]
 
         return resolved
+
 
 def resolve_even_when_referenced_classes_are_absent():
     """
@@ -385,7 +391,7 @@ Cleanup:
 
     >>> handler.uninstall()
     >>> db.close()
-    """
+    """  # noqa: E501 line too long
 
 
 def test_suite():
@@ -396,8 +402,8 @@ def test_suite():
             + manuel.capture.Manuel(),
             '../ConflictResolution.rst',
             setUp=setUp, tearDown=tearDown
-            ),
+        ),
         doctest.DocTestSuite(
             setUp=setUp, tearDown=tearDown,
             checker=ZODB.tests.util.checker),
-        ])
+    ])

@@ -26,7 +26,8 @@ from ZODB.tests import (
     RevisionStorage,
     StorageTestBase,
     Synchronization,
-    )
+)
+
 
 class MappingStorageTests(
     StorageTestBase.StorageTestBase,
@@ -39,7 +40,7 @@ class MappingStorageTests(
     PackableStorage.PackableStorageWithOptionalGC,
     RevisionStorage.RevisionStorage,
     Synchronization.SynchronizedStorage,
-    ):
+):
 
     def setUp(self):
         StorageTestBase.StorageTestBase.setUp(self, )
@@ -52,8 +53,9 @@ class MappingStorageTests(
         pass
 
     def checkLoadBeforeUndo(self):
-        pass # we don't support undo yet
+        pass  # we don't support undo yet
     checkUndoZombie = checkLoadBeforeUndo
+
 
 class MappingStorageHexTests(MappingStorageTests):
 
@@ -62,10 +64,12 @@ class MappingStorageHexTests(MappingStorageTests):
         self._storage = ZODB.tests.hexstorage.HexStorage(
             ZODB.MappingStorage.MappingStorage())
 
+
 MockTransaction = namedtuple(
     'transaction',
     ['user', 'description', 'extension']
 )
+
 
 class MappingStorageTransactionRecordTests(unittest.TestCase):
 
@@ -86,14 +90,11 @@ class MappingStorageTransactionRecordTests(unittest.TestCase):
             self._transaction_record._extension
         )
 
+
 def test_suite():
     suite = unittest.TestSuite()
     suite.addTest(unittest.makeSuite(MappingStorageTests, 'check'))
     suite.addTest(unittest.makeSuite(MappingStorageHexTests, 'check'))
-    suite.addTest(unittest.makeSuite(MappingStorageTransactionRecordTests, 'check'))
+    suite.addTest(unittest.makeSuite(
+        MappingStorageTransactionRecordTests, 'check'))
     return suite
-
-if __name__ == "__main__":
-    loader = unittest.TestLoader()
-    loader.testMethodPrefix = "check"
-    unittest.main(testLoader=loader)

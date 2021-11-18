@@ -1,8 +1,0 @@
-Sphinx
-# pygments 2.6 stops the support for python2
-pygments<2.6
-docutils
-ZODB
-sphinxcontrib_zopeext
-j1m.sphinxautozconfig
-sphinx_rtd_theme

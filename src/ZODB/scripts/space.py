@@ -12,6 +12,7 @@ from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64, get_pickle_metadata, load_current
 import six
 
+
 def run(path, v=0):
     fs = FileStorage(path, read_only=1)
     # break into the file implementation
@@ -31,11 +32,12 @@ def run(path, v=0):
         if v:
             print("%8s %5d %s" % (U64(oid), len(data), key))
     L = totals.items()
-    L.sort(lambda a, b: cmp(a[1], b[1]))
+    L.sort(key=lambda x: x[1])
     L.reverse()
     print("Totals per object class:")
     for key, (bytes, count) in L:
         print("%8d %8d %s" % (count, bytes, key))
+
 
 def main():
     import sys
@@ -55,6 +57,7 @@ def main():
             v += 1
     path = args[0]
     run(path, v)
+
 
 if __name__ == "__main__":
     main()

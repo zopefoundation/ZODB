@@ -17,6 +17,7 @@ from ZODB.utils import load_current
 
 SHORT_DELAY = 0.01
 
+
 class TestThread(threading.Thread):
     """Base class for defining threads that run from unittest.
 
@@ -35,7 +36,7 @@ class TestThread(threading.Thread):
     def run(self):
         try:
             self.runtest()
-        except:
+        except:  # noqa: E722 do not use bare 'except'
             self._exc_info = sys.exc_info()
 
     def join(self, timeout=None):
@@ -44,13 +45,14 @@ class TestThread(threading.Thread):
             raise six.reraise(
                 self._exc_info[0], self._exc_info[1], self._exc_info[2])
 
+
 class ZODBClientThread(TestThread):
 
     __super_init = TestThread.__init__
 
     def __init__(self, db, test, commits=10, delay=SHORT_DELAY):
         self.__super_init()
-        self.setDaemon(1)
+        self.daemon = True
         self.db = db
         self.test = test
         self.commits = commits
@@ -76,7 +78,7 @@ class ZODBClientThread(TestThread):
         time.sleep(self.delay)
 
     # Return a new PersistentMapping, and store it on the root object under
-    # the name (.getName()) of the current thread.
+    # the name of the current thread.
     def get_thread_dict(self, root):
         # This is vicious:  multiple threads are slamming changes into the
         # root object, then trying to read the root object, simultaneously
@@ -86,7 +88,7 @@ class ZODBClientThread(TestThread):
         # around (at most) 1000 times was enough so that a 100-thread test
         # reliably passed on Tim's hyperthreaded WinXP box (but at the
         # original 10 retries, the same test reliably failed with 15 threads).
-        name = self.getName()
+        name = self.name
         MAXRETRIES = 1000
 
         for i in range(MAXRETRIES):
@@ -106,6 +108,7 @@ class ZODBClientThread(TestThread):
                 root._p_jar.sync()
 
         raise ConflictError("Exceeded %d attempts to read" % MAXRETRIES)
+
 
 class StorageClientThread(TestThread):
 
@@ -129,7 +132,7 @@ class StorageClientThread(TestThread):
             data, serial = load_current(self.storage, oid)
             self.test.assertEqual(serial, revid)
             obj = zodb_unpickle(data)
-            self.test.assertEqual(obj.value[0], self.getName())
+            self.test.assertEqual(obj.value[0], self.name)
 
     def pause(self):
         time.sleep(self.delay)
@@ -140,7 +143,7 @@ class StorageClientThread(TestThread):
         return oid
 
     def dostore(self, i):
-        data = zodb_pickle(MinPO((self.getName(), i)))
+        data = zodb_pickle(MinPO((self.name, i)))
         t = TransactionMetaData()
         oid = self.oid()
         self.pause()
@@ -158,6 +161,7 @@ class StorageClientThread(TestThread):
         revid = self.storage.tpc_finish(t)
         self.pause()
         self.oids[oid] = revid
+
 
 class ExtStorageClientThread(StorageClientThread):
 
@@ -210,6 +214,7 @@ class ExtStorageClientThread(StorageClientThread):
             return
         for obj in iter:
             pass
+
 
 class MTStorage(object):
     "Test a storage with multiple client threads executing concurrently."

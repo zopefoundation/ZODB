@@ -19,7 +19,6 @@ storage without distracting storage details.
 
 import BTrees
 import time
-import warnings
 import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
@@ -29,10 +28,10 @@ import zope.interface
 
 
 @zope.interface.implementer(
-        ZODB.interfaces.IStorage,
-        ZODB.interfaces.IStorageIteration,
-        ZODB.interfaces.IStorageLoadAt,
-        )
+    ZODB.interfaces.IStorage,
+    ZODB.interfaces.IStorageIteration,
+    ZODB.interfaces.IStorageLoadBeforeEx,
+)
 class MappingStorage(object):
     """In-memory storage implementation
 
@@ -52,7 +51,8 @@ class MappingStorage(object):
         """
         self.__name__ = name
         self._data = {}                               # {oid->{tid->pickle}}
-        self._transactions = BTrees.OOBTree.OOBTree() # {tid->TransactionRecord}
+        # {tid->TransactionRecord}
+        self._transactions = BTrees.OOBTree.OOBTree()
         self._ltid = ZODB.utils.z64
         self._last_pack = None
         self._lock = ZODB.utils.RLock()
@@ -119,14 +119,14 @@ class MappingStorage(object):
         tids.reverse()
         return [
             dict(
-                time = ZODB.TimeStamp.TimeStamp(tid).timeTime(),
-                tid = tid,
-                serial = tid,
-                user_name = self._transactions[tid].user,
-                description = self._transactions[tid].description,
-                extension = self._transactions[tid].extension,
-                size = len(tid_data[tid])
-                )
+                time=ZODB.TimeStamp.TimeStamp(tid).timeTime(),
+                tid=tid,
+                serial=tid,
+                user_name=self._transactions[tid].user,
+                description=self._transactions[tid].description,
+                extension=self._transactions[tid].extension,
+                size=len(tid_data[tid])
+            )
             for tid in tids]
 
     # ZODB.interfaces.IStorage
@@ -150,15 +150,16 @@ class MappingStorage(object):
 
     load = ZODB.utils.load_current
 
-    # ZODB.interfaces.IStorageLoadAt
+    # ZODB.interfaces.IStorageLoadBeforeEx
     @ZODB.utils.locked(opened)
-    def loadAt(self, oid, at):
+    def loadBeforeEx(self, oid, before):
         z64 = ZODB.utils.z64
         tid_data = self._data.get(oid)
         if not tid_data:
             return None, z64
-        if at == z64:
+        if before == z64:
             return None, z64
+        at = ZODB.utils.p64(ZODB.utils.u64(before)-1)
         tids_at = tid_data.keys(None, at)
         if not tids_at:
             return None, z64
@@ -168,8 +169,6 @@ class MappingStorage(object):
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
     def loadBefore(self, oid, tid):
-        warnings.warn("loadBefore is deprecated - use loadAt instead",
-                DeprecationWarning, stacklevel=2)
         tid_data = self._data.get(oid)
         if tid_data:
             before = ZODB.utils.u64(tid)
@@ -186,8 +185,8 @@ class MappingStorage(object):
         else:
             raise ZODB.POSException.POSKeyError(oid)
 
-
     # ZODB.interfaces.IStorage
+
     @ZODB.utils.locked(opened)
     def loadSerial(self, oid, serial):
         tid_data = self._data.get(oid)
@@ -211,7 +210,7 @@ class MappingStorage(object):
         if not self._data:
             return
 
-        stop = ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t%60,)).raw()
+        stop = ZODB.TimeStamp.TimeStamp(*time.gmtime(t)[:5]+(t % 60,)).raw()
         if self._last_pack is not None and self._last_pack >= stop:
             if self._last_pack == stop:
                 return
@@ -317,7 +316,7 @@ class MappingStorage(object):
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
-    def tpc_finish(self, transaction, func = lambda tid: None):
+    def tpc_finish(self, transaction, func=lambda tid: None):
         if (transaction is not self._transaction):
             raise ZODB.POSException.StorageTransactionError(
                 "tpc_finish called with wrong transaction")
@@ -351,6 +350,7 @@ class MappingStorage(object):
             raise ZODB.POSException.StorageTransactionError(
                 "tpc_vote called with wrong transaction")
 
+
 class TransactionRecord(object):
 
     status = ' '
@@ -376,10 +376,10 @@ class TransactionRecord(object):
         del self.data[oid]
         return not self.data
 
+
 @zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
 class DataRecord(object):
     """Abstract base class for iterator protocol"""
-
 
     version = ''
     data_txn = None
@@ -388,6 +388,7 @@ class DataRecord(object):
         self.oid = oid
         self.tid = tid
         self.data = data
+
 
 def DB(*args, **kw):
     return ZODB.DB(MappingStorage(), *args, **kw)

@@ -18,10 +18,14 @@ from ZODB.serialize import get_refs
 from ZODB.TimeStamp import TimeStamp
 
 # Extract module.class string from pickle.
+
+
 def get_class(pickle):
     return "%s.%s" % get_pickle_metadata(pickle)
 
 # Shorten a string for display.
+
+
 def shorten(s, size=50):
     if len(s) <= size:
         return s
@@ -29,7 +33,12 @@ def shorten(s, size=50):
     navail = size - 5
     nleading = navail // 2
     ntrailing = size - nleading
-    return s[:nleading] + " ... " + s[-ntrailing:]
+    if isinstance(s, bytes):
+        sep = b" ... "
+    else:
+        sep = " ... "
+    return s[:nleading] + sep + s[-ntrailing:]
+
 
 class Tracer(object):
     """Trace all occurrences of a set of oids in a FileStorage.
@@ -80,7 +89,7 @@ class Tracer(object):
             self.oids[oid] = 0  # 0 revisions seen so far
 
     def _msg(self, oid, tid, *args):
-        self.msgs.append( (oid, tid, ' '.join(map(str, args))) )
+        self.msgs.append((oid, tid, ' '.join(map(str, args))))
         self._produced_msg = True
 
     def report(self):
@@ -94,9 +103,9 @@ class Tracer(object):
         NOT_SEEN = "this oid was not defined (no data record for it found)"
         for oid in oids:
             if oid not in oid2name:
-                msgs.append( (oid, None, NOT_SEEN) )
+                msgs.append((oid, None, NOT_SEEN))
 
-        msgs.sort() # oids are primary key, tids secondary
+        msgs.sort()  # oids are primary key, tids secondary
         current_oid = current_tid = None
         for oid, tid, msg in msgs:
             if oid != current_oid:

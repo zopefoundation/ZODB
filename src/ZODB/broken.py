@@ -25,6 +25,7 @@ from ZODB._compat import NAME_MAPPING
 
 broken_cache = {}
 
+
 @zope.interface.implementer(ZODB.interfaces.IBroken)
 class Broken(object):
     """Broken object base class
@@ -99,7 +100,6 @@ class Broken(object):
          >>> broken_cache.clear()
        """
 
-
     __Broken_state__ = __Broken_initargs__ = None
 
     __name__ = 'broken object'
@@ -130,6 +130,7 @@ class Broken(object):
 
     def __setattr__(self, name, value):
         raise BrokenModified("Can't change broken objects")
+
 
 def find_global(modulename, globalname,
                 # These are *not* optimizations. Callers can override these.
@@ -220,6 +221,7 @@ def find_global(modulename, globalname,
     broken_cache[(modulename, globalname)] = class_
     return class_
 
+
 def rebuild(modulename, globalname, *args):
     """Recreate a broken object, possibly recreating the missing class
 
@@ -257,9 +259,11 @@ def rebuild(modulename, globalname, *args):
     class_ = find_global(modulename, globalname)
     return class_.__new__(class_, *args)
 
+
 class BrokenModified(TypeError):
     """Attempt to modify a broken object
     """
+
 
 class PersistentBroken(Broken, persistent.Persistent):
     r"""Persistent broken objects
@@ -347,6 +351,7 @@ class PersistentBroken(Broken, persistent.Persistent):
     def __getnewargs__(self):
         return self.__Broken_newargs__
 
+
 def persistentBroken(class_):
     try:
         return class_.__dict__['__Broken_Persistent__']
@@ -356,5 +361,5 @@ def persistentBroken(class_):
                  (PersistentBroken, class_),
                  {'__module__': class_.__module__},
                  )
-            )
+        )
         return class_.__dict__['__Broken_Persistent__']
