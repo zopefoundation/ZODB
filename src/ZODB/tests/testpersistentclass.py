@@ -95,6 +95,7 @@ def test_suite():
         doctest.DocFileSuite(
             "../persistentclass.rst",
             setUp=setUp, tearDown=tearDown,
-            checker=ZODB.tests.util.checker),
+            checker=ZODB.tests.util.checker,
+            optionflags=doctest.ELLIPSIS),
         doctest.DocTestSuite(setUp=setUp, tearDown=tearDown),
     ))
