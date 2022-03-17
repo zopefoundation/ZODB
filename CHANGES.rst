@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.7.0 (unreleased)
+5.7.1 (unreleased)
 ==================
 
 - Introduce a new ``loadBeforeEx`` interface that complements ``loadBefore``:
@@ -14,7 +14,12 @@
   and `PR 323 <https://github.com/zopefoundation/ZODB/pull/323>`_
   for details.
 
-- Fix ``TypeError: can't concat str to bytes`` when running fsoids.py script with Python 3.
+
+5.7.0 (2022-03-17)
+==================
+
+- Fix ``TypeError: can't concat str to bytes`` when running fsoids.py script
+  with Python 3.
   See `issue 350 <https://github.com/zopefoundation/ZODB/issues/350>`_.
 
 - Readd transaction size information to ``fsdump`` output;
@@ -26,8 +31,8 @@
 - Fix UnboundLocalError when running fsoids.py script.
   See `issue 285 <https://github.com/zopefoundation/ZODB/issues/285>`_.
 
-- Rework ``fsrefs`` script to work significantly faster by optimizing how it does
-  IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`_.
+- Rework ``fsrefs`` script to work significantly faster by optimizing how it
+  does IO. See `PR 340 <https://github.com/zopefoundation/ZODB/pull/340>`_.
 
 - Require Python 3 to build the documentation.
 

@@ -123,7 +123,7 @@ Then the class will return to it's prior state:
     >>> c.baz()
     Traceback (most recent call last):
     ...
-    AttributeError: 'C' object has no attribute 'baz'
+    AttributeError: 'C' object has no attribute 'baz'...
 
     >>> c.bar()
     bar first
@@ -168,7 +168,7 @@ Similarly, we don't see changes made in other connections:
     >>> c.color
     Traceback (most recent call last):
     ...
-    AttributeError: 'C' object has no attribute 'color'
+    AttributeError: 'C' object has no attribute 'color'...
 
 until we sync:
 
