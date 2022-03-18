@@ -2,7 +2,7 @@
 # https://github.com/zopefoundation/meta/tree/master/config/pure-python
 [meta]
 template = "pure-python"
-commit-id = "de499940b679dcda1c60b089f30134146da31e9a"
+commit-id = "15807bd13de45b79c7da560a377fe3f22cbc4338"
 
 [python]
 with-windows = true
@@ -67,5 +67,5 @@ additional-config = [
     "- [\"3.8\",   \"py38-pure\"]",
     ]
 additional-exclude = [
-    "- { os: windows, config: [\"pypy2\", \"pypy\"] }",
+    "- { os: windows, config: [\"pypy-2.7\", \"pypy\"] }",
     ]
