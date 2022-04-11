@@ -176,6 +176,8 @@ Make sure we can restore:
     >>> logger = logging.getLogger('ZODB.FileStorage')
     >>> logger.setLevel(logging.DEBUG)
     >>> logger.addHandler(handler)
+    >>> log_disabled = logger.disabled
+    >>> logger.disabled = False
     >>> index, pos, tid = fs._restore_index()
     >>> index.items() == fs._index.items()
     True
@@ -186,6 +188,7 @@ cleanup
     >>> fs.close()
     >>> logger.setLevel(logging.NOTSET)
     >>> logger.removeHandler(handler)
+    >>> logger.disabled = log_disabled
     >>> sys.setrecursionlimit(old_limit)
 
     """
