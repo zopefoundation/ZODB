@@ -83,6 +83,7 @@ class Handler(logging.Handler):
     def setLoggerLevel(self, level=1):
         self.level = level
         self.oldlevels = {}
+        self.olddisabled = {}
 
     def emit(self, record):
         self.records.append(record)
@@ -94,13 +95,16 @@ class Handler(logging.Handler):
         for name in self.names:
             logger = logging.getLogger(name)
             self.oldlevels[name] = logger.level
+            self.olddisabled[name] = logger.disabled
             logger.setLevel(self.level)
+            logger.disabled = False
             logger.addHandler(self)
 
     def uninstall(self):
         for name in self.names:
             logger = logging.getLogger(name)
             logger.setLevel(self.oldlevels[name])
+            logger.disabled = self.olddisabled[name]
             logger.removeHandler(self)
 
     def __str__(self):

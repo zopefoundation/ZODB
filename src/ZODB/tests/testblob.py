@@ -379,6 +379,7 @@ def commit_from_wrong_partition():
     >>> logger.propagate = False
     >>> logger.setLevel(logging.DEBUG)
     >>> logger.addHandler(handler)
+    >>> logger.disabled = False
 
     >>> blob_storage = create_storage()  # noqa: F821 undefined name
     >>> database = DB(blob_storage)

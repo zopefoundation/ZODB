@@ -49,7 +49,9 @@ logging:
 
     >>> import logging, sys
     >>> old_log_level = logging.getLogger().getEffectiveLevel()
+    >>> old_log_disabled = logging.getLogger().disabled
     >>> logging.getLogger().setLevel(logging.DEBUG)
+    >>> logging.getLogger().disabled = False
     >>> handler = logging.StreamHandler(sys.stdout)
     >>> logging.getLogger().addHandler(handler)
 
@@ -144,6 +146,7 @@ starting point, or just pick up where another iterator left off:
     >>> it.close()
 
     >>> logging.getLogger().setLevel(old_log_level)
+    >>> logging.getLogger().disabled = old_log_disabled
     >>> logging.getLogger().removeHandler(handler)
 
 
