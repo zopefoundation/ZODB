@@ -624,7 +624,7 @@ def savepoint_isolation():
 
 
 def savepoint_commits_without_invalidations_out_of_order():
-    """Make sure transactions with blobs can be commited without the
+    """Make sure transactions with blobs can be committed without the
     invalidations out of order error (LP #509801)
 
     >>> bs = create_storage()  # noqa: F821 undefined name

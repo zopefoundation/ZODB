@@ -1069,7 +1069,7 @@ class Connection(ExportImport, object):
         # by another thread, so the risk of a reread is pretty low.
         # It's really not worth the effort to pursue this.
 
-        # Note that we do this *after* reseting the storage so that, if
+        # Note that we do this *after* resetting the storage so that, if
         # data are read, we read it from the reset storage!
 
         self._cache.invalidate(src.index)
