@@ -315,11 +315,11 @@ transactions object::
 
 Subtransactions, sometimes called "inner transactions", are
 transactions that happen inside another transaction.
-Subtransactions can be commited and aborted like regular "outer"
+Subtransactions can be committed and aborted like regular "outer"
 transactions.  Subtransactions mostly provide you with an
 optimization technique.
 
-Subtransactions can be commited and aborted.  Commiting or
+Subtransactions can be committed and aborted.  Commiting or
 aborting a subtransaction does not commit or abort its outer
 transaction, just the subtransaction.  This lets you use many,
 fine-grained transactions within one big transaction.
@@ -336,7 +336,7 @@ If you abort an outer transaction, then all of its inner
 subtransactions will also be aborted and not saved.  If you abort
 an inner subtransaction, then only the changes made during that
 subtransaction are aborted, and the outer transaction is *not*
-aborted and more changes can be made and commited, including more
+aborted and more changes can be made and committed, including more
 subtransactions.
 
 You can commit or abort a subtransaction by calling either

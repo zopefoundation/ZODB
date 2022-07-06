@@ -62,7 +62,7 @@ def fmt(p64):
 
 
 class Dumper(object):
-    """A very verbose dumper for debuggin FileStorage problems."""
+    """A very verbose dumper for debugging FileStorage problems."""
 
     # TODO:  Should revise this class to use FileStorageFormatter.
 

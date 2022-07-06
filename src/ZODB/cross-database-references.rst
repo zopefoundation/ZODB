@@ -144,7 +144,7 @@ the ambiguity.
 Dissallowing implicit cross-database references
 ===============================================
 
-The database contructor accepts a xrefs keyword argument that defaults
+The database constructor accepts a xrefs keyword argument that defaults
 to True.  If False is passed, the implicit cross database references
 are disallowed. (Note that currently, implicit cross references are
 the only kind of cross references allowed.)
