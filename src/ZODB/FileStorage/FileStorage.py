@@ -57,6 +57,7 @@ from ZODB.interfaces import IStorageCurrentRecordIteration
 from ZODB.interfaces import IStorageIteration
 from ZODB.interfaces import IStorageRestoreable
 from ZODB.interfaces import IStorageUndoable
+from ZODB.interfaces import IStorageLoadBeforeEx
 from ZODB.POSException import ConflictError
 from ZODB.POSException import MultipleUndoErrors
 from ZODB.POSException import POSKeyError
@@ -144,6 +145,7 @@ class TempFormatter(FileStorageFormatter):
     IStorageCurrentRecordIteration,
     IExternalGC,
     IStorage,
+    IStorageLoadBeforeEx,
 )
 class FileStorage(
     FileStorageFormatter,
@@ -571,6 +573,37 @@ class FileStorage(
                 return self._file.read(h.plen)
             else:
                 return self._loadBack_impl(oid, h.back)[0]
+
+    def loadBeforeEx(self, oid, before):
+        """loadBeforeEx implements IStorageLoadBeforeEx."""
+        with self._files.get() as _file:
+            try:
+                pos = self._lookup_pos(oid)
+            except POSKeyError:
+                # object does not exist
+                return None, z64
+
+            while 1:
+                h = self._read_data_header(pos, oid, _file)
+                if h.tid < before:
+                    break
+                pos = h.prev
+                if not pos:
+                    # object not yet created as of <before
+                    return None, z64
+
+            # h is the most recent DataHeader with .tid < before
+            if h.plen:
+                # regular data record
+                return _file.read(h.plen), h.tid
+            elif h.back:
+                # backpointer
+                data, _, _, _ = self._loadBack_impl(oid, h.back,
+                                                    fail=False, _file=_file)
+                return data, h.tid
+            else:
+                # deletion
+                return None, h.tid
 
     def loadBefore(self, oid, tid):
         with self._files.get() as _file:

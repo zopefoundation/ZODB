@@ -10,7 +10,8 @@ also simplifies the implementation of the DB and Connection classes.
 import zope.interface
 
 from . import interfaces, serialize, POSException
-from .utils import p64, u64, Lock, oid_repr, tid_repr
+from .utils import p64, u64, z64, maxtid, Lock, loadBeforeEx, oid_repr, \
+                   tid_repr
 
 
 class Base(object):
@@ -155,8 +156,20 @@ class MVCCAdapterInstance(Base):
 
     def load(self, oid):
         assert self._start is not None
-        r = self._storage.loadBefore(oid, self._start)
-        if r is None:
+        data, serial = loadBeforeEx(self._storage, oid, self._start)
+        if data is None:
+            # raise POSKeyError if object does not exist at all
+            # TODO raise POSKeyError always and switch to raising ReadOnlyError
+            # only when actually detecting that load is being affected by
+            # simultaneous pack (see below).
+            if serial == z64:
+                # XXX second call to loadBeforeEx - it will become unneeded
+                # once we switch to raising POSKeyError.
+                _, serial_exists = loadBeforeEx(self._storage, oid, maxtid)
+                if serial_exists == z64:
+                    # object does not exist at all
+                    raise POSException.POSKeyError(oid)
+
             # object was deleted or not-yet-created.
             # raise ReadConflictError - not - POSKeyError due to backward
             # compatibility: a pack(t+δ) could be running simultaneously to our
@@ -178,11 +191,14 @@ class MVCCAdapterInstance(Base):
             # whether pack is/was actually running and its details, take that
             # into account, and raise ReadConflictError only in the presence of
             # database being simultaneously updated from back of its log.
+            #
+            # See https://github.com/zopefoundation/ZODB/pull/322 for
+            # preliminary steps in this direction.
             raise POSException.ReadConflictError(
                 "load %s @%s: object deleted, likely by simultaneous pack" %
                 (oid_repr(oid), tid_repr(p64(u64(self._start) - 1))))
 
-        return r[:2]
+        return data, serial
 
     def prefetch(self, oids):
         try:
@@ -263,10 +279,10 @@ class HistoricalStorageAdapter(Base):
     new_oid = pack = store = read_only_writer
 
     def load(self, oid, version=''):
-        r = self._storage.loadBefore(oid, self._before)
-        if r is None:
+        data, serial = loadBeforeEx(self._storage, oid, self._before)
+        if data is None:
             raise POSException.POSKeyError(oid)
-        return r[:2]
+        return data, serial
 
 
 class UndoAdapterInstance(Base):

@@ -30,6 +30,7 @@ import zope.interface
 @zope.interface.implementer(
     ZODB.interfaces.IStorage,
     ZODB.interfaces.IStorageIteration,
+    ZODB.interfaces.IStorageLoadBeforeEx,
 )
 class MappingStorage(object):
     """In-memory storage implementation
@@ -148,6 +149,22 @@ class MappingStorage(object):
         return len(self._data)
 
     load = ZODB.utils.load_current
+
+    # ZODB.interfaces.IStorageLoadBeforeEx
+    @ZODB.utils.locked(opened)
+    def loadBeforeEx(self, oid, before):
+        z64 = ZODB.utils.z64
+        tid_data = self._data.get(oid)
+        if not tid_data:
+            return None, z64
+        if before == z64:
+            return None, z64
+        at = ZODB.utils.p64(ZODB.utils.u64(before)-1)
+        tids_at = tid_data.keys(None, at)
+        if not tids_at:
+            return None, z64
+        serial = tids_at[-1]
+        return tid_data[serial], serial
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)

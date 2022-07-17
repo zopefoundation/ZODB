@@ -128,6 +128,17 @@ class MinimalMemoryStorage(BaseStorage, object):
 
             return self._index[(the_oid, tid)], tid, end_tid
 
+    def loadBeforeEx(self, oid, before):
+        try:
+            r = self.loadBefore(oid, before)
+        except KeyError:
+            return None, z64
+        if r is None:
+            # not-yet created (deleteObject not supported -> serial=0)
+            return None, z64
+        data, serial, _ = r
+        return data, serial
+
     def loadSerial(self, oid, serial):
         return self._index[(oid, serial)]
 

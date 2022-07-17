@@ -5,6 +5,15 @@
 5.7.1 (unreleased)
 ==================
 
+- Introduce a new ``loadBeforeEx`` interface that complements ``loadBefore``:
+  ``loadBeforeEx`` is simpler, provides better information for object delete
+  records and can be more efficiently implemented by many storages.
+  ``loadBeforeEx`` is used (and required) to fix a ``DemoStorage`` data corruption
+  in the presence of object delete records.
+  See `issue 318 <https://github.com/zopefoundation/ZODB/issues/318>`_
+  and `PR 323 <https://github.com/zopefoundation/ZODB/pull/323>`_
+  for details.
+
 
 5.7.0 (2022-03-17)
 ==================

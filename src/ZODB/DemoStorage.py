@@ -217,45 +217,44 @@ class DemoStorage(ConflictResolvingStorage):
     # still want load for old clients (e.g. zeo servers)
     load = load_current
 
-    def loadBefore(self, oid, tid):
-        try:
-            result = self.changes.loadBefore(oid, tid)
-        except ZODB.POSException.POSKeyError:
-            # The oid isn't in the changes, so defer to base
-            return self.base.loadBefore(oid, tid)
+    def loadBeforeEx(self, oid, before):
+        data, serial = ZODB.utils.loadBeforeEx(self.changes, oid, before)
+        if (data is not None) or (serial != ZODB.utils.z64):
+            # object is present in changes either as data or deletion record.
+            return data, serial
 
-        if result is None:
-            # The oid *was* in the changes, but there aren't any
-            # earlier records. Maybe there are in the base.
-            try:
-                result = self.base.loadBefore(oid, tid)
-            except ZODB.POSException.POSKeyError:
-                # The oid isn't in the base, so None will be the right result
-                pass
+        # object is not present in changes at all - use base
+        return ZODB.utils.loadBeforeEx(self.base, oid, before)
+
+    def loadBefore(self, oid, before):
+        data, serial = self.loadBeforeEx(oid, before)
+
+        # find out next_serial.
+        # it is ok to use dumb/slow implementation since loadBefore should not
+        # be used and is provided only for backward compatibility.
+        next_serial = maxtid
+        while 1:
+            _, s = self.loadBeforeEx(oid, next_serial)
+            assert s >= serial
+            if s == serial:
+                # found - next_serial is serial of the next data record
+                break
+            next_serial = s
+
+        if next_serial == maxtid:
+            next_serial = None
+
+        # next_serial found -> return/raise what loadBefore users expect
+        if data is None:
+            if next_serial is None:
+                # object was never created
+                raise ZODB.POSException.POSKeyError(oid)
             else:
-                if result and not result[-1]:
-                    # The oid is current in the base.  We need to find
-                    # the end tid in the base by fining the first tid
-                    # in the changes. Unfortunately, there isn't an
-                    # api for this, so we have to walk back using
-                    # loadBefore.
+                # object was deleted
+                return None
 
-                    if tid == maxtid:
-                        # Special case: we were looking for the
-                        # current value. We won't find anything in
-                        # changes, so we're done.
-                        return result
-
-                    end_tid = maxtid
-                    t = self.changes.loadBefore(oid, end_tid)
-                    while t:
-                        end_tid = t[1]
-                        t = self.changes.loadBefore(oid, end_tid)
-                    result = result[:2] + (
-                        end_tid if end_tid != maxtid else None,
-                    )
-
-        return result
+        # regular data record
+        return data, serial, next_serial
 
     def loadBlob(self, oid, serial):
         try:

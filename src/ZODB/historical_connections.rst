@@ -36,7 +36,7 @@ development continues on a "development" head.
 
 A database can be opened historically ``at`` or ``before`` a given transaction
 serial or datetime. Here's a simple example. It should work with any storage
-that supports ``loadBefore``.
+that supports ``loadBeforeEx`` or ``loadBefore``.
 
 We'll begin our example with a fairly standard set up.  We
 
@@ -139,7 +139,7 @@ root.
     0
 
 In fact, ``at`` arguments are translated into ``before`` values because the
-underlying mechanism is a storage's loadBefore method.  When you look at a
+underlying mechanism is a storage's loadBeforeEx method.  When you look at a
 connection's ``before`` attribute, it is normalized into a ``before`` serial,
 no matter what you pass into ``db.open``.
 
