@@ -17,6 +17,7 @@ import struct
 import sys
 import time
 import threading
+import warnings
 from binascii import hexlify, unhexlify
 
 from tempfile import mkstemp
@@ -398,8 +399,57 @@ def load_current(storage, oid, version=''):
     some time in the future.
     """
     assert not version
-    r = storage.loadBefore(oid, maxtid)
-    if r is None:
+    data, serial = loadBeforeEx(storage, oid, maxtid)
+    if data is None:
         raise ZODB.POSException.POSKeyError(oid)
-    assert r[2] is None
-    return r[:2]
+    return data, serial
+
+
+_loadBeforeExWarned = set()  # of storage class
+
+
+def loadBeforeEx(storage, oid, before):
+    """loadBeforeEx provides IStorageLoadBeforeEx semantic for all storages.
+
+    Storages that do not implement loadBeforeEx are served via loadBefore.
+    """
+    loadBeforeEx = getattr(storage, 'loadBeforeEx', None)
+    if loadBeforeEx is not None:
+        try:
+            return loadBeforeEx(oid, before)
+        except NotImplementedError:
+            pass
+
+    # storage does not provide IStorageLoadBeforeEx - fall back to loadBefore
+    try:
+        r = storage.loadBefore(oid, before)
+    except ZODB.POSException.POSKeyError:
+        return (None, z64)  # object does not exist at all
+
+    if r is None:
+        # object was removed; however loadBefore does not tell when.
+        # return serial=0. This can, however, lead to data corruption with e.g.
+        # DemoStorage (https://github.com/zopefoundation/ZODB/issues/318), so
+        # emit corresponding warning.
+        if type(storage) not in _loadBeforeExWarned:
+            # there is potential race around _loadBeforeExWarned access, but
+            # due to the GIL this race cannot result in that set corruption,
+            # and can only lead to us emitting the warning twice instead of
+            # just once.  -> do not spend CPU on lock and just ignore it.
+            warnings.warn(
+                "FIXME %s does not provide loadBeforeEx - emulating it via "
+                "loadBefore, but ...\n"
+                "\t... 1) access is be potentially slower, and\n"
+                "\t... 2) not full semantic of loadBeforeEx could be "
+                "provided.\n"
+                "\t...    this can lead to data corruption in the presence "
+                "of delete records.\n"
+                "\t... -> please see "
+                "https://github.com/zopefoundation/ZODB/issues/318 for "
+                "details." %
+                type(storage), PendingDeprecationWarning)
+            _loadBeforeExWarned.add(type(storage))
+        return (None, z64)
+
+    data, serial, next_serial = r
+    return (data, serial)

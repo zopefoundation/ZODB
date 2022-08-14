@@ -722,6 +722,8 @@ class IStorage(Interface):
         - The transaction id of the following revision, if any, or None.
 
         If the object id isn't in the storage, then POSKeyError is raised.
+
+        See also: IStorageLoadBeforeEx.loadBeforeEx .
         """
 
     def loadSerial(oid, serial):
@@ -885,6 +887,27 @@ class IPrefetchStorage(IStorage):
 
         The oids argument is an iterable that should be iterated no
         more than once.
+        """
+
+
+class IStorageLoadBeforeEx(Interface):
+
+    def loadBeforeEx(oid, before):  # -> (data, serial)
+        """Load object data as observed before given database state.
+
+        loadBeforeEx returns data for object with given object ID as observed
+        by most recent database transaction with ID < before. Two values are
+        returned:
+
+        - The data record,
+        - The transaction ID of the data record.
+
+        If the object does not exist, or is deleted as of requested database
+        state, loadBeforeEx returns data=None, and serial indicates transaction
+        ID of the most recent deletion done in transaction with ID < before, or
+        null tid if there is no such deletion.
+
+        Note: no POSKeyError is raised even if object id is not in the storage.
         """
 
 

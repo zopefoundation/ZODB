@@ -60,6 +60,7 @@ class BaseStorage(UndoLogCompatible):
     If it stores multiple revisions, it should implement
     loadSerial()
     loadBefore()
+    loadBeforeEx()
 
     Each storage will have two locks that are accessed via lock
     acquire and release methods bound to the instance.  (Yuck.)
@@ -269,7 +270,13 @@ class BaseStorage(UndoLogCompatible):
 
     def loadBefore(self, oid, tid):
         """Return most recent revision of oid before tid committed."""
-        return None
+        raise NotImplementedError
+
+    def loadBeforeEx(self, oid, tid):
+        """Return most recent revision of oid before tid committed.
+           (see IStorageLoadBeforeEx).
+        """
+        raise NotImplementedError
 
     def copyTransactionsFrom(self, other, verbose=0):
         """Copy transactions from another storage.

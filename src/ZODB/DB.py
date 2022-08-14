@@ -732,7 +732,7 @@ class DB(object):
           - `before`: like `at`, but opens the readonly state before the
             tid or datetime.
         """
-        # `at` is normalized to `before`, since we use storage.loadBefore
+        # `at` is normalized to `before`, since we use storage.loadBeforeEx
         # as the underlying implementation of both.
         before = getTID(at, before)
         if (before is not None and

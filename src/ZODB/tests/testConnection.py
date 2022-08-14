@@ -1332,6 +1332,13 @@ class StubStorage(object):
             raise TypeError('StubStorage does not support versions.')
         return self._data[oid]
 
+    def loadBeforeEx(self, oid, before):
+        try:
+            data, serial = self._transdata[oid]
+        except KeyError:
+            return None, z64
+        return data, serial
+
     def loadBefore(self, oid, tid):
         return self._data[oid] + (None, )
 
