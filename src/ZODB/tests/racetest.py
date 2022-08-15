@@ -193,6 +193,18 @@ class RaceTests(object):
     def _new_storage_client(self):
         raise NotImplementedError
 
+    # dbopen creates new client storage connection and wraps it with DB.
+    def dbopen(self):
+        try:
+            zstor = self._new_storage_client()
+        except NotImplementedError:
+            # the test will be skipped from main thread because dbopen is
+            # first used in init on the main thread before any other thread
+            # is spawned.
+            self.skipTest(
+                "%s does not implement _new_storage_client" % type(self))
+        return DB(zstor)
+
     # verify storage for race in between load and external invalidations.
     # https://github.com/zopefoundation/ZEO/issues/155
     #
@@ -206,21 +218,9 @@ class RaceTests(object):
     def _check_race_load_vs_external_invalidate(self, spec):
         assert isinstance(spec, ISpec)
 
-        # dbopen creates new client storage connection and wraps it with DB.
-        def dbopen():
-            try:
-                zstor = self._new_storage_client()
-            except NotImplementedError:
-                # the test will be skipped from main thread because dbopen is
-                # first used in init on the main thread before any other thread
-                # is spawned.
-                self.skipTest(
-                    "%s does not implement _new_storage_client" % type(self))
-            return DB(zstor)
-
         # init initializes the database according to the spec.
         def init():
-            db = dbopen()
+            db = self.dbopen()
             _state_init(db, spec)
             db.close()
 
@@ -246,7 +246,7 @@ class RaceTests(object):
         failure = [None] * nwork  # [tx] is failure from T(tx)
 
         def T(tx, N):
-            db = dbopen()
+            db = self.dbopen()
 
             def t_():
                 transaction.begin()
