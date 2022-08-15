@@ -43,6 +43,7 @@ https://github.com/zopefoundation/ZEO/issues/166.
 
 import transaction
 from ZODB import DB, POSException
+from ZODB.utils import tid_repr, at2before
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.util import with_high_concurrency
 
@@ -131,6 +132,7 @@ class RaceTests(object):
                 spec.assertStateOK(root)
             except AssertionError as e:
                 msg = "verify: %s\n" % e
+                msg += _state_details(root)
                 failure[0] = msg
                 failed.set()
 
@@ -259,6 +261,7 @@ class RaceTests(object):
                     spec.assertStateOK(root)
                 except AssertionError as e:
                     msg = "T%s: %s\n" % (tx, e)
+                    msg += _state_details(root)
                     failure[tx] = msg
                     failed.set()
 
@@ -302,7 +305,7 @@ class RaceTests(object):
             t.join(60)
 
         if failed.is_set():
-            self.fail([_ for _ in failure if _])
+            self.fail('\n\n'.join([_ for _ in failure if _]))
 
 
 # _state_init initializes the database according to the spec.
@@ -323,3 +326,52 @@ def _state_invalidate_half1(root):
     for k in keys[:len(keys)//2]:
         obj = root[k]
         obj._p_invalidate()
+
+
+# _state_details returns text details about ZODB objects directly referenced by
+# root.
+def _state_details(root):  # -> txt
+    # serial for all objects
+    keys = list(sorted(root.keys()))
+    txt = ''
+    txt += '  '.join('%s._p_serial: %s' % (k, tid_repr(root[k]._p_serial))
+                     for k in keys)
+    txt += '\n'
+
+    # zconn.at approximated as max(serials)
+    # XXX better retrieve real zconn.at, but currently there is no way to
+    # retrieve it for all kind of storages.
+    zconn = root._p_jar
+    zconn_at = max(root[k]._p_serial for k in keys)
+    txt += 'zconn_at: %s  # approximated as max(serials)\n' % \
+           tid_repr(zconn_at)
+
+    # zstor.loadBefore(obj, @zconn_at)
+    zstor = zconn.db().storage
+
+    def load(key):
+        load_txt = 'zstor.loadBefore(%s, @zconn.at)\t->  ' % key
+        obj = root[key]
+        x = zstor.loadBefore(obj._p_oid, at2before(zconn_at))
+        if x is None:
+            load_txt += 'None'
+        else:
+            _, serial, next_serial = x
+            load_txt += 'serial: %s  next_serial: %s' % (
+                        tid_repr(serial), tid_repr(next_serial))
+        load_txt += '\n'
+        return load_txt
+
+    for k in keys:
+        txt += load(k)
+
+    # try to reset storage cache and retry loading
+    # it helps to see if an error was due to the cache getting out of sync
+    zcache = getattr(zstor, '_cache', None)  # works for ZEO and NEO
+    if zcache is not None:
+        zcache.clear()
+        txt += 'zstor._cache.clear()\n'
+        for k in keys:
+            txt += load(k)
+
+    return txt
