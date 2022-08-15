@@ -13,6 +13,32 @@
 ##############################################################################
 """Module racetest provides infrastructure and tests to verify storages against
 data corruptions caused by race conditions in storages implementations.
+
+It works by combining
+
+  1) testing models for application behaviour, with
+  2) model checkers, that drive provided application model through particular
+     scenarios that are likely to hit specific race conditions in storage
+     implementation.
+
+If a race condition is hit, it is detected as a breakage of invariant defined
+in the model specification.
+
+A model defines application behaviour by specifying initial database state, a
+"next" step representing database modification, and an invariant, that should
+always be true, no matter how and in which order, simultaneously or serially,
+the next steps are applied by database clients. A model specification is
+represented by ISpec interface.
+
+A checker drives the model through particular usage scenario where probability
+of specific race condition is likely to be high. For example
+_check_race_loadopen_vs_local_invalidate runs two client threads, that use
+shared storage connection, where one thread repeatedly modifies the database,
+and the other thread repeatedly checks the database for breakage of the model
+invariant. This checker verifies storages and ZODB.Connection for races in
+between load/open and local invalidations to catch bugs similar to
+https://github.com/zopefoundation/ZODB/issues/290 and
+https://github.com/zopefoundation/ZEO/issues/166.
 """
 
 import transaction
@@ -24,76 +50,104 @@ import threading
 from random import randint
 
 
+class ISpec:
+    """ISpec interface represents testing specification used by check_race_*"""
+
+    def init(root):
+        """init should initialize database state."""
+
+    def next(root):
+        """next should modify database state."""
+
+    def assertStateOK(root):
+        """assertStateOK should verify whether database state follows
+        intended invariant.
+
+        If not - it should raise AssertionError with details.
+        """
+
+
+class T2ObjectsInc(ISpec):
+    """T2ObjectsInc is specification with behaviour where two objects obj1
+    and obj2 are incremented synchronously.
+
+    It is used in tests where bugs can be immedeately observed after the race.
+
+    invariant:  obj1 == obj2
+    """
+    def init(_, root):
+        root['obj1'] = MinPO(0)
+        root['obj2'] = MinPO(0)
+
+    def next(_, root):
+        root['obj1'].value += 1
+        root['obj2'].value += 1
+
+    def assertStateOK(_, root):
+        # both objects must have the same values
+        i1 = root['obj1'].value
+        i2 = root['obj2'].value
+
+        if not (i1 == i2):
+            raise AssertionError("obj1 (%d)  !=  obj2 (%d)" % (i1, i2))
+
+
 class RaceTests(object):
 
     # verify storage/Connection for race in between load/open and local
     # invalidations.
     # https://github.com/zopefoundation/ZEO/issues/166
     # https://github.com/zopefoundation/ZODB/issues/290
+    def check_race_loadopen_vs_local_invalidate(self):
+        return self._check_race_loadopen_vs_local_invalidate(T2ObjectsInc())
 
     @with_high_concurrency
-    def check_race_loadopen_vs_local_invalidate(self):
+    def _check_race_loadopen_vs_local_invalidate(self, spec):
+        assert isinstance(spec, ISpec)
         db = DB(self._storage)
 
-        # init initializes the database with two integer objects - obj1/obj2
-        # that are set to 0.
+        # init initializes the database according to the spec.
         def init():
-            transaction.begin()
-            zconn = db.open()
+            _state_init(db, spec)
 
-            root = zconn.root()
-            root['obj1'] = MinPO(0)
-            root['obj2'] = MinPO(0)
-
-            transaction.commit()
-            zconn.close()
-
-        # verify accesses obj1/obj2 and verifies that obj1.value == obj2.value
+        # verify accesses the database and verifies spec invariant.
         #
-        # access to obj1 is organized to always trigger loading from zstor.
-        # access to obj2 goes through zconn cache and so verifies whether the
-        # cache is not stale.
+        # Access to half of the objects is organized to always trigger loading
+        # from zstor. Access to the other half goes through zconn cache and so
+        # verifies whether the cache is not stale.
         failed = threading.Event()
         failure = [None]
 
         def verify():
             transaction.begin()
             zconn = db.open()
-
             root = zconn.root()
-            obj1 = root['obj1']
-            obj2 = root['obj2']
 
-            # obj1 - reload it from zstor
-            # obj2 - get it from zconn cache
-            obj1._p_invalidate()
+            # reload some objects from zstor, while getting others from
+            # zconn cache
+            _state_invalidate_half1(root)
 
-            # both objects must have the same values
-            v1 = obj1.value
-            v2 = obj2.value
-            if v1 != v2:
-                failure[0] = "verify: obj1.value (%d)  !=  obj2.value (%d)" % (
-                    v1, v2)
+            try:
+                spec.assertStateOK(root)
+            except AssertionError as e:
+                msg = "verify: %s\n" % e
+                failure[0] = msg
                 failed.set()
 
             # we did not changed anything; also fails with commit:
             transaction.abort()
             zconn.close()
 
-        # modify changes obj1/obj2 by doing `objX.value += 1`.
+        # modify changes the database by executing "next" step.
         #
-        # Since both objects start from 0, the invariant that
-        # `obj1.value == obj2.value` is always preserved.
+        # Spec invariant should be preserved.
         def modify():
             transaction.begin()
             zconn = db.open()
 
             root = zconn.root()
-            obj1 = root['obj1']
-            obj2 = root['obj2']
-            obj1.value += 1
-            obj2.value += 1
-            assert obj1.value == obj2.value
+            spec.next(root)
+            spec.assertStateOK(root)
 
             transaction.commit()
             zconn.close()
@@ -143,8 +197,13 @@ class RaceTests(object):
     # This test is similar to check_race_loadopen_vs_local_invalidate but does
     # not reuse its code because the probability to reproduce external
     # invalidation bug with only 1 mutator + 1 verifier is low.
-    @with_high_concurrency
     def check_race_load_vs_external_invalidate(self):
+        return self._check_race_load_vs_external_invalidate(T2ObjectsInc())
+
+    @with_high_concurrency
+    def _check_race_load_vs_external_invalidate(self, spec):
+        assert isinstance(spec, ISpec)
+
         # dbopen creates new client storage connection and wraps it with DB.
         def dbopen():
             try:
@@ -157,21 +216,10 @@ class RaceTests(object):
                     "%s does not implement _new_storage_client" % type(self))
             return DB(zstor)
 
-        # init initializes the database with two integer objects - obj1/obj2
-        # that are set to 0.
+        # init initializes the database according to the spec.
         def init():
             db = dbopen()
-
-            transaction.begin()
-            zconn = db.open()
-
-            root = zconn.root()
-            root['obj1'] = MinPO(0)
-            root['obj2'] = MinPO(0)
-
-            transaction.commit()
-            zconn.close()
-
+            _state_init(db, spec)
             db.close()
 
         # we'll run 8 T workers concurrently. As of 20210416, due to race
@@ -183,15 +231,15 @@ class RaceTests(object):
         # nwork=4.
         nwork = 8
 
-        # T is a worker that accesses obj1/obj2 in a loop and verifies
-        # `obj1.value == obj2.value` invariant.
+        # T is a worker that accesses database in a loop and verifies
+        # spec invariant.
         #
-        # access to obj1 is organized to always trigger loading from zstor.
-        # access to obj2 goes through zconn cache and so verifies whether the
-        # cache is not stale.
+        # Access to half of the objects is organized to always trigger loading
+        # from zstor. Access to the other half goes through zconn cache and so
+        # verifies whether the cache is not stale.
         #
-        # Once in a while T tries to modify obj{1,2}.value maintaining the
-        # invariant as test source of changes for other workers.
+        # Once in a while T tries to modify the database executing spec "next"
+        # as test source of changes for other workers.
         failed = threading.Event()
         failure = [None] * nwork  # [tx] is failure from T(tx)
 
@@ -201,30 +249,24 @@ class RaceTests(object):
             def t_():
                 transaction.begin()
                 zconn = db.open()
-
                 root = zconn.root()
-                obj1 = root['obj1']
-                obj2 = root['obj2']
 
-                # obj1 - reload it from zstor
-                # obj2 - get it from zconn cache
-                obj1._p_invalidate()
+                # reload some objects from zstor, while getting others from
+                # zconn cache
+                _state_invalidate_half1(root)
 
-                # both objects must have the same values
-                i1 = obj1.value
-                i2 = obj2.value
-                if i1 != i2:
-                    # print('FAIL')
-                    failure[tx] = (
-                        "T%s: obj1.value (%d)  !=  obj2.value (%d)" % (
-                            tx, i1, i2))
+                try:
+                    spec.assertStateOK(root)
+                except AssertionError as e:
+                    msg = "T%s: %s\n" % (tx, e)
+                    failure[tx] = msg
                     failed.set()
 
                 # change objects once in a while
                 if randint(0, 4) == 0:
                     # print("T%s: modify" % tx)
-                    obj1.value += 1
-                    obj2.value += 1
+                    spec.next(root)
+                    spec.assertStateOK(root)
 
                 try:
                     transaction.commit()
@@ -261,3 +303,23 @@ class RaceTests(object):
 
         if failed.is_set():
             self.fail([_ for _ in failure if _])
+
+
+# _state_init initializes the database according to the spec.
+def _state_init(db, spec):
+    transaction.begin()
+    zconn = db.open()
+    root = zconn.root()
+    spec.init(root)
+    spec.assertStateOK(root)
+    transaction.commit()
+    zconn.close()
+
+
+# _state_invalidate_half1 invalidatates first 50% of database objects, so that
+# the next time they are accessed, they are reloaded from the storage.
+def _state_invalidate_half1(root):
+    keys = list(sorted(root.keys()))
+    for k in keys[:len(keys)//2]:
+        obj = root[k]
+        obj._p_invalidate()
