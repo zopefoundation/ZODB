@@ -45,7 +45,7 @@ import transaction
 from ZODB import DB, POSException
 from ZODB.utils import tid_repr, at2before
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.util import with_high_concurrency
+from ZODB.tests.util import with_high_concurrency, long_test
 
 import threading
 from random import randint
@@ -352,6 +352,7 @@ class RaceTests(object):
     # state, or in new state after the next transaction. Contrary to that, with
     # T2ObjectsInc2Phase the invariant will be detected to be broken on the
     # next transaction.
+    @long_test
     def check_race_external_invalidate_vs_disconnect(self):
         return self._check_race_xxx_vs_external_disconnect(
                                                 T2ObjectsInc2Phase())
