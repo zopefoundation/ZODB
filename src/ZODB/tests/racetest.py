@@ -46,12 +46,13 @@ from ZODB import DB, POSException
 from ZODB.utils import tid_repr, at2before
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.util import with_high_concurrency, long_test
+from zope.interface import Interface, implementer
 
 import threading
 from random import randint
 
 
-class ISpec:
+class ISpec(Interface):
     """ISpec interface represents testing specification used by check_race_*"""
 
     def init(root):
@@ -68,7 +69,8 @@ class ISpec:
         """
 
 
-class T2ObjectsInc(ISpec):
+@implementer(ISpec)
+class T2ObjectsInc:
     """T2ObjectsInc is specification with behaviour where two objects obj1
     and obj2 are incremented synchronously.
 
@@ -93,7 +95,8 @@ class T2ObjectsInc(ISpec):
             raise AssertionError("obj1 (%d)  !=  obj2 (%d)" % (i1, i2))
 
 
-class T2ObjectsInc2Phase(ISpec):
+@implementer(ISpec)
+class T2ObjectsInc2Phase:
     """T2ObjectsInc2Phase is specification with behaviour where two objects
     obj1 and obj2 are incremented in lock-step.
 
@@ -137,7 +140,7 @@ class RaceTests(object):
 
     @with_high_concurrency
     def _check_race_loadopen_vs_local_invalidate(self, spec):
-        assert isinstance(spec, ISpec)
+        assert ISpec.providedBy(spec)
         db = DB(self._storage)
 
         # init initializes the database according to the spec.
@@ -249,7 +252,7 @@ class RaceTests(object):
 
     @with_high_concurrency
     def _check_race_load_vs_external_invalidate(self, spec):
-        assert isinstance(spec, ISpec)
+        assert ISpec.providedBy(spec)
 
         # init initializes the database according to the spec.
         def init():
@@ -359,7 +362,7 @@ class RaceTests(object):
 
     @with_high_concurrency
     def _check_race_xxx_vs_external_disconnect(self, spec):
-        assert isinstance(spec, ISpec)
+        assert ISpec.providedBy(spec)
 
         # init initializes the database according to the spec.
         def init():
