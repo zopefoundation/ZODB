@@ -144,11 +144,12 @@ class RaceTests(object):
         assert IModelSpec.providedBy(spec)
         db = DB(self._storage)
 
-        # init initializes the database according to the spec.
+        # `init` initializes the database according to the spec.
         def init():
             _state_init(db, spec)
 
-        # verify accesses objects in the database and verifies spec invariant.
+        # `verify` accesses objects in the database and verifies spec
+        # invariant.
         #
         # Access to half of the objects is organized to always trigger loading
         # from zstor. Access to the other half goes through zconn cache and so
@@ -177,7 +178,7 @@ class RaceTests(object):
             transaction.abort()
             zconn.close()
 
-        # modify changes objects in the database by executing "next" step.
+        # `modify` changes objects in the database by executing "next" step.
         #
         # Spec invariant should be preserved.
         def modify():
@@ -191,7 +192,7 @@ class RaceTests(object):
             transaction.commit()
             zconn.close()
 
-        # xrun runs f in a loop until either N iterations, or until failed is
+        # `xrun` runs f in a loop until either N iterations, or until failed is
         # set.
         def xrun(f, N):
             try:
@@ -230,7 +231,7 @@ class RaceTests(object):
     def _new_storage_client(self):
         raise NotImplementedError
 
-    # dbopen creates new client storage connection and wraps it with DB.
+    # `dbopen` creates new client storage connection and wraps it with DB.
     def dbopen(self):
         try:
             zstor = self._new_storage_client()
@@ -255,7 +256,7 @@ class RaceTests(object):
     def _check_race_load_vs_external_invalidate(self, spec):
         assert IModelSpec.providedBy(spec)
 
-        # init initializes the database according to the spec.
+        # `init` initializes the database according to the spec.
         def init():
             db = self.dbopen()
             _state_init(db, spec)
@@ -270,7 +271,7 @@ class RaceTests(object):
         # nwork=4.
         nwork = 8
 
-        # T is a worker that accesses database in a loop and verifies
+        # `T` is a worker that accesses database in a loop and verifies
         # spec invariant.
         #
         # Access to half of the objects is organized to always trigger loading
@@ -365,7 +366,7 @@ class RaceTests(object):
     def _check_race_external_invalidate_vs_disconnect(self, spec):
         assert IModelSpec.providedBy(spec)
 
-        # init initializes the database according to the spec.
+        # `init` initializes the database according to the spec.
         def init():
             db = self.dbopen()
             _state_init(db, spec)
@@ -373,7 +374,7 @@ class RaceTests(object):
 
         nwork = 8*8   # nwork^2 from _check_race_load_vs_external_invalidate
 
-        # T is similar to the T from _check_race_load_vs_external_invalidate
+        # `T` is similar to the T from _check_race_load_vs_external_invalidate
         # but reconnects to the database often.
         failed = threading.Event()
         failure = [None] * nwork  # [tx] is failure from T(tx)
@@ -451,7 +452,7 @@ class RaceTests(object):
             self.fail('\n\n'.join([_ for _ in failure if _]))
 
 
-# _state_init initializes the database according to the spec.
+# `_state_init` initializes the database according to the spec.
 def _state_init(db, spec):
     transaction.begin()
     zconn = db.open()
@@ -462,8 +463,8 @@ def _state_init(db, spec):
     zconn.close()
 
 
-# _state_invalidate_half1 invalidatates first 50% of database objects, so that
-# the next time they are accessed, they are reloaded from the storage.
+# `_state_invalidate_half1` invalidatates first 50% of database objects, so
+# that the next time they are accessed, they are reloaded from the storage.
 def _state_invalidate_half1(root):
     keys = list(sorted(root.keys()))
     for k in keys[:len(keys)//2]:
@@ -471,8 +472,8 @@ def _state_invalidate_half1(root):
         obj._p_invalidate()
 
 
-# _state_details returns text details about ZODB objects directly referenced by
-# root.
+# `_state_details` returns text details about ZODB objects directly referenced
+# by root.
 def _state_details(root):  # -> txt
     # serial for all objects
     keys = list(sorted(root.keys()))
