@@ -28,7 +28,7 @@ A model defines application behaviour by specifying initial database state, a
 "next" step representing database modification, and an invariant, that should
 always be true, no matter how and in which order, simultaneously or serially,
 the next steps are applied by database clients. A model specification is
-represented by ISpec interface.
+represented by IModelSpec interface.
 
 A checker drives the model through particular usage scenario where probability
 of specific race condition is likely to be high. For example
@@ -52,8 +52,9 @@ import threading
 from random import randint
 
 
-class ISpec(Interface):
-    """ISpec interface represents testing specification used by check_race_*"""
+class IModelSpec(Interface):
+    """IModelSpec interface represents testing specification used by
+    check_race_*"""
 
     def init(root):
         """init should initialize database state."""
@@ -69,7 +70,7 @@ class ISpec(Interface):
         """
 
 
-@implementer(ISpec)
+@implementer(IModelSpec)
 class T2ObjectsInc:
     """T2ObjectsInc is specification with behaviour where two objects obj1
     and obj2 are incremented synchronously.
@@ -95,7 +96,7 @@ class T2ObjectsInc:
             raise AssertionError("obj1 (%d)  !=  obj2 (%d)" % (i1, i2))
 
 
-@implementer(ISpec)
+@implementer(IModelSpec)
 class T2ObjectsInc2Phase:
     """T2ObjectsInc2Phase is specification with behaviour where two objects
     obj1 and obj2 are incremented in lock-step.
@@ -140,14 +141,14 @@ class RaceTests(object):
 
     @with_high_concurrency
     def _check_race_loadopen_vs_local_invalidate(self, spec):
-        assert ISpec.providedBy(spec)
+        assert IModelSpec.providedBy(spec)
         db = DB(self._storage)
 
         # init initializes the database according to the spec.
         def init():
             _state_init(db, spec)
 
-        # verify accesses the database and verifies spec invariant.
+        # verify accesses objects in the database and verifies spec invariant.
         #
         # Access to half of the objects is organized to always trigger loading
         # from zstor. Access to the other half goes through zconn cache and so
@@ -176,7 +177,7 @@ class RaceTests(object):
             transaction.abort()
             zconn.close()
 
-        # modify changes the database by executing "next" step.
+        # modify changes objects in the database by executing "next" step.
         #
         # Spec invariant should be preserved.
         def modify():
@@ -252,7 +253,7 @@ class RaceTests(object):
 
     @with_high_concurrency
     def _check_race_load_vs_external_invalidate(self, spec):
-        assert ISpec.providedBy(spec)
+        assert IModelSpec.providedBy(spec)
 
         # init initializes the database according to the spec.
         def init():
@@ -357,12 +358,12 @@ class RaceTests(object):
     # next transaction.
     @long_test
     def check_race_external_invalidate_vs_disconnect(self):
-        return self._check_race_xxx_vs_external_disconnect(
+        return self._check_race_external_invalidate_vs_disconnect(
                                                 T2ObjectsInc2Phase())
 
     @with_high_concurrency
-    def _check_race_xxx_vs_external_disconnect(self, spec):
-        assert ISpec.providedBy(spec)
+    def _check_race_external_invalidate_vs_disconnect(self, spec):
+        assert IModelSpec.providedBy(spec)
 
         # init initializes the database according to the spec.
         def init():
@@ -372,8 +373,8 @@ class RaceTests(object):
 
         nwork = 8*8   # nwork^2 from _check_race_load_vs_external_invalidate
 
-        # T is similar to T from _check_race_load_vs_external_invalidate but
-        # reconnects to the database often.
+        # T is similar to the T from _check_race_load_vs_external_invalidate
+        # but reconnects to the database often.
         failed = threading.Event()
         failure = [None] * nwork  # [tx] is failure from T(tx)
 
