@@ -113,6 +113,23 @@ class TestCase(unittest.TestCase):
 
     tearDown = tearDown
 
+    # propagate .level from tested method to TestCase so that e.g. @long_test
+    # works
+    @property
+    def level(self):
+        f = getattr(self, self._testMethodName)
+        return getattr(f, 'level', 1)
+
+
+def long_test(f):
+    """
+    long_test decorates f to be marked as long-running test.
+
+    Use `zope-testrunner --at-level=1` to run tests without the long-ones.
+    """
+    f.level = 2
+    return f
+
 
 def pack(db):
     db.pack(time.time()+1)

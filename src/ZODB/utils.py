@@ -403,3 +403,13 @@ def load_current(storage, oid, version=''):
         raise ZODB.POSException.POSKeyError(oid)
     assert r[2] is None
     return r[:2]
+
+
+def at2before(at):  # -> before
+    """at2before converts `at` TID to corresponding `before`."""
+    return p64(u64(at) + 1)
+
+
+def before2at(before):  # -> at
+    """before2at converts `before` TID to corresponding `at`."""
+    return p64(u64(before) - 1)
