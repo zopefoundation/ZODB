@@ -15,7 +15,7 @@ with-sphinx-doctests = false
 [tox]
 use-flake8 = true
 testenv-commands = [
-    "zope-testrunner --test-path=src --all {posargs:-vc}",
+    "zope-testrunner --test-path=src -a 1000 {posargs:-vc}",
     ]
 testenv-setenv = [
     "ZOPE_INTERFACE_STRICT_IRO=1",
