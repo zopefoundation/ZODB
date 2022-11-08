@@ -44,7 +44,6 @@ from ZODB._compat import FILESTORAGE_MAGIC
 # this file will need to be udpated.
 
 
-
 class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
 

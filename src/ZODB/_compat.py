@@ -136,6 +136,11 @@ except ImportError:
     from base64 import decodestring as decodebytes
     from base64 import encodestring as encodebytes
 
+# I want to use 'noqa: F401 import unused' on the lines above, for flake8,
+# but isort removes them.  So mention the two imported functions here,
+# so neither flake8 nor isort complains.
+decodebytes, encodebytes
+
 
 # Python 3.x: ``hasattr()`` swallows only AttributeError.
 def py2_hasattr(obj, name):
