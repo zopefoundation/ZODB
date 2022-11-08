@@ -7,9 +7,12 @@ Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
 from __future__ import print_function
+
+from BTrees.check import check
+
 import ZODB
 from ZODB.FileStorage import FileStorage
-from BTrees.check import check
+
 
 # Set of oids we've already visited.  Since the object structure is
 # a general graph, this is needed to prevent unbounded paths in the

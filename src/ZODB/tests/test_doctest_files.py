@@ -14,6 +14,7 @@
 import doctest
 import unittest
 
+
 __test__ = dict(
     cross_db_refs_to_blank_db_name="""
 

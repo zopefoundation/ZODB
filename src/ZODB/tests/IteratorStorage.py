@@ -18,13 +18,16 @@ all these tests.
 
 """
 
+import ZODB.blob
 from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import ZERO
-from ZODB.utils import U64, p64, load_current
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.tests.StorageTestBase import zodb_unpickle
+from ZODB.utils import U64
+from ZODB.utils import load_current
+from ZODB.utils import p64
 
-import ZODB.blob
 
 try:
     from itertools import izip as zip

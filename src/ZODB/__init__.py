@@ -12,12 +12,15 @@
 #
 ##############################################################################
 
-from ZODB.DB import DB, connection
 import sys
 
 from persistent import TimeStamp
 from persistent import list
 from persistent import mapping
+
+from ZODB.DB import DB
+from ZODB.DB import connection
+
 
 # Backward compat for old imports.
 sys.modules['ZODB.TimeStamp'] = sys.modules['persistent.TimeStamp']

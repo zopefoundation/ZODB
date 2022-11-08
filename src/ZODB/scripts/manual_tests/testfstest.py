@@ -3,13 +3,15 @@
 Note:  To run this test script fstest.py must be on your PYTHONPATH.
 """
 
-from cStringIO import StringIO
 import re
 import struct
-import ZODB.tests.util
 
 import fstest
-from fstest import FormatError, U64
+from cStringIO import StringIO
+from fstest import U64
+from fstest import FormatError
+
+import ZODB.tests.util
 
 
 class TestCorruptedFS(ZODB.tests.util.TestCase):

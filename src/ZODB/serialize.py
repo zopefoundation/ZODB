@@ -136,11 +136,16 @@ A number of legacyforms are defined:
 import logging
 
 from persistent import Persistent
-from persistent.wref import WeakRefMarker, WeakRef
+from persistent.wref import WeakRef
+from persistent.wref import WeakRefMarker
+
 from ZODB import broken
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentPickler
+from ZODB._compat import PersistentUnpickler
+from ZODB._compat import _protocol
+from ZODB._compat import binary
 from ZODB.POSException import InvalidObjectReference
-from ZODB._compat import PersistentPickler, PersistentUnpickler, BytesIO
-from ZODB._compat import _protocol, binary
 
 
 _oidtypes = bytes, type(None)

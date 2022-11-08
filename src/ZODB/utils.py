@@ -12,22 +12,24 @@
 #
 ##############################################################################
 from __future__ import print_function
+
 import os
 import struct
 import sys
-import time
 import threading
-from binascii import hexlify, unhexlify
-
+import time
+from binascii import hexlify
+from binascii import unhexlify
 from tempfile import mkstemp
+
+from six import PY2
 
 from persistent.timestamp import TimeStamp
 
-from ZODB._compat import Unpickler
 from ZODB._compat import BytesIO
+from ZODB._compat import Unpickler
 from ZODB._compat import ascii_bytes
 
-from six import PY2
 
 __all__ = ['z64',
            'p64',
@@ -379,7 +381,6 @@ if os.environ.get('DEBUG_LOCKING'):  # pragma: no cover
 else:
 
     from threading import Condition, Lock, RLock  # noqa: F401 import unused
-
 
 import ZODB.POSException  # noqa: E402 module level import not at top of file
 

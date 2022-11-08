@@ -20,8 +20,11 @@ from persistent.wref import WeakRef
 
 import ZODB.tests.util
 from ZODB import serialize
-from ZODB._compat import Pickler, PersistentUnpickler, BytesIO, _protocol
 from ZODB._compat import IS_JYTHON
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentUnpickler
+from ZODB._compat import Pickler
+from ZODB._compat import _protocol
 
 
 class PersistentObject(Persistent):
@@ -222,6 +225,7 @@ def _functest_prep(fqn):
     # run in separate process)
     import transaction
     from BTrees.OOBTree import OOBTree
+
     from ZODB import DB
     WORKING, FAILING = _working_failing_datetimes()
     db = DB(fqn)

@@ -24,32 +24,38 @@ import time
 from struct import pack
 from struct import unpack
 
-from persistent.TimeStamp import TimeStamp
 from six import string_types as STRING_TYPES
+
+from persistent.TimeStamp import TimeStamp
 from zc.lockfile import LockFile
 from zope.interface import alsoProvides
 from zope.interface import implementer
 
-from .. import utils
-
+from ZODB._compat import FILESTORAGE_MAGIC
+from ZODB._compat import Pickler
+from ZODB._compat import _protocol
+from ZODB._compat import decodebytes
+from ZODB._compat import encodebytes
+from ZODB._compat import loads
+from ZODB.BaseStorage import BaseStorage
+from ZODB.BaseStorage import DataRecord as _DataRecord
+from ZODB.BaseStorage import TransactionRecord as _TransactionRecord
 from ZODB.blob import BlobStorageMixin
 from ZODB.blob import link_or_copy
 from ZODB.blob import remove_committed
 from ZODB.blob import remove_committed_dir
-from ZODB.BaseStorage import BaseStorage
-from ZODB.BaseStorage import DataRecord as _DataRecord
-from ZODB.BaseStorage import TransactionRecord as _TransactionRecord
 from ZODB.ConflictResolution import ConflictResolvingStorage
-from ZODB.FileStorage.format import CorruptedDataError
-from ZODB.FileStorage.format import CorruptedError
 from ZODB.FileStorage.format import DATA_HDR
 from ZODB.FileStorage.format import DATA_HDR_LEN
-from ZODB.FileStorage.format import DataHeader
-from ZODB.FileStorage.format import FileStorageFormatter
 from ZODB.FileStorage.format import TRANS_HDR
 from ZODB.FileStorage.format import TRANS_HDR_LEN
+from ZODB.FileStorage.format import CorruptedDataError
+from ZODB.FileStorage.format import CorruptedError
+from ZODB.FileStorage.format import DataHeader
+from ZODB.FileStorage.format import FileStorageFormatter
 from ZODB.FileStorage.format import TxnHeader
 from ZODB.FileStorage.fspack import FileStoragePacker
+from ZODB.fsIndex import fsIndex
 from ZODB.interfaces import IBlobStorageRestoreable
 from ZODB.interfaces import IExternalGC
 from ZODB.interfaces import IStorage
@@ -65,7 +71,6 @@ from ZODB.POSException import StorageError
 from ZODB.POSException import StorageSystemError
 from ZODB.POSException import StorageTransactionError
 from ZODB.POSException import UndoError
-from ZODB.fsIndex import fsIndex
 from ZODB.utils import as_bytes
 from ZODB.utils import as_text
 from ZODB.utils import cp
@@ -74,12 +79,8 @@ from ZODB.utils import mktemp
 from ZODB.utils import p64
 from ZODB.utils import u64
 from ZODB.utils import z64
-from ZODB._compat import Pickler
-from ZODB._compat import loads
-from ZODB._compat import decodebytes
-from ZODB._compat import encodebytes
-from ZODB._compat import _protocol
-from ZODB._compat import FILESTORAGE_MAGIC
+
+from .. import utils
 
 
 # Not all platforms have fsync

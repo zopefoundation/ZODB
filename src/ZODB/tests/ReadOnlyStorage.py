@@ -12,8 +12,8 @@
 #
 ##############################################################################
 from ZODB.Connection import TransactionMetaData
-from ZODB.POSException import ReadOnlyError, Unsupported
-
+from ZODB.POSException import ReadOnlyError
+from ZODB.POSException import Unsupported
 from ZODB.utils import load_current
 
 

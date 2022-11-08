@@ -7,11 +7,15 @@ usage: netspace.py [-P | -v] data.fs
 -v: print info for all objects, even if a traversal path isn't found
 """
 from __future__ import print_function
+
+from six.moves import filter
+
 import ZODB
 from ZODB.FileStorage import FileStorage
-from ZODB.utils import U64, get_pickle_metadata, load_current
 from ZODB.serialize import referencesf
-from six.moves import filter
+from ZODB.utils import U64
+from ZODB.utils import get_pickle_metadata
+from ZODB.utils import load_current
 
 
 def find_paths(root, maxdist):
@@ -100,8 +104,8 @@ def main(path):
 
 
 def Main():
-    import sys
     import getopt
+    import sys
 
     global PACK
     global VERBOSE

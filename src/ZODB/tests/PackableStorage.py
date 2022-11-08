@@ -17,22 +17,28 @@ from __future__ import print_function
 import doctest
 import time
 
+import transaction
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
+
+import ZODB.interfaces
+import ZODB.tests.util
 from ZODB import DB
-from ZODB.POSException import ConflictError, StorageError
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentPickler
+from ZODB._compat import Pickler
+from ZODB._compat import Unpickler
+from ZODB._compat import _protocol
+from ZODB._compat import loads
+from ZODB.POSException import ConflictError
+from ZODB.POSException import StorageError
 from ZODB.serialize import referencesf
 from ZODB.tests.MinPO import MinPO
 from ZODB.tests.MTStorage import TestThread
 from ZODB.tests.StorageTestBase import snooze
-from ZODB._compat import (loads, PersistentPickler, Pickler, Unpickler,
-                          BytesIO, _protocol)
-import transaction
-import ZODB.interfaces
-import ZODB.tests.util
 from ZODB.tests.util import time_monotonically_increases
-
 from ZODB.utils import load_current
+
 
 ZERO = b'\0'*8
 

@@ -15,29 +15,31 @@
 """
 from __future__ import print_function
 
-import sys
-import logging
 import datetime
+import logging
+import sys
 import time
 import warnings
 import weakref
 from itertools import chain
 
-from persistent.TimeStamp import TimeStamp
 import six
 
 import transaction
-
+from persistent.TimeStamp import TimeStamp
 from zope.interface import implementer
 
+import ZODB.serialize
 from ZODB import utils
+from ZODB import valuedoc
+from ZODB.broken import find_global
+from ZODB.Connection import Connection
+from ZODB.Connection import TransactionMetaData
+from ZODB.Connection import noop
 from ZODB.interfaces import IDatabase
 from ZODB.interfaces import IMVCCStorage
-from ZODB.broken import find_global
 from ZODB.utils import z64
-from ZODB.Connection import Connection, TransactionMetaData, noop
-import ZODB.serialize
-from ZODB import valuedoc
+
 
 logger = logging.getLogger('ZODB.DB')
 

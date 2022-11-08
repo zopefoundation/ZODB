@@ -11,18 +11,20 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import doctest
+import unittest
+
+import manuel.capture
 import manuel.doctest
 import manuel.footnote
-import doctest
-import manuel.capture
 import manuel.testing
 import persistent
 import transaction
-import unittest
-import ZODB.ConflictResolution
-import ZODB.tests.util
-import ZODB.POSException
 import zope.testing.module
+
+import ZODB.ConflictResolution
+import ZODB.POSException
+import ZODB.tests.util
 
 
 def setUp(test):

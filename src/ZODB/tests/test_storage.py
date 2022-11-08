@@ -21,13 +21,14 @@ storage tests against the test storage.
 import bisect
 import unittest
 
-from ZODB.BaseStorage import BaseStorage
 from ZODB import POSException
-from ZODB.utils import z64
-
-from ZODB.tests import StorageTestBase
-from ZODB.tests import BasicStorage, MTStorage, Synchronization
+from ZODB.BaseStorage import BaseStorage
+from ZODB.tests import BasicStorage
+from ZODB.tests import MTStorage
 from ZODB.tests import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests import Synchronization
+from ZODB.utils import z64
 
 
 class Transaction(object):

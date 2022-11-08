@@ -12,11 +12,13 @@
 #
 ##############################################################################
 import doctest
-import persistent.mapping
 import re
-import transaction
 import unittest
+
+import persistent.mapping
+import transaction
 from zope.testing import renormalizing
+
 
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".

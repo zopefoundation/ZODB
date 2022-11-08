@@ -11,10 +11,11 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from os.path import join
-import os
 import doctest
+import os
 import unittest
+from os.path import join
+
 import manuel.capture
 import manuel.doctest
 import manuel.testing

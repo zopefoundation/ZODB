@@ -11,17 +11,20 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from six import PY2
-
-from ZODB.tests.MinPO import MinPO
 import doctest
 import re
 import time
-import transaction
 import unittest
+
+from six import PY2
+
+import transaction
+from zope.testing import renormalizing
+
 import ZODB
 import ZODB.tests.util
-from zope.testing import renormalizing
+from ZODB.tests.MinPO import MinPO
+
 
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".

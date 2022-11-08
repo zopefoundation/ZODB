@@ -9,8 +9,14 @@ also simplifies the implementation of the DB and Connection classes.
 """
 import zope.interface
 
-from . import interfaces, serialize, POSException
-from .utils import p64, u64, Lock, oid_repr, tid_repr
+from . import POSException
+from . import interfaces
+from . import serialize
+from .utils import Lock
+from .utils import oid_repr
+from .utils import p64
+from .utils import tid_repr
+from .utils import u64
 
 
 class Base(object):

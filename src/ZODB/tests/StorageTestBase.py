@@ -19,14 +19,19 @@ method _dostore() which performs a complete store transaction for a
 single object revision.
 """
 from __future__ import print_function
+
 import sys
 import time
 
-from ZODB.Connection import TransactionMetaData
-from ZODB.utils import u64, z64
-from ZODB.tests.MinPO import MinPO
-from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
 import ZODB.tests.util
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentPickler
+from ZODB._compat import Unpickler
+from ZODB._compat import _protocol
+from ZODB.Connection import TransactionMetaData
+from ZODB.tests.MinPO import MinPO
+from ZODB.utils import u64
+from ZODB.utils import z64
 
 
 ZERO = z64

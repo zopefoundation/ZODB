@@ -113,6 +113,7 @@ Usage: loadmail2 [options]
        are equivalent
 """
 from __future__ import print_function
+
 import mailbox
 import math
 import os
@@ -121,6 +122,7 @@ import re
 import sys
 import threading
 import time
+
 import transaction
 
 
@@ -237,15 +239,16 @@ def setup(lib_python):
         os.remove(os.path.join(lib_python, '..', '..', 'var', 'Data.fs'))
     except:  # noqa: E722 do not use bare 'except'
         pass
-    import Zope2
-    import Products
     import AccessControl.SecurityManagement
+    import Products
+    import Zope2
     app = Zope2.app()
 
     Products.ZCatalog.ZCatalog.manage_addZCatalog(app, 'cat', '')
 
+    from Products.ZCTextIndex.Lexicon import CaseNormalizer
+    from Products.ZCTextIndex.Lexicon import Splitter
     from Products.ZCTextIndex.ZCTextIndex import PLexicon
-    from Products.ZCTextIndex.Lexicon import Splitter, CaseNormalizer
 
     app.cat._setObject('lex',
                        PLexicon('lex', '', Splitter(), CaseNormalizer())
@@ -833,9 +836,9 @@ def main(args=None):
 
 
 def zetup(configfile_name):
-    from Zope.Startup.options import ZopeOptions
-    from Zope.Startup import handlers as h
     from App import config
+    from Zope.Startup import handlers as h
+    from Zope.Startup.options import ZopeOptions
     opts = ZopeOptions()
     opts.configfile = configfile_name
     opts.realize(args=[])

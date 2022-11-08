@@ -11,9 +11,12 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-from zodbpickle import binary  # noqa: F401 import unused
 import sys
+
 from six import PY3
+
+from zodbpickle import binary  # noqa: F401 import unused
+
 
 IS_JYTHON = sys.platform.startswith('java')
 
@@ -126,11 +129,12 @@ except ImportError:
 
 try:
     # Python 3.x
-    from base64 import decodebytes, encodebytes
+    from base64 import decodebytes
+    from base64 import encodebytes
 except ImportError:
     # Python 2.x
-    from base64 import decodestring as decodebytes  # noqa: F401 import unused
-    from base64 import encodestring as encodebytes  # noqa: F401 import unused
+    from base64 import decodestring as decodebytes
+    from base64 import encodestring as encodebytes
 
 
 # Python 3.x: ``hasattr()`` swallows only AttributeError.

@@ -422,6 +422,7 @@ import re
 
 from zope.testing import renormalizing
 
+
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".
     (re.compile("b('.*?')"), r"\1"),

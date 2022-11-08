@@ -41,15 +41,20 @@ https://github.com/zopefoundation/ZODB/issues/290 and
 https://github.com/zopefoundation/ZEO/issues/166.
 """
 
-import transaction
-from ZODB import DB, POSException
-from ZODB.utils import tid_repr, at2before
-from ZODB.tests.MinPO import MinPO
-from ZODB.tests.util import with_high_concurrency, long_test
-from zope.interface import Interface, implementer
-
 import threading
 from random import randint
+
+import transaction
+from zope.interface import Interface
+from zope.interface import implementer
+
+from ZODB import DB
+from ZODB import POSException
+from ZODB.tests.MinPO import MinPO
+from ZODB.tests.util import long_test
+from ZODB.tests.util import with_high_concurrency
+from ZODB.utils import at2before
+from ZODB.utils import tid_repr
 
 
 class IModelSpec(Interface):

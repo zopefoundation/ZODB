@@ -1,4 +1,5 @@
 from __future__ import print_function
+
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Foundation and Contributors.
@@ -15,10 +16,13 @@ from __future__ import print_function
 import struct
 
 from ZODB.FileStorage import FileIterator
-from ZODB.FileStorage.format import TRANS_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import DATA_HDR, DATA_HDR_LEN
+from ZODB.FileStorage.format import DATA_HDR
+from ZODB.FileStorage.format import DATA_HDR_LEN
+from ZODB.FileStorage.format import TRANS_HDR
+from ZODB.FileStorage.format import TRANS_HDR_LEN
 from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, get_pickle_metadata
+from ZODB.utils import get_pickle_metadata
+from ZODB.utils import u64
 
 
 def fsdump(path, file=None, with_offset=1):

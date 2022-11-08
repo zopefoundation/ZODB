@@ -18,14 +18,15 @@ import random
 import sys
 import unittest
 
-import ZODB
-import ZODB.tests.util
-from ZODB.FileStorage import FileStorage
-from ZODB._compat import decodebytes
-import ZODB.fsrecover
-
-from persistent.mapping import PersistentMapping
 import transaction
+from persistent.mapping import PersistentMapping
+
+import ZODB
+import ZODB.fsrecover
+import ZODB.tests.util
+from ZODB._compat import decodebytes
+from ZODB.FileStorage import FileStorage
+
 
 try:
     import StringIO

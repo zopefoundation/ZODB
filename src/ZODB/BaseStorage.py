@@ -18,19 +18,27 @@ its use is not recommended.  It's still here for historical reasons.
 """
 from __future__ import print_function
 
-import time
 import logging
-from struct import pack as _structpack, unpack as _structunpack
+import time
+from struct import pack as _structpack
+from struct import unpack as _structunpack
 
 import zope.interface
 from persistent.TimeStamp import TimeStamp
 
 import ZODB.interfaces
-from . import POSException, utils
-from .Connection import TransactionMetaData
-from .utils import z64, oid_repr, byte_ord, byte_chr, load_current
-from .UndoLogCompatible import UndoLogCompatible
+
+from . import POSException
+from . import utils
 from ._compat import py2_hasattr
+from .Connection import TransactionMetaData
+from .UndoLogCompatible import UndoLogCompatible
+from .utils import byte_chr
+from .utils import byte_ord
+from .utils import load_current
+from .utils import oid_repr
+from .utils import z64
+
 
 log = logging.getLogger("ZODB.BaseStorage")
 

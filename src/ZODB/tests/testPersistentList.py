@@ -15,9 +15,11 @@
 """
 
 import unittest
-from persistent.list import PersistentList
 
 from six import PY2
+
+from persistent.list import PersistentList
+
 
 l0 = []
 l1 = [0]

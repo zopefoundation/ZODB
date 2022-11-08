@@ -86,9 +86,11 @@
 import logging
 import struct
 
-from ZODB.POSException import POSKeyError
-from ZODB.utils import u64, oid_repr, as_bytes
 from ZODB._compat import PY3
+from ZODB.POSException import POSKeyError
+from ZODB.utils import as_bytes
+from ZODB.utils import oid_repr
+from ZODB.utils import u64
 
 
 class CorruptedError(Exception):

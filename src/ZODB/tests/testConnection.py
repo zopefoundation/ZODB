@@ -14,24 +14,29 @@
 """Unit tests for the Connection class."""
 from __future__ import print_function
 
-from contextlib import contextmanager
 import doctest
 import re
-import six
 import sys
 import unittest
+from contextlib import contextmanager
+
+import six
 
 import transaction
+from persistent import Persistent
 from transaction import Transaction
+from zope.interface.verify import verifyObject
+from zope.testing import loggingsupport
+from zope.testing import renormalizing
 
 import ZODB.tests.util
 from ZODB.config import databaseFromString
-from ZODB.utils import p64, u64, z64
-from persistent import Persistent
-from zope.interface.verify import verifyObject
-from zope.testing import loggingsupport, renormalizing
+from ZODB.utils import p64
+from ZODB.utils import u64
+from ZODB.utils import z64
 
 from .. import mvccadapter
+
 
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".

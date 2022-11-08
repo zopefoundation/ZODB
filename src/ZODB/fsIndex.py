@@ -40,9 +40,10 @@
 # integers.
 import struct
 
+import six
+
 from BTrees.fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
-import six
 
 from ZODB._compat import INT_TYPES
 from ZODB._compat import Pickler

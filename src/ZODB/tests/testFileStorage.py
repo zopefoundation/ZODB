@@ -12,6 +12,8 @@
 #
 ##############################################################################
 import os
+
+
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing import doctest
 else:
@@ -19,24 +21,40 @@ else:
 
 import sys
 import unittest
+
 import transaction
+import zope.testing.setupstack
+
 import ZODB.FileStorage
 import ZODB.tests.hexstorage
 import ZODB.tests.testblob
-import zope.testing.setupstack
-from ZODB import POSException
 from ZODB import DB
+from ZODB import POSException
+from ZODB._compat import _protocol
+from ZODB._compat import dump
+from ZODB._compat import dumps
 from ZODB.Connection import TransactionMetaData
 from ZODB.fsIndex import fsIndex
-from ZODB.utils import U64, p64, z64, load_current
-
-from ZODB.tests import StorageTestBase, BasicStorage, TransactionalUndoStorage
-from ZODB.tests import PackableStorage, Synchronization, ConflictResolution
-from ZODB.tests import HistoryStorage, IteratorStorage, Corruption
-from ZODB.tests import RevisionStorage, PersistentStorage, MTStorage
-from ZODB.tests import ReadOnlyStorage, RecoveryStorage
-from ZODB.tests.StorageTestBase import MinPO, zodb_pickle
-from ZODB._compat import dump, dumps, _protocol
+from ZODB.tests import BasicStorage
+from ZODB.tests import ConflictResolution
+from ZODB.tests import Corruption
+from ZODB.tests import HistoryStorage
+from ZODB.tests import IteratorStorage
+from ZODB.tests import MTStorage
+from ZODB.tests import PackableStorage
+from ZODB.tests import PersistentStorage
+from ZODB.tests import ReadOnlyStorage
+from ZODB.tests import RecoveryStorage
+from ZODB.tests import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests import Synchronization
+from ZODB.tests import TransactionalUndoStorage
+from ZODB.tests.StorageTestBase import MinPO
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.utils import U64
+from ZODB.utils import load_current
+from ZODB.utils import p64
+from ZODB.utils import z64
 
 from . import util
 
@@ -153,8 +171,9 @@ class FileStorageTests(
         # converted the fsIndex class from using a dictionary as its
         # self._data attribute to using an OOBTree in its stead.
 
-        from ZODB.fsIndex import fsIndex
         from BTrees.OOBTree import OOBTree
+
+        from ZODB.fsIndex import fsIndex
 
         # Create some data, and remember the index.
         for i in range(10):
@@ -446,7 +465,9 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
 
     def checkanalyze(self):
         import types
+
         from BTrees.OOBTree import OOBTree
+
         from ZODB.scripts import analyze
 
         # Set up a module to act as a broken import
@@ -515,6 +536,7 @@ def checkIncreasingTids(fs):
 
 def timestamp(minutes):
     import time
+
     from persistent.TimeStamp import TimeStamp
 
     t = time.time() + 60 * minutes

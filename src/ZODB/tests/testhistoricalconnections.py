@@ -14,6 +14,7 @@
 import manuel.doctest
 import manuel.footnote
 import manuel.testing
+
 import ZODB.tests.util
 
 

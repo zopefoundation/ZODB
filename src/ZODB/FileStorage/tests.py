@@ -15,13 +15,16 @@ import doctest
 import os
 import re
 import time
-import transaction
 import unittest
+
+import transaction
+from zope.testing import renormalizing
+
 import ZODB.blob
 import ZODB.FileStorage
 import ZODB.tests.util
 from ZODB.Connection import TransactionMetaData
-from zope.testing import renormalizing
+
 
 checker = renormalizing.RENormalizing([
     # Python 3 bytes add a "b".

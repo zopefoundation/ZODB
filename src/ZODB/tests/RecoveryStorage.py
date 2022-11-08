@@ -13,17 +13,18 @@
 ##############################################################################
 """More recovery and iterator tests."""
 
-import transaction
-from ZODB.Connection import TransactionMetaData
-from ZODB.tests.IteratorStorage import IteratorDeepCompare
-from ZODB.tests.StorageTestBase import MinPO, snooze
-from ZODB import DB
-from ZODB.serialize import referencesf
-
-from ZODB.utils import load_current
-from ZODB.tests.util import time_monotonically_increases
-
 import time
+
+import transaction
+
+from ZODB import DB
+from ZODB.Connection import TransactionMetaData
+from ZODB.serialize import referencesf
+from ZODB.tests.IteratorStorage import IteratorDeepCompare
+from ZODB.tests.StorageTestBase import MinPO
+from ZODB.tests.StorageTestBase import snooze
+from ZODB.tests.util import time_monotonically_increases
+from ZODB.utils import load_current
 
 
 class RecoveryStorage(IteratorDeepCompare):

@@ -62,14 +62,21 @@ revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
 from __future__ import print_function
+
 import traceback
 
-from ZODB.FileStorage import FileStorage
-from ZODB.TimeStamp import TimeStamp
-from ZODB.utils import u64, p64, oid_repr, get_pickle_metadata, load_current
-from ZODB.serialize import get_refs
-from ZODB.POSException import POSKeyError
 from BTrees.QQBTree import QQBTree
+
+from ZODB.FileStorage import FileStorage
+from ZODB.POSException import POSKeyError
+from ZODB.serialize import get_refs
+from ZODB.TimeStamp import TimeStamp
+from ZODB.utils import get_pickle_metadata
+from ZODB.utils import load_current
+from ZODB.utils import oid_repr
+from ZODB.utils import p64
+from ZODB.utils import u64
+
 
 # There's a problem with oid.  'data' is its pickle, and 'serial' its
 # serial number.  'missing' is a list of (oid, class, reason) triples,
@@ -98,8 +105,8 @@ def report(oid, data, serial, missing):
 def main(path=None):
     verbose = 0
     if path is None:
-        import sys
         import getopt
+        import sys
 
         opts, args = getopt.getopt(sys.argv[1:], "v")
         for k, v in opts:

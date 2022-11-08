@@ -18,17 +18,19 @@ http://www.zope.org/Documentation/Developer/Models/ZODB/ZODB_Architecture_Storag
 
 All storages should be able to pass these tests.
 """
+import threading
+import time
+
+import zope.interface
+import zope.interface.verify
+
 from ZODB import POSException
 from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle
-from ZODB.tests.StorageTestBase import ZERO
 from ZODB.tests.racetest import RaceTests
-
-import threading
-import time
-import zope.interface
-import zope.interface.verify
+from ZODB.tests.StorageTestBase import ZERO
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.tests.StorageTestBase import zodb_unpickle
 
 from .. import utils
 

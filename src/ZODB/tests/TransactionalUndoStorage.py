@@ -19,18 +19,19 @@ import time
 
 from six import PY3
 
-from persistent import Persistent
 import transaction
+from persistent import Persistent
 
+from ZODB import DB
 from ZODB import POSException
 from ZODB.Connection import TransactionMetaData
 from ZODB.serialize import referencesf
-from ZODB.utils import p64, load_current
-from ZODB import DB
-
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
 from ZODB.tests.StorageTestBase import ZERO
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.tests.StorageTestBase import zodb_unpickle
+from ZODB.utils import load_current
+from ZODB.utils import p64
 
 
 class C(Persistent):

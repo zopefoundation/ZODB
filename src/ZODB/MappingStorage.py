@@ -17,14 +17,16 @@ This storage provides an example implementation of a fairly full
 storage without distracting storage details.
 """
 
-import BTrees
 import time
+
+import BTrees
+import zope.interface
+
 import ZODB.BaseStorage
 import ZODB.interfaces
 import ZODB.POSException
 import ZODB.TimeStamp
 import ZODB.utils
-import zope.interface
 
 
 @zope.interface.implementer(

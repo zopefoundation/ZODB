@@ -24,18 +24,18 @@ import sys
 import tempfile
 import weakref
 
-import zope.interface
 import persistent
+import zope.interface
 
 import ZODB.interfaces
-from ZODB.interfaces import BlobError
 from ZODB import utils
-from ZODB.POSException import POSKeyError
+from ZODB._compat import PY3
 from ZODB._compat import BytesIO
 from ZODB._compat import PersistentUnpickler
-from ZODB._compat import decodebytes
 from ZODB._compat import ascii_bytes
-from ZODB._compat import PY3
+from ZODB._compat import decodebytes
+from ZODB.interfaces import BlobError
+from ZODB.POSException import POSKeyError
 
 
 if PY3:
