@@ -18,8 +18,8 @@ See ZODB/ActivityMonitor.py
 $Id$
 """
 
-import unittest
 import time
+import unittest
 
 from ZODB.ActivityMonitor import ActivityMonitor
 

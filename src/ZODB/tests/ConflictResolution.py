@@ -13,12 +13,13 @@
 ##############################################################################
 """Tests for application-level conflict resolution."""
 
-from ZODB import DB
-from ZODB.Connection import TransactionMetaData
-from ZODB.POSException import ConflictError, UndoError
 from persistent import Persistent
 from transaction import TransactionManager
 
+from ZODB import DB
+from ZODB.Connection import TransactionMetaData
+from ZODB.POSException import ConflictError
+from ZODB.POSException import UndoError
 from ZODB.tests.StorageTestBase import zodb_pickle
 
 
@@ -96,7 +97,8 @@ class ConflictResolvingStorage(object):
         self.checkResolve(False)
 
     def checkZClassesArentResolved(self):
-        from ZODB.ConflictResolution import find_global, BadClassName
+        from ZODB.ConflictResolution import BadClassName
+        from ZODB.ConflictResolution import find_global
         self.assertRaises(BadClassName, find_global, '*foobar', ())
 
     def checkBuggyResolve1(self):

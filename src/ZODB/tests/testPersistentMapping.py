@@ -20,14 +20,15 @@ If the new code doesn't generate pickles that are consistent with the
 old code, developers will have a hard time testing the new code.
 """
 
-import unittest
 import sys
+import unittest
+
+from six import PY2
 
 import ZODB
 from ZODB.Connection import TransactionMetaData
 from ZODB.MappingStorage import MappingStorage
 
-from six import PY2
 
 # This pickle contains a persistent mapping pickle created from the
 # old code.
@@ -63,6 +64,7 @@ class PMTests(unittest.TestCase):
     def checkBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from persistent.mapping import PersistentMapping as newPath
+
         from ZODB.PersistentMapping import PersistentMapping as oldPath
 
         self.assertTrue(oldPath is newPath)

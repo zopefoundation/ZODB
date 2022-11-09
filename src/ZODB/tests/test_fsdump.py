@@ -67,11 +67,14 @@ Clean up.
 >>> db.close()
 """  # noqa: E501 line too long
 
-import re
 import doctest
+import re
+
 import zope.testing.setupstack
-import ZODB.tests.util
 from zope.testing import renormalizing
+
+import ZODB.tests.util
+
 
 checker = renormalizing.RENormalizing([
     # Normalizing this makes diffs easier to read

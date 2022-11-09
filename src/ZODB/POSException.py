@@ -15,13 +15,13 @@
 
 $Id$"""
 
-from ZODB.utils import oid_repr, readable_tid_repr
-
+import transaction.interfaces
 # BBB: We moved the two transactions to the transaction package
 from transaction.interfaces import TransactionError  # noqa: F401 import unused
 from transaction.interfaces import TransactionFailedError  # noqa: F401
 
-import transaction.interfaces
+from ZODB.utils import oid_repr
+from ZODB.utils import readable_tid_repr
 
 
 def _fmt_undo(oid, reason):

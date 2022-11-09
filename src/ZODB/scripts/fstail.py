@@ -14,11 +14,13 @@
 ##############################################################################
 """Tool to dump the last few transactions from a FileStorage."""
 from __future__ import print_function
-from ZODB.fstools import prev_txn
 
 import binascii
 import getopt
 import sys
+
+from ZODB.fstools import prev_txn
+
 
 try:
     from hashlib import sha1

@@ -14,8 +14,11 @@
 import doctest
 import re
 import unittest
-import ZODB.tests.util
+
 import zope.testing.renormalizing
+
+import ZODB.tests.util
+
 
 checker = zope.testing.renormalizing.RENormalizing([
     (re.compile(

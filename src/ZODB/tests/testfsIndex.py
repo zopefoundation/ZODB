@@ -15,10 +15,14 @@ import doctest
 import random
 import unittest
 
-from ZODB.fsIndex import fsIndex
-from ZODB.utils import p64, z64
-from ZODB.tests.util import setUp, tearDown
 import six
+
+from ZODB.fsIndex import fsIndex
+from ZODB.tests.util import setUp
+from ZODB.tests.util import tearDown
+from ZODB.utils import p64
+from ZODB.utils import z64
+
 
 try:
     xrange

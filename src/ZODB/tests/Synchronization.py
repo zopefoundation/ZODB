@@ -65,6 +65,7 @@ tested?  Is it a general restriction?
 from ZODB.Connection import TransactionMetaData
 from ZODB.POSException import StorageTransactionError
 
+
 OID = "\000" * 8
 SERIALNO = "\000" * 8
 TID = "\000" * 8

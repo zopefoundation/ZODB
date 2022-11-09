@@ -13,8 +13,10 @@
 ##############################################################################
 import doctest
 import sys
-import transaction
 import unittest
+
+import transaction
+
 import ZODB.persistentclass
 import ZODB.tests.util
 

@@ -13,18 +13,21 @@
 ##############################################################################
 
 import logging
-
-import six
-import zope.interface
-from ZODB.POSException import ConflictError
-from ZODB.loglevels import BLATHER
-from ZODB._compat import (
-    BytesIO, PersistentUnpickler, PersistentPickler, _protocol)
-
 # Subtle: Python 2.x has pickle.PicklingError and cPickle.PicklingError,
 # and these are unrelated classes!  So we shouldn't use pickle.PicklingError,
 # since on Python 2, ZODB._compat.pickle is cPickle.
 from pickle import PicklingError
+
+import six
+
+import zope.interface
+
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentPickler
+from ZODB._compat import PersistentUnpickler
+from ZODB._compat import _protocol
+from ZODB.loglevels import BLATHER
+from ZODB.POSException import ConflictError
 
 
 logger = logging.getLogger('ZODB.ConflictResolution')

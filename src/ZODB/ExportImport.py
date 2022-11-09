@@ -19,12 +19,18 @@ from tempfile import TemporaryFile
 
 import six
 
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentPickler
+from ZODB._compat import Unpickler
+from ZODB._compat import _protocol
 from ZODB.blob import Blob
 from ZODB.interfaces import IBlobStorage
 from ZODB.POSException import ExportError
 from ZODB.serialize import referencesf
-from ZODB.utils import p64, u64, cp, mktemp
-from ZODB._compat import PersistentPickler, Unpickler, BytesIO, _protocol
+from ZODB.utils import cp
+from ZODB.utils import mktemp
+from ZODB.utils import p64
+from ZODB.utils import u64
 
 
 logger = logging.getLogger('ZODB.ExportImport')

@@ -85,18 +85,21 @@ Options for -V/--verify:
         Verify file sizes only (skip md5 checksums).
 """
 from __future__ import print_function
-import re
-import os
-import shutil
-import sys
-from six.moves import filter
-from hashlib import md5
-import gzip
-import time
+
 import errno
 import getopt
+import gzip
+import os
+import re
+import shutil
+import sys
+import time
+from hashlib import md5
+
+from six.moves import filter
 
 from ZODB.FileStorage import FileStorage
+
 
 program = sys.argv[0]
 

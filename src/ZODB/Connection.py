@@ -14,43 +14,55 @@
 """Database connection support
 """
 from __future__ import print_function
+
 import logging
-import tempfile
-import warnings
 import os
+import tempfile
 import time
+import warnings
 
+import six
+
+import transaction
 from persistent import PickleCache
-
 # interfaces
 from persistent.interfaces import IPersistentDataManager
-from ZODB.interfaces import IConnection
-from ZODB.interfaces import IBlobStorage
-from ZODB.interfaces import IStorageTransactionMetaData
-from ZODB.blob import Blob, rename_or_copy_blob, remove_committed_dir
-from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import IDataManagerSavepoint
+from transaction.interfaces import ISavepointDataManager
 from transaction.interfaces import ISynchronizer
 from zope.interface import implementer
 
-import transaction
-
 import ZODB
-from ZODB.blob import SAVEPOINT_SUFFIX
-from ZODB.ExportImport import ExportImport
 from ZODB import POSException
-from ZODB.POSException import InvalidObjectReference, ConnectionStateError
-from ZODB.POSException import ConflictError, ReadConflictError
-from ZODB.POSException import Unsupported, ReadOnlyHistoryError
-from ZODB.serialize import ObjectWriter, ObjectReader
-from ZODB.utils import p64, u64, z64, oid_repr, positive_id
 from ZODB import utils
-import six
-
-from ._compat import dumps, loads, _protocol
-from .mvccadapter import HistoricalStorageAdapter
+from ZODB.blob import SAVEPOINT_SUFFIX
+from ZODB.blob import Blob
+from ZODB.blob import remove_committed_dir
+from ZODB.blob import rename_or_copy_blob
+from ZODB.ExportImport import ExportImport
+from ZODB.interfaces import IBlobStorage
+from ZODB.interfaces import IConnection
+from ZODB.interfaces import IStorageTransactionMetaData
+from ZODB.POSException import ConflictError
+from ZODB.POSException import ConnectionStateError
+from ZODB.POSException import InvalidObjectReference
+from ZODB.POSException import ReadConflictError
+from ZODB.POSException import ReadOnlyHistoryError
+from ZODB.POSException import Unsupported
+from ZODB.serialize import ObjectReader
+from ZODB.serialize import ObjectWriter
+from ZODB.utils import oid_repr
+from ZODB.utils import p64
+from ZODB.utils import positive_id
+from ZODB.utils import u64
+from ZODB.utils import z64
 
 from . import valuedoc
+from ._compat import _protocol
+from ._compat import dumps
+from ._compat import loads
+from .mvccadapter import HistoricalStorageAdapter
+
 
 global_reset_counter = 0
 

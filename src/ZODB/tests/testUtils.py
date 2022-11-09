@@ -16,11 +16,14 @@ import doctest
 import random
 import re
 import unittest
-from persistent import Persistent
 
+from persistent import Persistent
 from zope.testing import renormalizing
-from ZODB.utils import U64, p64, u64
+
 from ZODB._compat import loads
+from ZODB.utils import U64
+from ZODB.utils import p64
+from ZODB.utils import u64
 
 
 NUM = 100
@@ -73,8 +76,8 @@ class TestUtils(unittest.TestCase):
     # the pickle (and so also trying to import application module and
     # class objects, which isn't a good idea on a ZEO server when avoidable).
     def test_ConflictErrorDoesntImport(self):
-        from ZODB.serialize import ObjectWriter
         from ZODB.POSException import ConflictError
+        from ZODB.serialize import ObjectWriter
         from ZODB.tests.MinPO import MinPO
 
         obj = MinPO()
@@ -101,30 +104,30 @@ class TestUtils(unittest.TestCase):
             self.fail("expected ConflictError, but no exception raised")
 
     def test_get_pickle_metadata_w_protocol_0_class_pickle(self):
-        from ZODB.utils import get_pickle_metadata
         from ZODB._compat import dumps
+        from ZODB.utils import get_pickle_metadata
         pickle = dumps(ExampleClass, protocol=0)
         self.assertEqual(get_pickle_metadata(pickle),
                          (__name__, ExampleClass.__name__))
 
     def test_get_pickle_metadata_w_protocol_1_class_pickle(self):
-        from ZODB.utils import get_pickle_metadata
         from ZODB._compat import dumps
+        from ZODB.utils import get_pickle_metadata
         pickle = dumps(ExampleClass, protocol=1)
         self.assertEqual(get_pickle_metadata(pickle),
                          (__name__, ExampleClass.__name__))
 
     def test_get_pickle_metadata_w_protocol_2_class_pickle(self):
-        from ZODB.utils import get_pickle_metadata
         from ZODB._compat import dumps
+        from ZODB.utils import get_pickle_metadata
         pickle = dumps(ExampleClass, protocol=2)
         self.assertEqual(get_pickle_metadata(pickle),
                          (__name__, ExampleClass.__name__))
 
     def test_get_pickle_metadata_w_protocol_3_class_pickle(self):
-        from ZODB.utils import get_pickle_metadata
-        from ZODB._compat import dumps
         from ZODB._compat import HIGHEST_PROTOCOL
+        from ZODB._compat import dumps
+        from ZODB.utils import get_pickle_metadata
         if HIGHEST_PROTOCOL >= 3:
             pickle = dumps(ExampleClass, protocol=3)
             self.assertEqual(get_pickle_metadata(pickle),

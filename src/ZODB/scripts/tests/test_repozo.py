@@ -12,14 +12,17 @@
 #
 ##############################################################################
 from __future__ import print_function
-import unittest
+
 import os
 import sys
+import unittest
 from hashlib import md5
+from io import BytesIO
+from io import StringIO
 
 import ZODB.tests.util  # layer used at class scope
 
-from io import BytesIO, StringIO
+
 if str is bytes:
     NativeStringIO = BytesIO
 else:
@@ -45,8 +48,8 @@ class OurDB(object):
     _file_name = None
 
     def __init__(self, dir):
-        from BTrees.OOBTree import OOBTree
         import transaction
+        from BTrees.OOBTree import OOBTree
         self.dir = dir
         self.getdb()
         conn = self.db.open()
@@ -79,6 +82,7 @@ class OurDB(object):
     def mutate(self):
         # Make random mutations to the btree in the database.
         import random
+
         import transaction
         tree = self.gettree()
         for dummy in range(100):
@@ -125,6 +129,7 @@ class Test_parseargs(unittest.TestCase):
 
     def test_help(self):
         from ZODB.scripts import repozo
+
         # Note: can't mock sys.stdout in our setUp: if a test fails,
         # zope.testrunner will happily print the traceback and failure message
         # into our StringIO before running our tearDown.
@@ -382,8 +387,9 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
         return concat(files, ofp)
 
     def _makeFile(self, name, text, gzip_file=False):
-        from ZODB.scripts.repozo import _GzipCloser
         import tempfile
+
+        from ZODB.scripts.repozo import _GzipCloser
         if self._repository_directory is None:
             self._repository_directory = tempfile.mkdtemp(prefix='zodb-test-')
         fqn = os.path.join(self._repository_directory, name)
@@ -712,8 +718,9 @@ class Test_do_full_backup(OptionsTestBase, unittest.TestCase):
 
     def test_empty(self):
         import struct
-        from ZODB.scripts.repozo import gen_filename
+
         from ZODB.fsIndex import fsIndex
+        from ZODB.scripts.repozo import gen_filename
         db = self._makeDB()
         options = self._makeOptions(file=db._file_name,
                                     gzip=False,
@@ -754,8 +761,8 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
 
     def test_dont_overwrite_existing_file(self):
         from ZODB.scripts.repozo import WouldOverwriteFiles
-        from ZODB.scripts.repozo import gen_filename
         from ZODB.scripts.repozo import find_files
+        from ZODB.scripts.repozo import gen_filename
         db = self._makeDB()
         options = self._makeOptions(full=False,
                                     file=db._file_name,
@@ -771,8 +778,9 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
 
     def test_no_changes(self):
         import struct
-        from ZODB.scripts.repozo import gen_filename
+
         from ZODB.fsIndex import fsIndex
+        from ZODB.scripts.repozo import gen_filename
         db = self._makeDB()
         oldpos = db.pos
         options = self._makeOptions(file=db._file_name,
@@ -807,8 +815,9 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
 
     def test_w_changes(self):
         import struct
-        from ZODB.scripts.repozo import gen_filename
+
         from ZODB.fsIndex import fsIndex
+        from ZODB.scripts.repozo import gen_filename
         db = self._makeDB()
         oldpos = db.pos
         options = self._makeOptions(file=db._file_name,
@@ -958,6 +967,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_with_verify_sum_inconsistent(self):
         import tempfile
+
         from ZODB.scripts.repozo import VerificationFail
         dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')
@@ -975,6 +985,7 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 
     def test_w_incr_backup_with_verify_size_inconsistent(self):
         import tempfile
+
         from ZODB.scripts.repozo import VerificationFail
         dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
         output = os.path.join(dd, 'Data.fs')

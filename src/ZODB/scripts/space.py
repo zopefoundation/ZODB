@@ -8,9 +8,13 @@ The current implementation only supports FileStorage.
 Current limitations / simplifications: Ignores revisions and versions.
 """
 from __future__ import print_function
-from ZODB.FileStorage import FileStorage
-from ZODB.utils import U64, get_pickle_metadata, load_current
+
 import six
+
+from ZODB.FileStorage import FileStorage
+from ZODB.utils import U64
+from ZODB.utils import get_pickle_metadata
+from ZODB.utils import load_current
 
 
 def run(path, v=0):
@@ -40,8 +44,8 @@ def run(path, v=0):
 
 
 def main():
-    import sys
     import getopt
+    import sys
     try:
         opts, args = getopt.getopt(sys.argv[1:], "v")
     except getopt.error as msg:

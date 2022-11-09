@@ -20,11 +20,14 @@ Caution:  This file needs to be kept in sync with FileStorage.py.
 
 import struct
 
-from ZODB.FileStorage.format import TRANS_HDR, DATA_HDR, TRANS_HDR_LEN
-from ZODB.FileStorage.format import DATA_HDR_LEN
-from ZODB.utils import u64
-from ZODB._compat import loads
 from persistent.TimeStamp import TimeStamp
+
+from ZODB._compat import loads
+from ZODB.FileStorage.format import DATA_HDR
+from ZODB.FileStorage.format import DATA_HDR_LEN
+from ZODB.FileStorage.format import TRANS_HDR
+from ZODB.FileStorage.format import TRANS_HDR_LEN
+from ZODB.utils import u64
 
 
 class TxnHeader(object):

@@ -18,10 +18,10 @@ from __future__ import print_function
 import time
 
 import transaction
-from ZODB.FileStorage import FileStorage
-from ZODB import DB
-
 from persistent import Persistent
+
+from ZODB import DB
+from ZODB.FileStorage import FileStorage
 
 
 class P(Persistent):

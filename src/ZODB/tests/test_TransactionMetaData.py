@@ -14,7 +14,8 @@
 import unittest
 import warnings
 
-from .._compat import dumps, loads
+from .._compat import dumps
+from .._compat import loads
 from ..Connection import TransactionMetaData
 
 

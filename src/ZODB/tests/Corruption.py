@@ -18,7 +18,6 @@ import random
 import stat
 
 import ZODB.FileStorage
-
 from ZODB.utils import load_current
 
 from .StorageTestBase import StorageTestBase

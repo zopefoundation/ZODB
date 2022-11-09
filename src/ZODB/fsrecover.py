@@ -53,6 +53,13 @@ Important:  The ZODB package must be importable.  You may need to adjust
 """
 from __future__ import print_function
 
+import getopt
+import os
+import sys
+import time
+from struct import unpack
+
+
 # Algorithm:
 #
 #     position to start of input
@@ -65,11 +72,6 @@ from __future__ import print_function
 #             scan for transaction
 #             continue
 
-import sys
-import os
-import getopt
-import time
-from struct import unpack
 
 try:
     import ZODB
@@ -80,11 +82,12 @@ except ImportError:
         sys.path.append('..')
     import ZODB
 
-import ZODB.FileStorage
-from ZODB.utils import u64, as_text
-from ZODB.FileStorage import TransactionRecord
-
 from persistent.TimeStamp import TimeStamp
+
+import ZODB.FileStorage
+from ZODB.FileStorage import TransactionRecord
+from ZODB.utils import as_text
+from ZODB.utils import u64
 
 
 def die(mess='', show_docstring=False):

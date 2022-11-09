@@ -1,13 +1,18 @@
 from __future__ import print_function
-import time
-import string
+
 import getopt
 import os
-import ZODB.FileStorage
-import ZODB
+import string
 import sys
-import transaction
+import time
+
 import persistent
+import transaction
+
+import ZODB
+import ZODB.FileStorage
+
+
 ##############################################################################
 #
 # Copyright (c) 2001, 2002 Zope Foundation and Contributors.

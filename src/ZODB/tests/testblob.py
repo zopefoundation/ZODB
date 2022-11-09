@@ -11,32 +11,34 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from ZODB.blob import Blob
-from ZODB.blob import BushyLayout
-from ZODB.DB import DB
-from ZODB.FileStorage import FileStorage
-from ZODB.tests.testConfig import ConfigTestBase
-from ZODB._compat import Pickler, Unpickler, _protocol
-
 import doctest
-
 import os
 import random
 import re
 import struct
 import sys
 import time
-import transaction
 import unittest
+from io import BytesIO
+
+import transaction
 import ZConfig
+import zope.testing.renormalizing
+
 import ZODB.blob
 import ZODB.interfaces
 import ZODB.tests.IteratorStorage
 import ZODB.tests.StorageTestBase
 import ZODB.tests.util
-import zope.testing.renormalizing
+from ZODB._compat import Pickler
+from ZODB._compat import Unpickler
+from ZODB._compat import _protocol
+from ZODB.blob import Blob
+from ZODB.blob import BushyLayout
+from ZODB.DB import DB
+from ZODB.FileStorage import FileStorage
+from ZODB.tests.testConfig import ConfigTestBase
 
-from io import BytesIO
 
 try:
     file_type = file

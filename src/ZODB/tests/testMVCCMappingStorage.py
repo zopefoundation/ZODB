@@ -14,24 +14,22 @@
 
 import unittest
 
-from persistent.mapping import PersistentMapping
 import transaction
-from ZODB.Connection import TransactionMetaData
-from ZODB.DB import DB
-from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
+from persistent.mapping import PersistentMapping
+
 import ZODB.blob
 import ZODB.tests.testblob
-
-from ZODB.tests import (
-    BasicStorage,
-    HistoryStorage,
-    IteratorStorage,
-    MTStorage,
-    PackableStorage,
-    RevisionStorage,
-    StorageTestBase,
-    Synchronization,
-)
+from ZODB.Connection import TransactionMetaData
+from ZODB.DB import DB
+from ZODB.tests import BasicStorage
+from ZODB.tests import HistoryStorage
+from ZODB.tests import IteratorStorage
+from ZODB.tests import MTStorage
+from ZODB.tests import PackableStorage
+from ZODB.tests import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests import Synchronization
+from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
 
 
 class MVCCTests(object):

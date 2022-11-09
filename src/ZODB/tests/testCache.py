@@ -18,20 +18,22 @@ purposes. It acts like a memo for unpickling.  It also keeps recent
 objects in memory under the assumption that they may be used again.
 """
 
-from persistent import Persistent
-from persistent import PickleCache
-from persistent.mapping import PersistentMapping
-from ZODB.tests.MinPO import MinPO
-from ZODB.utils import p64
 import doctest
 import gc
 import sys
 import threading
-import transaction
 import unittest
+
+import transaction
+from persistent import Persistent
+from persistent import PickleCache
+from persistent.mapping import PersistentMapping
+
 import ZODB
 import ZODB.MappingStorage
 import ZODB.tests.util
+from ZODB.tests.MinPO import MinPO
+from ZODB.utils import p64
 
 
 class CacheTestBase(ZODB.tests.util.TestCase):

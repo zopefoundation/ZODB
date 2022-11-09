@@ -13,36 +13,41 @@
 ##############################################################################
 """Conventience function for creating test databases
 """
-# BBB
-from ZODB.MappingStorage import DB  # noqa: F401 import unused
-
 import atexit
 import doctest
 import os
 import pdb
-import persistent
 import re
 import runpy
 import sys
 import tempfile
 import time
-import transaction
 import unittest
 import warnings
-import ZODB.utils
-from ZODB.Connection import TransactionMetaData
+
+import persistent
+import transaction
 import zope.testing.setupstack
 from zope.testing import renormalizing
+
+import ZODB.utils
+from ZODB.Connection import TransactionMetaData
+# BBB
+from ZODB.MappingStorage import DB  # noqa: F401 import unused
+
 
 try:
     from unittest import mock
 except ImportError:
     import mock
 
-import six
 import functools
-from time import time as _real_time
 from time import gmtime as _real_gmtime
+from time import time as _real_time
+
+import six
+
+
 _current_time = _real_time()
 
 

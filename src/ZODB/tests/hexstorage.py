@@ -11,11 +11,14 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+from binascii import hexlify
+from binascii import unhexlify
+
+import zope.interface
+
 import ZODB.blob
 import ZODB.interfaces
 import ZODB.utils
-import zope.interface
-from binascii import hexlify, unhexlify
 
 
 @zope.interface.implementer(ZODB.interfaces.IStorageWrapper)

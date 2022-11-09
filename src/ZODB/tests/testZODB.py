@@ -11,17 +11,18 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
+import unittest
+
+import transaction
+from BTrees.OOBTree import OOBTree
 from persistent import Persistent
 from persistent.mapping import PersistentMapping
-from ZODB.POSException import TransactionFailedError
 
-from BTrees.OOBTree import OOBTree
-import transaction
-import unittest
 import ZODB
 import ZODB.FileStorage
 import ZODB.MappingStorage
 import ZODB.tests.util
+from ZODB.POSException import TransactionFailedError
 
 
 class P(Persistent):

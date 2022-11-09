@@ -32,14 +32,16 @@ stores object pickles.  Those errors will go undetected.
 """
 from __future__ import print_function
 
-# The implementation is based closely on the read_index() function in
-# ZODB.FileStorage.  If anything about the FileStorage layout changes,
-# this file will need to be udpated.
-
 import binascii
 import struct
 import sys
+
 from ZODB._compat import FILESTORAGE_MAGIC
+
+
+# The implementation is based closely on the read_index() function in
+# ZODB.FileStorage.  If anything about the FileStorage layout changes,
+# this file will need to be udpated.
 
 
 class FormatError(ValueError):

@@ -15,10 +15,14 @@
 
 from ZODB.Connection import TransactionMetaData
 from ZODB.tests.MinPO import MinPO
-from ZODB.tests.StorageTestBase import zodb_unpickle, zodb_pickle, snooze
 from ZODB.tests.StorageTestBase import ZERO
-from ZODB.utils import p64, u64, load_current
+from ZODB.tests.StorageTestBase import snooze
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.tests.StorageTestBase import zodb_unpickle
 from ZODB.tests.util import time_monotonically_increases
+from ZODB.utils import load_current
+from ZODB.utils import p64
+from ZODB.utils import u64
 
 
 class RevisionStorage(object):

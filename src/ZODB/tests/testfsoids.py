@@ -176,6 +176,7 @@ from .util import checker as util_checker
 from .util import setUp
 from .util import tearDown
 
+
 checker = renormalizing.RENormalizing([
     # Normalizing this makes diffs easier to read
     (re.compile(r'\btid 0x[0-9a-f]+\b'), 'tid 0x...'),

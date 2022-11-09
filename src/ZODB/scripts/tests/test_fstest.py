@@ -15,9 +15,10 @@ import doctest
 import re
 import unittest
 
-import ZODB
 from zope.testing import setupstack
 from zope.testing.renormalizing import RENormalizing
+
+import ZODB
 
 
 def test_fstest_verbose():

@@ -12,8 +12,10 @@
 #
 ##############################################################################
 import doctest
-import persistent
 import unittest
+
+import persistent
+
 import ZODB.tests.util
 
 

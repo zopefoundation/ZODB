@@ -20,20 +20,24 @@ The base storage must not change.
 
 """
 from __future__ import print_function
+
 import os
 import random
-import weakref
 import tempfile
+import weakref
+
+import zope.interface
+
 import ZODB.BaseStorage
 import ZODB.blob
 import ZODB.interfaces
 import ZODB.MappingStorage
 import ZODB.POSException
 import ZODB.utils
-import zope.interface
 
 from .ConflictResolution import ConflictResolvingStorage
-from .utils import load_current, maxtid
+from .utils import load_current
+from .utils import maxtid
 
 
 @zope.interface.implementer(

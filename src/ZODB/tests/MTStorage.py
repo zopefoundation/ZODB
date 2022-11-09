@@ -3,17 +3,19 @@ import sys
 import threading
 import time
 
-from persistent.mapping import PersistentMapping
 import six
+
 import transaction
+from persistent.mapping import PersistentMapping
 
 import ZODB
 from ZODB.Connection import TransactionMetaData
-from ZODB.tests.StorageTestBase import zodb_pickle, zodb_unpickle
-from ZODB.tests.MinPO import MinPO
 from ZODB.POSException import ConflictError
-
+from ZODB.tests.MinPO import MinPO
+from ZODB.tests.StorageTestBase import zodb_pickle
+from ZODB.tests.StorageTestBase import zodb_unpickle
 from ZODB.utils import load_current
+
 
 SHORT_DELAY = 0.01
 

@@ -5,8 +5,9 @@ from __future__ import print_function
 
 import sys
 
+from ZODB._compat import BytesIO
+from ZODB._compat import PersistentUnpickler
 from ZODB.FileStorage import FileStorage
-from ZODB._compat import PersistentUnpickler, BytesIO
 
 
 class FakeError(Exception):

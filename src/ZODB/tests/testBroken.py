@@ -14,16 +14,21 @@
 """Test broken-object suppport
 """
 
+import os
 import sys
 import unittest
+
 import persistent
 import transaction
-import os
+
+
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing.doctest import DocTestSuite
 else:
     from doctest import DocTestSuite
-from ZODB.tests.util import DB, checker
+
+from ZODB.tests.util import DB
+from ZODB.tests.util import checker
 
 
 def test_integration():

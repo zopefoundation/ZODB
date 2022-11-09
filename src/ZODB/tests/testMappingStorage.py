@@ -11,22 +11,19 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from collections import namedtuple
-import ZODB.MappingStorage
 import unittest
+from collections import namedtuple
+
+import ZODB.MappingStorage
 import ZODB.tests.hexstorage
-
-
-from ZODB.tests import (
-    BasicStorage,
-    HistoryStorage,
-    IteratorStorage,
-    MTStorage,
-    PackableStorage,
-    RevisionStorage,
-    StorageTestBase,
-    Synchronization,
-)
+from ZODB.tests import BasicStorage
+from ZODB.tests import HistoryStorage
+from ZODB.tests import IteratorStorage
+from ZODB.tests import MTStorage
+from ZODB.tests import PackableStorage
+from ZODB.tests import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests import Synchronization
 
 
 class MappingStorageTests(

@@ -17,11 +17,12 @@ Each Connection has its own view of the database.  Polling updates each
 connection's view.
 """
 
-import ZODB.utils
+from zope.interface import implementer
+
 import ZODB.POSException
+import ZODB.utils
 from ZODB.interfaces import IMVCCStorage
 from ZODB.MappingStorage import MappingStorage
-from zope.interface import implementer
 
 
 @implementer(IMVCCStorage)

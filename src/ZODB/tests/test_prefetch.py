@@ -1,7 +1,8 @@
 import unittest
 
-from ZODB.utils import z64, u64
 import ZODB
+from ZODB.utils import u64
+from ZODB.utils import z64
 
 from .MVCCMappingStorage import MVCCMappingStorage
 

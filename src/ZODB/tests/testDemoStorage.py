@@ -11,32 +11,34 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from ZODB.DB import DB
-from ZODB.tests import (
-    BasicStorage,
-    ConflictResolution,
-    HistoryStorage,
-    IteratorStorage,
-    MTStorage,
-    PackableStorage,
-    RevisionStorage,
-    StorageTestBase,
-    Synchronization,
-)
-
 import os
+
+from ZODB.DB import DB
+from ZODB.tests import BasicStorage
+from ZODB.tests import ConflictResolution
+from ZODB.tests import HistoryStorage
+from ZODB.tests import IteratorStorage
+from ZODB.tests import MTStorage
+from ZODB.tests import PackableStorage
+from ZODB.tests import RevisionStorage
+from ZODB.tests import StorageTestBase
+from ZODB.tests import Synchronization
+
+
 if os.environ.get('USE_ZOPE_TESTING_DOCTEST'):
     from zope.testing import doctest
 else:
     import doctest
+
 import random
-import transaction
 import unittest
+
+import transaction
+
 import ZODB.DemoStorage
 import ZODB.tests.hexstorage
 import ZODB.tests.util
 import ZODB.utils
-
 from ZODB.utils import load_current
 
 

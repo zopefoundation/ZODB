@@ -73,16 +73,18 @@ Positional arguments:
         pairs.  E.g. "name=full;frequency=3600"
 """
 from __future__ import print_function
-import re
-import sys
-import time
+
 import getopt
 import marshal
 import profile
+import re
+import sys
+import time
 
 from persistent.timestamp import TimeStamp
-from ZODB import utils
+
 from ZODB import StorageTypes  # XXX: This import does not exist
+from ZODB import utils
 
 
 PROGRAM = sys.argv[0]

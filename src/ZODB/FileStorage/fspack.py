@@ -24,15 +24,20 @@ from the revision of the root at that time or if it is reachable from
 a backpointer after that time.
 """
 
-from ZODB.FileStorage.format import DataHeader, TRANS_HDR_LEN
-from ZODB.FileStorage.format import FileStorageFormatter, CorruptedDataError
-from ZODB.utils import p64, u64, z64
-
 import binascii
 import logging
 import os
+
 import ZODB.fsIndex
 import ZODB.POSException
+from ZODB.FileStorage.format import TRANS_HDR_LEN
+from ZODB.FileStorage.format import CorruptedDataError
+from ZODB.FileStorage.format import DataHeader
+from ZODB.FileStorage.format import FileStorageFormatter
+from ZODB.utils import p64
+from ZODB.utils import u64
+from ZODB.utils import z64
+
 
 logger = logging.getLogger(__name__)
 

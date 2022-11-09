@@ -18,7 +18,9 @@ all these tests.
 """
 
 import sys
-from time import time, sleep
+from time import sleep
+from time import time
+
 from ZODB.tests.MinPO import MinPO
 
 

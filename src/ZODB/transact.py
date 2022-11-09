@@ -13,8 +13,10 @@
 ##############################################################################
 """Tools to simplify transactions within applications."""
 
-from ZODB.POSException import ReadConflictError, ConflictError
 import transaction
+
+from ZODB.POSException import ConflictError
+from ZODB.POSException import ReadConflictError
 
 
 def _commit(note):

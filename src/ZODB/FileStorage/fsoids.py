@@ -12,10 +12,15 @@
 #
 ##############################################################################
 from __future__ import print_function
+
 import ZODB.FileStorage
-from ZODB.utils import get_pickle_metadata, p64, oid_repr, tid_repr
 from ZODB.serialize import get_refs
 from ZODB.TimeStamp import TimeStamp
+from ZODB.utils import get_pickle_metadata
+from ZODB.utils import oid_repr
+from ZODB.utils import p64
+from ZODB.utils import tid_repr
+
 
 # Extract module.class string from pickle.
 
