@@ -2,10 +2,12 @@
  Change History
 ================
 
-5.8.0 (unreleased)
+5.8.0 (2022-11-09)
 ==================
 
 - Add support for Python 3.11.
+
+- Expand and refactor tests for race conditions.
 
 
 5.7.0 (2022-03-17)
