@@ -529,8 +529,8 @@ def _state_details(root):  # -> txt
 class Daemon(threading.Thread):
     """auxiliary class to create daemon threads and fail if not stopped."""
     def __init__(self, **kw):
-        kw["daemon"] = True
         super(Daemon, self).__init__(**kw)
+        self.daemon = True
 
     def join(self, *args, **kw):
         super(Daemon, self).join(*args, **kw)
