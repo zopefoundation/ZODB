@@ -536,4 +536,3 @@ class Daemon(threading.Thread):
         super(Daemon, self).join(*args, **kw)
         if self.is_alive():
             raise AssertionError("Thread %s did not stop" % self.name)
-

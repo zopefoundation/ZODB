@@ -227,7 +227,7 @@ def VmSize():
     except:  # noqa: E722 do not use bare 'except'
         return 0
     else:
-        l_ = list(filter(lambda l: l[:7] == 'VmSize:', lines))
+        l_ = list(filter(lambda l: l[:7] == 'VmSize:', lines))  # noqa: E741
         if l_:
             l_ = l_[0][7:].strip().split()[0]
             return int(l_)
