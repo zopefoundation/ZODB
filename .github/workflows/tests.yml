@@ -17,8 +17,8 @@ jobs:
       fail-fast: false
       matrix:
         os:
-        - ubuntu
-        - windows
+        - ["ubuntu", "ubuntu-20.04"]
+        - ["windows", "windows-latest"]
         config:
         # [Python version, tox env]
         - ["3.9",   "lint"]
@@ -36,22 +36,22 @@ jobs:
         - ["3.9",   "coverage"]
         - ["3.8",   "py38-pure"]
         exclude:
-          - { os: windows, config: ["3.9",   "lint"] }
-          - { os: windows, config: ["3.9",   "docs"] }
-          - { os: windows, config: ["3.9",   "coverage"] }
-          - { os: windows, config: ["pypy-2.7", "pypy"] }
+          - { os: ["windows", "windows-latest"], config: ["3.9",   "lint"] }
+          - { os: ["windows", "windows-latest"], config: ["3.9",   "docs"] }
+          - { os: ["windows", "windows-latest"], config: ["3.9",   "coverage"] }
+          - { os: ["windows", "windows-latest"], config: ["pypy-2.7", "pypy"] }
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os[1] }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
-    name: ${{ matrix.os }}-${{ matrix.config[1] }}
+    name: ${{ matrix.os[0] }}-${{ matrix.config[1] }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.config[0] }}
     - name: Pip cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ matrix.config[0] }}-${{ hashFiles('setup.*', 'tox.ini') }}
