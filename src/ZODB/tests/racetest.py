@@ -214,9 +214,9 @@ class RaceTests(object):
         init()
 
         N = 500
-        tverify = threading.Thread(
+        tverify = Daemon(
             name='Tverify', target=xrun, args=(verify, N))
-        tmodify = threading.Thread(
+        tmodify = Daemon(
             name='Tmodify', target=xrun, args=(modify, N))
         tverify.start()
         tmodify.start()
@@ -340,7 +340,7 @@ class RaceTests(object):
         N = 100
         tg = []
         for x in range(nwork):
-            t = threading.Thread(name='T%d' % x, target=T, args=(x, N))
+            t = Daemon(name='T%d' % x, target=T, args=(x, N))
             t.start()
             tg.append(t)
 
@@ -446,7 +446,7 @@ class RaceTests(object):
         N = 100 // (2*4)  # N reduced to save time
         tg = []
         for x in range(nwork):
-            t = threading.Thread(name='T%d' % x, target=T, args=(x, N))
+            t = Daemon(name='T%d' % x, target=T, args=(x, N))
             t.start()
             tg.append(t)
 
@@ -524,3 +524,15 @@ def _state_details(root):  # -> txt
             txt += load(k)
 
     return txt
+
+
+class Daemon(threading.Thread):
+    """auxiliary class to create daemon threads and fail if not stopped."""
+    def __init__(self, **kw):
+        super(Daemon, self).__init__(**kw)
+        self.daemon = True
+
+    def join(self, *args, **kw):
+        super(Daemon, self).join(*args, **kw)
+        if self.is_alive():
+            raise AssertionError("Thread %s did not stop" % self.name)

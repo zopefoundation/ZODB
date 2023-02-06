@@ -5,6 +5,9 @@
 5.8.1 (unreleased)
 ==================
 
+- Fix ``racetest`` problems.
+  For details see `#376 <https://github.com/zopefoundation/ZODB/pull/376>`_.
+
 
 5.8.0 (2022-11-09)
 ==================
