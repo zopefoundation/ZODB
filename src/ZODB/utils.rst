@@ -15,7 +15,7 @@ more.
 
 ZODB uses 64-bit transaction ids that are typically represented as
 strings, but are sometimes manipulated as integers.  Object ids are
-strings too and it is common to ise 64-bit strings that are just
+strings too and it is common to use 64-bit strings that are just
 packed integers.
 
 Functions p64 and u64 pack and unpack integers as strings:
@@ -26,7 +26,7 @@ Functions p64 and u64 pack and unpack integers as strings:
     >>> print(ZODB.utils.u64(b'\x03yi\xf7"\xa8\xfb '))
     250347764455111456
 
-The contant z64 has zero packed as a 64-bit string:
+The constant z64 has zero packed as a 64-bit string:
 
     >>> ZODB.utils.z64
     '\x00\x00\x00\x00\x00\x00\x00\x00'
@@ -36,7 +36,7 @@ Transaction id generation
 
 Storages assign transaction ids as transactions are committed.  These
 are based on UTC time, but must be strictly increasing.  The
-newTid function akes this pretty easy.
+newTid function makes this pretty easy.
 
 To see this work (in a predictable way), we'll first hack time.time:
 
