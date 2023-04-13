@@ -383,6 +383,7 @@ class RaceTests(object):
         # but reconnects to the database often.
         failed = threading.Event()
         failure = [None] * nwork  # [tx] is failure from T(tx)
+        finished = Finished(nwork)
 
         def T(tx, N):
             def t_():
@@ -431,14 +432,17 @@ class RaceTests(object):
                     db.close()
 
             try:
-                for i in range(N):
-                    # print('T%s.%d' % (tx, i))
-                    if failed.is_set():
-                        break
-                    t_()
-            except:  # noqa: E722 do not use bare 'except'
-                failed.set()
-                raise
+                try:
+                    for i in range(N):
+                        # print('T%s.%d' % (tx, i))
+                        if failed.is_set():
+                            break
+                        t_()
+                except:  # noqa: E722 do not use bare 'except'
+                    failed.set()
+                    raise
+            finally:
+                finished()
 
         # run the workers concurrently.
         init()
@@ -450,8 +454,21 @@ class RaceTests(object):
             t.start()
             tg.append(t)
 
+        time_to_finish = 60  # seconds
+        if not finished.wait(time_to_finish):
+            failed.set()
+            failure.append("test did not finish within %s seconds"
+                           % time_to_finish)
+        
+        failed_to_finish = []
         for t in tg:
-            t.join(60)
+            try:
+                t.join(1)
+            except AssertionError:
+                failed_to_finish.append(t.name)
+        if failed_to_finish:
+            failed.set()
+            failure.append("threads did not finish: %s" % failed_to_finish)
 
         if failed.is_set():
             self.fail('\n\n'.join([_ for _ in failure if _]))
@@ -527,12 +544,47 @@ def _state_details(root):  # -> txt
 
 
 class Daemon(threading.Thread):
-    """auxiliary class to create daemon threads and fail if not stopped."""
+    """auxiliary class to create daemon threads and fail if not stopped.
+
+    In addition, the class ensures that reports for uncaught exceptions
+    are output holding a lock. This prevents that concurrent reports
+    get intermixed and facilitates the exception analysis.
+    """
     def __init__(self, **kw):
         super(Daemon, self).__init__(**kw)
         self.daemon = True
+        ori_invoke_excepthook = self._invoke_excepthook
+
+        def invoke_excepthook(*args, **kw):
+            with exc_lock:
+                return ori_invoke_excepthook(*args, **kw)
+
+        self._invoke_excepthook = invoke_excepthook
+
 
     def join(self, *args, **kw):
         super(Daemon, self).join(*args, **kw)
         if self.is_alive():
             raise AssertionError("Thread %s did not stop" % self.name)
+
+# lock to ensure that Daemon exception reports are output atomically
+exc_lock = threading.Lock()
+
+
+class Finished(object):
+    """Auxiliary class to wait for n threads to finish."""
+    def __init__(self, no_threads):
+        """initialize to wait for *no_threads* to finish."""
+        self.no_threads = no_threads
+        self.condition = threading.Condition()
+
+    def __call__(self):
+        """report that one thread finished."""
+        with self.condition:
+            self.no_threads -= 1
+            if self.no_threads <= 0:
+                self.condition.notify()
+
+    def wait(self, timeout):
+        with self.condition:
+            return self.condition.wait(timeout)
