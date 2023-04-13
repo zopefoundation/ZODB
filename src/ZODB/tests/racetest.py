@@ -568,7 +568,8 @@ class Daemon(threading.Thread):
             ori_run = self.run
 
             def run():
-                from threading import _sys, _format_exc
+                from threading import _format_exc
+                from threading import _sys
                 try:
                     ori_run()
                 except SystemExit:
@@ -583,7 +584,7 @@ class Daemon(threading.Thread):
                         raise
                 finally:
                     del self.run
-            
+
             self.run = run
 
     def join(self, *args, **kw):
