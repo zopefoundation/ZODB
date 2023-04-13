@@ -40,6 +40,7 @@ between load/open and local invalidations to catch bugs similar to
 https://github.com/zopefoundation/ZODB/issues/290 and
 https://github.com/zopefoundation/ZEO/issues/166.
 """
+from __future__ import print_function
 
 import threading
 from random import randint
@@ -459,7 +460,7 @@ class RaceTests(object):
             failed.set()
             failure.append("test did not finish within %s seconds"
                            % time_to_finish)
-        
+
         failed_to_finish = []
         for t in tg:
             try:
@@ -553,19 +554,43 @@ class Daemon(threading.Thread):
     def __init__(self, **kw):
         super(Daemon, self).__init__(**kw)
         self.daemon = True
-        ori_invoke_excepthook = self._invoke_excepthook
+        if hasattr(self, "_invoke_excepthook"):
+            # Python 3.8+
+            ori_invoke_excepthook = self._invoke_excepthook
 
-        def invoke_excepthook(*args, **kw):
-            with exc_lock:
-                return ori_invoke_excepthook(*args, **kw)
+            def invoke_excepthook(*args, **kw):
+                with exc_lock:
+                    return ori_invoke_excepthook(*args, **kw)
 
-        self._invoke_excepthook = invoke_excepthook
+            self._invoke_excepthook = invoke_excepthook
+        else:
+            # old Python
+            ori_run = self.run
 
+            def run():
+                from threading import _sys, _format_exc
+                try:
+                    ori_run()
+                except SystemExit:
+                    pass
+                except BaseException:
+                    if _sys and _sys.stderr is not None:
+                        with exc_lock:
+                            print("Exception in thread %s:\n%s" %
+                                  (self.name, _format_exc()),
+                                  file=_sys.stderr)
+                    else:
+                        raise
+                finally:
+                    del self.run
+            
+            self.run = run
 
     def join(self, *args, **kw):
         super(Daemon, self).join(*args, **kw)
         if self.is_alive():
             raise AssertionError("Thread %s did not stop" % self.name)
+
 
 # lock to ensure that Daemon exception reports are output atomically
 exc_lock = threading.Lock()
