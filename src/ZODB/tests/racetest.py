@@ -465,9 +465,9 @@ class RaceTests(object):
             try:
                 t.join(1)
             except AssertionError:
+                failed.set()
                 failed_to_finish.append(t.name)
         if failed_to_finish:
-            failed.set()
             failure.append("threads did not finish: %s" % failed_to_finish)
 
         if failed.is_set():
