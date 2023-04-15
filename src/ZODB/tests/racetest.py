@@ -493,56 +493,57 @@ class TestGroup(object):
        - a test should indicate failure by call to .fail()
     """
 
-    def __init__(tg, testcase):
-        tg.testcase = testcase
-        tg.failed = threading.Event()
-        tg.fail_mu = threading.Lock()
-        tg.failv = [None]       # failures registerd by .fail
-        tg.threadv = []         # spawned threads
-        tg.waitg = WaitGroup()  # to wait for spawned threads
+    def __init__(self, testcase):
+        self.testcase = testcase
+        self.failed = threading.Event()
+        self.fail_mu = threading.Lock()
+        self.failv = []           # failures registerd by .fail
+        self.threadv = []         # spawned threads
+        self.waitg = WaitGroup()  # to wait for spawned threads
 
-    def fail(tg, msg):
+    def fail(self, msg):
         """fail adds failure to test result."""
-        with tg.fail_mu:
-            tg.failv.append(msg)
-        tg.failed.set()
+        with self.fail_mu:
+            self.failv.append(msg)
+        self.failed.set()
 
-    def go(tg, f, *argv, **kw):
-        """go spawns f(tg, #thread, *argv, **kw) in new test thread."""
-        tg.waitg.add(1)
-        tx = len(tg.threadv)
+    def go(self, f, *argv, **kw):
+        """go spawns f(self, #thread, *argv, **kw) in new test thread."""
+        self.waitg.add(1)
+        tx = len(self.threadv)
         tname = kw.pop('name', 'T%d' % tx)
-        t = Daemon(name=tname, target=tg._run, args=(f, tx, argv, kw))
+        t = Daemon(name=tname, target=self._run, args=(f, tx, argv, kw))
+        self.threadv.append(t)
         t.start()
-        tg.threadv.append(t)
 
-    def _run(tg, f, tx, argv, kw):
+    def _run(self, f, tx, argv, kw):
         try:
-            f(tg, tx, *argv, **kw)
+            f(self, tx, *argv, **kw)
         except Exception as e:
-            tg.fail("Unhandled exception %r" % (e,))
+            self.fail("Unhandled exception %r in thread %s"
+                      % (e, self.threadv[tx].name))
             raise
         finally:
-            tg.waitg.done()
+            self.waitg.done()
 
-    def wait(tg, timeout):
+    def wait(self, timeout):
         """wait waits for all test threads to complete and reports all
            collected failures to containing testcase."""
-        if not tg.waitg.wait(timeout):
-            tg.fail("test did not finish within %s seconds" % timeout)
+        if not self.waitg.wait(timeout):
+            self.fail("test did not finish within %s seconds" % timeout)
 
         failed_to_finish = []
-        for t in tg.threadv:
+        for t in self.threadv:
             try:
                 t.join(1)
             except AssertionError:
-                tg.failed.set()
+                self.failed.set()
                 failed_to_finish.append(t.name)
         if failed_to_finish:
-            tg.fail("threads did not finish: %s" % failed_to_finish)
+            self.fail("threads did not finish: %s" % failed_to_finish)
 
-        if tg.failed.is_set():
-            tg.testcase.fail('\n\n'.join([_ for _ in tg.failv if _]))
+        if self.failed.is_set():
+            self.testcase.fail('\n\n'.join([_ for _ in self.failv if _]))
 
 
 class Daemon(threading.Thread):
