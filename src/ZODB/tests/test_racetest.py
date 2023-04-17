@@ -61,15 +61,14 @@ class TestGroupTests(TestCase):
         tg.wait(0.1)
         self.assertEqual(self.failed,
                          "test did not finish within 0.1 seconds\n\n"
-                          "threads did not finish: ['T2']")
-
-
+                         "threads did not finish: ['T2']")
 
 
 T_SUCCESS = 0
-T_SLOW    = 1
-T_EXC     = 3
-T_FAIL    = 4
+T_SLOW = 1
+T_EXC = 3
+T_FAIL = 4
+
 
 def tg_test_function(tg, tx, mode=T_SUCCESS, waits=1, wait_time=0.2):
     if mode == T_SUCCESS:
@@ -93,4 +92,3 @@ except ImportError:
     class SimpleNamespace(object):
         def __init__(self, **kw):
             self.__dict__.update(kw)
-
