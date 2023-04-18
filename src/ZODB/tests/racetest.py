@@ -81,7 +81,7 @@ class T2ObjectsInc:
     """T2ObjectsInc is specification with behaviour where two objects obj1
     and obj2 are incremented synchronously.
 
-    It is used in tests where bugs can be immedeately observed after the race.
+    It is used in tests where bugs can be immediately observed after the race.
 
     invariant:  obj1 == obj2
     """
@@ -207,7 +207,7 @@ class RaceTests(object):
         init()
 
         N = 500
-        tg = TestGroup(self)
+        tg = TestWorkGroup(self)
         tg.go(xrun, verify, N, name='Tverify')
         tg.go(xrun, modify, N, name='Tmodify')
         tg.wait(60)
@@ -317,7 +317,7 @@ class RaceTests(object):
         init()
 
         N = 100
-        tg = TestGroup(self)
+        tg = TestWorkGroup(self)
         for _ in range(nwork):
             tg.go(T, N)
         tg.wait(60)
@@ -325,9 +325,9 @@ class RaceTests(object):
     # verify storage for race in between client disconnect and external
     # invalidations. https://github.com/zopefoundation/ZEO/issues/209
     #
-    # This test is simlar to check_race_load_vs_external_invalidate, but
+    # This test is similar to check_race_load_vs_external_invalidate, but
     # increases the number of workers and also makes every worker to repeatedly
-    # reconnect to the storage, so that the probability of disconection is
+    # reconnect to the storage, so that the probability of disconnection is
     # high. It also uses T2ObjectsInc2Phase instead of T2ObjectsInc because if
     # an invalidation is skipped due to the disconnect/invalidation race,
     # T2ObjectsInc won't catch the bug as both objects will be either in old
@@ -408,7 +408,7 @@ class RaceTests(object):
         init()
 
         N = 100 // (2*4)  # N reduced to save time
-        tg = TestGroup(self)
+        tg = TestWorkGroup(self)
         for _ in range(nwork):
             tg.go(T, N)
         tg.wait(60)
@@ -425,7 +425,7 @@ def _state_init(db, spec):
     zconn.close()
 
 
-# `_state_invalidate_half1` invalidatates first 50% of database objects, so
+# `_state_invalidate_half1` invalidates first 50% of database objects, so
 # that the next time they are accessed, they are reloaded from the storage.
 def _state_invalidate_half1(root):
     keys = list(sorted(root.keys()))
@@ -483,9 +483,9 @@ def _state_details(root):  # -> txt
     return txt
 
 
-class TestGroup(object):
-    """TestGroup represents group of threads that run together to verify
-       somthing.
+class TestWorkGroup(object):
+    """TestWorkGroup represents group of threads that run together to verify
+       something.
 
        - .go() adds test thread to the group.
        - .wait() waits for all spawned threads to finish and reports all
@@ -498,7 +498,7 @@ class TestGroup(object):
         self.testcase = testcase
         self.failed_event = threading.Event()
         self.fail_mu = threading.Lock()
-        self.failv = []           # failures registerd by .fail
+        self.failv = []           # failures registered by .fail
         self.threadv = []         # spawned threads
         self.waitg = WaitGroup()  # to wait for spawned threads
 
@@ -509,7 +509,7 @@ class TestGroup(object):
         self.failed_event.set()
 
     def failed(self):
-        """did the thest already fail."""
+        """did the test already fail."""
         return self.failed_event.is_set()
 
     def go(self, f, *argv, **kw):
