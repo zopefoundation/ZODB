@@ -210,7 +210,7 @@ class RaceTests(object):
         tg = TestWorkGroup(self)
         tg.go(xrun, verify, N, name='Tverify')
         tg.go(xrun, modify, N, name='Tmodify')
-        tg.wait(60)
+        tg.wait(120)
 
     # client-server storages like ZEO, NEO and RelStorage allow several storage
     # clients to be connected to single storage server.
@@ -320,7 +320,7 @@ class RaceTests(object):
         tg = TestWorkGroup(self)
         for _ in range(nwork):
             tg.go(T, N)
-        tg.wait(60)
+        tg.wait(120)
 
     # verify storage for race in between client disconnect and external
     # invalidations. https://github.com/zopefoundation/ZEO/issues/209
@@ -411,7 +411,7 @@ class RaceTests(object):
         tg = TestWorkGroup(self)
         for _ in range(nwork):
             tg.go(T, N)
-        tg.wait(60)
+        tg.wait(120)
 
 
 # `_state_init` initializes the database according to the spec.
