@@ -672,28 +672,33 @@ class FileStorage(
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         status = as_text(status)
         self._file.read(ul + dl + el)
-        tend = tpos + tl + 8
+        tend = tpos + tl
         pos = self._file.tell()
+        backpointer = None
         while pos < tend:
             h = self._read_data_header(pos)
             if h.oid == oid:
                 # Make sure this looks like the right data record
                 if h.plen == 0:
-                    # This is also a backpointer.  Gotta trust it.
+                    # This is also a backpointer, remember it and keep
+                    # looking at other records from this transaction,
+                    # if there is multiple undo records, we use the
+                    # oldest.
+                    backpointer = pos
+                else:
+                    if h.plen != len(data):
+                        # The expected data doesn't match what's in the
+                        # backpointer.  Something is wrong.
+                        logger.error("Mismatch between data and"
+                                     " backpointer at %d", pos)
+                        return 0
+                    _data = self._file.read(h.plen)
+                    if data != _data:
+                        return 0
                     return pos
-                if h.plen != len(data):
-                    # The expected data doesn't match what's in the
-                    # backpointer.  Something is wrong.
-                    logger.error("Mismatch between data and"
-                                 " backpointer at %d", pos)
-                    return 0
-                _data = self._file.read(h.plen)
-                if data != _data:
-                    return 0
-                return pos
             pos += h.recordlen()
             self._file.seek(pos)
-        return 0
+        return backpointer or 0
 
     def restore(self, oid, serial, data, version, prev_txn, transaction):
         # A lot like store() but without all the consistency checks.  This

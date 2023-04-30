@@ -199,3 +199,43 @@ class RecoveryStorage(IteratorDeepCompare):
         # part of the test.
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
+
+    def testRestoreWithMultipleUndoRedo(self):
+        db = DB(self._storage)
+        c = db.open()
+        r = c.root()
+
+        # TO
+        r["obj"] = MinPO(0)
+        transaction.commit()
+        c.close()
+
+        # T1: do 1
+        r = db.open().root()
+        r["obj"].value = 1
+        transaction.commit()
+
+        # T2: do 2
+        r = db.open().root()
+        r["obj"].value = 2
+        transaction.commit()
+
+        # T3: undo T1 and T2
+        db.undoMultiple([u["id"] for u in db.undoLog(0, 2)])
+        transaction.commit()
+        # obj will be a backpointer to T0
+
+        # T4: do 3
+        r = db.open().root()
+        r["obj"].value = 3
+        transaction.commit()
+
+        # T4: undo
+        self._undo(self._storage.undoInfo()[0]['id'])
+        # obj will be a backpointer to T3, which is a backpointer to T0
+
+        r = db.open().root()
+        self.assertEqual(r["obj"].value, 0)
+
+        self._dst.copyTransactionsFrom(self._storage)
+        self.compare(self._storage, self._dst)
