@@ -74,7 +74,7 @@ Options for -R/--recover:
         automatically.
 
     -w
-    --with-verification
+    --with-verify
         Verify on the fly the backup files on recovering. This option runs
         the same checks as when repozo is run in -V/--verify mode, and
         allows to verify and recover a backup in one single step. If a sanity
@@ -179,7 +179,7 @@ def parseargs(argv):
                                     'kill-old-on-full',
                                     'date=',
                                     'output=',
-                                    'with-verification',
+                                    'with-verify',
                                     ])
     except getopt.error as msg:
         usage(1, msg)
