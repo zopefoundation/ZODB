@@ -8,6 +8,9 @@
 - Fix ``racetest`` problems.
   For details see `#376 <https://github.com/zopefoundation/ZODB/pull/376>`_.
 
+- Fix ``--with-verify`` argument in script repozo ``--recover``.
+  For details see `#381 <https://github.com/zopefoundation/ZODB/pull/381>`_.
+
 
 5.8.0 (2022-11-09)
 ==================
