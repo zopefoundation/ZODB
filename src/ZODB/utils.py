@@ -41,7 +41,6 @@ __all__ = ['z64',
            'oid_repr',
            'serial_repr',
            'tid_repr',
-           'positive_id',
            'readable_tid_repr',
            'get_pickle_metadata',
            'locked',
@@ -182,28 +181,6 @@ def readable_tid_repr(tid):
     result = tid_repr(tid)
     if isinstance(tid, bytes) and len(tid) == 8:
         result = "%s %s" % (result, TimeStamp(tid))
-    return result
-
-# Addresses can "look negative" on some boxes, some of the time.  If you
-# feed a "negative address" to an %x format, Python 2.3 displays it as
-# unsigned, but produces a FutureWarning, because Python 2.4 will display
-# it as signed.  So when you want to prodce an address, use positive_id() to
-# obtain it.
-# _ADDRESS_MASK is 2**(number_of_bits_in_a_native_pointer).  Adding this to
-# a negative address gives a positive int with the same hex representation as
-# the significant bits in the original.
-
-
-_ADDRESS_MASK = 256 ** struct.calcsize('P')
-
-
-def positive_id(obj):
-    """Return id(obj) as a non-negative integer."""
-
-    result = id(obj)
-    if result < 0:
-        result += _ADDRESS_MASK
-        assert result > 0
     return result
 
 # Given a ZODB pickle, return pair of strings (module_name, class_name).

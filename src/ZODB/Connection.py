@@ -53,7 +53,6 @@ from ZODB.serialize import ObjectReader
 from ZODB.serialize import ObjectWriter
 from ZODB.utils import oid_repr
 from ZODB.utils import p64
-from ZODB.utils import positive_id
 from ZODB.utils import u64
 from ZODB.utils import z64
 
@@ -946,15 +945,6 @@ class Connection(ExportImport, object):
             c._storage = c._normal_storage = None
             c._cache = PickleCache(self, 0, 0)
             c.close(False)
-
-    ##########################################################################
-    # Python protocol
-
-    def __repr__(self):
-        return '<Connection at %08x>' % (positive_id(self),)
-
-    # Python protocol
-    ##########################################################################
 
     ##########################################################################
     # DEPRECATION candidates
