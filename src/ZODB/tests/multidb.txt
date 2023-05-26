@@ -86,7 +86,7 @@ You can (still) get a connection to a database this way:
     >>> tm = transaction.TransactionManager()
     >>> cn = db.open(transaction_manager=tm)
     >>> cn                  # doctest: +ELLIPSIS
-    <ZODB.Connection.Connection object at ...>,
+    <ZODB.Connection.Connection object at ...>
 
 This is the only connection in this collection right now:
 
@@ -99,7 +99,7 @@ thread/transaction/context ...):
 
     >>> cn2 = cn.get_connection('notroot')
     >>> cn2                  # doctest: +ELLIPSIS
-    <ZODB.Connection.Connection object at ...>,
+    <ZODB.Connection.Connection object at ...>
 
 The second connection gets the same transaction manager as the first:
 
