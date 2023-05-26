@@ -61,7 +61,7 @@ database open function, but this doesn't work:
     InvalidObjectReference:
     ('Attempt to store a reference to an object from a separate connection to
     the same database or multidatabase',
-    <Connection at ...>,
+    <ZODB.Connection.Connection object at ...>,
     <ZODB.tests.testcrossdatabasereferences.MyClass object at ...>)
 
     >>> tm.abort()
@@ -80,7 +80,7 @@ different connections to the same database.
     InvalidObjectReference:
     ('Attempt to store a reference to an object from a separate connection
     to the same database or multidatabase',
-    <Connection at ...>,
+    <ZODB.Connection.Connection object at ...>,
     <ZODB.tests.testcrossdatabasereferences.MyClass object at ...>)
 
     >>> tm.abort()
