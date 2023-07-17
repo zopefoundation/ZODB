@@ -29,7 +29,7 @@ A blob implements the IBlob interface::
 We can open a new blob file for reading, but it won't have any data::
 
     >>> with myblob.open("r") as fp: fp.read()
-    ''
+    b''
 
 But we can write data to a new Blob by opening it for writing::
 
@@ -41,7 +41,7 @@ If we try to open a Blob again while it is open for writing, we get an error::
     >>> myblob.open("r")
     Traceback (most recent call last):
         ...
-    BlobError: Already opened for writing.
+    ZODB.interfaces.BlobError: Already opened for writing.
 
 We can close the file::
 
@@ -54,20 +54,20 @@ Now we can open it for reading::
 And we get the data back::
 
     >>> f2.read()
-    'Hi, Blob!'
+    b'Hi, Blob!'
 
 If we want to, we can open it again::
 
     >>> f3 = myblob.open("r")
     >>> f3.read()
-    'Hi, Blob!'
+    b'Hi, Blob!'
 
 But we can't open it for writing, while it is opened for reading::
 
     >>> myblob.open("a")
     Traceback (most recent call last):
         ...
-    BlobError: Already opened for reading.
+    ZODB.interfaces.BlobError: Already opened for reading.
 
 Before we can write, we have to close the readers::
 
@@ -84,12 +84,12 @@ We can't open a blob while it is open for writing:
     >>> myblob.open("w")
     Traceback (most recent call last):
     ...
-    BlobError: Already opened for writing.
+    ZODB.interfaces.BlobError: Already opened for writing.
 
     >>> myblob.open("r")
     Traceback (most recent call last):
     ...
-    BlobError: Already opened for writing.
+    ZODB.interfaces.BlobError: Already opened for writing.
 
     >>> f4.close()
 
@@ -97,7 +97,7 @@ Now we can read it::
 
     >>> f4a = myblob.open("r")
     >>> f4a.read()
-    'Hi, Blob!\nBlob is fine.'
+    b'Hi, Blob!\nBlob is fine.'
     >>> f4a.close()
 
 You shouldn't need to explicitly close a blob unless you hold a reference
@@ -106,7 +106,7 @@ around via a name, the second call to open it in a writable mode would fail
 with a BlobError, but it doesn't::
 
     >>> with myblob.open("r+") as fp: fp.read()
-    'Hi, Blob!\nBlob is fine.'
+    b'Hi, Blob!\nBlob is fine.'
     >>> f4b = myblob.open("a")
     >>> f4b.close()
 
@@ -114,9 +114,9 @@ We can read lines out of the blob too::
 
     >>> f5 = myblob.open("r")
     >>> f5.readline()
-    'Hi, Blob!\n'
+    b'Hi, Blob!\n'
     >>> f5.readline()
-    'Blob is fine.'
+    b'Blob is fine.'
     >>> f5.close()
 
 We can seek to certain positions in a blob and read portions of it::
@@ -126,7 +126,7 @@ We can seek to certain positions in a blob and read portions of it::
     >>> int(f6.tell())
     4
     >>> f6.read(5)
-    'Blob!'
+    b'Blob!'
     >>> f6.close()
 
 We can use the object returned by a blob open call as an iterable::
@@ -146,7 +146,7 @@ We can truncate a blob::
     >>> f8.close()
     >>> f8 = myblob.open('r')
     >>> f8.read()
-    ''
+    b''
     >>> f8.close()
 
 Blobs are always opened in binary mode::
@@ -159,13 +159,12 @@ Blobs are always opened in binary mode::
 Blobs that have not been committed can be opened using any mode,
 except for "c"::
 
-    >>> import six
     >>> from ZODB.blob import BlobError, valid_modes
     >>> for mode in valid_modes:
     ...     try:
     ...         f10 = Blob().open(mode)
     ...     except BlobError:
-    ...         six.print_('open failed with mode "%s"' % mode)
+    ...         print('open failed with mode "%s"' % mode)
     ...     else:
     ...         f10.close()
     open failed with mode "c"
@@ -195,4 +194,4 @@ constructor.  (This is a convenience, mostly for writing tests.)
 
     >>> myblob = Blob(b'some data')
     >>> with myblob.open() as fp: fp.read()
-    'some data'
+    b'some data'

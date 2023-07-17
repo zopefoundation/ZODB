@@ -12,21 +12,10 @@
 #
 ##############################################################################
 import doctest
-import re
 import unittest
 
 import persistent.mapping
 import transaction
-from zope.testing import renormalizing
-
-
-checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"), r"\1"),
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.POSException.ConnectionStateError"),
-     r"ConnectionStateError"),
-])
 
 
 def testAddingThenModifyThenAbort():
@@ -90,10 +79,10 @@ def testCantCloseConnectionWithActiveSavepoint():
     >>> connection.close()
     Traceback (most recent call last):
     ...
-    ConnectionStateError: Cannot close a connection joined to a transaction
+    ZODB.POSException.ConnectionStateError: Cannot close a connection joined to a transaction
 
     >>> db.close()
-    """
+    """  # noqa: E501 line too long
 
 
 def testSavepointDoesCacheGC():
@@ -174,7 +163,7 @@ We simply rely on the underlying storage method.
 class SelfActivatingObject(persistent.Persistent):
 
     def _p_invalidate(self):
-        super(SelfActivatingObject, self)._p_invalidate()
+        super()._p_invalidate()
         self._p_activate()
 
 
@@ -207,12 +196,6 @@ def tearDown(test):
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocFileSuite(
-            'testConnectionSavepoint.txt',
-            tearDown=tearDown, checker=checker),
-        doctest.DocTestSuite(tearDown=tearDown, checker=checker),
+        doctest.DocFileSuite('testConnectionSavepoint.txt', tearDown=tearDown),
+        doctest.DocTestSuite(tearDown=tearDown),
     ))
-
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')

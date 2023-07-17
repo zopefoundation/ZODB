@@ -178,7 +178,7 @@ def multi_atabases():
     ... ''') # doctest: +NORMALIZE_WHITESPACE
     Traceback (most recent call last):
     ...
-    ConfigurationSyntaxError:
+    ZConfig.ConfigurationSyntaxError:
     section names must not be re-used within the same container:'1' (line 9)
 
     >>> ZODB.config.databaseFromString('''
@@ -204,9 +204,6 @@ def test_suite():
         setUp=ZODB.tests.util.setUp,
         tearDown=ZODB.tests.util.tearDown,
         checker=ZODB.tests.util.checker))
-    suite.addTest(unittest.makeSuite(ZODBConfigTest))
+    suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(
+        ZODBConfigTest))
     return suite
-
-
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')

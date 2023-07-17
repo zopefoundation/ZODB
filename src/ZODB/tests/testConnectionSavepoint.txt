@@ -64,7 +64,6 @@ Now, we'll define a validation function to validate an account:
 And a function to apply entries.  If the function fails in some unexpected
 way, it rolls back all of its changes and prints the error:
 
-    >>> import six
     >>> def apply_entries(entries):
     ...     savepoint = transaction.savepoint()
     ...     try:
@@ -75,12 +74,12 @@ way, it rolls back all of its changes and prints the error:
     ...                 validate_account(name)
     ...             except ValueError as error:
     ...                 entry_savepoint.rollback()
-    ...                 six.print_('Error', str(error))
+    ...                 print('Error', str(error))
     ...             else:
-    ...                 six.print_('Updated', name)
+    ...                 print('Updated', name)
     ...     except Exception as error:
     ...         savepoint.rollback()
-    ...         six.print_('Unexpected exception', error)
+    ...         print('Unexpected exception', error)
 
 Now let's try applying some entries:
 

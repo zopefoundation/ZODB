@@ -29,14 +29,7 @@ from ZODB.utils import load_current
 from ZODB.utils import p64
 
 
-try:
-    from itertools import izip as zip
-except ImportError:
-    # Py3: zip() already returns an iterable.
-    pass
-
-
-class IteratorCompare(object):
+class IteratorCompare:
 
     def iter_verify(self, txniter, revids, val0):
         eq = self.assertEqual
@@ -58,7 +51,7 @@ class IteratorStorage(IteratorCompare):
     # the task to (de)serialize extension data.
     use_extension_bytes = False
 
-    def checkSimpleIteration(self):
+    def testSimpleIteration(self):
         # Store a bunch of revisions of a single object
         self._oid = oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -68,7 +61,7 @@ class IteratorStorage(IteratorCompare):
         txniter = self._storage.iterator()
         self.iter_verify(txniter, [revid1, revid2, revid3], 11)
 
-    def checkUndoZombie(self):
+    def testUndoZombie(self):
         oid = self._storage.new_oid()
         self._dostore(oid, data=MinPO(94))
         # Get the undo information
@@ -93,7 +86,7 @@ class IteratorStorage(IteratorCompare):
         self.assertEqual(rec.oid, oid)
         self.assertEqual(rec.data, None)
 
-    def checkTransactionExtensionFromIterator(self):
+    def testTransactionExtensionFromIterator(self):
         # It will be deserialized into a simple dict, which will be serialized
         # differently. This simulates that 'dumps(loads(x), ...)' does not
         # always return x.
@@ -117,7 +110,7 @@ class IteratorStorage(IteratorCompare):
         else:
             self.assertNotEqual(extension_bytes, txn.extension_bytes)
 
-    def checkIterationIntraTransaction(self):
+    def testIterationIntraTransaction(self):
         # TODO:  Try this test with logging enabled.  If you see something
         # like
         #
@@ -140,7 +133,7 @@ class IteratorStorage(IteratorCompare):
         finally:
             self._storage.tpc_finish(t)
 
-    def checkLoad_was_checkLoadEx(self):
+    def testLoad_was_checkLoadEx(self):
         oid = self._storage.new_oid()
         self._dostore(oid, data=42)
         data, tid = load_current(self._storage, oid)
@@ -154,14 +147,14 @@ class IteratorStorage(IteratorCompare):
         if not match:
             self.fail("Could not find transaction with matching id")
 
-    def checkIterateRepeatedly(self):
+    def testIterateRepeatedly(self):
         self._dostore()
         transactions = self._storage.iterator()
         self.assertEqual(1, len(list(transactions)))
         # The iterator can only be consumed once:
         self.assertEqual(0, len(list(transactions)))
 
-    def checkIterateRecordsRepeatedly(self):
+    def testIterateRecordsRepeatedly(self):
         self._dostore()
         it = self._storage.iterator()
         tinfo = next(it)
@@ -170,7 +163,7 @@ class IteratorStorage(IteratorCompare):
         if hasattr(it, 'close'):
             it.close()
 
-    def checkIterateWhileWriting(self):
+    def testIterateWhileWriting(self):
         self._dostore()
         iterator = self._storage.iterator()
         # We have one transaction with 1 modified object.
@@ -186,7 +179,7 @@ class IteratorStorage(IteratorCompare):
 
 class ExtendedIteratorStorage(IteratorCompare):
 
-    def checkExtendedIteration(self):
+    def testExtendedIteration(self):
         # Store a bunch of revisions of a single object
         self._oid = oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
@@ -226,7 +219,7 @@ class ExtendedIteratorStorage(IteratorCompare):
         self.iter_verify(txniter, [revid3], 13)
 
 
-class IteratorDeepCompare(object):
+class IteratorDeepCompare:
 
     def compare(self, storage1, storage2):
         eq = self.assertEqual

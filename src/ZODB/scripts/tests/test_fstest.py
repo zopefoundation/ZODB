@@ -12,11 +12,9 @@
 #
 ##############################################################################
 import doctest
-import re
 import unittest
 
 from zope.testing import setupstack
-from zope.testing.renormalizing import RENormalizing
 
 import ZODB
 
@@ -45,12 +43,8 @@ def test_fstest_verbose():
 
 
 def test_suite():
-    checker = RENormalizing([
-        # Python 3 drops the u'' prefix on unicode strings
-        (re.compile(r"u('[^']*')"), r"\1"),
-    ])
     return unittest.TestSuite([
-        doctest.DocTestSuite('ZODB.scripts.fstest', checker=checker),
+        doctest.DocTestSuite('ZODB.scripts.fstest'),
         doctest.DocTestSuite(setUp=setupstack.setUpDirectory,
                              tearDown=setupstack.tearDown),
     ])

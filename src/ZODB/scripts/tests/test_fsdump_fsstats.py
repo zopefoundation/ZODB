@@ -21,7 +21,7 @@ from ZODB.tests.util import run_module_as_script
 
 class FsdumpFsstatsTests(TestCase):
     def setUp(self):
-        super(FsdumpFsstatsTests, self).setUp()
+        super().setUp()
         # create (empty) storage ``data.fs``
         DB("data.fs").close()
 

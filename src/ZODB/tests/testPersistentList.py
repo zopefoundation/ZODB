@@ -16,8 +16,6 @@
 
 import unittest
 
-from six import PY2
-
 from persistent.list import PersistentList
 
 
@@ -27,21 +25,17 @@ l2 = [0, 1]
 
 
 class TestPList(unittest.TestCase):
-    def checkTheWorld(self):
+    def testTheWorld(self):
         # Test constructors
         u = PersistentList()
         u0 = PersistentList(l0)
         u1 = PersistentList(l1)
         u2 = PersistentList(l2)
-
-        uu = PersistentList(u)
-        uu0 = PersistentList(u0)
-        uu1 = PersistentList(u1)
         uu2 = PersistentList(u2)
 
-        v = PersistentList(tuple(u))
+        PersistentList(tuple(u))
 
-        class OtherList(object):
+        class OtherList:
             def __init__(self, initlist):
                 self.__data = initlist
 
@@ -50,8 +44,8 @@ class TestPList(unittest.TestCase):
 
             def __getitem__(self, i):
                 return self.__data[i]
-        v0 = PersistentList(OtherList(u0))
-        vv = PersistentList("this is also a sequence")
+        PersistentList(OtherList(u0))
+        PersistentList("this is also a sequence")
 
         # Test __repr__
         eq = self.assertEqual
@@ -60,24 +54,7 @@ class TestPList(unittest.TestCase):
         eq(repr(u1), repr(l1), "repr(u1) == repr(l1)")
         eq(repr(u2), repr(l2), "repr(u2) == repr(l2)")
 
-        # Test __cmp__ and __len__
-
-        # Py3: No cmp() or __cmp__ anymore.
-        if PY2:
-            def mycmp(a, b):
-                r = cmp(a, b)  # noqa: F821 undefined name 'cmp'
-                if r < 0:
-                    return -1
-                if r > 0:
-                    return 1
-                return r
-
-            all = [l0, l1, l2, u, u0, u1, u2, v, v0, vv, uu, uu0, uu1, uu2]
-            for a in all:
-                for b in all:
-                    eq(mycmp(a, b), mycmp(len(a), len(b)),
-                       "mycmp(a, b) == mycmp(len(a), len(b))")
-
+        # Test __len__
         # Test __getitem__
 
         for i in range(len(u2)):
@@ -220,11 +197,7 @@ class TestPList(unittest.TestCase):
         u.extend(u2)
         eq(u, u1 + u2, "u == u1 + u2")
 
-    def checkBackwardCompat(self):
+    def testBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from ZODB.PersistentList import PersistentList as oldPath
         self.assertTrue(oldPath is PersistentList)
-
-
-def test_suite():
-    return unittest.makeSuite(TestPList, 'check')

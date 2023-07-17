@@ -67,7 +67,7 @@ create
     >>> fs.load(b'\0'*8)
     Traceback (most recent call last):
     ...
-    POSKeyError: 0x00
+    ZODB.POSException.POSKeyError: 0x00
 
     >>> sorted(os.listdir('blobs'))
     ['.layout', 'tmp']
@@ -104,7 +104,7 @@ quota
     >>> db = ZODB.DB(fs) # writes object 0
     Traceback (most recent call last):
     ...
-    FileStorageQuotaError: The storage quota has been exceeded.
+    ZODB.FileStorage.FileStorage.FileStorageQuotaError: The storage quota has been exceeded.
 
     >>> fs.close()
 
@@ -116,9 +116,8 @@ packer
     To demonstrate this, we'll create a null packer that just prints
     some information about it's arguments:
 
-    >>> import six
     >>> def packer(storage, referencesf, stop, gc):
-    ...     six.print_(referencesf, storage is fs, gc, storage.pack_keep_old)
+    ...     print(referencesf, storage is fs, gc, storage.pack_keep_old)
     >>> ZODB.FileStorage.config_demo_printing_packer = packer
 
     >>> fs = ZODB.config.storageFromString("""
@@ -141,8 +140,8 @@ packer
 
     >>> def packer_factory(name):
     ...     def packer(storage, referencesf, stop, gc):
-    ...         six.print_(repr(name), referencesf, storage is fs,
-    ...                    gc, storage.pack_keep_old)
+    ...         print(repr(name), referencesf, storage is fs,
+    ...               gc, storage.pack_keep_old)
     ...     return packer
     >>> ZODB.FileStorage.config_demo_printing_packer_factory = packer_factory
 
@@ -184,7 +183,7 @@ pack-gc
 
     >>> fs.pack(time.time(), 42, gc=True)
     42 True True True
-    
+
     >>> fs.close()
 
 pack-keep-old
@@ -200,10 +199,10 @@ pack-keep-old
 
     >>> fs.pack(time.time(), 42)
     42 True True False
-    
+
     >>> fs.close()
 
 
 
 
-    
+

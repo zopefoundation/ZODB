@@ -13,15 +13,12 @@
 ##############################################################################
 """Database connection support
 """
-from __future__ import print_function
 
 import logging
 import os
 import tempfile
 import time
 import warnings
-
-import six
 
 import transaction
 from persistent import PickleCache
@@ -86,14 +83,14 @@ def resetCaches():
 
 def className(obj):
     cls = type(obj)
-    return "%s.%s" % (cls.__module__, cls.__name__)
+    return "{}.{}".format(cls.__module__, cls.__name__)
 
 
 @implementer(IConnection,
              ISavepointDataManager,
              IPersistentDataManager,
              ISynchronizer)
-class Connection(ExportImport, object):
+class Connection(ExportImport):
     """Connection to ZODB for loading and storing objects.
 
     Connections manage object state in collaboration with transaction
@@ -260,14 +257,14 @@ class Connection(ExportImport, object):
     def cacheMinimize(self):
         """Deactivate all unmodified objects in the cache.
         """
-        for connection in six.itervalues(self.connections):
+        for connection in self.connections.values():
             connection._cache.minimize()
 
     # TODO: we should test what happens when cacheGC is called mid-transaction.
     def cacheGC(self):
         """Reduce cache size to target size.
         """
-        for connection in six.itervalues(self.connections):
+        for connection in self.connections.values():
             connection._cache.incrgc()
 
     __onCloseCallbacks = None
@@ -496,7 +493,7 @@ class Connection(ExportImport, object):
         else:
             self._commit(transaction)
 
-        for oid, serial in six.iteritems(self._readCurrent):
+        for oid, serial in self._readCurrent.items():
             try:
                 self._storage.checkCurrentSerialInTransaction(
                     oid, serial, transaction)
@@ -715,7 +712,7 @@ class Connection(ExportImport, object):
 
     def sortKey(self):
         """Return a consistent sort key for this connection."""
-        return "%s:%s" % (self._storage.sortKey(), id(self))
+        return "{}:{}".format(self._storage.sortKey(), id(self))
 
     # Data manager (ISavepointDataManager) methods
     ##########################################################################
@@ -939,7 +936,7 @@ class Connection(ExportImport, object):
             self._reader._cache = cache
 
     def _release_resources(self):
-        for c in six.itervalues(self.connections):
+        for c in self.connections.values():
             if c._storage is not None:
                 c._storage.release()
             c._storage = c._normal_storage = None
@@ -1004,8 +1001,8 @@ class Connection(ExportImport, object):
         src = self._storage
 
         # Invalidate objects created *after* the savepoint.
-        self._invalidate_creating((oid for oid in src.creating
-                                   if oid not in state[2]))
+        self._invalidate_creating(oid for oid in src.creating
+                                  if oid not in state[2])
         index = src.index
         src.reset(*state)
         self._cache.invalidate(index)
@@ -1105,7 +1102,7 @@ class Connection(ExportImport, object):
 
 
 @implementer(IDataManagerSavepoint)
-class Savepoint(object):
+class Savepoint:
 
     def __init__(self, datamanager, state):
         self.datamanager = datamanager
@@ -1116,7 +1113,7 @@ class Savepoint(object):
 
 
 @implementer(IBlobStorage)
-class TmpStore(object):
+class TmpStore:
     """A storage-like thing to support savepoints."""
 
     def __init__(self, storage):
@@ -1220,8 +1217,8 @@ class TmpStore(object):
     def _getCleanFilename(self, oid, tid):
         return os.path.join(
             self._getBlobPath(),
-            "%s-%s%s" % (utils.oid_repr(oid), utils.tid_repr(tid),
-                         SAVEPOINT_SUFFIX,)
+            "{}-{}{}".format(utils.oid_repr(oid), utils.tid_repr(tid),
+                             SAVEPOINT_SUFFIX)
         )
 
     def temporaryDirectory(self):
@@ -1243,7 +1240,7 @@ class TmpStore(object):
         self.creating = creating
 
 
-class RootConvenience(object):
+class RootConvenience:
 
     def __init__(self, root):
         self.__dict__['_root'] = root
@@ -1294,7 +1291,7 @@ size.
 """
 
 
-class overridable_property(object):
+class overridable_property:
     """
     Same as property() with only a getter, except that setting a
     value overrides the property rather than raising AttributeError.
@@ -1309,9 +1306,9 @@ class overridable_property(object):
 
 
 @implementer(IStorageTransactionMetaData)
-class TransactionMetaData(object):
+class TransactionMetaData:
 
-    def __init__(self, user=u'', description=u'', extension=None):
+    def __init__(self, user='', description='', extension=None):
         if not isinstance(user, bytes):
             user = user.encode('utf-8')
         self.user = user

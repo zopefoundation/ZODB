@@ -14,11 +14,9 @@
 """Test the routines to convert between long and 64-bit strings"""
 import doctest
 import random
-import re
 import unittest
 
 from persistent import Persistent
-from zope.testing import renormalizing
 
 from ZODB._compat import loads
 from ZODB.utils import U64
@@ -27,14 +25,6 @@ from ZODB.utils import u64
 
 
 NUM = 100
-
-
-checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"), r"\1"),
-    # Windows shows result from 'u64' as long?
-    (re.compile(r"(\d+)L"), r"\1"),
-])
 
 
 class TestUtils(unittest.TestCase):
@@ -154,13 +144,11 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(e.args[-1], b'123456789')
 
 
-class ExampleClass(object):
+class ExampleClass:
     pass
 
 
 def test_suite():
     suite = unittest.defaultTestLoader.loadTestsFromName(__name__)
-    suite.addTest(
-        doctest.DocFileSuite('../utils.rst', checker=checker)
-    )
+    suite.addTest(doctest.DocFileSuite('../utils.rst'))
     return suite

@@ -17,8 +17,6 @@ Any storage that supports undo() must pass these tests.
 """
 import time
 
-from six import PY3
-
 import transaction
 from persistent import Persistent
 
@@ -56,7 +54,7 @@ def listeq(L1, L2):
     return sorted(L1) == sorted(L2)
 
 
-class TransactionalUndoStorage(object):
+class TransactionalUndoStorage:
 
     def _multi_obj_transaction(self, objs):
         t = TransactionMetaData()
@@ -95,7 +93,7 @@ class TransactionalUndoStorage(object):
         self._storage.tpc_finish(t)
         return oids
 
-    def checkSimpleTransactionalUndo(self):
+    def testSimpleTransactionalUndo(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(23))
@@ -127,7 +125,7 @@ class TransactionalUndoStorage(object):
         eq(zodb_unpickle(data), MinPO(23))
         self._iterate()
 
-    def checkCreationUndoneGetTid(self):
+    def testCreationUndoneGetTid(self):
         # create an object
         oid = self._storage.new_oid()
         self._dostore(oid, data=MinPO(23))
@@ -139,7 +137,7 @@ class TransactionalUndoStorage(object):
         # The current version of FileStorage fails this test
         self.assertRaises(KeyError, self._storage.getTid, oid)
 
-    def checkUndoCreationBranch1(self):
+    def testUndoCreationBranch1(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(11))
@@ -161,7 +159,7 @@ class TransactionalUndoStorage(object):
                           b'\x7f\xff\xff\xff\xff\xff\xff\xff')
         self._iterate()
 
-    def checkUndoCreationBranch2(self):
+    def testUndoCreationBranch2(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=MinPO(11))
@@ -179,7 +177,7 @@ class TransactionalUndoStorage(object):
         eq(zodb_unpickle(data), MinPO(12))
         self._iterate()
 
-    def checkTwoObjectUndo(self):
+    def testTwoObjectUndo(self):
         eq = self.assertEqual
         # Convenience
         p31, p32, p51, p52 = map(zodb_pickle,
@@ -218,7 +216,7 @@ class TransactionalUndoStorage(object):
         eq(zodb_unpickle(data), MinPO(51))
         self._iterate()
 
-    def checkTwoObjectUndoAtOnce(self):
+    def testTwoObjectUndoAtOnce(self):
         # Convenience
         eq = self.assertEqual
         p30, p31, p32, p50, p51, p52 = map(zodb_pickle,
@@ -268,7 +266,7 @@ class TransactionalUndoStorage(object):
         eq(zodb_unpickle(data), MinPO(52))
         self._iterate()
 
-    def checkTwoObjectUndoAgain(self):
+    def testTwoObjectUndoAgain(self):
         eq = self.assertEqual
         p31, p32, p33, p51, p52, p53 = map(
             zodb_pickle,
@@ -315,7 +313,7 @@ class TransactionalUndoStorage(object):
         eq(zodb_unpickle(data), MinPO(54))
         self._iterate()
 
-    def checkNotUndoable(self):
+    def testNotUndoable(self):
         eq = self.assertEqual
         # Set things up so we've got a transaction that can't be undone
         oid = self._storage.new_oid()
@@ -363,7 +361,7 @@ class TransactionalUndoStorage(object):
         self._storage.tpc_abort(t)
         self._iterate()
 
-    def checkTransactionalUndoAfterPack(self):
+    def testTransactionalUndoAfterPack(self):
         # bwarsaw Date: Thu Mar 28 21:04:43 2002 UTC
         # This is a test which should provoke the underlying bug in
         # transactionalUndo() on a standby storage.  If our hypothesis
@@ -405,7 +403,7 @@ class TransactionalUndoStorage(object):
         self.assertEqual(zodb_unpickle(data), MinPO(52))
         self._iterate()
 
-    def checkTransactionalUndoAfterPackWithObjectUnlinkFromRoot(self):
+    def testTransactionalUndoAfterPackWithObjectUnlinkFromRoot(self):
         eq = self.assertEqual
         db = DB(self._storage)
         conn = db.open()
@@ -417,7 +415,7 @@ class TransactionalUndoStorage(object):
             root['obj'] = o1
             o1.obj = o2
             txn = transaction.get()
-            txn.note(u'o1 -> o2')
+            txn.note('o1 -> o2')
             txn.commit()
             now = packtime = time.time()
             while packtime <= now:
@@ -426,12 +424,12 @@ class TransactionalUndoStorage(object):
             o3 = C()
             o2.obj = o3
             txn = transaction.get()
-            txn.note(u'o1 -> o2 -> o3')
+            txn.note('o1 -> o2 -> o3')
             txn.commit()
 
             o1.obj = o3
             txn = transaction.get()
-            txn.note(u'o1 -> o3')
+            txn.note('o1 -> o3')
             txn.commit()
 
             log = self._storage.undoLog()
@@ -449,7 +447,7 @@ class TransactionalUndoStorage(object):
             tid = log[0]['id']
             db.undo(tid)
             txn = transaction.get()
-            txn.note(u'undo')
+            txn.note('undo')
             txn.commit()
             # undo does a txn-undo, but doesn't invalidate
             conn.sync()
@@ -465,7 +463,7 @@ class TransactionalUndoStorage(object):
             conn.close()
             db.close()
 
-    def checkPackAfterUndoDeletion(self):
+    def testPackAfterUndoDeletion(self):
         db = DB(self._storage)
         cn = db.open()
         try:
@@ -481,14 +479,14 @@ class TransactionalUndoStorage(object):
             root["key1"] = MinPO(1)
             root["key2"] = MinPO(2)
             txn = transaction.get()
-            txn.note(u"create 3 keys")
+            txn.note("create 3 keys")
             txn.commit()
 
             set_pack_time()
 
             del root["key1"]
             txn = transaction.get()
-            txn.note(u"delete 1 key")
+            txn.note("delete 1 key")
             txn.commit()
 
             set_pack_time()
@@ -500,7 +498,7 @@ class TransactionalUndoStorage(object):
             L = db.undoInfo()
             db.undo(L[0]["id"])
             txn = transaction.get()
-            txn.note(u"undo deletion")
+            txn.note("undo deletion")
             txn.commit()
 
             set_pack_time()
@@ -524,7 +522,7 @@ class TransactionalUndoStorage(object):
             cn.close()
             db.close()
 
-    def checkPackAfterUndoManyTimes(self):
+    def testPackAfterUndoManyTimes(self):
         db = DB(self._storage)
         cn = db.open()
         try:
@@ -536,7 +534,7 @@ class TransactionalUndoStorage(object):
             transaction.commit()
             rt["test"] = MinPO(3)
             txn = transaction.get()
-            txn.note(u"root of undo")
+            txn.note("root of undo")
             txn.commit()
 
             packtimes = []
@@ -544,7 +542,7 @@ class TransactionalUndoStorage(object):
                 L = db.undoInfo()
                 db.undo(L[0]["id"])
                 txn = transaction.get()
-                txn.note(u"undo %d" % i)
+                txn.note("undo %d" % i)
                 txn.commit()
                 rt._p_deactivate()
                 cn.sync()
@@ -576,7 +574,7 @@ class TransactionalUndoStorage(object):
         # most other storages dont.
         pass
 
-    def checkTransactionalUndoIterator(self):
+    def testTransactionalUndoIterator(self):
         # check that data_txn set in iterator makes sense
         if not hasattr(self._storage, "iterator"):
             return
@@ -661,12 +659,12 @@ class TransactionalUndoStorage(object):
 
         self.assertRaises(StopIteration, next, transactions)
 
-    def checkUndoLogMetadata(self):
+    def testUndoLogMetadata(self):
         # test that the metadata is correct in the undo log
         t = transaction.get()
-        t.note(u't1')
+        t.note('t1')
         t.setExtendedInfo('k2', 'this is transaction metadata')
-        t.setUser(u'u3', path=u'p3')
+        t.setUser('u3', path='p3')
         db = DB(self._storage)
         conn = db.open()
         try:
@@ -739,13 +737,13 @@ class TransactionalUndoStorage(object):
         # before a ZRS secondary even starts, and then the latter can't
         # find a server to recover from).
 
-    def checkIndicesInUndoInfo(self):
+    def testIndicesInUndoInfo(self):
         self._exercise_info_indices("undoInfo")
 
-    def checkIndicesInUndoLog(self):
+    def testIndicesInUndoLog(self):
         self._exercise_info_indices("undoLog")
 
-    def checkUndoMultipleConflictResolution(self, reverse=False):
+    def testUndoMultipleConflictResolution(self, reverse=False):
         from .ConflictResolution import PCounter
         db = DB(self._storage)
         cn = db.open()
@@ -755,8 +753,7 @@ class TransactionalUndoStorage(object):
 
             for i in range(4):
                 with db.transaction() as conn:
-                    conn.transaction_manager.get().note(
-                        (str if PY3 else unicode)(i))  # noqa: F821 undef name
+                    conn.transaction_manager.get().note(str(i))
                     conn.root.x.inc()
 
             ids = [log['id'] for log in db.undoLog(1, 3)]
@@ -771,5 +768,5 @@ class TransactionalUndoStorage(object):
             cn.close()
             db.close()
 
-    def checkUndoMultipleConflictResolutionReversed(self):
-        self.checkUndoMultipleConflictResolution(True)
+    def testUndoMultipleConflictResolutionReversed(self):
+        self.testUndoMultipleConflictResolution(True)

@@ -18,13 +18,12 @@ semantics (which you can override), and it also provides a helper
 method _dostore() which performs a complete store transaction for a
 single object revision.
 """
-from __future__ import print_function
 
 import sys
 import time
+from io import BytesIO
 
 import ZODB.tests.util
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentPickler
 from ZODB._compat import Unpickler
 from ZODB._compat import _protocol
@@ -76,7 +75,7 @@ def zodb_pickle(obj):
 
 def persistent_load(pid):
     # helper for zodb_unpickle
-    return "ref to %s.%s oid=%s" % (pid[1][0], pid[1][1], u64(pid[0]))
+    return "ref to {}.{} oid={}".format(pid[1][0], pid[1][1], u64(pid[0]))
 
 
 def zodb_unpickle(data):
@@ -103,7 +102,7 @@ def zodb_unpickle(data):
             try:
                 klass = ns[klassname]
             except KeyError:
-                print("can't find %s in %r" % (klassname, ns), file=sys.stderr)
+                print(f"can't find {klassname} in {ns!r}", file=sys.stderr)
         inst = klass()
     else:
         raise ValueError("expected class info: %s" % repr(klass_info))
@@ -183,7 +182,7 @@ class StorageTestBase(ZODB.tests.util.TestCase):
         # Undo a tid that affects a single object (oid).
         # This is very specialized.
         t = TransactionMetaData()
-        t.note(note or u"undo")
+        t.note(note or "undo")
         self._storage.tpc_begin(t)
         undo_result = self._storage.undo(tid, t)
         vote_result = self._storage.tpc_vote(t)

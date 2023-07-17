@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-from __future__ import print_function
 
 import os
 import struct
@@ -20,13 +19,11 @@ import threading
 import time
 from binascii import hexlify
 from binascii import unhexlify
+from io import BytesIO
 from tempfile import mkstemp
-
-from six import PY2
 
 from persistent.timestamp import TimeStamp
 
-from ZODB._compat import BytesIO
 from ZODB._compat import Unpickler
 from ZODB._compat import ascii_bytes
 
@@ -47,42 +44,31 @@ __all__ = ['z64',
            ]
 
 
-if PY2:
-    def as_bytes(obj):
-        "Convert obj into bytes"
-        return str(obj)
+def as_bytes(obj):
+    if isinstance(obj, bytes):
+        # invoking str on a bytes object gives its repr()
+        return obj
+    return str(obj).encode("ascii")
 
-    def as_text(bytes):
-        "Convert bytes into string"
-        return bytes
 
-    # Convert an element of a bytes object into an int
-    byte_ord = ord
-    byte_chr = chr
+def as_text(bytes):
+    return bytes.decode("ascii")
 
-else:
-    def as_bytes(obj):
-        if isinstance(obj, bytes):
-            # invoking str on a bytes object gives its repr()
-            return obj
-        return str(obj).encode("ascii")
 
-    def as_text(bytes):
-        return bytes.decode("ascii")
+def byte_ord(byte):
+    return byte  # elements of bytes are already ints
 
-    def byte_ord(byte):
-        return byte  # elements of bytes are already ints
 
-    def byte_chr(int):
-        return bytes((int,))
+def byte_chr(int):
+    return bytes((int,))
+
 
 z64 = b'\0' * 8
-
 maxtid = b'\x7f\xff\xff\xff\xff\xff\xff\xff'
 
 assert sys.hexversion >= 0x02030000
 
-# The distinction between ints and longs is blurred in Python 2.2,
+# The distinction between ints and longs is blurred,
 # so u64() are U64() really the same.
 
 _OID_STRUCT = struct.Struct('>Q')
@@ -180,7 +166,7 @@ tid_repr = serial_repr
 def readable_tid_repr(tid):
     result = tid_repr(tid)
     if isinstance(tid, bytes) and len(tid) == 8:
-        result = "%s %s" % (result, TimeStamp(tid))
+        result = "{} {}".format(result, TimeStamp(tid))
     return result
 
 # Given a ZODB pickle, return pair of strings (module_name, class_name).
@@ -197,9 +183,7 @@ def get_pickle_metadata(data):
     # ZODB's data records contain two pickles.  The first is the class
     # of the object, the second is the object.  We're only trying to
     # pick apart the first here, to extract the module and class names.
-    if data[0] in (0x80,    # Py3k indexes bytes -> int
-                   b'\x80'  # Python2 indexes bytes -> bytes
-                   ):  # protocol marker, protocol > 1
+    if data[0] == 0x80:  # protocol marker, protocol > 1
         data = data[2:]
     if data.startswith(b'(c'):   # pickle MARK GLOBAL opcode sequence
         global_prefix = 2
@@ -253,7 +237,7 @@ def check_precondition(precondition):
             precondition.__doc__.strip())
 
 
-class Locked(object):
+class Locked:
 
     def __init__(self, func, inst=None, class_=None, preconditions=()):
         self.__func__ = func
@@ -281,7 +265,7 @@ class Locked(object):
             return func(*args, **kw)
 
 
-class locked(object):
+class locked:
 
     def __init__(self, *preconditions):
         self.preconditions = preconditions
@@ -297,8 +281,7 @@ class locked(object):
 
 
 if os.environ.get('DEBUG_LOCKING'):  # pragma: no cover
-    # NOTE: This only works on Python 3.
-    class Lock(object):
+    class Lock:
 
         lock_class = threading.Lock
 
@@ -309,7 +292,7 @@ if os.environ.get('DEBUG_LOCKING'):  # pragma: no cover
             f = sys._getframe(2)
             if f.f_code.co_filename.endswith('ZODB/utils.py'):
                 f = sys._getframe(3)
-            f = '%s:%s' % (f.f_code.co_filename, f.f_lineno)
+            f = '{}:{}'.format(f.f_code.co_filename, f.f_lineno)
             print(id(self), self._lock, threading.get_ident(), f, name,
                   a if a else '', kw if kw else '')
 

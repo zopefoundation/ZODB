@@ -15,11 +15,9 @@
 
 import logging
 import os
+from io import BytesIO
 from tempfile import TemporaryFile
 
-import six
-
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentPickler
 from ZODB._compat import Unpickler
 from ZODB._compat import _protocol
@@ -36,12 +34,12 @@ from ZODB.utils import u64
 logger = logging.getLogger('ZODB.ExportImport')
 
 
-class ExportImport(object):
+class ExportImport:
 
     def exportFile(self, oid, f=None, bufsize=64 * 1024):
         if f is None:
             f = TemporaryFile(prefix="EXP")
-        elif isinstance(f, six.string_types):
+        elif isinstance(f, str):
             f = open(f, 'w+b')
         f.write(b'ZEXP')
         oids = [oid]
@@ -79,7 +77,7 @@ class ExportImport(object):
     def importFile(self, f, clue='', customImporters=None):
         # This is tricky, because we need to work in a transaction!
 
-        if isinstance(f, six.string_types):
+        if isinstance(f, str):
             with open(f, 'rb') as fp:
                 return self.importFile(fp, clue=clue,
                                        customImporters=customImporters)
@@ -127,7 +125,7 @@ class ExportImport(object):
 
             if not isinstance(ooid, bytes):
                 assert isinstance(ooid, str)
-                # this happens on Python 3 when all bytes in the oid are < 0x80
+                # this happens when all bytes in the oid are < 0x80
                 ooid = ooid.encode('ascii')
 
             if ooid in oids:
@@ -204,7 +202,7 @@ export_end_marker = b'\377'*16
 blob_begin_marker = b'\000BLOBSTART'
 
 
-class Ghost(object):
+class Ghost:
     __slots__ = ("oid",)
 
     def __init__(self, oid):

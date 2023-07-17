@@ -66,9 +66,8 @@ We can create and use instances of the class:
 We can modify the class and none of the persistent attributes will
 change because the object hasn't been saved.
 
-    >>> import six
     >>> def bar(self):
-    ...     six.print_('bar', self.name)
+    ...     print('bar', self.name)
     >>> C.bar = bar
     >>> c.bar()
     bar first
@@ -93,7 +92,7 @@ Now, if we look at the persistence variables, we'll see that they have
 values:
 
     >>> C._p_oid
-    '\x00\x00\x00\x00\x00\x00\x00\x01'
+    b'\x00\x00\x00\x00\x00\x00\x00\x01'
     >>> C._p_jar is not None
     True
     >>> C._p_serial is not None
@@ -104,7 +103,7 @@ values:
 Now, if we modify the class:
 
     >>> def baz(self):
-    ...     six.print_('baz', self.name)
+    ...     print('baz', self.name)
     >>> C.baz = baz
     >>> c.baz()
     baz first
@@ -229,7 +228,7 @@ Now, if we try to load it, we get a broken object:
 
     >>> connection2.sync()
     >>> connection2.root()['obs']['p']
-    <persistent broken __zodb__.P instance '\x00\x00\x00\x00\x00\x00\x00\x04'>
+    <persistent broken __zodb__.P instance b'\x00\x00\x00\x00\x00\x00\x00\x04'>
 
 because the module, `__zodb__` can't be loaded.  We need to provide a
 class factory that knows about this special module. Here we'll supply a

@@ -13,7 +13,6 @@
 ##############################################################################
 """Storage implementation using a log written to a single file.
 """
-from __future__ import print_function
 
 import binascii
 import contextlib
@@ -21,10 +20,10 @@ import errno
 import logging
 import os
 import time
+from base64 import decodebytes
+from base64 import encodebytes
 from struct import pack
 from struct import unpack
-
-from six import string_types as STRING_TYPES
 
 from persistent.TimeStamp import TimeStamp
 from zc.lockfile import LockFile
@@ -34,8 +33,6 @@ from zope.interface import implementer
 from ZODB._compat import FILESTORAGE_MAGIC
 from ZODB._compat import Pickler
 from ZODB._compat import _protocol
-from ZODB._compat import decodebytes
-from ZODB._compat import encodebytes
 from ZODB._compat import loads
 from ZODB.BaseStorage import BaseStorage
 from ZODB.BaseStorage import DataRecord as _DataRecord
@@ -275,7 +272,7 @@ class FileStorage(
         if not create:
             try:
                 self._file = open(file_name, read_only and 'rb' or 'r+b')
-            except IOError as exc:
+            except OSError as exc:
                 if exc.errno == errno.EFBIG:
                     # The file is too big to open.  Fail visibly.
                     raise
@@ -536,7 +533,7 @@ class FileStorage(
         except KeyError:
             raise POSKeyError(oid)
         except TypeError:
-            raise TypeError("invalid oid %r" % (oid,))
+            raise TypeError("invalid oid {!r}".format(oid))
 
     load = load_current  # Keep load for now for old clients
 
@@ -1580,7 +1577,7 @@ def recover(file_name):
 
     file.truncate(npos)
 
-    print("Recovered file, lost %s, ended up with %s bytes" % (
+    print("Recovered file, lost {}, ended up with {} bytes".format(
         pos-opos, npos))
 
 
@@ -1776,7 +1773,7 @@ def _truncate(file, name, pos):
     try:
         i = 0
         while 1:
-            oname = '%s.tr%s' % (name, i)
+            oname = '{}.tr{}'.format(name, i)
             if os.path.exists(oname):
                 i += 1
             else:
@@ -1802,7 +1799,7 @@ class FileIterator(FileStorageFormatter):
     _file = None
 
     def __init__(self, filename, start=None, stop=None, pos=4):
-        assert isinstance(filename, STRING_TYPES)
+        assert isinstance(filename, str)
         file = open(filename, 'rb')
         self._file = file
         self._file_name = filename
@@ -1825,7 +1822,7 @@ class FileIterator(FileStorageFormatter):
 
     def __len__(self):
         # Define a bogus __len__() to make the iterator work
-        # with code like builtin list() and tuple() in Python 2.1.
+        # with code like builtin list() and tuple().
         # There's a lot of C code that expects a sequence to have
         # an __len__() but can cope with any sort of mistake in its
         # implementation.  So just return 0.
@@ -2084,11 +2081,11 @@ class TransactionRecordIterator(FileStorageFormatter):
 class Record(_DataRecord):
 
     def __init__(self, oid, tid, data, prev, pos):
-        super(Record, self).__init__(oid, tid, data, prev)
+        super().__init__(oid, tid, data, prev)
         self.pos = pos
 
 
-class UndoSearch(object):
+class UndoSearch:
 
     def __init__(self, file, pos, first, last, filter=None):
         self.file = file
@@ -2150,7 +2147,7 @@ class UndoSearch(object):
         return d
 
 
-class FilePool(object):
+class FilePool:
 
     closed = False
     writing = False
@@ -2215,8 +2212,7 @@ class FilePool(object):
 
         This is required if they contain data of rolled back transactions.
         """
-        # Unfortunately, Python 3.x has no API to flush read buffers, and
-        # the API is ineffective in Python 2 on Mac OS X.
+        # Unfortunately, Python has no API to flush read buffers.
         with self.write_lock():
             self.empty()
 

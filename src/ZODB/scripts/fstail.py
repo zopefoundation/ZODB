@@ -13,19 +13,13 @@
 #
 ##############################################################################
 """Tool to dump the last few transactions from a FileStorage."""
-from __future__ import print_function
 
 import binascii
 import getopt
 import sys
+from hashlib import sha1
 
 from ZODB.fstools import prev_txn
-
-
-try:
-    from hashlib import sha1
-except ImportError:
-    from sha import sha as sha1
 
 
 def main(path, ntxn):
@@ -36,10 +30,10 @@ def main(path, ntxn):
         while th and i > 0:
             hash = sha1(th.get_raw_data()).digest()
             th.read_meta()
-            print("%s: hash=%s" % (th.get_timestamp(),
-                                   binascii.hexlify(hash).decode()))
-            print(("user=%r description=%r length=%d offset=%d (+%d)"
-                   % (th.user, th.descr, th.length, th.get_offset(), len(th))))
+            print("{}: hash={}".format(th.get_timestamp(),
+                                       binascii.hexlify(hash).decode()))
+            print("user=%r description=%r length=%d offset=%d (+%d)"
+                  % (th.user, th.descr, th.length, th.get_offset(), len(th)))
             print()
             th = th.prev_txn()
             i -= 1

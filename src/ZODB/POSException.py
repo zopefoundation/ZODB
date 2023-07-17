@@ -26,7 +26,7 @@ from ZODB.utils import readable_tid_repr
 
 def _fmt_undo(oid, reason):
     s = reason and (": %s" % reason) or ""
-    return "Undo error %s%s" % (oid_repr(oid), s)
+    return "Undo error {}{}".format(oid_repr(oid), s)
 
 
 def _recon(class_, state):
@@ -55,7 +55,7 @@ class POSError(Exception):
         # the args would then get lost, leading to unprintable exceptions
         # and worse. Manually assign to args from the state to be sure
         # this doesn't happen.
-        super(POSError, self).__setstate__(state)
+        super().__setstate__(state)
         self.args = state['args']
 
 
@@ -131,7 +131,7 @@ class ConflictError(POSError, transaction.interfaces.TransientError):
             extras.append("serial currently committed %s" %
                           readable_tid_repr(current))
         if extras:
-            return "%s (%s)" % (self.message, ", ".join(extras))
+            return "{} ({})".format(self.message, ", ".join(extras))
         else:
             return self.message
 
@@ -262,8 +262,8 @@ class DanglingReferenceError(
         self.missing = Boid
 
     def __str__(self):
-        return "from %s to %s" % (oid_repr(self.referer),
-                                  oid_repr(self.missing))
+        return "from {} to {}".format(oid_repr(self.referer),
+                                      oid_repr(self.missing))
 
 
 ############################################################################

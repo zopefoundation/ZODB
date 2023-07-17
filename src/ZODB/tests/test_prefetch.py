@@ -59,4 +59,4 @@ class PrefetchTests(unittest.TestCase):
 
 
 def test_suite():
-    return unittest.makeSuite(PrefetchTests)
+    return unittest.defaultTestLoader.loadTestsFromTestCase(PrefetchTests)

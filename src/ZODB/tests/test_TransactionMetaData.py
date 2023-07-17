@@ -23,7 +23,7 @@ class TransactionMetaDataTests(unittest.TestCase):
 
     def test_basic(self):
         extension = dict(foo='FOO')
-        t = TransactionMetaData(u'user\x80', u'description\x80', extension)
+        t = TransactionMetaData('user\x80', 'description\x80', extension)
         self.assertEqual(t.user, b'user\xc2\x80')
         self.assertEqual(t.description, b'description\xc2\x80')
         self.assertEqual(t.extension, extension)
@@ -58,7 +58,7 @@ class TransactionMetaDataTests(unittest.TestCase):
 
     def test_set_extension(self):
         data = {}
-        t = TransactionMetaData(u'', u'', data)
+        t = TransactionMetaData('', '', data)
         self.assertEqual(t.user, b'')
         self.assertEqual(t.description, b'')
         self.assertIs(t.extension, data)
@@ -92,8 +92,8 @@ class TransactionMetaDataTests(unittest.TestCase):
         storage = Storage()
         conn = ZODB.connection(storage)
         with conn.transaction_manager as t:
-            t.user = u'user\x80'
-            t.description = u'description\x80'
+            t.user = 'user\x80'
+            t.description = 'description\x80'
             t.setExtendedInfo('foo', 'FOO')
             conn.root.x = 1
 
@@ -119,7 +119,3 @@ class TransactionMetaDataTests(unittest.TestCase):
         with self.assertRaises(KeyError) as c:
             t.data(data)
         self.assertEqual(c.exception.args, (data,))
-
-
-def test_suite():
-    return unittest.makeSuite(TransactionMetaDataTests)

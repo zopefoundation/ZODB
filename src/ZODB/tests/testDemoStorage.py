@@ -59,20 +59,20 @@ class DemoStorageTests(
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.DemoStorage.DemoStorage()
 
-    def checkOversizeNote(self):
+    def testOversizeNote(self):
         # This base class test checks for the common case where a storage
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
         pass
 
-    def checkLoadDelegation(self):
+    def testLoadDelegation(self):
         # Minimal test of loadEX w/o version -- ironically
         DB(self._storage)  # creates object 0. :)
         s2 = ZODB.DemoStorage.DemoStorage(base=self._storage)
         self.assertEqual(load_current(s2, ZODB.utils.z64),
                          load_current(self._storage, ZODB.utils.z64))
 
-    def checkLengthAndBool(self):
+    def testLengthAndBool(self):
         self.assertEqual(len(self._storage), 0)
         self.assertTrue(not self._storage)
         db = DB(self._storage)  # creates object 0. :)
@@ -85,11 +85,11 @@ class DemoStorageTests(
         self.assertTrue(self._storage)
         db.close()
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass  # we don't support undo yet
-    checkUndoZombie = checkLoadBeforeUndo
+    testUndoZombie = testLoadBeforeUndo
 
-    def checkBaseHistory(self):
+    def testBaseHistory(self):
         def base_only():
             yield 11
             yield 12
@@ -130,12 +130,12 @@ class DemoStorageWrappedBase(DemoStorageTests):
     def _makeBaseStorage(self):
         raise NotImplementedError
 
-    def checkPackOnlyOneObject(self):
+    def testPackOnlyOneObject(self):
         pass  # Wrapping demo storages don't do gc
 
-    def checkPackWithMultiDatabaseReferences(self):
+    def testPackWithMultiDatabaseReferences(self):
         pass  # we never do gc
-    checkPackAllRevisions = checkPackWithMultiDatabaseReferences
+    testPackAllRevisions = testPackWithMultiDatabaseReferences
 
 
 class DemoStorageWrappedAroundMappingStorage(DemoStorageWrappedBase):
@@ -166,14 +166,13 @@ def setUp(test):
 
 def testSomeDelegation():
     r"""
-    >>> import six
     >>> class S(object):
     ...     def __init__(self, name):
     ...         self.name = name
     ...     def getSize(self):
-    ...         six.print_(self.name, 'size')
+    ...         print(self.name, 'size')
     ...     def close(self):
-    ...         six.print_(self.name, 'closed')
+    ...         print(self.name, 'closed')
     ...     sortKey = __len__ = getTid = None
     ...     tpc_finish = tpc_vote = tpc_transaction = None
     ...     _lock = ZODB.utils.Lock()
@@ -184,7 +183,7 @@ def testSomeDelegation():
     ...     def new_oid(self):
     ...         return '\0' * 8
     ...     def tpc_begin(self, t, tid, status):
-    ...         six.print_('begin', tid, status)
+    ...         print('begin', tid, status)
     ...     def tpc_abort(self, t):
     ...         pass
 
@@ -210,12 +209,12 @@ def blob_pos_key_error_with_non_blob_base():
     >>> storage.loadBlob(ZODB.utils.p64(1), ZODB.utils.p64(1))
     Traceback (most recent call last):
     ...
-    POSKeyError: 0x01
+    ZODB.POSException.POSKeyError: 0x01
 
     >>> storage.openCommittedBlobFile(ZODB.utils.p64(1), ZODB.utils.p64(1))
     Traceback (most recent call last):
     ...
-    POSKeyError: 0x01
+    ZODB.POSException.POSKeyError: 0x01
 
     """
 
@@ -283,12 +282,10 @@ def test_suite():
             checker=ZODB.tests.util.checker,
         ),
     ))
-    suite.addTest(unittest.makeSuite(DemoStorageTests, 'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageHexTests, 'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundFileStorage,
-                                     'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundMappingStorage,
-                                     'check'))
-    suite.addTest(unittest.makeSuite(DemoStorageWrappedAroundHexMappingStorage,
-                                     'check'))
+    load = unittest.defaultTestLoader.loadTestsFromTestCase
+    suite.addTest(load(DemoStorageTests))
+    suite.addTest(load(DemoStorageHexTests))
+    suite.addTest(load(DemoStorageWrappedAroundFileStorage))
+    suite.addTest(load(DemoStorageWrappedAroundMappingStorage))
+    suite.addTest(load(DemoStorageWrappedAroundHexMappingStorage))
     return suite

@@ -441,7 +441,7 @@ class FileStoragePacker(FileStorageFormatter):
             self._copier = PackCopier(self._tfile, self.index, self.tindex)
 
             ipos, opos = self.copyToPacktime()
-        except (OSError, IOError):
+        except OSError:
             # most probably ran out of disk space or some other IO error
             close_files_remove()
             raise  # don't succeed silently
@@ -486,7 +486,7 @@ class FileStoragePacker(FileStorageFormatter):
                 self.blob_removed.close()
 
             return pos
-        except (OSError, IOError):
+        except OSError:
             # most probably ran out of disk space or some other IO error
             close_files_remove()
             if self.locked:

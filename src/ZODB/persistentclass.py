@@ -42,7 +42,7 @@ $Id$
 #   - We'll use _p_changed is None to indicate that we're in this state.
 #
 
-class _p_DataDescr(object):
+class _p_DataDescr:
     # Descr used as base for _p_ data. Data are stored in
     # _p_class_dict.
 
@@ -84,7 +84,7 @@ class _p_oid_or_jar_Descr(_p_DataDescr):
             jar.setstate(inst)
 
 
-class _p_ChangedDescr(object):
+class _p_ChangedDescr:
     # descriptor to handle special weird semantics of _p_changed
 
     def __get__(self, inst, cls):
@@ -101,7 +101,7 @@ class _p_ChangedDescr(object):
         inst._p_invalidate()
 
 
-class _p_MethodDescr(object):
+class _p_MethodDescr:
     """Provide unassignable class attributes
     """
 
@@ -131,10 +131,11 @@ class PersistentMetaClass(type):
     _p_serial = _p_DataDescr('_p_serial')
 
     def __new__(self, name, bases, cdict, _p_changed=False):
-        cdict = dict([(k, v) for (k, v) in cdict.items()
-                      if not k.startswith('_p_')])
+        cdict = {k: v
+                 for (k, v) in cdict.items()
+                 if not k.startswith('_p_')}
         cdict['_p_class_dict'] = {'_p_changed': _p_changed}
-        return super(PersistentMetaClass, self).__new__(
+        return super().__new__(
             self, name, bases, cdict)
 
     def __getnewargs__(self):
@@ -158,14 +159,14 @@ class PersistentMetaClass(type):
             data_manager.register(self)
 
     def __setattr__(self, name, v):
-        if not ((name.startswith('_p_') or name.startswith('_v'))):
+        if not (name.startswith('_p_') or name.startswith('_v')):
             self._p_maybeupdate(name)
-        super(PersistentMetaClass, self).__setattr__(name, v)
+        super().__setattr__(name, v)
 
     def __delattr__(self, name):
-        if not ((name.startswith('_p_') or name.startswith('_v'))):
+        if not (name.startswith('_p_') or name.startswith('_v')):
             self._p_maybeupdate(name)
-        super(PersistentMetaClass, self).__delattr__(name)
+        super().__delattr__(name)
 
     def _p_deactivate(self):
         # persistent classes can't be ghosts
@@ -182,13 +183,11 @@ class PersistentMetaClass(type):
 
     def __getstate__(self):
         return (self.__bases__,
-                dict([(k, v) for (k, v) in self.__dict__.items()
-                      if not (k.startswith('_p_')
-                              or k.startswith('_v_')
-                              or k in special_class_descrs
-                              )
-                      ]),
-                )
+                {k: v
+                 for (k, v) in self.__dict__.items()
+                 if not (k.startswith('_p_')
+                         or k.startswith('_v_')
+                         or k in special_class_descrs)})
 
     __getstate__ = _p_MethodDescr(__getstate__)
 
@@ -197,8 +196,9 @@ class PersistentMetaClass(type):
         if self.__bases__ != bases:
             # __getnewargs__ should've taken care of that
             raise AssertionError(self.__bases__, '!=', bases)
-        cdict = dict([(k, v) for (k, v) in cdict.items()
-                      if not k.startswith('_p_')])
+        cdict = {k: v
+                 for (k, v) in cdict.items()
+                 if not k.startswith('_p_')}
 
         _p_class_dict = self._p_class_dict
         self._p_class_dict = {}

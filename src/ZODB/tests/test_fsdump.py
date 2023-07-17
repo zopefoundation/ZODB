@@ -40,7 +40,7 @@ Create a root object and try again:
 >>> db = ZODB.DB(st) # yes, that creates a root object!
 >>> fsdump(path) #doctest: +ELLIPSIS
 Trans #00000 tid=... time=... offset=<OFFSET>
-    status=' ' user='' description='initial database creation'
+    status=' ' user=b'' description=b'initial database creation'
   data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
 
 Now we see first transaction with root object.
@@ -53,10 +53,10 @@ Let's add a BTree:
 >>> txn.get().commit()
 >>> fsdump(path) #doctest: +ELLIPSIS
 Trans #00000 tid=... time=... offset=<OFFSET>
-    status=' ' user='' description='initial database creation'
+    status=' ' user=b'' description=b'initial database creation'
   data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
 Trans #00001 tid=... time=... offset=<OFFSET>
-    status=' ' user='' description='added an OOBTree'
+    status=' ' user=b'' description=b'added an OOBTree'
   data #00000 oid=0000000000000000 size=<SIZE> class=persistent.mapping.PersistentMapping
   data #00001 oid=0000000000000001 size=<SIZE> class=BTrees.OOBTree.OOBTree...
 

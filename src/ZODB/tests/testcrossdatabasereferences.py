@@ -58,7 +58,7 @@ database open function, but this doesn't work:
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference:
+    ZODB.POSException.InvalidObjectReference:
     ('Attempt to store a reference to an object from a separate connection to
     the same database or multidatabase',
     <ZODB.Connection.Connection object at ...>,
@@ -77,7 +77,7 @@ different connections to the same database.
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference:
+    ZODB.POSException.InvalidObjectReference:
     ('Attempt to store a reference to an object from a separate connection
     to the same database or multidatabase',
     <ZODB.Connection.Connection object at ...>,

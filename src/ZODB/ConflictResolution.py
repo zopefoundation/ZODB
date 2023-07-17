@@ -13,16 +13,11 @@
 ##############################################################################
 
 import logging
-# Subtle: Python 2.x has pickle.PicklingError and cPickle.PicklingError,
-# and these are unrelated classes!  So we shouldn't use pickle.PicklingError,
-# since on Python 2, ZODB._compat.pickle is cPickle.
+from io import BytesIO
 from pickle import PicklingError
-
-import six
 
 import zope.interface
 
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentPickler
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import _protocol
@@ -37,7 +32,7 @@ class BadClassName(Exception):
     pass
 
 
-class BadClass(object):
+class BadClass:
 
     def __init__(self, *args):
         self.args = args
@@ -68,8 +63,8 @@ def find_global(*args):
     if cls == 1:
         # Not importable
         if (isinstance(args, tuple) and len(args) == 2 and
-                isinstance(args[0], six.string_types) and
-                isinstance(args[1], six.string_types)):
+                isinstance(args[0], str) and
+                isinstance(args[1], str)):
             return BadClass(*args)
         else:
             raise BadClassName(*args)
@@ -125,7 +120,7 @@ class IPersistentReference(zope.interface.Interface):
 
 
 @zope.interface.implementer(IPersistentReference)
-class PersistentReference(object):
+class PersistentReference:
 
     weak = False
     oid = database_name = klass = None
@@ -169,7 +164,7 @@ class PersistentReference(object):
                 self.weak = True
         if not isinstance(self.oid, (bytes, type(None))):
             assert isinstance(self.oid, str)
-            # this happens on Python 3 when all bytes in the oid are < 0x80
+            # this happens when all bytes in the oid are < 0x80
             self.oid = self.oid.encode('ascii')
 
     def __cmp__(self, other):
@@ -184,8 +179,6 @@ class PersistentReference(object):
             raise ValueError(
                 "can't reliably compare against different "
                 "PersistentReferences")
-
-    # Python 3 dropped __cmp__
 
     def __eq__(self, other):
         return self.__cmp__(other) == 0
@@ -206,7 +199,7 @@ class PersistentReference(object):
         return self.__cmp__(other) >= 0
 
     def __repr__(self):
-        return "PR(%s %s)" % (id(self), self.data)
+        return "PR({} {})".format(id(self), self.data)
 
     def __getstate__(self):
         raise PicklingError("Can't pickle PersistentReference")
@@ -221,7 +214,7 @@ class PersistentReference(object):
             return data[1][2]
 
 
-class PersistentReferenceFactory(object):
+class PersistentReferenceFactory:
 
     data = None
 
@@ -311,7 +304,7 @@ def tryToResolveConflict(self, oid, committedSerial, oldSerial, newpickle,
                         data=newpickle)
 
 
-class ConflictResolvingStorage(object):
+class ConflictResolvingStorage:
     "Mix-in class that provides conflict resolution handling for storages"
 
     tryToResolveConflict = tryToResolveConflict
@@ -323,7 +316,7 @@ class ConflictResolvingStorage(object):
         self._crs_untransform_record_data = wrapper.untransform_record_data
         self._crs_transform_record_data = wrapper.transform_record_data
         try:
-            m = super(ConflictResolvingStorage, self).registerDB
+            m = super().registerDB
         except AttributeError:
             pass
         else:

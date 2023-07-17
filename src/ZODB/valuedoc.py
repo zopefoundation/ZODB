@@ -4,7 +4,7 @@ See http://stackoverflow.com/questions/9153473/sphinx-values-for-attributes-repo
 """  # noqa: E501 line too long
 
 
-class ValueDoc(object):
+class ValueDoc:
 
     def __init__(self, text):
         self.text = text

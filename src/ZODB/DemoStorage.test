@@ -224,13 +224,13 @@ DemoStorage supports Blobs if the changes database supports blobs.
     >>> db = DB(storage)
     >>> conn = db.open()
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'state 1'
+    b'state 1'
     >>> _ = transaction.begin()
     >>> with conn.root()['blob'].open('w') as file:
     ...     _ = file.write(b'state 2')
     >>> transaction.commit()
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'state 2'
+    b'state 2'
 
     >>> storage.temporaryDirectory() == changes.temporaryDirectory()
     True
@@ -245,14 +245,14 @@ It isn't necessary for the base database to support blobs.
     >>> db = DB(storage)
     >>> conn = db.open()
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'state 2'
+    b'state 2'
 
     >>> _ = transaction.begin()
     >>> conn.root()['blob2'] = ZODB.blob.Blob()
     >>> with conn.root()['blob2'].open('w') as file:
     ...     _ = file.write(b'state 1')
     >>> with conn.root()['blob2'].open() as fp: fp.read()
-    'state 1'
+    b'state 1'
 
     >>> db.close()
 
@@ -269,7 +269,7 @@ storage wrapped around it when necessary:
     >>> db = DB(storage)
     >>> conn = db.open()
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'state 1'
+    b'state 1'
 
     >>> type(storage.changes).__name__
     'BlobStorage'
@@ -279,7 +279,7 @@ storage wrapped around it when necessary:
     ...     _ = file.write(b'state 2')
     >>> transaction.commit()
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'state 2'
+    b'state 2'
 
     >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
     True
@@ -308,7 +308,7 @@ This works even if we first write a blob rather than read a blob:
     'BlobStorage'
 
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'state 2'
+    b'state 2'
 
     >>> storage.temporaryDirectory() == storage.changes.temporaryDirectory()
     True

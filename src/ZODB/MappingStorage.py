@@ -33,7 +33,7 @@ import ZODB.utils
     ZODB.interfaces.IStorage,
     ZODB.interfaces.IStorageIteration,
 )
-class MappingStorage(object):
+class MappingStorage:
     """In-memory storage implementation
 
     Note that this implementation is somewhat naive and inefficient
@@ -136,8 +136,7 @@ class MappingStorage(object):
 
     # ZODB.interfaces.IStorageIteration
     def iterator(self, start=None, end=None):
-        for transaction_record in self._transactions.values(start, end):
-            yield transaction_record
+        yield from self._transactions.values(start, end)
 
     # ZODB.interfaces.IStorage
     @ZODB.utils.locked(opened)
@@ -219,7 +218,7 @@ class MappingStorage(object):
         if gc:
             # Step 2, GC.  A simple sweep+copy
             new_data = BTrees.OOBTree.OOBTree()
-            to_copy = set([ZODB.utils.z64])
+            to_copy = {ZODB.utils.z64}
             while to_copy:
                 oid = to_copy.pop()
                 tid_data = self._data.pop(oid)
@@ -336,7 +335,7 @@ class MappingStorage(object):
                 "tpc_vote called with wrong transaction")
 
 
-class TransactionRecord(object):
+class TransactionRecord:
 
     status = ' '
 
@@ -363,7 +362,7 @@ class TransactionRecord(object):
 
 
 @zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
-class DataRecord(object):
+class DataRecord:
     """Abstract base class for iterator protocol"""
 
     version = ''

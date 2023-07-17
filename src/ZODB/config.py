@@ -13,17 +13,11 @@
 ##############################################################################
 """Open database and storage from a configuration."""
 import os
+from io import StringIO
 
 import ZConfig
 
 import ZODB
-
-
-try:
-    from cStringIO import StringIO
-except ImportError:
-    # Py3
-    from io import StringIO
 
 
 db_schema_path = os.path.join(ZODB.__path__[0], "config.xml")
@@ -117,7 +111,7 @@ def storageFromConfig(section):
     return section.open()
 
 
-class BaseConfig(object):
+class BaseConfig:
     """Object representing a configured storage or database.
 
     Methods:

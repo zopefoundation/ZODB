@@ -41,11 +41,11 @@ class RegularObject(Persistent):
 
     def _p_deactivate(self):
         self.__class__.deactivations += 1
-        super(RegularObject, self)._p_deactivate()
+        super()._p_deactivate()
 
     def _p_invalidate(self):
         self.__class__.invalidations += 1
-        super(RegularObject, self)._p_invalidate()
+        super()._p_invalidate()
 
     def init(cls):
         cls.deactivations = 0
@@ -58,7 +58,7 @@ class PersistentObject(Persistent):
     pass
 
 
-class CacheTests(object):
+class CacheTests:
 
     def test_cache(self):
         r"""Test basic cache methods.

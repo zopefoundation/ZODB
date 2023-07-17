@@ -42,7 +42,7 @@ class ShutdownTest(ZODB.tests.util.TestCase):
     def tearDown(self):
         ZODB.tests.util.TestCase.tearDown(self)
 
-    def check_shutdown(self):
+    def test_shutdown(self):
         client_thread = ZODBClientThread(self._db, self)
         client_thread.start()
         client_thread.event.wait()
@@ -60,4 +60,4 @@ class ShutdownTest(ZODB.tests.util.TestCase):
 
 
 def test_suite():
-    return unittest.makeSuite(ShutdownTest, "check")
+    return unittest.defaultTestLoader.loadTestsFromTestCase(ShutdownTest)

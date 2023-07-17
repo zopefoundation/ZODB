@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 ##############################################################################
 #
 # Copyright (c) 2003 Zope Foundation and Contributors.
@@ -46,7 +44,7 @@ def fsdump(path, file=None, with_offset=1):
             else:
                 modname, classname = get_pickle_metadata(rec.data)
                 size = " size=%d" % len(rec.data)
-                fullclass = "%s.%s" % (modname, classname)
+                fullclass = "{}.{}".format(modname, classname)
 
             if rec.data_txn:
                 # It would be nice to print the transaction number
@@ -65,7 +63,7 @@ def fmt(p64):
     return "%016x" % u64(p64)
 
 
-class Dumper(object):
+class Dumper:
     """A very verbose dumper for debugging FileStorage problems."""
 
     # TODO:  Should revise this class to use FileStorageFormatter.

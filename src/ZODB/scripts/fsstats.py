@@ -1,12 +1,8 @@
 #!/usr/bin/env python2
 """Print details statistics from fsdump output."""
-from __future__ import print_function
 
 import re
 import sys
-
-import six
-from six.moves import filter
 
 
 rx_txn = re.compile(r"tid=([0-9a-f]+).*size=(\d+)")
@@ -27,10 +23,10 @@ class Histogram(dict):
         self[size] = self.get(size, 0) + 1
 
     def size(self):
-        return sum(six.itervalues(self))
+        return sum(self.values())
 
     def mean(self):
-        product = sum([k * v for k, v in six.iteritems(self)])
+        product = sum([k * v for k, v in self.items()])
         return product / self.size()
 
     def median(self):
@@ -47,7 +43,7 @@ class Histogram(dict):
     def mode(self):
         mode = 0
         value = 0
-        for k, v in six.iteritems(self):
+        for k, v in self.items():
             if v > value:
                 value = v
                 mode = k
@@ -55,12 +51,12 @@ class Histogram(dict):
 
     def make_bins(self, binsize):
         try:
-            maxkey = max(six.iterkeys(self))
+            maxkey = max(self.keys())
         except ValueError:
             maxkey = 0
         self.binsize = binsize
         self.bins = [0] * (1 + maxkey // binsize)
-        for k, v in six.iteritems(self):
+        for k, v in self.items():
             b = k // binsize
             self.bins[b] += v
 
@@ -105,12 +101,12 @@ def class_detail(class_size):
     labels = ["num", "median", "mean", "mode", "class"]
     print(fmt % tuple(labels))
     print(fmt % tuple(["-" * len(s) for s in labels]))
-    for klass, h in sort_byhsize(six.iteritems(class_size)):
+    for klass, h in sort_byhsize(class_size.items()):
         print(fmt % (h.size(), h.median(), h.mean(), h.mode(), klass))
     print()
 
     # per class details
-    for klass, h in sort_byhsize(six.iteritems(class_size), reverse=True):
+    for klass, h in sort_byhsize(class_size.items(), reverse=True):
         h.make_bins(50)
         if len(tuple(filter(None, h.bins))) == 1:
             continue
@@ -119,7 +115,7 @@ def class_detail(class_size):
 
 def revision_detail(lifetimes, classes):
     # Report per-class details for any object modified more than once
-    for name, oids in six.iteritems(classes):
+    for name, oids in classes.items():
         h = Histogram()
         keep = False
         for oid in dict.fromkeys(oids, 1):
@@ -148,7 +144,7 @@ def main(path=None):
     objects = 0
     tid = None
 
-    f = open(path, "r")
+    f = open(path)
     for i, line in enumerate(f):
         if MAX and i > MAX:
             break

@@ -30,7 +30,7 @@ from ZODB.utils import load_current
 class RecoveryStorage(IteratorDeepCompare):
 
     # Requires a setUp() that creates a self._dst destination storage
-    def checkSimpleRecovery(self):
+    def testSimpleRecovery(self):
         oid = self._storage.new_oid()
         revid = self._dostore(oid, data=11)
         revid = self._dostore(oid, revid=revid, data=12)
@@ -38,7 +38,7 @@ class RecoveryStorage(IteratorDeepCompare):
         self._dst.copyTransactionsFrom(self._storage)
         self.compare(self._storage, self._dst)
 
-    def checkRestoreAcrossPack(self):
+    def testRestoreAcrossPack(self):
         db = DB(self._storage)
         c = db.open()
         r = c.root()
@@ -69,22 +69,22 @@ class RecoveryStorage(IteratorDeepCompare):
         self._dst.tpc_finish(final)
 
     @time_monotonically_increases
-    def checkPackWithGCOnDestinationAfterRestore(self):
+    def testPackWithGCOnDestinationAfterRestore(self):
         raises = self.assertRaises
         db = DB(self._storage)
         conn = db.open()
         root = conn.root()
         root.obj = obj1 = MinPO(1)
         txn = transaction.get()
-        txn.note(u'root -> obj')
+        txn.note('root -> obj')
         txn.commit()
         root.obj.obj = obj2 = MinPO(2)
         txn = transaction.get()
-        txn.note(u'root -> obj -> obj')
+        txn.note('root -> obj -> obj')
         txn.commit()
         del root.obj
         txn = transaction.get()
-        txn.note(u'root -X->')
+        txn.note('root -X->')
         txn.commit()
         # Now copy the transactions to the destination
         self._dst.copyTransactionsFrom(self._storage)
@@ -97,7 +97,7 @@ class RecoveryStorage(IteratorDeepCompare):
         raises(KeyError, load_current, self._dst, obj1._p_oid)
         raises(KeyError, load_current, self._dst, obj2._p_oid)
 
-    def checkRestoreWithMultipleObjectsInUndoRedo(self):
+    def testRestoreWithMultipleObjectsInUndoRedo(self):
         from ZODB.FileStorage import FileStorage
 
         # Undo creates backpointers in (at least) FileStorage.  ZODB 3.2.1

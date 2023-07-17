@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE
 #
 ##############################################################################
-from __future__ import print_function
 
 import ZODB.FileStorage
 from ZODB.serialize import get_refs
@@ -45,7 +44,7 @@ def shorten(s, size=50):
     return s[:nleading] + sep + s[-ntrailing:]
 
 
-class Tracer(object):
+class Tracer:
     """Trace all occurrences of a set of oids in a FileStorage.
 
     Create passing a path to an existing FileStorage.
@@ -208,7 +207,7 @@ class Tracer(object):
                     elif isinstance(klass, tuple):
                         ref2name[ref] = klass = "%s.%s" % klass
                     else:
-                        klass = "%s.%s" % (klass.__module__, klass.__name__)
+                        klass = f"{klass.__module__}.{klass.__name__}"
 
                     self._msg(oid, tid, "references", oid_repr(ref), klass,
                               "at", pos)

@@ -27,12 +27,6 @@ from ZODB.Connection import TransactionMetaData
 
 
 checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"), r"\1"),
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
-    (re.compile("ZODB.FileStorage.FileStorage.FileStorageQuotaError"),
-     "FileStorageQuotaError"),
     (re.compile('data.fs:[0-9]+'), 'data.fs:<OFFSET>'),
 ])
 
@@ -143,8 +137,9 @@ def pack_with_repeated_blob_records():
     >>> db.pack()
 
     >>> conn.sync()
-    >>> with conn.root()[1].open() as fp: fp.read()
-    'some data'
+    >>> with conn.root()[1].open() as fp:
+    ...     fp.read()
+    b'some data'
 
     >>> db.close()
     """

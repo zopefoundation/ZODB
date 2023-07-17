@@ -12,27 +12,14 @@
 #
 ##############################################################################
 import doctest
-import re
 import time
 import unittest
 
-from six import PY2
-
 import transaction
-from zope.testing import renormalizing
 
 import ZODB
 import ZODB.tests.util
 from ZODB.tests.MinPO import MinPO
-
-
-checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"),
-     r"\1"),
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
-])
 
 
 # Return total number of connections across all pools in a db._pools.
@@ -83,8 +70,8 @@ class DBTests(ZODB.tests.util.TestCase):
         conn = db.open()
         for i in range(3):
             with conn.transaction_manager as t:
-                t.note(u'work %s' % i)
-                t.setUser(u'user%s' % i)
+                t.note('work %s' % i)
+                t.setUser('user%s' % i)
                 conn.root()[i] = 42
 
         conn.close()
@@ -100,11 +87,6 @@ class DBTests(ZODB.tests.util.TestCase):
                         expect = expect.encode('ascii')
                     self.assertEqual(h[name], expect)
 
-                if PY2:
-                    expect = unicode if text else str  # noqa: F821 undef name
-                    for name in 'description', 'user_name':
-                        self.assertTrue(isinstance(h[name], expect))
-
         check(db.storage.history(z64, 3), False)
         check(db.storage.undoLog(0, 3), False)
         check(db.storage.undoInfo(0, 3), False)
@@ -118,7 +100,7 @@ class TransactionalUndoTests(unittest.TestCase):
     def _makeOne(self):
         from ZODB.DB import TransactionalUndo
 
-        class MockStorage(object):
+        class MockStorage:
             instance_count = 0
             close_count = 0
             release_count = 0
@@ -141,7 +123,7 @@ class TransactionalUndoTests(unittest.TestCase):
             def sortKey(self):
                 return 'MockStorage'
 
-        class MockDB(object):
+        class MockDB:
 
             def __init__(self):
                 self.storage = self._mvcc_storage = MockStorage()
@@ -373,8 +355,9 @@ def open_convenience():
 
     >>> db = ZODB.DB('data.fs', blob_dir='blobs')
     >>> conn = db.open()
-    >>> with conn.root()['b'].open() as fp: fp.read()
-    'test'
+    >>> with conn.root()['b'].open() as fp:
+    ...     fp.read()
+    b'test'
     >>> db.close()
 
     """
@@ -550,6 +533,6 @@ def test_suite():
     s = unittest.defaultTestLoader.loadTestsFromName(__name__)
     s.addTest(doctest.DocTestSuite(
         setUp=ZODB.tests.util.setUp, tearDown=ZODB.tests.util.tearDown,
-        checker=checker, optionflags=doctest.IGNORE_EXCEPTION_DETAIL
+        optionflags=doctest.IGNORE_EXCEPTION_DETAIL
     ))
     return s

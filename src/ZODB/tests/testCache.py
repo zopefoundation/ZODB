@@ -117,13 +117,13 @@ class DBMethods(CacheTestBase):
         old_size = self.db.cacheSize()
         self.db.cacheFullSweep()
         new_size = self.db.cacheSize()
-        self.assertTrue(new_size < old_size, "%s < %s" % (old_size, new_size))
+        self.assertTrue(new_size < old_size, f"{old_size} < {new_size}")
 
     def testMinimize(self):
         old_size = self.db.cacheSize()
         self.db.cacheMinimize()
         new_size = self.db.cacheSize()
-        self.assertTrue(new_size < old_size, "%s < %s" % (old_size, new_size))
+        self.assertTrue(new_size < old_size, f"{old_size} < {new_size}")
 
     def testMinimizeTerminates(self):
         # This is tricky.  cPickleCache had a case where it could get into
@@ -312,7 +312,7 @@ class LRUCacheTests(CacheTestBase):
                 self.assertTrue(details['rc'] > 0)
 
 
-class StubDataManager(object):
+class StubDataManager:
     def setklassstate(self, object):
         pass
 
@@ -552,8 +552,8 @@ size correctly:
 
 
 def test_suite():
-    s = unittest.makeSuite(DBMethods)
-    s.addTest(unittest.makeSuite(LRUCacheTests))
-    s.addTest(unittest.makeSuite(CacheErrors))
+    s = unittest.defaultTestLoader.loadTestsFromTestCase(DBMethods)
+    s.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(LRUCacheTests))
+    s.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(CacheErrors))
     s.addTest(doctest.DocTestSuite())
     return s

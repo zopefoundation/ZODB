@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
 # Based on a transaction analyzer by Matt Kromer.
-from __future__ import print_function
 
 import sys
+from io import BytesIO
 
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentUnpickler
 from ZODB.FileStorage import FileStorage
 
@@ -26,7 +25,7 @@ def FakeUnpickler(f):
     return unpickler
 
 
-class Report(object):
+class Report:
     def __init__(self):
         self.OIDMAP = {}
         self.TYPEMAP = {}
@@ -60,8 +59,8 @@ def shorten(s, n):
 def report(rep):
     print("Processed %d records in %d transactions" % (rep.OIDS, rep.TIDS))
     print("Average record size is %7.2f bytes" % (rep.DBYTES * 1.0 / rep.OIDS))
-    print(("Average transaction size is %7.2f bytes" %
-           (rep.DBYTES * 1.0 / rep.TIDS)))
+    print("Average transaction size is %7.2f bytes" %
+          (rep.DBYTES * 1.0 / rep.TIDS))
 
     print("Types used:")
     fmt = "%-46s %7s %9s %6s %7s"
@@ -112,11 +111,11 @@ def get_type(record):
     try:
         unpickled = FakeUnpickler(BytesIO(record.data)).load()
     except FakeError as err:
-        return "%s.%s" % (err.module, err.name)
+        return "{}.{}".format(err.module, err.name)
     classinfo = unpickled[0]
     if isinstance(classinfo, tuple):
         mod, klass = classinfo
-        return "%s.%s" % (mod, klass)
+        return "{}.{}".format(mod, klass)
     else:
         return str(classinfo)
 

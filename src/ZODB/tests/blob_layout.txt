@@ -32,10 +32,10 @@ entries per directory level:
 >>> import os
 >>> bushy.path_to_oid(os.path.join(
 ...     '0x01', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00'))
-'\x01\x00\x00\x00\x00\x00\x00\x00'
+b'\x01\x00\x00\x00\x00\x00\x00\x00'
 >>> bushy.path_to_oid(os.path.join(
 ...     '0xff', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00', '0x00'))
-'\xff\x00\x00\x00\x00\x00\x00\x00'
+b'\xff\x00\x00\x00\x00\x00\x00\x00'
 
 Paths that do not represent an OID will cause a ValueError:
 
@@ -60,7 +60,7 @@ of blobs at the same time (e.g. 32k on ext3).
 '0x01'
 
 >>> lawn.path_to_oid('0x01')
-'\x00\x00\x00\x00\x00\x00\x00\x01'
+b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
 Paths that do not represent an OID will cause a ValueError:
 
@@ -142,7 +142,7 @@ it will leave a marker with the choosen layout if no marker exists yet:
 'bushy'
 >>> fsh.create()
 >>> with open(os.path.join(blobs, LAYOUT_MARKER), 'rb') as fp: fp.read()
-'bushy'
+b'bushy'
 
 If the FSH finds a marker, then it verifies whether its content matches the
 strategy that was chosen. It will raise an exception if we try to work with a
@@ -172,7 +172,7 @@ the marker will be used in the future:
 >>> blob_storage.fshelper.layout_name
 'lawn'
 >>> with open(os.path.join(blobs, LAYOUT_MARKER), 'rb') as fp: fp.read()
-'lawn'
+b'lawn'
 >>> blob_storage = BlobStorage('blobs', base_storage, layout='bushy')
 ... # doctest: +ELLIPSIS
 Traceback (most recent call last):
@@ -248,14 +248,13 @@ with the same sizes and permissions:
 >>> len(lawn_files) == len(bushy_files)
 True
 
->>> import six
 >>> for file_name, lawn_path in sorted(lawn_files.items()):
 ...     if file_name == '.layout':
 ...         continue
 ...     lawn_stat = os.stat(lawn_path)
 ...     bushy_path = bushy_files[file_name]
 ...     bushy_stat = os.stat(bushy_path)
-...     six.print_(lawn_path, '-->', bushy_path)
+...     print(lawn_path, '-->', bushy_path)
 ...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
 ...         (bushy_stat.st_mode, bushy_stat.st_size)):
 ...         print('oops')
@@ -289,7 +288,7 @@ True
 ...     lawn_stat = os.stat(lawn_path)
 ...     bushy_path = bushy_files[file_name]
 ...     bushy_stat = os.stat(bushy_path)
-...     six.print_(bushy_path, '-->', lawn_path)
+...     print(bushy_path, '-->', lawn_path)
 ...     if ((lawn_stat.st_mode, lawn_stat.st_size) !=
 ...         (bushy_stat.st_mode, bushy_stat.st_size)):
 ...         print('oops')

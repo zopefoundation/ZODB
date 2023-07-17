@@ -87,7 +87,7 @@ class FileStorageTests(
         StorageTestBase.StorageTestBase.setUp(self)
         self.open(create=1)
 
-    def checkLongMetadata(self):
+    def testLongMetadata(self):
         s = "X" * 75000
         try:
             self._dostore(user=s)
@@ -108,7 +108,7 @@ class FileStorageTests(
         else:
             self.fail("expect long extension field to raise error")
 
-    def check_use_fsIndex(self):
+    def test_use_fsIndex(self):
 
         self.assertEqual(self._storage._index.__class__, fsIndex)
 
@@ -127,7 +127,7 @@ class FileStorageTests(
             dump(data, fp, _protocol)
         return index
 
-    def check_conversion_to_fsIndex(self, read_only=False):
+    def test_conversion_to_fsIndex(self, read_only=False):
         from ZODB.fsIndex import fsIndex
 
         # Create some data, and remember the index.
@@ -160,12 +160,12 @@ class FileStorageTests(
         else:
             self.assertTrue(isinstance(current_index, fsIndex))
 
-    def check_conversion_to_fsIndex_readonly(self):
+    def test_conversion_to_fsIndex_readonly(self):
         # Same thing, but the disk .index should continue to hold a
         # Python dict.
-        self.check_conversion_to_fsIndex(read_only=True)
+        self.test_conversion_to_fsIndex(read_only=True)
 
-    def check_conversion_from_dict_to_btree_data_in_fsIndex(self):
+    def test_conversion_from_dict_to_btree_data_in_fsIndex(self):
         # To support efficient range searches on its keys as part of
         # implementing a record iteration protocol in FileStorage, we
         # converted the fsIndex class from using a dictionary as its
@@ -201,7 +201,7 @@ class FileStorageTests(
             new_tree = new_data_dict[k]
             self.assertEqual(list(old_tree.items()), list(new_tree.items()))
 
-    def check_save_after_load_with_no_index(self):
+    def test_save_after_load_with_no_index(self):
         for i in range(10):
             self._dostore()
         self._storage.close()
@@ -209,7 +209,7 @@ class FileStorageTests(
         self.open()
         self.assertEqual(self._storage._saved, 1)
 
-    def checkStoreBumpsOid(self):
+    def testStoreBumpsOid(self):
         # If .store() is handed an oid bigger than the storage knows
         # about already, it's crucial that the storage bump its notion
         # of the largest oid in use.
@@ -225,7 +225,7 @@ class FileStorageTests(
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
 
-    def checkRestoreBumpsOid(self):
+    def testRestoreBumpsOid(self):
         # As above, if .restore() is handed an oid bigger than the storage
         # knows about already, it's crucial that the storage bump its notion
         # of the largest oid in use.  Because copyTransactionsFrom(), and
@@ -242,7 +242,7 @@ class FileStorageTests(
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
 
-    def checkCorruptionInPack(self):
+    def testCorruptionInPack(self):
         # This sets up a corrupt .fs file, with a redundant transaction
         # length mismatch.  The implementation of pack in many releases of
         # ZODB blew up if the .fs file had such damage:  it detected the
@@ -290,7 +290,7 @@ class FileStorageTests(
         else:
             self.fail("expected CorruptedError")
 
-    def check_record_iternext(self):
+    def test_record_iternext(self):
 
         db = DB(self._storage)
         conn = db.open()
@@ -317,7 +317,7 @@ class FileStorageTests(
             else:
                 self.assertNotEqual(next_oid, None)
 
-    def checkFlushAfterTruncate(self, fail=False):
+    def testFlushAfterTruncate(self, fail=False):
         r0 = self._dostore(z64)
         storage = self._storage
         t = TransactionMetaData()
@@ -340,15 +340,15 @@ class FileStorageTests(
     # obvious, hard to reproduce, with possible data corruption.
     # It's even more important that FilePool.flush() is quite aggressive and
     # we'd like to optimize it when Python gets an API to flush read buffers.
-    # Therefore, 'checkFlushAfterTruncate' is tested in turn by another unit
+    # Therefore, 'testFlushAfterTruncate' is tested in turn by another unit
     # test.
     # On Windows, flushing explicitely is not (always?) necessary.
     if sys.platform != 'win32':
-        def checkFlushNeededAfterTruncate(self):
+        def testFlushNeededAfterTruncate(self):
             self._storage._files.flush = lambda: None
-            self.checkFlushAfterTruncate(True)
+            self.testFlushAfterTruncate(True)
 
-    def checkCommitWithEmptyData(self):
+    def testCommitWithEmptyData(self):
         """
         Verify that transaction is persisted even if it has no data, or even
         both no data and empty metadata.
@@ -359,7 +359,7 @@ class FileStorageTests(
         # - commit with empty data and empty metadata
         #   (the fact of commit carries information by itself)
         stor = self._storage
-        for description in (u'commit with empty data', u''):
+        for description in ('commit with empty data', ''):
             t = TransactionMetaData(description=description)
             stor.tpc_begin(t)
             stor.tpc_vote(t)
@@ -452,7 +452,7 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
     def new_dest(self):
         return FileStorageNoRestore('Dest.fs')
 
-    def checkRestoreAcrossPack(self):
+    def testRestoreAcrossPack(self):
         # Skip this check as it calls restore directly.
         pass
 
@@ -463,7 +463,7 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         StorageTestBase.StorageTestBase.setUp(self)
         self._storage = ZODB.FileStorage.FileStorage("Source.fs", create=True)
 
-    def checkanalyze(self):
+    def testanalyze(self):
         import types
 
         from BTrees.OOBTree import OOBTree
@@ -520,21 +520,19 @@ class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
         self.assertAlmostEqual(cumpct, 100.0, 0,
                                "Failed to analyze some records")
 
-# Raise an exception if the tids in FileStorage fs aren't
-# strictly increasing.
-
 
 def checkIncreasingTids(fs):
+    # Raise an exception if the tids in FileStorage fs aren't
+    # strictly increasing.
     lasttid = b'\0' * 8
     for txn in fs.iterator():
         if lasttid >= txn.tid:
-            raise ValueError("tids out of order %r >= %r" % (lasttid, txn.tid))
+            raise ValueError(f"tids out of order {lasttid!r} >= {txn.tid!r}")
         lasttid = txn.tid
-
-# Return a TimeStamp object 'minutes' minutes in the future.
 
 
 def timestamp(minutes):
+    """Return a TimeStamp object 'minutes' minutes in the future."""
     import time
 
     from persistent.TimeStamp import TimeStamp
@@ -751,13 +749,13 @@ def pack_with_open_blob_files():
 
     >>> db.pack()
     >>> f.read()
-    'some data'
+    b'some data'
     >>> f.close()
 
     >>> tm1.commit()
     >>> conn2.sync()
     >>> with conn2.root()[2].open() as fp: fp.read()
-    'some more data'
+    b'some more data'
 
     >>> db.close()
     """
@@ -787,7 +785,7 @@ def test_suite():
         FileStorageTestsWithBlobsEnabled, FileStorageHexTestsWithBlobsEnabled,
         AnalyzeDotPyTest,
     ]:
-        suite.addTest(unittest.makeSuite(klass, "check"))
+        suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(klass))
     suite.addTest(doctest.DocTestSuite(
         setUp=zope.testing.setupstack.setUpDirectory,
         tearDown=util.tearDown,

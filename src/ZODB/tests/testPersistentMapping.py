@@ -23,8 +23,6 @@ old code, developers will have a hard time testing the new code.
 import sys
 import unittest
 
-from six import PY2
-
 import ZODB
 from ZODB.Connection import TransactionMetaData
 from ZODB.MappingStorage import MappingStorage
@@ -38,7 +36,7 @@ pickle = ('((U\x0bPersistenceq\x01U\x11PersistentMappingtq\x02Nt.}q\x03U\n'
 
 class PMTests(unittest.TestCase):
 
-    def checkOldStyleRoot(self):
+    def testOldStyleRoot(self):
         # The Persistence module doesn't exist in Zope3's idea of what ZODB
         # is, but the global `pickle` references it explicitly.  So just
         # bail if Persistence isn't available.
@@ -61,7 +59,7 @@ class PMTests(unittest.TestCase):
         self.assertTrue(hasattr(r, 'data'))
         self.assertTrue(not hasattr(r, '_container'))
 
-    def checkBackwardCompat(self):
+    def testBackwardCompat(self):
         # Verify that the sanest of the ZODB 3.2 dotted paths still works.
         from persistent.mapping import PersistentMapping as newPath
 
@@ -69,7 +67,7 @@ class PMTests(unittest.TestCase):
 
         self.assertTrue(oldPath is newPath)
 
-    def checkBasicOps(self):
+    def testBasicOps(self):
         from persistent.mapping import PersistentMapping
         m = PersistentMapping({'x': 1}, a=2, b=3)
         m['name'] = 'bob'
@@ -91,26 +89,15 @@ class PMTests(unittest.TestCase):
         self.assertEqual(keys, ['a', 'b', 'name', 'x'])
 
         values = set(m.values())
-        self.assertEqual(values, set([1, 2, 3, 'bob']))
+        self.assertEqual(values, {1, 2, 3, 'bob'})
 
         items = sorted(m.items())
         self.assertEqual(items,
                          [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
 
-        if PY2:
-            keys = sorted(m.iterkeys())
-            self.assertEqual(keys, ['a', 'b', 'name', 'x'])
-
-            values = sorted(m.itervalues())
-            self.assertEqual(values, [1, 2, 3, 'bob'])
-
-            items = sorted(m.iteritems())
-            self.assertEqual(
-                items, [('a', 2), ('b', 3), ('name', 'bob'), ('x', 1)])
-
     # PersistentMapping didn't have an __iter__ method before ZODB 3.4.2.
     # Check that it plays well now with the Python iteration protocol.
-    def checkIteration(self):
+    def testIteration(self):
         from persistent.mapping import PersistentMapping
         m = PersistentMapping({'x': 1}, a=2, b=3)
         m['name'] = 'bob'
@@ -137,7 +124,7 @@ def find_global(modulename, classname):
     """Helper for this test suite to get special PersistentMapping"""
 
     if classname == "PersistentMapping":
-        class PersistentMapping(object):
+        class PersistentMapping:
             def __setstate__(self, state):
                 self.__dict__.update(state)
         return PersistentMapping
@@ -145,7 +132,3 @@ def find_global(modulename, classname):
         __import__(modulename)
         mod = sys.modules[modulename]
         return getattr(mod, classname)
-
-
-def test_suite():
-    return unittest.makeSuite(PMTests, 'check')

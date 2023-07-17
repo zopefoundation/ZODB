@@ -13,7 +13,6 @@
 ##############################################################################
 """A script to migrate a blob directory into a different layout.
 """
-from __future__ import print_function
 
 import logging
 import optparse
@@ -42,7 +41,7 @@ def migrate(source, dest, layout):
     source_fsh.create()
     dest_fsh = FilesystemHelper(dest, layout)
     dest_fsh.create()
-    print("Migrating blob data from `%s` (%s) to `%s` (%s)" % (
+    print("Migrating blob data from `{}` ({}) to `{}` ({})".format(
         source, source_fsh.layout_name, dest, dest_fsh.layout_name))
     for oid, path in source_fsh.listOIDs():
         dest_path = dest_fsh.getPathForOID(oid, create=True)
@@ -51,7 +50,7 @@ def migrate(source, dest, layout):
             source_file = os.path.join(path, file)
             dest_file = os.path.join(dest_path, file)
             link_or_copy(source_file, dest_file)
-        print("\tOID: %s - %s files " % (oid_repr(oid), len(files)))
+        print("\tOID: {} - {} files ".format(oid_repr(oid), len(files)))
 
 
 def main(source=None, dest=None, layout="bushy"):

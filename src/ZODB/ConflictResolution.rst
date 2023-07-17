@@ -231,7 +231,7 @@ And now we will make a conflict.
     >>> tm_A.commit() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error...
+    ZODB.POSException.ConflictError: database conflict error...
 
 oops!
 
@@ -352,7 +352,7 @@ resolution.
     >>> tm_A.commit() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error...
+    ZODB.POSException.ConflictError: database conflict error...
     >>> tm_A.abort()
 
 Third, note that, even if the persistent object to which the reference refers
@@ -395,7 +395,7 @@ the situation above.
     >>> tm_A.commit() # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error...
+    ZODB.POSException.ConflictError: database conflict error...
     >>> tm_A.abort()
 
 However, the story highlights the kinds of subtle problems that units
@@ -479,7 +479,7 @@ integrity issues.
 
     >>> ref1 = PersistentReference(b'my_oid')
     >>> ref1.oid
-    'my_oid'
+    b'my_oid'
     >>> print(ref1.klass)
     None
     >>> print(ref1.database_name)
@@ -489,7 +489,7 @@ integrity issues.
 
     >>> ref2 = PersistentReference((b'my_oid', 'my_class'))
     >>> ref2.oid
-    'my_oid'
+    b'my_oid'
     >>> ref2.klass
     'my_class'
     >>> print(ref2.database_name)
@@ -499,7 +499,7 @@ integrity issues.
 
     >>> ref3 = PersistentReference(['w', (b'my_oid',)])
     >>> ref3.oid
-    'my_oid'
+    b'my_oid'
     >>> print(ref3.klass)
     None
     >>> print(ref3.database_name)
@@ -509,7 +509,7 @@ integrity issues.
 
     >>> ref3a = PersistentReference(['w', (b'my_oid', 'other_db')])
     >>> ref3a.oid
-    'my_oid'
+    b'my_oid'
     >>> print(ref3a.klass)
     None
     >>> ref3a.database_name
@@ -519,7 +519,7 @@ integrity issues.
 
     >>> ref4 = PersistentReference(['m', ('other_db', b'my_oid', 'my_class')])
     >>> ref4.oid
-    'my_oid'
+    b'my_oid'
     >>> ref4.klass
     'my_class'
     >>> ref4.database_name
@@ -529,7 +529,7 @@ integrity issues.
 
     >>> ref5 = PersistentReference(['n', ('other_db', b'my_oid')])
     >>> ref5.oid
-    'my_oid'
+    b'my_oid'
     >>> print(ref5.klass)
     None
     >>> ref5.database_name
@@ -539,7 +539,7 @@ integrity issues.
 
     >>> ref6 = PersistentReference([b'my_oid']) # legacy
     >>> ref6.oid
-    'my_oid'
+    b'my_oid'
     >>> print(ref6.klass)
     None
     >>> print(ref6.database_name)

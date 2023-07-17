@@ -15,6 +15,7 @@
 """
 import atexit
 import doctest
+import functools
 import os
 import pdb
 import re
@@ -24,6 +25,9 @@ import tempfile
 import time
 import unittest
 import warnings
+from time import gmtime as _real_gmtime
+from time import time as _real_time
+from unittest import mock
 
 import persistent
 import transaction
@@ -36,55 +40,17 @@ from ZODB.Connection import TransactionMetaData
 from ZODB.MappingStorage import DB  # noqa: F401 import unused
 
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
-
-import functools
-from time import gmtime as _real_gmtime
-from time import time as _real_time
-
-import six
-
-
 _current_time = _real_time()
 
 
 checker = renormalizing.RENormalizing([
     (re.compile("<(.*?) object at 0x[0-9a-f]*?>"),
      r"<\1 object at 0x000000000000>"),
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"),
-     r"\1"),
-    (re.compile('b(".*?")'),
-     r"\1"),
     # Persistent 4.4 changes the repr of persistent subclasses,
     # and it is slightly different with the C extension and
     # pure-Python module
     (re.compile('ZODB.tests.testcrossdatabasereferences.'),
      ''),
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.interfaces.BlobError"),
-     r"BlobError"),
-    (re.compile("ZODB.blob.BlobStorageError"),
-     r"BlobStorageError"),
-    (re.compile("ZODB.broken.BrokenModified"),
-     r"BrokenModified"),
-    (re.compile("ZODB.POSException.POSKeyError"),
-     r"POSKeyError"),
-    (re.compile("ZODB.POSException.ConflictError"),
-     r"ConflictError"),
-    (re.compile("ZODB.POSException.ReadConflictError"),
-     r"ReadConflictError"),
-    (re.compile("ZODB.POSException.InvalidObjectReference"),
-     r"InvalidObjectReference"),
-    (re.compile("ZODB.POSException.ReadOnlyHistoryError"),
-     r"ReadOnlyHistoryError"),
-    (re.compile("ZODB.POSException.Unsupported"),
-     r"Unsupported"),
-    (re.compile("ZConfig.ConfigurationSyntaxError"),
-     r"ConfigurationSyntaxError"),
 ])
 
 
@@ -149,7 +115,7 @@ class P(persistent.Persistent):
         return 'P(%s)' % self.name
 
 
-class MininalTestLayer(object):
+class MininalTestLayer:
 
     __bases__ = ()
     __module__ = ''
@@ -263,7 +229,7 @@ def clear_transaction_syncs():
     transaction.manager.clearSynchs()
 
 
-class _TimeWrapper(object):
+class _TimeWrapper:
 
     def __init__(self, granularity=1.0):
         self._granularity = granularity
@@ -352,7 +318,7 @@ def time_monotonically_increases(func_or_granularity):
             t2 = time.time()
             assrt t2 == t1 + 0.1
     """
-    if isinstance(func_or_granularity, (six.integer_types, float)):
+    if isinstance(func_or_granularity, ((int,), float)):
         # We're being used as a factory.
         wrapper_factory = _TimeWrapper(func_or_granularity)
         return wrapper_factory
@@ -393,30 +359,20 @@ def with_high_concurrency(f):
     """
     @functools.wraps(f)
     def _(*argv, **kw):
-        if six.PY3:
-            # Python3, by default, switches every 5ms, which turns threads in
-            # intended "high concurrency" scenarios to execute almost serially.
-            # Raise the frequency of context switches in order to increase the
-            # probability to reproduce interesting/tricky overlapping of
-            # threads.
-            #
-            # See https://github.com/zopefoundation/ZODB/pull/345#issuecomment-822188305 and  # noqa: E501 line too long
-            # https://github.com/zopefoundation/ZEO/issues/168#issuecomment-821829116 for details.  # noqa: E501 line too long
-            _ = sys.getswitchinterval()
+        # Python3, by default, switches every 5ms, which turns threads in
+        # intended "high concurrency" scenarios to execute almost serially.
+        # Raise the frequency of context switches in order to increase the
+        # probability to reproduce interesting/tricky overlapping of
+        # threads.
+        #
+        # See https://github.com/zopefoundation/ZODB/pull/345#issuecomment-822188305 and  # noqa: E501 line too long
+        # https://github.com/zopefoundation/ZEO/issues/168#issuecomment-821829116 for details.  # noqa: E501 line too long
+        _ = sys.getswitchinterval()
 
-            def restore():
-                sys.setswitchinterval(_)
-            # ~ 100 simple instructions on modern hardware
-            sys.setswitchinterval(5e-6)
-
-        else:
-            # Python2, by default, switches threads every "100 instructions".
-            # Just make sure we run f with that default.
-            _ = sys.getcheckinterval()
-
-            def restore():
-                sys.setcheckinterval(_)
-            sys.setcheckinterval(100)
+        def restore():
+            sys.setswitchinterval(_)
+        # ~ 100 simple instructions on modern hardware
+        sys.setswitchinterval(5e-6)
 
         try:
             return f(*argv, **kw)

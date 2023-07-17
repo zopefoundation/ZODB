@@ -155,7 +155,7 @@ commit the transaction.
 >>> tm2.get().commit() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO...
+ZODB.POSException.ConflictError: database conflict error (oid 0x01, class ZODB.tests.MinPO...
 
 >>> tm2.get().abort()
 
@@ -413,24 +413,12 @@ False
 >>> r1["b"]._p_activate() # doctest: +ELLIPSIS
 Traceback (most recent call last):
  ...
-ReadConflictError: ...
+ZODB.POSException.ReadConflictError: ...
 
 >>> db.close()
-"""
+"""  # noqa: E501 line too long
 import doctest
-import re
-
-from zope.testing import renormalizing
-
-
-checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"), r"\1"),
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
-    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
-])
 
 
 def test_suite():
-    return doctest.DocTestSuite(checker=checker)
+    return doctest.DocTestSuite()

@@ -13,10 +13,12 @@
 ##############################################################################
 """Tests of the file storage recovery script."""
 
+import io as StringIO
 import os
 import random
 import sys
 import unittest
+from base64 import decodebytes
 
 import transaction
 from persistent.mapping import PersistentMapping
@@ -24,15 +26,7 @@ from persistent.mapping import PersistentMapping
 import ZODB
 import ZODB.fsrecover
 import ZODB.tests.util
-from ZODB._compat import decodebytes
 from ZODB.FileStorage import FileStorage
-
-
-try:
-    import StringIO
-except ImportError:
-    # Py3
-    import io as StringIO
 
 
 class RecoverTest(ZODB.tests.util.TestCase):
@@ -228,4 +222,4 @@ class RecoverTest(ZODB.tests.util.TestCase):
 
 
 def test_suite():
-    return unittest.makeSuite(RecoverTest)
+    return unittest.defaultTestLoader.loadTestsFromTestCase(RecoverTest)

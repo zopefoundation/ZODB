@@ -43,15 +43,15 @@ class MappingStorageTests(
         StorageTestBase.StorageTestBase.setUp(self, )
         self._storage = ZODB.MappingStorage.MappingStorage()
 
-    def checkOversizeNote(self):
+    def testOversizeNote(self):
         # This base class test checks for the common case where a storage
         # doesnt support huge transaction metadata. This storage doesnt
         # have this limit, so we inhibit this test here.
         pass
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass  # we don't support undo yet
-    checkUndoZombie = checkLoadBeforeUndo
+    testUndoZombie = testLoadBeforeUndo
 
 
 class MappingStorageHexTests(MappingStorageTests):
@@ -77,21 +77,12 @@ class MappingStorageTransactionRecordTests(unittest.TestCase):
             ''
         )
 
-    def check_set__extension(self):
+    def test_set__extension(self):
         self._transaction_record._extension = 'new'
         self.assertEqual(self._transaction_record.extension, 'new')
 
-    def check_get__extension(self):
+    def test_get__extension(self):
         self.assertEqual(
             self._transaction_record.extension,
             self._transaction_record._extension
         )
-
-
-def test_suite():
-    suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(MappingStorageTests, 'check'))
-    suite.addTest(unittest.makeSuite(MappingStorageHexTests, 'check'))
-    suite.addTest(unittest.makeSuite(
-        MappingStorageTransactionRecordTests, 'check'))
-    return suite

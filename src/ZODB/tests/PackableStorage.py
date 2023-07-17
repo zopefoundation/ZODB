@@ -12,10 +12,10 @@
 #
 ##############################################################################
 """Run some tests relevant for storages that support pack()."""
-from __future__ import print_function
 
 import doctest
 import time
+from io import BytesIO
 
 import transaction
 from persistent import Persistent
@@ -24,7 +24,6 @@ from persistent.mapping import PersistentMapping
 import ZODB.interfaces
 import ZODB.tests.util
 from ZODB import DB
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentPickler
 from ZODB._compat import Pickler
 from ZODB._compat import Unpickler
@@ -50,7 +49,7 @@ ZERO = b'\0'*8
 # ids, not as the object's state.  This makes the referencesf stuff work,
 # because it pickle sniffs for persistent ids (so we have to get those
 # persistent ids into the root object's pickle).
-class Root(object):
+class Root:
     pass
 
 
@@ -58,7 +57,7 @@ class Root(object):
 # persistent pickling machinery -- in the dumps() function below -- will
 # pickle the oid string instead of the object's actual state.  Yee haw, this
 # stuff is deep. ;)
-class Object(object):
+class Object:
     def __init__(self, oid):
         self._oid = oid
 
@@ -69,7 +68,6 @@ class Object(object):
         self.__dict__.clear()
         self.__dict__.update(state)
         if not isinstance(self._oid, bytes):
-            # Python 3
             self._oid = self._oid.encode('ascii')
 
 
@@ -108,7 +106,7 @@ def pdumps(obj):
     return s.getvalue()
 
 
-class PackableStorageBase(object):
+class PackableStorageBase:
     # We keep a cache of object ids to instances so that the unpickler can
     # easily return any persistent object.
 
@@ -159,7 +157,7 @@ class PackableStorageBase(object):
             p.dump((PersistentMapping, None))
             p.dump({'_container': {}})
             t = TransactionMetaData()
-            t.description = u'initial database creation'
+            t.description = 'initial database creation'
             self._storage.tpc_begin(t)
             self._storage.store(ZERO, None, file.getvalue(), '', t)
             self._storage.tpc_vote(t)
@@ -177,14 +175,14 @@ class PackableStorageBase(object):
 
 class PackableStorage(PackableStorageBase):
 
-    def checkPackEmptyStorage(self):
+    def testPackEmptyStorage(self):
         self._storage.pack(time.time(), referencesf)
 
-    def checkPackTomorrow(self):
+    def testPackTomorrow(self):
         self._initroot()
         self._storage.pack(time.time() + 10000, referencesf)
 
-    def checkPackYesterday(self):
+    def testPackYesterday(self):
         self._initroot()
         self._storage.pack(time.time() - 10000, referencesf)
 
@@ -283,15 +281,15 @@ class PackableStorage(PackableStorageBase):
         db.close()
 
     @time_monotonically_increases
-    def checkPackWhileWriting(self):
+    def testPackWhileWriting(self):
         self._PackWhileWriting(pack_now=False)
 
     @time_monotonically_increases
-    def checkPackNowWhileWriting(self):
+    def testPackNowWhileWriting(self):
         self._PackWhileWriting(pack_now=True)
 
     @time_monotonically_increases
-    def checkPackLotsWhileWriting(self):
+    def testPackLotsWhileWriting(self):
         # This is like the other pack-while-writing tests, except it packs
         # repeatedly until the client thread is done.  At the time it was
         # introduced, it reliably provoked
@@ -329,7 +327,7 @@ class PackableStorage(PackableStorageBase):
 
         db.close()
 
-    def checkPackWithMultiDatabaseReferences(self):
+    def testPackWithMultiDatabaseReferences(self):
         databases = {}
         db = DB(self._storage, databases=databases, database_name='')
         otherdb = ZODB.tests.util.DB(databases=databases, database_name='o')
@@ -348,7 +346,7 @@ class PackableStorage(PackableStorageBase):
         otherdb.close()
         db.close()
 
-    def checkPackAllRevisions(self):
+    def testPackAllRevisions(self):
         self._initroot()
         eq = self.assertEqual
         raises = self.assertRaises
@@ -387,7 +385,7 @@ class PackableStorage(PackableStorageBase):
         raises(KeyError, self._storage.loadSerial, oid, revid2)
         raises(KeyError, self._storage.loadSerial, oid, revid3)
 
-    def checkPackJustOldRevisions(self):
+    def testPackJustOldRevisions(self):
         eq = self.assertEqual
         raises = self.assertRaises
         loads = self._makeloader()
@@ -451,7 +449,7 @@ class PackableStorage(PackableStorageBase):
         eq(pobj.getoid(), oid)
         eq(pobj.value, 3)
 
-    def checkPackOnlyOneObject(self):
+    def testPackOnlyOneObject(self):
         eq = self.assertEqual
         raises = self.assertRaises
         loads = self._makeloader()
@@ -538,7 +536,7 @@ class PackableStorage(PackableStorageBase):
 
 class PackableStorageWithOptionalGC(PackableStorage):
 
-    def checkPackAllRevisionsNoGC(self):
+    def testPackAllRevisionsNoGC(self):
         self._initroot()
         eq = self.assertEqual
         raises = self.assertRaises
@@ -579,14 +577,14 @@ class PackableStorageWithOptionalGC(PackableStorage):
 
 class PackableUndoStorage(PackableStorageBase):
 
-    def checkPackUnlinkedFromRoot(self):
+    def testPackUnlinkedFromRoot(self):
         eq = self.assertEqual
         db = DB(self._storage)
         conn = db.open()
         root = conn.root()
 
         txn = transaction.get()
-        txn.note(u'root')
+        txn.note('root')
         txn.commit()
 
         now = packtime = time.time()
@@ -598,12 +596,12 @@ class PackableUndoStorage(PackableStorageBase):
 
         root['obj'] = obj
         txn = transaction.get()
-        txn.note(u'root -> o1')
+        txn.note('root -> o1')
         txn.commit()
 
         del root['obj']
         txn = transaction.get()
-        txn.note(u'root -x-> o1')
+        txn.note('root -x-> o1')
         txn.commit()
 
         self._storage.pack(packtime, referencesf)
@@ -612,7 +610,7 @@ class PackableUndoStorage(PackableStorageBase):
         tid = log[0]['id']
         db.undo(tid)
         txn = transaction.get()
-        txn.note(u'undo root -x-> o1')
+        txn.note('undo root -x-> o1')
         txn.commit()
 
         conn.sync()
@@ -620,7 +618,7 @@ class PackableUndoStorage(PackableStorageBase):
         eq(root['obj'].value, 7)
 
     @time_monotonically_increases
-    def checkRedundantPack(self):
+    def testRedundantPack(self):
         # It is an error to perform a pack with a packtime earlier
         # than a previous packtime.  The storage can't do a full
         # traversal as of the packtime, because the previous pack may
@@ -665,7 +663,7 @@ class PackableUndoStorage(PackableStorageBase):
         load_current(self._storage, lost_oid)
 
     @time_monotonically_increases(0.1)
-    def checkPackUndoLog(self):
+    def testPackUndoLog(self):
         self._initroot()
         # Create a `persistent' object
         obj = self._newobj()
@@ -784,7 +782,7 @@ class ClientThread(TestThread):
         conn.close()
 
 
-class ElapsedTimer(object):
+class ElapsedTimer:
     def __init__(self, start_time):
         self.start_time = start_time
 

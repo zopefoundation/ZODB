@@ -11,8 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-import unittest
-
 import transaction
 from BTrees.OOBTree import OOBTree
 from persistent import Persistent
@@ -48,11 +46,11 @@ class ZODBTests(ZODB.tests.util.TestCase):
         root['test'] = pm = PersistentMapping()
         for n in range(100):
             pm[n] = PersistentMapping({0: 100 - n})
-        transaction.get().note(u'created test data')
+        transaction.get().note('created test data')
         transaction.commit()
         conn.close()
 
-    def checkExportImport(self, abort_it=False):
+    def testExportImport(self, abort_it=False):
         self.populate()
         conn = self._db.open()
         try:
@@ -67,7 +65,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
     def duplicate(self, conn, abort_it):
         transaction.begin()
-        transaction.get().note(u'duplication')
+        transaction.get().note('duplication')
         root = conn.root()
         ob = root['test']
         assert len(ob) > 10, 'Insufficient test data'
@@ -119,10 +117,10 @@ class ZODBTests(ZODB.tests.util.TestCase):
                 'Did not fully separate duplicate from original')
         transaction.commit()
 
-    def checkExportImportAborted(self):
-        self.checkExportImport(abort_it=True)
+    def testExportImportAborted(self):
+        self.testExportImport(abort_it=True)
 
-    def checkResetCache(self):
+    def testResetCache(self):
         # The cache size after a reset should be 0.  Note that
         # _resetCache is not a public API, but the resetCaches()
         # function is, and resetCaches() causes _resetCache() to be
@@ -134,7 +132,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         conn._resetCache()
         self.assertEqual(len(conn._cache), 0)
 
-    def checkResetCachesAPI(self):
+    def testResetCachesAPI(self):
         # Checks the resetCaches() API.
         # (resetCaches used to be called updateCodeTimestamp.)
         self.populate()
@@ -147,7 +145,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         conn.open()  # simulate the connection being reopened
         self.assertEqual(len(conn._cache), 0)
 
-    def checkExplicitTransactionManager(self):
+    def testExplicitTransactionManager(self):
         # Test of transactions that apply to only the connection,
         # not the thread.
         tm1 = transaction.TransactionManager()
@@ -185,7 +183,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             conn1.close()
             conn2.close()
 
-    def checkSavepointDoesntGetInvalidations(self):
+    def testSavepointDoesntGetInvalidations(self):
         # Prior to ZODB 3.2.9 and 3.4, Connection.tpc_finish() processed
         # invalidations even for a subtxn commit.  This could make
         # inconsistent state visible after a subtxn commit.  There was a
@@ -251,7 +249,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         finally:
             tm1.abort()
 
-    def checkTxnBeginImpliesAbort(self):
+    def testTxnBeginImpliesAbort(self):
         # begin() should do an abort() first, if needed.
         cn = self._db.open()
         rt = cn.root()
@@ -283,7 +281,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         # Later (ZODB 3.6):  Transaction.begin() no longer exists, so the
         # rest of this test was tossed.
 
-    def checkFailingCommitSticks(self):
+    def testFailingCommitSticks(self):
         # See also checkFailingSavepointSticks.
         cn = self._db.open()
         rt = cn.root()
@@ -330,7 +328,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
 
         cn.close()
 
-    def checkSavepointRollbackAndReadCurrent(self):
+    def testSavepointRollbackAndReadCurrent(self):
         '''
         savepoint rollback after readcurrent was called on a new object
         should not raise POSKeyError
@@ -352,7 +350,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             transaction.abort()
             cn.close()
 
-    def checkFailingSavepointSticks(self):
+    def testFailingSavepointSticks(self):
         cn = self._db.open()
         rt = cn.root()
         rt['a'] = 1
@@ -411,7 +409,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
         cn.close()
         cn2.close()
 
-    def checkMultipleUndoInOneTransaction(self):
+    def testMultipleUndoInOneTransaction(self):
         # Verify that it's possible to perform multiple undo
         # operations within a transaction.  If ZODB performs the undo
         # operations in a nondeterministic order, this test will often
@@ -425,7 +423,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             for state_num in range(6):
                 transaction.begin()
                 root['state'] = state_num
-                transaction.get().note(u'root["state"] = %d' % state_num)
+                transaction.get().note('root["state"] = %d' % state_num)
                 transaction.commit()
 
             # Undo all but the first.  Note that no work is actually
@@ -434,7 +432,7 @@ class ZODBTests(ZODB.tests.util.TestCase):
             log = self._db.undoLog()
             self._db.undoMultiple([log[i]['id'] for i in range(5)])
 
-            transaction.get().note(u'undo states 1 through 5')
+            transaction.get().note('undo states 1 through 5')
 
             # Now attempt all those undo operations.
             transaction.commit()
@@ -452,7 +450,7 @@ class PoisonedError(Exception):
 # PoisonedJar arranges to raise PoisonedError from interesting places.
 
 
-class PoisonedJar(object):
+class PoisonedJar:
     def __init__(self, break_tpc_begin=False, break_tpc_vote=False,
                  break_savepoint=False):
         self.break_tpc_begin = break_tpc_begin
@@ -483,12 +481,6 @@ class PoisonedJar(object):
         pass
 
 
-class PoisonedObject(object):
+class PoisonedObject:
     def __init__(self, poisonedjar):
         self._p_jar = poisonedjar
-
-
-def test_suite():
-    return unittest.TestSuite((
-        unittest.makeSuite(ZODBTests, 'check'),
-    ))
