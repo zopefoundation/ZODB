@@ -5,6 +5,8 @@
 6.0 (unreleased)
 ================
 
+- Drop support for Python 2.7, 3.5, 3.6.
+
 - Fix ``racetest`` problems.
   For details see `#376 <https://github.com/zopefoundation/ZODB/pull/376>`_.
 
