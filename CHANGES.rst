@@ -2,8 +2,8 @@
  Change History
 ================
 
-5.8.1 (unreleased)
-==================
+6.0 (unreleased)
+================
 
 - Fix ``racetest`` problems.
   For details see `#376 <https://github.com/zopefoundation/ZODB/pull/376>`_.
