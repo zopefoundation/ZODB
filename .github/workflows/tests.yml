@@ -22,24 +22,19 @@ jobs:
         config:
         # [Python version, tox env]
         - ["3.9",   "lint"]
-        - ["2.7",   "py27"]
-        - ["3.5",   "py35"]
-        - ["3.6",   "py36"]
         - ["3.7",   "py37"]
         - ["3.8",   "py38"]
         - ["3.9",   "py39"]
         - ["3.10",  "py310"]
         - ["3.11",  "py311"]
-        - ["pypy-2.7", "pypy"]
-        - ["pypy-3.7", "pypy3"]
+        - ["pypy-3.9", "pypy3"]
         - ["3.9",   "docs"]
         - ["3.9",   "coverage"]
-        - ["3.8",   "py38-pure"]
+        - ["3.10",   "py310-pure"]
         exclude:
           - { os: ["windows", "windows-latest"], config: ["3.9",   "lint"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "docs"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "coverage"] }
-          - { os: ["windows", "windows-latest"], config: ["pypy-2.7", "pypy"] }
 
     runs-on: ${{ matrix.os[1] }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
@@ -67,7 +62,7 @@ jobs:
     - name: Coverage
       if: matrix.config[1] == 'coverage'
       run: |
-        pip install coveralls coverage-python-version
+        pip install coveralls
         coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
