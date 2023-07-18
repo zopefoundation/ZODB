@@ -2,7 +2,7 @@
  Change History
 ================
 
-5.8.1 (unreleased)
+5.8.1 (2023-07-18)
 ==================
 
 - Fix ``racetest`` problems.
