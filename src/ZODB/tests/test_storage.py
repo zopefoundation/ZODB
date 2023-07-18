@@ -19,7 +19,6 @@ Since even a minimal storage has some complexity, we run standard
 storage tests against the test storage.
 """
 import bisect
-import unittest
 
 from ZODB import POSException
 from ZODB.BaseStorage import BaseStorage
