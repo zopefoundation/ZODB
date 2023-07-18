@@ -7,6 +7,10 @@
 
 - Drop support for Python 2.7, 3.5, 3.6.
 
+
+5.8.1 (2023-07-18)
+==================
+
 - Fix ``racetest`` problems.
   For details see `#376 <https://github.com/zopefoundation/ZODB/pull/376>`_.
 
