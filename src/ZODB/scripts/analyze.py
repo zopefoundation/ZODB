@@ -57,10 +57,10 @@ def shorten(s, n):
 
 
 def report(rep):
-    print("Processed %d records in %d transactions" % (rep.OIDS, rep.TIDS))
-    print("Average record size is %7.2f bytes" % (rep.DBYTES * 1.0 / rep.OIDS))
-    print("Average transaction size is %7.2f bytes" %
-          (rep.DBYTES * 1.0 / rep.TIDS))
+    print(f"Processed {rep.OIDS} records in {rep.TIDS} transactions")
+    print(f"Average record size is {rep.DBYTES * 1.0 / rep.OIDS:7.2f} bytes")
+    print("Average transaction size is"
+          f" {rep.DBYTES * 1.0 / rep.TIDS:7.2f} bytes")
 
     print("Types used:")
     fmt = "%-46s %7s %9s %6s %7s"

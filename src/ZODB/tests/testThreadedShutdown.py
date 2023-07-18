@@ -57,7 +57,3 @@ class ShutdownTest(ZODB.tests.util.TestCase):
         client_thread.join(client_thread.sleep_time + 10)
         if client_thread.is_alive():
             self.fail("Client thread failed to close connection")
-
-
-def test_suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(ShutdownTest)

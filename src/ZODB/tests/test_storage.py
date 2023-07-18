@@ -153,7 +153,3 @@ class MinimalTestSuite(StorageTestBase.StorageTestBase,
 
     def testLoadBeforeUndo(self):
         pass
-
-
-def test_suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(MinimalTestSuite)
