@@ -17,7 +17,6 @@ import io as StringIO
 import os
 import random
 import sys
-import unittest
 from base64 import decodebytes
 
 import transaction
@@ -219,7 +218,3 @@ class RecoverTest(ZODB.tests.util.TestCase):
 
         # Get rid of the temp file holding the truncated bytes.
         os.remove(ZODB.fsrecover._trname)
-
-
-def test_suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(RecoverTest)

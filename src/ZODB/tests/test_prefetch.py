@@ -56,7 +56,3 @@ class PrefetchTests(unittest.TestCase):
         conn.prefetch(z64, [z64])
         conn.prefetch(z64, [z64], conn.root())
         conn.close()
-
-
-def test_suite():
-    return unittest.defaultTestLoader.loadTestsFromTestCase(PrefetchTests)
