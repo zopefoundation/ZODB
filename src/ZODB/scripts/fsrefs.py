@@ -61,7 +61,6 @@ of objects, it does not attempt to load objects in versions, or non-current
 revisions of objects; therefore fsrefs cannot find problems in versions or
 in non-current revisions.
 """
-from __future__ import print_function
 
 import traceback
 
@@ -90,15 +89,15 @@ def report(oid, data, serial, missing):
     else:
         plural = ""
     ts = TimeStamp(serial)
-    print("oid %s %s.%s" % (hex(u64(oid)), from_mod, from_class))
-    print("last updated: %s, tid=%s" % (ts, hex(u64(serial))))
+    print("oid {} {}.{}".format(hex(u64(oid)), from_mod, from_class))
+    print("last updated: {}, tid={}".format(ts, hex(u64(serial))))
     print("refers to invalid object%s:" % plural)
     for oid, info, reason in missing:
         if isinstance(info, tuple):
             description = "%s.%s" % info
         else:
             description = str(info)
-        print("\toid %s %s: %r" % (oid_repr(oid), reason, description))
+        print("\toid {} {}: {!r}".format(oid_repr(oid), reason, description))
     print()
 
 

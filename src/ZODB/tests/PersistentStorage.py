@@ -16,9 +16,9 @@
 from ZODB.utils import load_current
 
 
-class PersistentStorage(object):
+class PersistentStorage:
 
-    def checkUpdatesPersist(self):
+    def testUpdatesPersist(self):
         oids = []
 
         def new_oid_wrapper(l=oids, new_oid=self._storage.new_oid):  # noqa: E741 E501 ambiguous variable name 'l' and line too long

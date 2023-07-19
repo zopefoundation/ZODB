@@ -44,7 +44,7 @@ Getting stuff out of there works similarly:
     >>> IBlob.providedBy(blob2)
     True
     >>> with blob2.open("r") as fp: fp.read()
-    "I'm a happy Blob."
+    b"I'm a happy Blob."
     >>> transaction2.abort()
 
 MVCC also works.
@@ -56,7 +56,7 @@ MVCC also works.
     >>> f.close()
     >>> transaction.commit()
     >>> with connection3.root()['myblob'].open('r') as fp: fp.read()
-    "I'm a happy Blob."
+    b"I'm a happy Blob."
 
     >>> transaction2.abort()
     >>> transaction3.abort()
@@ -74,7 +74,7 @@ You can't put blobs into a database that has uses a Non-Blob-Storage, though:
     >>> transaction2.commit()        # doctest: +ELLIPSIS
     Traceback (most recent call last):
         ...
-    Unsupported: Storing Blobs in ...
+    ZODB.POSException.Unsupported: Storing Blobs in ...
 
     >>> transaction2.abort()
     >>> connection2.close()

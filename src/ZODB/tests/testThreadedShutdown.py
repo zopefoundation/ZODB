@@ -1,6 +1,5 @@
 import threading
 import time
-import unittest
 
 import ZODB
 
@@ -42,7 +41,7 @@ class ShutdownTest(ZODB.tests.util.TestCase):
     def tearDown(self):
         ZODB.tests.util.TestCase.tearDown(self)
 
-    def check_shutdown(self):
+    def test_shutdown(self):
         client_thread = ZODBClientThread(self._db, self)
         client_thread.start()
         client_thread.event.wait()
@@ -57,7 +56,3 @@ class ShutdownTest(ZODB.tests.util.TestCase):
         client_thread.join(client_thread.sleep_time + 10)
         if client_thread.is_alive():
             self.fail("Client thread failed to close connection")
-
-
-def test_suite():
-    return unittest.makeSuite(ShutdownTest, "check")

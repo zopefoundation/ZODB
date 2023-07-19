@@ -2,8 +2,10 @@
  Change History
 ================
 
-5.8.2 (unreleased)
-==================
+6.0 (unreleased)
+================
+
+- Drop support for Python 2.7, 3.5, 3.6.
 
 
 5.8.1 (2023-07-18)

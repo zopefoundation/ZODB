@@ -19,7 +19,6 @@ Since even a minimal storage has some complexity, we run standard
 storage tests against the test storage.
 """
 import bisect
-import unittest
 
 from ZODB import POSException
 from ZODB.BaseStorage import BaseStorage
@@ -31,7 +30,7 @@ from ZODB.tests import Synchronization
 from ZODB.utils import z64
 
 
-class Transaction(object):
+class Transaction:
     """Hold data for current transaction for MinimalMemoryStorage."""
 
     def __init__(self, tid):
@@ -45,7 +44,7 @@ class Transaction(object):
         return dict.fromkeys([oid for oid, tid in self.index.keys()], self.tid)
 
 
-class MinimalMemoryStorage(BaseStorage, object):
+class MinimalMemoryStorage(BaseStorage):
     """Simple in-memory storage that supports revisions.
 
     This storage is needed to test multi-version concurrency control.
@@ -55,7 +54,7 @@ class MinimalMemoryStorage(BaseStorage, object):
     """
 
     def __init__(self):
-        super(MinimalMemoryStorage, self).__init__("name")
+        super().__init__("name")
         # _index maps oid, tid pairs to data records
         self._index = {}
         # _cur maps oid to current tid
@@ -151,9 +150,5 @@ class MinimalTestSuite(StorageTestBase.StorageTestBase,
 
     # we don't implement undo
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass
-
-
-def test_suite():
-    return unittest.makeSuite(MinimalTestSuite, "check")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Adapt IStorage objects to IMVCCStorage
 
 This is a largely internal implementation of ZODB, especially DB and
@@ -19,7 +18,7 @@ from .utils import tid_repr
 from .utils import u64
 
 
-class Base(object):
+class Base:
 
     _copy_methods = (
         'getName', 'getSize', 'history', 'lastTransaction', 'sortKey',

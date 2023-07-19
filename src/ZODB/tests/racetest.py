@@ -40,7 +40,6 @@ between load/open and local invalidations to catch bugs similar to
 https://github.com/zopefoundation/ZODB/issues/290 and
 https://github.com/zopefoundation/ZEO/issues/166.
 """
-from __future__ import print_function
 
 import threading
 from random import randint
@@ -136,13 +135,13 @@ class T2ObjectsInc2Phase:
                                  (i1, i2, p))
 
 
-class RaceTests(object):
+class RaceTests:
 
     # verify storage/Connection for race in between load/open and local
     # invalidations.
     # https://github.com/zopefoundation/ZEO/issues/166
     # https://github.com/zopefoundation/ZODB/issues/290
-    def check_race_loadopen_vs_local_invalidate(self):
+    def test_race_loadopen_vs_local_invalidate(self):
         return self._check_race_loadopen_vs_local_invalidate(T2ObjectsInc())
 
     @with_high_concurrency
@@ -240,7 +239,7 @@ class RaceTests(object):
     # This test is similar to check_race_loadopen_vs_local_invalidate but does
     # not reuse its code because the probability to reproduce external
     # invalidation bug with only 1 mutator + 1 verifier is low.
-    def check_race_load_vs_external_invalidate(self):
+    def test_race_load_vs_external_invalidate(self):
         return self._check_race_load_vs_external_invalidate(T2ObjectsInc())
 
     @with_high_concurrency
@@ -286,7 +285,7 @@ class RaceTests(object):
                 try:
                     spec.assertStateOK(root)
                 except AssertionError as e:
-                    msg = "T%s: %s\n" % (tx, e)
+                    msg = "T{}: {}\n".format(tx, e)
                     msg += _state_details(root)
                     tg.fail(msg)
 
@@ -335,7 +334,7 @@ class RaceTests(object):
     # T2ObjectsInc2Phase the invariant will be detected to be broken on the
     # next transaction.
     @long_test
-    def check_race_external_invalidate_vs_disconnect(self):
+    def test_race_external_invalidate_vs_disconnect(self):
         return self._check_race_external_invalidate_vs_disconnect(
                                                 T2ObjectsInc2Phase())
 
@@ -367,7 +366,7 @@ class RaceTests(object):
                     try:
                         spec.assertStateOK(root)
                     except AssertionError as e:
-                        msg = "T%s: %s\n" % (tx, e)
+                        msg = "T{}: {}\n".format(tx, e)
                         msg += _state_details(root)
                         tg.fail(msg)
 
@@ -440,7 +439,7 @@ def _state_details(root):  # -> txt
     # serial for all objects
     keys = list(sorted(root.keys()))
     txt = ''
-    txt += '  '.join('%s._p_serial: %s' % (k, tid_repr(root[k]._p_serial))
+    txt += '  '.join('{}._p_serial: {}'.format(k, tid_repr(root[k]._p_serial))
                      for k in keys)
     txt += '\n'
 
@@ -463,7 +462,7 @@ def _state_details(root):  # -> txt
             load_txt += 'None'
         else:
             _, serial, next_serial = x
-            load_txt += 'serial: %s  next_serial: %s' % (
+            load_txt += 'serial: {}  next_serial: {}'.format(
                         tid_repr(serial), tid_repr(next_serial))
         load_txt += '\n'
         return load_txt
@@ -483,7 +482,7 @@ def _state_details(root):  # -> txt
     return txt
 
 
-class TestWorkGroup(object):
+class TestWorkGroup:
     """TestWorkGroup represents group of threads that run together to verify
        something.
 
@@ -561,7 +560,7 @@ class Daemon(threading.Thread):
     get intermixed and facilitates the exception analysis.
     """
     def __init__(self, **kw):
-        super(Daemon, self).__init__(**kw)
+        super().__init__(**kw)
         self.daemon = True
         if hasattr(self, "_invoke_excepthook"):
             # Python 3.8+
@@ -597,7 +596,7 @@ class Daemon(threading.Thread):
             self.run = run
 
     def join(self, *args, **kw):
-        super(Daemon, self).join(*args, **kw)
+        super().join(*args, **kw)
         if self.is_alive():
             raise AssertionError("Thread %s did not stop" % self.name)
 
@@ -606,7 +605,7 @@ class Daemon(threading.Thread):
 exc_lock = threading.Lock()
 
 
-class WaitGroup(object):
+class WaitGroup:
     """WaitGroup provides service to wait for spawned workers to be done.
 
        - .add() adds workers

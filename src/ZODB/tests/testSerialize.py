@@ -14,14 +14,13 @@
 import doctest
 import sys
 import unittest
+from io import BytesIO
 
 from persistent import Persistent
 from persistent.wref import WeakRef
 
 import ZODB.tests.util
 from ZODB import serialize
-from ZODB._compat import IS_JYTHON
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import Pickler
 from ZODB._compat import _protocol
@@ -39,7 +38,7 @@ class ClassWithNewargs(int):
         return int(self),
 
 
-class ClassWithoutNewargs(object):
+class ClassWithoutNewargs:
     def __init__(self, value):
         self.value = value
 
@@ -109,7 +108,7 @@ class SerializerTestCase(unittest.TestCase):
 
     def test_myhasattr(self):
 
-        class OldStyle(object):
+        class OldStyle:
             bar = "bar"
 
             def __getattr__(self, name):
@@ -118,7 +117,7 @@ class SerializerTestCase(unittest.TestCase):
                 else:
                     raise AttributeError(name)
 
-        class NewStyle(object):
+        class NewStyle:
             bar = "bar"
 
             def _raise(self):
@@ -136,8 +135,7 @@ class SerializerTestCase(unittest.TestCase):
 
     def test_persistent_id_noload(self):
         # make sure we can noload weak references and other list-based
-        # references like we expect. Protect explicitly against the
-        # breakage in CPython 2.7 and zodbpickle < 0.6.0
+        # references like we expect.
         o = PersistentObject()
         o._p_oid = b'abcd'
 
@@ -191,18 +189,7 @@ class SerializerFunctestCase(unittest.TestCase):
         # buildout doesn't arrange for the sys.path to be exported,
         # so force it ourselves
         environ = os.environ.copy()
-        if IS_JYTHON:
-            # Jython 2.7rc2 has a bug; if its Lib directory is
-            # specifically put on the PYTHONPATH, then it doesn't add
-            # it itself, which means it fails to 'import site' because
-            # it can't import '_jythonlib' and the whole process fails
-            # We would use multiprocessing here, but it doesn't exist on jython
-            sys_path = [x for x in sys.path
-                        if not x.endswith('Lib')
-                        and x != '__classpath__'
-                        and x != '__pyclasspath__/']
-        else:
-            sys_path = sys.path
+        sys_path = sys.path
         environ['PYTHONPATH'] = os.pathsep.join(sys_path)
         subprocess.check_call(prep_args, env=environ)
         load_args = [sys.executable, '-c',
@@ -260,8 +247,9 @@ def _functest_load(fqn):
 
 def test_suite():
     return unittest.TestSuite((
-        unittest.makeSuite(SerializerTestCase),
-        unittest.makeSuite(SerializerFunctestCase),
+        unittest.defaultTestLoader.loadTestsFromTestCase(SerializerTestCase),
+        unittest.defaultTestLoader.loadTestsFromTestCase(
+            SerializerFunctestCase),
         doctest.DocTestSuite("ZODB.serialize",
                              checker=ZODB.tests.util.checker),
     ))

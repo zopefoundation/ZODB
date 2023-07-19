@@ -37,7 +37,6 @@ is not recommended (spurious error messages may result).
 
 See testfsoids.py for a tutorial doctest.
 """
-from __future__ import print_function
 
 import sys
 

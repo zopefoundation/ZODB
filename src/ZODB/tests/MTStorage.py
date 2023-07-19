@@ -3,8 +3,6 @@ import sys
 import threading
 import time
 
-import six
-
 import transaction
 from persistent.mapping import PersistentMapping
 
@@ -44,8 +42,7 @@ class TestThread(threading.Thread):
     def join(self, timeout=None):
         threading.Thread.join(self, timeout)
         if self._exc_info:
-            raise six.reraise(
-                self._exc_info[0], self._exc_info[1], self._exc_info[2])
+            raise self._exc_info[1]
 
 
 class ZODBClientThread(TestThread):
@@ -218,7 +215,7 @@ class ExtStorageClientThread(StorageClientThread):
             pass
 
 
-class MTStorage(object):
+class MTStorage:
     "Test a storage with multiple client threads executing concurrently."
 
     def _checkNThreads(self, n, constructor, *args):
@@ -231,21 +228,21 @@ class MTStorage(object):
             self.assertFalse(t.is_alive(),
                              "thread failed to finish in 60 seconds")
 
-    def check2ZODBThreads(self):
+    def test2ZODBThreads(self):
         db = ZODB.DB(self._storage)
         self._checkNThreads(2, ZODBClientThread, db, self)
         db.close()
 
-    def check7ZODBThreads(self):
+    def test7ZODBThreads(self):
         db = ZODB.DB(self._storage)
         self._checkNThreads(7, ZODBClientThread, db, self)
         db.close()
 
-    def check2StorageThreads(self):
+    def test2StorageThreads(self):
         self._checkNThreads(2, StorageClientThread, self._storage, self)
 
-    def check7StorageThreads(self):
+    def test7StorageThreads(self):
         self._checkNThreads(7, StorageClientThread, self._storage, self)
 
-    def check4ExtStorageThread(self):
+    def test4ExtStorageThread(self):
         self._checkNThreads(4, ExtStorageClientThread, self._storage, self)

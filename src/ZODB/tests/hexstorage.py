@@ -22,7 +22,7 @@ import ZODB.utils
 
 
 @zope.interface.implementer(ZODB.interfaces.IStorageWrapper)
-class HexStorage(object):
+class HexStorage:
 
     copied_methods = (
         'close', 'getName', 'getSize', 'history', 'isReadOnly',
@@ -139,7 +139,7 @@ class ServerHexStorage(HexStorage):
     )
 
 
-class Transaction(object):
+class Transaction:
 
     def __init__(self, store, trans):
         self.__store = store
@@ -155,7 +155,7 @@ class Transaction(object):
         return getattr(self.__trans, name)
 
 
-class ZConfigHex(object):
+class ZConfigHex:
 
     _factory = HexStorage
 

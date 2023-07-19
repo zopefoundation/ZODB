@@ -40,12 +40,9 @@
 # integers.
 import struct
 
-import six
-
 from BTrees.fsBTree import fsBucket
 from BTrees.OOBTree import OOBTree
 
-from ZODB._compat import INT_TYPES
 from ZODB._compat import Pickler
 from ZODB._compat import Unpickler
 from ZODB._compat import _protocol
@@ -72,11 +69,11 @@ def prefix_minus_one(s):
 
 
 def ensure_bytes(s):
-    # on Python 3 we might pickle bytes and unpickle unicode strings
-    return s.encode('ascii') if not isinstance(s, bytes) else s
+    # we might pickle bytes and unpickle str objects
+    return s if isinstance(s, bytes) else s.encode('ascii')
 
 
-class fsIndex(object):
+class fsIndex:
 
     def __init__(self, data=None):
         self._data = OOBTree()
@@ -87,7 +84,7 @@ class fsIndex(object):
         return dict(
             state_version=1,
             _data=[(k, v.toString())
-                   for (k, v) in six.iteritems(self._data)
+                   for (k, v) in self._data.items()
                    ]
         )
 
@@ -118,7 +115,7 @@ class fsIndex(object):
             pickler = Pickler(f, _protocol)
             pickler.fast = True
             pickler.dump(pos)
-            for k, v in six.iteritems(self._data):
+            for k, v in self._data.items():
                 pickler.dump((k, v.toString()))
             pickler.dump(None)
 
@@ -127,9 +124,9 @@ class fsIndex(object):
         with open(fname, 'rb') as f:
             unpickler = Unpickler(f)
             pos = unpickler.load()
-            if not isinstance(pos, INT_TYPES):
+            if not isinstance(pos, int):
                 # NB: this might contain OIDs that got unpickled
-                # into Unicode strings on Python 3; hope the caller
+                # into str objects; hope the caller
                 # will pipe the result to fsIndex().update() to normalize
                 # the keys
                 return pos                  # Old format
@@ -175,7 +172,7 @@ class fsIndex(object):
 
     def __len__(self):
         r = 0
-        for tree in six.itervalues(self._data):
+        for tree in self._data.values():
             r += len(tree)
         return r
 
@@ -201,7 +198,7 @@ class fsIndex(object):
         self._data.clear()
 
     def __iter__(self):
-        for prefix, tree in six.iteritems(self._data):
+        for prefix, tree in self._data.items():
             for suffix in tree:
                 yield prefix + suffix
 
@@ -211,16 +208,16 @@ class fsIndex(object):
         return list(self.iterkeys())
 
     def iteritems(self):
-        for prefix, tree in six.iteritems(self._data):
-            for suffix, value in six.iteritems(tree):
+        for prefix, tree in self._data.items():
+            for suffix, value in tree.items():
                 yield (prefix + suffix, str2num(value))
 
     def items(self):
         return list(self.iteritems())
 
     def itervalues(self):
-        for tree in six.itervalues(self._data):
-            for value in six.itervalues(tree):
+        for tree in self._data.values():
+            for value in tree.values():
                 yield str2num(value)
 
     def values(self):

@@ -140,16 +140,15 @@ is reset:
     >>> blob_storage._blobs_pack_is_in_progress = True
     >>> blob_storage.pack(packtime, referencesf)
     Traceback (most recent call last):
-    BlobStorageError: Already packing
+    ZODB.blob.BlobStorageError: Already packing
     >>> blob_storage._blobs_pack_is_in_progress = False
     >>> blob_storage.pack(packtime, referencesf)
 
 We can also see, that the flag is set during the pack, by leveraging the
 knowledge that the underlying storage's pack method is also called:
 
-    >>> import six
     >>> def dummy_pack(time, ref):
-    ...     six.print_(
+    ...     print(
     ...         "_blobs_pack_is_in_progress =",
     ...         blob_storage._blobs_pack_is_in_progress)
     ...     return base_pack(time, ref)

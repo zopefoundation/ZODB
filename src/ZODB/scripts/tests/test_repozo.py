@@ -11,7 +11,6 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-from __future__ import print_function
 
 import os
 import sys
@@ -21,12 +20,6 @@ from io import BytesIO
 from io import StringIO
 
 import ZODB.tests.util  # layer used at class scope
-
-
-if str is bytes:
-    NativeStringIO = BytesIO
-else:
-    NativeStringIO = StringIO
 
 
 _NOISY = os.environ.get('NOISY_REPOZO_TEST_OUTPUT')
@@ -43,7 +36,7 @@ def _read_file(name, mode='rb'):
         return f.read()
 
 
-class OurDB(object):
+class OurDB:
 
     _file_name = None
 
@@ -105,7 +98,7 @@ class Test_parseargs(unittest.TestCase):
         self._old_verbosity = repozo.VERBOSE
         self._old_stderr = sys.stderr
         repozo.VERBOSE = False
-        sys.stderr = NativeStringIO()
+        sys.stderr = StringIO()
 
     def tearDown(self):
         from ZODB.scripts import repozo
@@ -134,7 +127,7 @@ class Test_parseargs(unittest.TestCase):
         # zope.testrunner will happily print the traceback and failure message
         # into our StringIO before running our tearDown.
         old_stdout = sys.stdout
-        sys.stdout = NativeStringIO()
+        sys.stdout = StringIO()
         try:
             self.assertRaises(SystemExit, repozo.parseargs, ['--help'])
             self.assertIn('Usage:', sys.stdout.getvalue())
@@ -251,7 +244,7 @@ class Test_parseargs(unittest.TestCase):
                       sys.stderr.getvalue())
 
 
-class FileopsBase(object):
+class FileopsBase:
 
     def _makeChunks(self):
         from ZODB.scripts.repozo import READCHUNK
@@ -325,7 +318,7 @@ class Test_checksum(unittest.TestCase, FileopsBase):
         self.assertEqual(sum, md5(b'x' * 42).hexdigest())
 
 
-class OptionsTestBase(object):
+class OptionsTestBase:
 
     _repository_directory = None
     _data_directory = None
@@ -342,7 +335,7 @@ class OptionsTestBase(object):
         import tempfile
         self._repository_directory = tempfile.mkdtemp(prefix='test-repozo-')
 
-        class Options(object):
+        class Options:
             repository = self._repository_directory
             date = None
 
@@ -421,7 +414,7 @@ class Test_concat(OptionsTestBase, unittest.TestCase):
 
     def test_w_ofp(self):
 
-        class Faux(object):
+        class Faux:
             _closed = False
 
             def __init__(self):
@@ -598,7 +591,7 @@ class Test_scandat(OptionsTestBase, unittest.TestCase):
 class Test_delete_old_backups(OptionsTestBase, unittest.TestCase):
 
     def _makeOptions(self, filenames=()):
-        options = super(Test_delete_old_backups, self)._makeOptions()
+        options = super()._makeOptions()
         for filename in filenames:
             fqn = os.path.join(options.repository, filename)
             _write_file(fqn, b'testing delete_old_backups')
@@ -1258,22 +1251,23 @@ class MonteCarloTests(unittest.TestCase):
 
 
 def test_suite():
+    loadTestsFromTestCase = unittest.defaultTestLoader.loadTestsFromTestCase
     return unittest.TestSuite([
-        unittest.makeSuite(Test_parseargs),
-        unittest.makeSuite(Test_dofile),
-        unittest.makeSuite(Test_checksum),
-        unittest.makeSuite(Test_copyfile),
-        unittest.makeSuite(Test_concat),
-        unittest.makeSuite(Test_gen_filename),
-        unittest.makeSuite(Test_find_files),
-        unittest.makeSuite(Test_scandat),
-        unittest.makeSuite(Test_delete_old_backups),
-        unittest.makeSuite(Test_do_full_backup),
-        unittest.makeSuite(Test_do_incremental_backup),
+        loadTestsFromTestCase(Test_parseargs),
+        loadTestsFromTestCase(Test_dofile),
+        loadTestsFromTestCase(Test_checksum),
+        loadTestsFromTestCase(Test_copyfile),
+        loadTestsFromTestCase(Test_concat),
+        loadTestsFromTestCase(Test_gen_filename),
+        loadTestsFromTestCase(Test_find_files),
+        loadTestsFromTestCase(Test_scandat),
+        loadTestsFromTestCase(Test_delete_old_backups),
+        loadTestsFromTestCase(Test_do_full_backup),
+        loadTestsFromTestCase(Test_do_incremental_backup),
         # unittest.makeSuite(Test_do_backup),  #TODO
-        unittest.makeSuite(Test_do_recover),
-        unittest.makeSuite(Test_do_verify),
+        loadTestsFromTestCase(Test_do_recover),
+        loadTestsFromTestCase(Test_do_verify),
         # N.B.:  this test take forever to run (~40sec on a fast laptop),
         # *and* it is non-deterministic.
-        unittest.makeSuite(MonteCarloTests),
+        loadTestsFromTestCase(MonteCarloTests),
     ])

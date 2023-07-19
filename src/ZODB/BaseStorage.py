@@ -16,7 +16,6 @@
 The base class here is tightly coupled with its subclasses and
 its use is not recommended.  It's still here for historical reasons.
 """
-from __future__ import print_function
 
 import logging
 import time
@@ -30,7 +29,6 @@ import ZODB.interfaces
 
 from . import POSException
 from . import utils
-from ._compat import py2_hasattr
 from .Connection import TransactionMetaData
 from .UndoLogCompatible import UndoLogCompatible
 from .utils import byte_chr
@@ -310,7 +308,12 @@ def copy(source, dest, verbose=0):
     # using store().  However, if we use store, then
     # copyTransactionsFrom() may fail with VersionLockError or
     # ConflictError.
-    restoring = py2_hasattr(dest, 'restore')
+    try:
+        getattr(dest, 'restore')
+    except:  # noqa: E722 do not use bare 'except'
+        restoring = False
+    else:
+        restoring = True
     fiter = source.iterator()
     for transaction in fiter:
         tid = transaction.tid
@@ -320,14 +323,14 @@ def copy(source, dest, verbose=0):
             t = TimeStamp(tid)
             if t <= _ts:
                 if ok:
-                    print(('Time stamps out of order %s, %s' % (_ts, t)))
+                    print('Time stamps out of order {}, {}'.format(_ts, t))
                 ok = 0
                 _ts = t.laterThan(_ts)
                 tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:
-                    print(('Time stamps back in order %s' % (t)))
+                    print('Time stamps back in order %s' % (t))
                     ok = 1
 
         if verbose:
@@ -376,7 +379,7 @@ class TransactionRecord(TransactionMetaData):
 
 
 @zope.interface.implementer(ZODB.interfaces.IStorageRecordInformation)
-class DataRecord(object):
+class DataRecord:
     """Abstract base class for iterator protocol"""
 
     version = ''

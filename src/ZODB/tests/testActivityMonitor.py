@@ -24,7 +24,7 @@ import unittest
 from ZODB.ActivityMonitor import ActivityMonitor
 
 
-class FakeConnection(object):
+class FakeConnection:
 
     loads = 0
     stores = 0
@@ -101,4 +101,4 @@ class Tests(unittest.TestCase):
 
 
 def test_suite():
-    return unittest.makeSuite(Tests)
+    return unittest.defaultTestLoader.loadTestsFromTestCase(Tests)

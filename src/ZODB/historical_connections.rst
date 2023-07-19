@@ -100,7 +100,7 @@ Moreover, the historical connection cannot commit changes.
     >>> transaction1.commit()
     Traceback (most recent call last):
     ...
-    ReadOnlyHistoryError
+    ZODB.POSException.ReadOnlyHistoryError
     >>> transaction1.abort()
     >>> historical_conn.root()['first']['count']
     0

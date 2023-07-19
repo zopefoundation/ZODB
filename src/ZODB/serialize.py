@@ -134,17 +134,17 @@ A number of legacyforms are defined:
 
 """
 import logging
+from io import BytesIO
 
 from persistent import Persistent
 from persistent.wref import WeakRef
 from persistent.wref import WeakRefMarker
+from zodbpickle import binary
 
 from ZODB import broken
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentPickler
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import _protocol
-from ZODB._compat import binary
 from ZODB.POSException import InvalidObjectReference
 
 
@@ -165,7 +165,7 @@ def myhasattr(obj, name, _marker=object()):
     return getattr(obj, name, _marker) is not _marker
 
 
-class ObjectWriter(object):
+class ObjectWriter:
     """Serializes objects for storage in the database.
 
     The ObjectWriter creates object pickles in the ZODB format.  It
@@ -210,12 +210,11 @@ class ObjectWriter(object):
         >>> bob = P('bob')
         >>> oid, cls = writer.persistent_id(bob)
         >>> oid
-        '42'
+        b'42'
         >>> cls is P
         True
 
-        To work with Python 3, the oid in the persistent id is of the
-        zodbpickle binary type:
+        The oid in the persistent id is of the zodbpickle binary type:
 
         >>> oid.__class__ is binary
         True
@@ -225,7 +224,7 @@ class ObjectWriter(object):
         these will be assigned by persistent_id():
 
         >>> bob._p_oid
-        '42'
+        b'42'
         >>> bob._p_jar is jar
         True
 
@@ -234,7 +233,7 @@ class ObjectWriter(object):
         >>> bob._p_oid = b'24'
         >>> oid, cls = writer.persistent_id(bob)
         >>> oid
-        '24'
+        b'24'
         >>> cls is P
         True
 
@@ -245,7 +244,7 @@ class ObjectWriter(object):
         ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
         Traceback (most recent call last):
           ...
-        InvalidObjectReference:
+        ZODB.POSException.InvalidObjectReference:
         ('Attempt to store an object from a foreign database connection',
         <ZODB.serialize.DummyJar ...>, P(bob))
 
@@ -260,9 +259,9 @@ class ObjectWriter(object):
 
         >>> sam = PNewArgs('sam')
         >>> writer.persistent_id(sam)
-        '42'
+        b'42'
         >>> sam._p_oid
-        '42'
+        b'42'
         >>> sam._p_jar is jar
         True
 
@@ -448,7 +447,7 @@ class ObjectWriter(object):
         return NewObjectIterator(self._stack)
 
 
-class NewObjectIterator(object):
+class NewObjectIterator:
 
     # The pickler is used as a forward iterator when the connection
     # is looking for new objects to pickle.
@@ -469,7 +468,7 @@ class NewObjectIterator(object):
     next = __next__
 
 
-class ObjectReader(object):
+class ObjectReader:
 
     def __init__(self, conn=None, cache=None, factory=None):
         self._conn = conn
@@ -514,7 +513,7 @@ class ObjectReader(object):
 
         if not isinstance(oid, bytes):
             assert isinstance(oid, str)
-            # this happens on Python 3 when all bytes in the oid are < 0x80
+            # this happens when all bytes in the oid are < 0x80
             oid = oid.encode('ascii')
 
         obj = self._cache.get(oid, None)
@@ -552,7 +551,7 @@ class ObjectReader(object):
     def load_persistent_weakref(self, oid, database_name=None):
         if not isinstance(oid, bytes):
             assert isinstance(oid, str)
-            # this happens on Python 3 when all bytes in the oid are < 0x80
+            # this happens when all bytes in the oid are < 0x80
             oid = oid.encode('ascii')
         obj = WeakRef.__new__(WeakRef)
         obj.oid = oid
@@ -574,7 +573,7 @@ class ObjectReader(object):
     def load_oid(self, oid):
         if not isinstance(oid, bytes):
             assert isinstance(oid, str)
-            # this happens on Python 3 when all bytes in the oid are < 0x80
+            # this happens when all bytes in the oid are < 0x80
             oid = oid.encode('ascii')
         obj = self._cache.get(oid, None)
         if obj is not None:
@@ -597,7 +596,7 @@ class ObjectReader(object):
             if isinstance(klass, tuple):
                 # old style reference
                 return "%s.%s" % klass
-        return "%s.%s" % (klass.__module__, klass.__name__)
+        return "{}.{}".format(klass.__module__, klass.__name__)
 
     def getGhost(self, pickle):
         unpickler = self._get_unpickler(pickle)
@@ -672,7 +671,7 @@ def referencesf(p, oids=None):
 
         if not isinstance(oid, bytes):
             assert isinstance(oid, str)
-            # this happens on Python 3 when all bytes in the oid are < 0x80
+            # this happens when all bytes in the oid are < 0x80
             oid = oid.encode('ascii')
 
         oids.append(oid)
@@ -714,7 +713,7 @@ def get_refs(a_pickle):
 
         if not isinstance(oid, bytes):
             assert isinstance(oid, str)
-            # this happens on Python 3 when all bytes in the oid are < 0x80
+            # this happens when all bytes in the oid are < 0x80
             oid = oid.encode('ascii')
 
         result.append((oid, klass))

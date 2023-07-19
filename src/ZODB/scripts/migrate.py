@@ -72,7 +72,6 @@ Positional arguments:
         Comma separated list of arguments for the source storage, as key=val
         pairs.  E.g. "name=full;frequency=3600"
 """
-from __future__ import print_function
 
 import getopt
 import marshal
@@ -114,7 +113,7 @@ def main():
     except getopt.error as msg:
         error(2, msg)
 
-    class Options(object):
+    class Options:
         stype = 'FileStorage'
         dtype = 'FileStorage'
         verbose = 0
@@ -249,7 +248,7 @@ def doit(srcdb, dstdb, options):
             t = TimeStamp(tid)
             if t <= ts:
                 if ok:
-                    print('Time stamps are out of order %s, %s' % (ts, t),
+                    print('Time stamps are out of order {}, {}'.format(ts, t),
                           file=sys.stderr)
                     ok = False
                     ts = t.laterThan(ts)
@@ -331,7 +330,7 @@ def doit(srcdb, dstdb, options):
 # helper to deal with differences between old-style store() return and
 # new-style store() return that supports ZEO
 
-class RevidAccumulator(object):
+class RevidAccumulator:
 
     def __init__(self):
         self.data = {}

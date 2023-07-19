@@ -29,7 +29,7 @@ Aborting a blob add leaves the blob unchanged:
     >>> blob1._p_jar
     >>> with blob1.open() as fp:
     ...     fp.read()
-    'this is blob 1'
+    b'this is blob 1'
 
 It doesn't clear the file because there is no previously committed version:
 
@@ -54,7 +54,7 @@ state:
     ...     _ = file.write(b'this is new blob 1')
     >>> with blob1.open() as fp:
     ...     fp.read()
-    'this is new blob 1'
+    b'this is new blob 1'
     >>> fname = blob1._p_blob_uncommitted
     >>> os.path.exists(fname)
     True
@@ -66,7 +66,7 @@ state:
 
     >>> with blob1.open() as fp:
     ...     fp.read()
-    'this is blob 1'
+    b'this is blob 1'
 
 Opening a blob gives us a filehandle.  Getting data out of the
 resulting filehandle is accomplished via the filehandle's read method::
@@ -77,7 +77,7 @@ resulting filehandle is accomplished via the filehandle's read method::
 
     >>> blob1afh1 = blob1a.open("r")
     >>> blob1afh1.read()
-    'this is blob 1'
+    b'this is blob 1'
 
 Let's make another filehandle for read only to blob1a. Each file
 handle has a reference to the (same) underlying blob::
@@ -95,7 +95,7 @@ opened are still open::
 
     >>> transaction.abort()
     >>> blob1afh2.read()
-    'this is blob 1'
+    b'this is blob 1'
 
     >>> blob1afh2.close()
 
@@ -108,7 +108,7 @@ when we start)::
     False
     >>> with blob1a.open('r') as fp:
     ...     fp.read()
-    'this is blob 1'
+    b'this is blob 1'
     >>> with blob1a.open('a') as blob1afh3:
     ...     assert(bool(blob1a._p_changed))
     ...     _ = blob1afh3.write(b'woot!')
@@ -129,13 +129,13 @@ blob2 (a different object) should be evident::
 
     >>> with blob1.open('r') as fp:
     ...     fp.read()
-    'this is blob 1woot!'
+    b'this is blob 1woot!'
     >>> with blob1a.open('r') as fp:
     ...     fp.read()
-    'this is blob 1woot!'
+    b'this is blob 1woot!'
     >>> with blob2.open('r') as fp:
     ...     fp.read()
-    'this is blob 3'
+    b'this is blob 3'
 
 We shouldn't be able to persist a blob filehandle at commit time
 (although the exception which is raised when an object cannot be
@@ -169,22 +169,22 @@ connections should result in a write conflict error::
     >>> tm1.commit()
     >>> with root3['blob1'].open('r') as fp:
     ...     fp.read()
-    'this is blob 1woot!this is from connection 3'
+    b'this is blob 1woot!this is from connection 3'
     >>> tm2.commit()
     Traceback (most recent call last):
         ...
-    ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob...)
+    ZODB.POSException.ConflictError: database conflict error (oid 0x01, class ZODB.blob.Blob...)
 
 After the conflict, the winning transaction's result is visible on both
 connections::
 
     >>> with root3['blob1'].open('r') as fp:
     ...     fp.read()
-    'this is blob 1woot!this is from connection 3'
+    b'this is blob 1woot!this is from connection 3'
     >>> tm2.abort()
     >>> with root4['blob1'].open('r') as fp:
     ...     fp.read()
-    'this is blob 1woot!this is from connection 3'
+    b'this is blob 1woot!this is from connection 3'
 
 You can't commit a transaction while blob files are open:
 
@@ -221,17 +221,17 @@ We do support optimistic savepoints:
     >>> transaction.commit()
     >>> with root5['blob'].open("r") as fp:
     ...     fp.read()
-    "I'm a happy blob."
+    b"I'm a happy blob."
     >>> with root5['blob'].open("a") as blob_fh:
     ...     _ = blob_fh.write(b" And I'm singing.")
     >>> with root5['blob'].open("r") as fp:
     ...     fp.read()
-    "I'm a happy blob. And I'm singing."
+    b"I'm a happy blob. And I'm singing."
     >>> savepoint = transaction.savepoint(optimistic=True)
 
     >>> with root5['blob'].open("r") as fp:
     ...     fp.read()
-    "I'm a happy blob. And I'm singing."
+    b"I'm a happy blob. And I'm singing."
 
 Savepoints store the blobs in temporary directories in the temporary
 directory of the blob storage:
@@ -254,7 +254,7 @@ We support non-optimistic savepoints too:
     ...     _ = file.write(b" And I'm dancing.")
     >>> with root5['blob'].open("r") as fp:
     ...     fp.read()
-    "I'm a happy blob. And I'm singing. And I'm dancing."
+    b"I'm a happy blob. And I'm singing. And I'm dancing."
     >>> savepoint = transaction.savepoint()
 
 Again, the savepoint creates a new savepoints directory:
@@ -269,7 +269,7 @@ Again, the savepoint creates a new savepoints directory:
 
     >>> with root5['blob'].open("r") as fp:
     ...     fp.read()
-    "I'm a happy blob. And I'm singing. And I'm dancing."
+    b"I'm a happy blob. And I'm singing. And I'm dancing."
     >>> transaction.abort()
 
 The savepoint blob directory gets cleaned up on an abort:
@@ -309,11 +309,12 @@ and doesn't prevent us from opening the blob for writing:
 
     >>> with blob.open('w') as file:
     ...     _ = file.write(b'x')
-    >>> with blob.open() as fp: fp.read()
-    'x'
+    >>> with blob.open() as fp:
+    ...     fp.read()
+    b'x'
 
     >>> f.read()
-    "I'm a happy blob."
+    b"I'm a happy blob."
 
     >>> f.close()
     >>> transaction.abort()
@@ -325,12 +326,12 @@ uncommitted changes:
     >>> blob.committed()
     Traceback (most recent call last):
     ...
-    BlobError: Uncommitted changes
+    ZODB.interfaces.BlobError: Uncommitted changes
 
     >>> blob.open('c')
     Traceback (most recent call last):
     ...
-    BlobError: Uncommitted changes
+    ZODB.interfaces.BlobError: Uncommitted changes
 
     >>> with blob.open('w') as file:
     ...     _ = file.write(b"I'm a happy blob.")
@@ -338,23 +339,23 @@ uncommitted changes:
     >>> blob.committed()
     Traceback (most recent call last):
     ...
-    BlobError: Uncommitted changes
+    ZODB.interfaces.BlobError: Uncommitted changes
 
     >>> blob.open('c')
     Traceback (most recent call last):
     ...
-    BlobError: Uncommitted changes
+    ZODB.interfaces.BlobError: Uncommitted changes
 
     >>> s = transaction.savepoint()
     >>> blob.committed()
     Traceback (most recent call last):
     ...
-    BlobError: Uncommitted changes
+    ZODB.interfaces.BlobError: Uncommitted changes
 
     >>> blob.open('c')
     Traceback (most recent call last):
     ...
-    BlobError: Uncommitted changes
+    ZODB.interfaces.BlobError: Uncommitted changes
 
     >>> transaction.commit()
     >>> with open(blob.committed()) as fp:
@@ -365,8 +366,7 @@ You can't open a committed blob file for writing:
 
     >>> try:
     ...     open(blob.committed(), 'w') # doctest: +ELLIPSIS
-    ... except:
-    ...     # Produces IOError in Py2 and PermissionError in Py3
+    ... except PermissionError:
     ...     print('Error raised.')
     Error raised.
 
@@ -409,7 +409,7 @@ Similarly, the new object wasn't added to the storage:
     >>> blob_storage.load(new_oid, '')
     Traceback (most recent call last):
     ...
-    POSKeyError: 0x...
+    ZODB.POSException.POSKeyError: 0x...
 
 .. clean up
 

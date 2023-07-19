@@ -51,7 +51,6 @@ Options:
 Important:  The ZODB package must be importable.  You may need to adjust
             PYTHONPATH accordingly.
 """
-from __future__ import print_function
 
 import getopt
 import os
@@ -322,14 +321,14 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
             t = TimeStamp(tid)
             if t <= _ts:
                 if ok:
-                    print(("Time stamps out of order %s, %s" % (_ts, t)))
+                    print("Time stamps out of order {}, {}".format(_ts, t))
                 ok = 0
                 _ts = t.laterThan(_ts)
                 tid = _ts.raw()
             else:
                 _ts = t
                 if not ok:
-                    print(("Time stamps back in order %s" % (t)))
+                    print("Time stamps back in order %s" % (t))
                     ok = 1
 
         ofs.tpc_begin(txn, tid, txn.status)

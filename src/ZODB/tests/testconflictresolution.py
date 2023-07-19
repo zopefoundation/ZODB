@@ -113,7 +113,7 @@ the original:
     ... # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x01, ...
+    ZODB.POSException.ConflictError: database conflict error (oid 0x01, ...
 
 
 Of course, there's also no automatic trivial merge if content doesn't support
@@ -131,7 +131,7 @@ mechanism.
     ... # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x02, ...
+    ZODB.POSException.ConflictError: database conflict error (oid 0x02, ...
 
     >>> db.close()
     """
@@ -258,7 +258,7 @@ Bwahaha:
     ... # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid ...
+    ZODB.POSException.ConflictError: database conflict error (oid ...
 
     >>> db.close()
     """
@@ -357,7 +357,7 @@ Content fails hard on conflict resolution:
     ... # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x01, ...
+    ZODB.POSException.ConflictError: database conflict error (oid 0x01, ...
 
 Content doesn't support conflict resolution:
 
@@ -372,21 +372,19 @@ Content doesn't support conflict resolution:
     ... # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    ConflictError: database conflict error (oid 0x02, ...
+    ZODB.POSException.ConflictError: database conflict error (oid 0x02, ...
 
 Let's see what went into the log:
 
     >>> len(handler.records)
     2
 
-    >>> import six
-
     >>> msg = handler.records[0]
-    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
+    >>> print(msg.name, msg.levelname, msg.getMessage())
     ZODB.ConflictResolution ERROR Unexpected error while trying to resolve conflict on <class 'ZODB.tests.testconflictresolution.FailHard'>
 
     >>> msg = handler.records[1]
-    >>> six.print_(msg.name, msg.levelname, msg.getMessage())
+    >>> print(msg.name, msg.levelname, msg.getMessage())
     ZODB.ConflictResolution DEBUG Conflict resolution on <class 'ZODB.tests.testconflictresolution.Unresolvable'> failed with ConflictError: database conflict error
 
 Cleanup:

@@ -112,7 +112,6 @@ Usage: loadmail2 [options]
 
        are equivalent
 """
-from __future__ import print_function
 
 import mailbox
 import math
@@ -126,7 +125,7 @@ import time
 import transaction
 
 
-class JobProducer(object):
+class JobProducer:
 
     def __init__(self):
         self.jobs = []
@@ -145,7 +144,7 @@ class JobProducer(object):
         return not not self.jobs
 
 
-class MBox(object):
+class MBox:
 
     def __init__(self, filename):
         if ' ' in filename:
@@ -254,7 +253,7 @@ def setup(lib_python):
                        PLexicon('lex', '', Splitter(), CaseNormalizer())
                        )
 
-    class extra(object):
+    class extra:
         doc_attr = 'PrincipiaSearchSource'
         lexicon_id = 'lex'
         index_type = 'Okapi BM25 Rank'
@@ -319,7 +318,7 @@ def run1(tid, db, factory, job, args):
     (start, wcomp, ccomp, rconflicts, wconflicts, wcommit, ccommit, r
      ) = do(db, job, args)
     start = "%.4d-%.2d-%.2d %.2d:%.2d:%.2d" % time.localtime(start)[:6]
-    print("%s %s %8.3g %8.3g %s %s\t%8.3g %8.3g %s %r" % (
+    print("{} {} {:8.3g} {:8.3g} {} {}\t{:8.3g} {:8.3g} {} {!r}".format(
         start, tid, wcomp, ccomp, rconflicts, wconflicts, wcommit, ccommit,
         factory.__name__, r))
 
@@ -382,13 +381,13 @@ def index(connection, messages, catalog, max):
     return message.number
 
 
-class IndexJob(object):
+class IndexJob:
     needs_mbox = 1
     catalog = 1
     prefix = 'index'
 
     def __init__(self, mbox, number=1, max=0):
-        self.__name__ = "%s%s_%s" % (self.prefix, number, mbox.__name__)
+        self.__name__ = "{}{}_{}".format(self.prefix, number, mbox.__name__)
         self.mbox, self.number, self.max = mbox, int(number), int(max)
 
     def create(self):
@@ -459,13 +458,13 @@ def edit(connection, mbox, catalog=1):
     return norig, ndel, nins
 
 
-class EditJob(object):
+class EditJob:
     needs_mbox = 1
     prefix = 'edit'
     catalog = 1
 
     def __init__(self, mbox):
-        self.__name__ = "%s_%s" % (self.prefix, mbox.__name__)
+        self.__name__ = "{}_{}".format(self.prefix, mbox.__name__)
         self.mbox = mbox
 
     def create(self):
@@ -497,7 +496,7 @@ def search(connection, terms, number):
     return n
 
 
-class SearchJob(object):
+class SearchJob:
 
     def __init__(self, terms='', number=10):
 

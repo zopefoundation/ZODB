@@ -30,7 +30,7 @@ from ZODB.FileStorage.format import TRANS_HDR_LEN
 from ZODB.utils import u64
 
 
-class TxnHeader(object):
+class TxnHeader:
     """Object representing a transaction record header.
 
     Attribute   Position  Value
@@ -104,7 +104,7 @@ class TxnHeader(object):
         return TxnHeader(self._file, self._pos - (tlen + 8))
 
 
-class DataHeader(object):
+class DataHeader:
     """Object representing a data record header.
 
     Attribute         Position  Value

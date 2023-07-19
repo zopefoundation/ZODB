@@ -7,9 +7,6 @@ The current implementation only supports FileStorage.
 
 Current limitations / simplifications: Ignores revisions and versions.
 """
-from __future__ import print_function
-
-import six
 
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64
@@ -21,14 +18,14 @@ def run(path, v=0):
     fs = FileStorage(path, read_only=1)
     # break into the file implementation
     if hasattr(fs._index, 'iterkeys'):
-        iter = six.iterkeys(fs._index)
+        iter = fs._index.keys()
     else:
         iter = fs._index.keys()
     totals = {}
     for oid in iter:
         data, serialno = load_current(fs, oid)
         mod, klass = get_pickle_metadata(data)
-        key = "%s.%s" % (mod, klass)
+        key = "{}.{}".format(mod, klass)
         bytes, count = totals.get(key, (0, 0))
         bytes += len(data)
         count += 1

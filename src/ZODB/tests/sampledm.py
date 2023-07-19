@@ -15,7 +15,7 @@
 """
 
 
-class DataManager(object):
+class DataManager:
     """Sample data manager
 
        This class provides a trivial data-manager implementation and doc
@@ -386,7 +386,7 @@ class DataManager(object):
         return Rollback(self)
 
 
-class Rollback(object):
+class Rollback:
 
     def __init__(self, dm):
         self.dm = dm

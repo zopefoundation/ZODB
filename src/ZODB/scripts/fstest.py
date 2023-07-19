@@ -30,7 +30,6 @@ Note: It does not check the consistency of the object pickles.  It is
 possible for the damage to occur only in the part of the file that
 stores object pickles.  Those errors will go undetected.
 """
-from __future__ import print_function
 
 import binascii
 import struct
@@ -48,7 +47,7 @@ class FormatError(ValueError):
     """There is a problem with the format of the FileStorage."""
 
 
-class Status(object):
+class Status:
     checkpoint = b'c'
     undone = b'u'
 
@@ -115,11 +114,11 @@ def check_trec(path, file, pos, ltid, file_size):
     used for generating error messages.
     """
 
-    h = file.read(TREC_HDR_LEN)  # XXX must be bytes under Py3k
+    h = file.read(TREC_HDR_LEN)  # XXX must be bytes
     if not h:
         return None, None
     if len(h) != TREC_HDR_LEN:
-        raise FormatError("%s truncated at %s" % (path, pos))
+        raise FormatError("{} truncated at {}".format(path, pos))
 
     tid, stl, status, ul, dl, el = struct.unpack(">8s8scHHH", h)
     tmeta_len = TREC_HDR_LEN + ul + dl + el
@@ -177,7 +176,7 @@ def check_drec(path, file, pos, tpos, tid):
 
     h = file.read(DREC_HDR_LEN)
     if len(h) != DREC_HDR_LEN:
-        raise FormatError("%s truncated at %s" % (path, pos))
+        raise FormatError("{} truncated at {}".format(path, pos))
     oid, serial, _prev, _tloc, vlen, _plen = (
         struct.unpack(">8s8s8s8sH8s", h))
     U64(_prev)

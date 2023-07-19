@@ -19,7 +19,6 @@ to be layered over a base database.
 The base storage must not change.
 
 """
-from __future__ import print_function
 
 import os
 import random
@@ -127,7 +126,7 @@ class DemoStorage(ConflictResolvingStorage):
         self._transaction = None
 
         if name is None:
-            name = 'DemoStorage(%r, %r)' % (base.getName(), changes.getName())
+            name = f'DemoStorage({base.getName()!r}, {changes.getName()!r})'
         self.__name__ = name
 
         self._copy_methods_from_changes(changes)
@@ -204,10 +203,8 @@ class DemoStorage(ConflictResolvingStorage):
         return r
 
     def iterator(self, start=None, end=None):
-        for t in self.base.iterator(start, end):
-            yield t
-        for t in self.changes.iterator(start, end):
-            yield t
+        yield from self.base.iterator(start, end)
+        yield from self.changes.iterator(start, end)
 
     def lastTransaction(self):
         t = self.changes.lastTransaction()

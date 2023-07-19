@@ -36,7 +36,7 @@ from .. import utils
 
 
 class BasicStorage(RaceTests):
-    def checkBasics(self):
+    def testBasics(self):
         self.assertEqual(self._storage.lastTransaction(), ZERO)
 
         t = TransactionMetaData()
@@ -63,7 +63,7 @@ class BasicStorage(RaceTests):
             self._storage.tpc_vote, TransactionMetaData())
         self._storage.tpc_abort(t)
 
-    def checkSerialIsNoneForInitialRevision(self):
+    def testSerialIsNoneForInitialRevision(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
         txn = TransactionMetaData()
@@ -79,13 +79,13 @@ class BasicStorage(RaceTests):
         eq(value, MinPO(11))
         eq(revid, newrevid)
 
-    def checkStore(self):
+    def testStore(self):
         revid = ZERO
         newrevid = self._dostore(revid=None)
         # Finish the transaction.
         self.assertNotEqual(newrevid, revid)
 
-    def checkStoreAndLoad(self):
+    def testStoreAndLoad(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(7))
@@ -99,7 +99,7 @@ class BasicStorage(RaceTests):
         data, revid = utils.load_current(self._storage, oid)
         eq(zodb_unpickle(data), MinPO(21))
 
-    def checkConflicts(self):
+    def testConflicts(self):
         oid = self._storage.new_oid()
         revid1 = self._dostore(oid, data=MinPO(11))
         self._dostore(oid, revid=revid1, data=MinPO(12))
@@ -107,7 +107,7 @@ class BasicStorage(RaceTests):
                           self._dostore,
                           oid, revid=revid1, data=MinPO(13))
 
-    def checkWriteAfterAbort(self):
+    def testWriteAfterAbort(self):
         oid = self._storage.new_oid()
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
@@ -118,7 +118,7 @@ class BasicStorage(RaceTests):
         oid = self._storage.new_oid()
         self._dostore(oid=oid, data=MinPO(6))
 
-    def checkAbortAfterVote(self):
+    def testAbortAfterVote(self):
         oid1 = self._storage.new_oid()
         revid1 = self._dostore(oid=oid1, data=MinPO(-2))
         oid = self._storage.new_oid()
@@ -136,7 +136,7 @@ class BasicStorage(RaceTests):
             data, _revid = utils.load_current(self._storage, oid)
             self.assertEqual(revid, _revid)
 
-    def checkStoreTwoObjects(self):
+    def testStoreTwoObjects(self):
         noteq = self.assertNotEqual
         p31, p32, p51, p52 = map(MinPO, (31, 32, 51, 52))
         oid1 = self._storage.new_oid()
@@ -149,7 +149,7 @@ class BasicStorage(RaceTests):
         revid4 = self._dostore(oid2, revid=revid2, data=p52)
         noteq(revid3, revid4)
 
-    def checkGetTid(self):
+    def testGetTid(self):
         if not hasattr(self._storage, 'getTid'):
             return
         eq = self.assertEqual
@@ -163,7 +163,7 @@ class BasicStorage(RaceTests):
         revid2 = self._dostore(oid, revid=revid1, data=p42)
         eq(revid2, self._storage.getTid(oid))
 
-    def checkLen(self):
+    def testLen(self):
         # len(storage) reports the number of objects.
         # check it is zero when empty
         self.assertEqual(len(self._storage), 0)
@@ -174,27 +174,27 @@ class BasicStorage(RaceTests):
         self._dostore(data=MinPO(23))
         self.assertTrue(len(self._storage) in [0, 2])
 
-    def checkGetSize(self):
+    def testGetSize(self):
         self._dostore(data=MinPO(25))
         size = self._storage.getSize()
         # The storage API doesn't make any claims about what size
         # means except that it ought to be printable.
         str(size)
 
-    def checkNote(self):
+    def testNote(self):
         oid = self._storage.new_oid()
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
-        t.note(u'this is a test')
+        t.note('this is a test')
         self._storage.store(oid, ZERO, zodb_pickle(MinPO(5)), '', t)
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
-    def checkInterfaces(self):
+    def testInterfaces(self):
         for iface in zope.interface.providedBy(self._storage):
             zope.interface.verify.verifyObject(iface, self._storage)
 
-    def checkMultipleEmptyTransactions(self):
+    def testMultipleEmptyTransactions(self):
         # There was a bug in handling empty transactions in mapping
         # storage that caused the commit lock not to be released. :(
         t = TransactionMetaData()
@@ -216,7 +216,7 @@ class BasicStorage(RaceTests):
         thread.join(.1)
         return thread
 
-    def check_checkCurrentSerialInTransaction(self):
+    def test_checkCurrentSerialInTransaction(self):
         oid = b'\0\0\0\0\0\0\0\xf0'
         tid = self._dostore(oid)
         tid2 = self._dostore(oid, revid=tid)
@@ -297,7 +297,7 @@ class BasicStorage(RaceTests):
                 tid4 >
                 utils.load_current(self._storage, b'\0\0\0\0\0\0\0\xf4')[1])
 
-    def check_tid_ordering_w_commit(self):
+    def test_tid_ordering_w_commit(self):
 
         # It's important that storages always give a consistent
         # ordering for revisions, tids.  This is most likely to fail

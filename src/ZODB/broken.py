@@ -18,17 +18,17 @@ import sys
 
 import persistent
 import zope.interface
+from _compat_pickle import IMPORT_MAPPING
+from _compat_pickle import NAME_MAPPING
 
 import ZODB.interfaces
-from ZODB._compat import IMPORT_MAPPING
-from ZODB._compat import NAME_MAPPING
 
 
 broken_cache = {}
 
 
 @zope.interface.implementer(ZODB.interfaces.IBroken)
-class Broken(object):
+class Broken:
     """Broken object base class
 
        Broken objects are placeholders for objects that can no longer be
@@ -66,7 +66,7 @@ class Broken(object):
          >>> a.x = 1
          Traceback (most recent call last):
          ...
-         BrokenModified: Can't change broken objects
+         ZODB.broken.BrokenModified: Can't change broken objects
 
        But you can set their state::
 
@@ -126,7 +126,7 @@ class Broken(object):
         self.__dict__['__Broken_state__'] = state
 
     def __repr__(self):
-        return "<broken %s.%s instance>" % (
+        return "<broken {}.{} instance>".format(
             self.__class__.__module__, self.__class__.__name__)
 
     def __setattr__(self, name, value):
@@ -298,7 +298,7 @@ class PersistentBroken(Broken, persistent.Persistent):
           >>> a.x = 1
           Traceback (most recent call last):
           ...
-          BrokenModified: Can't change broken objects
+          ZODB.broken.BrokenModified: Can't change broken objects
 
         Unlike regular broken objects, persistent broken objects keep
         track of persistence meta data:
@@ -312,7 +312,7 @@ class PersistentBroken(Broken, persistent.Persistent):
           >>> a.__reduce__()    # doctest: +NORMALIZE_WHITESPACE
           Traceback (most recent call last):
           ...
-          BrokenModified:
+          ZODB.broken.BrokenModified:
           <persistent broken not.there.Atall instance '\x00\x00\x00\x00****'>
 
         but you can get their state:
@@ -345,7 +345,7 @@ class PersistentBroken(Broken, persistent.Persistent):
             raise BrokenModified("Can't change broken objects")
 
     def __repr__(self):
-        return "<persistent broken %s.%s instance %r>" % (
+        return "<persistent broken {}.{} instance {!r}>".format(
             self.__class__.__module__, self.__class__.__name__,
             self._p_oid)
 

@@ -19,7 +19,7 @@ import time
 from . import utils
 
 
-class ActivityMonitor(object):
+class ActivityMonitor:
     """ZODB load/store activity monitor
 
     This simple implementation just keeps a small log in memory

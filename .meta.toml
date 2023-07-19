@@ -2,15 +2,15 @@
 # https://github.com/zopefoundation/meta/tree/master/config/pure-python
 [meta]
 template = "pure-python"
-commit-id = "b4dd6f9ffd3d6a2cde7dc70512c62d4c7ed22cd6"
+commit-id = "b99ba750"
 
 [python]
 with-windows = true
 with-pypy = true
 with-future-python = false
-with-legacy-python = true
 with-docs = true
 with-sphinx-doctests = false
+with-macos = false
 
 [tox]
 use-flake8 = true
@@ -21,12 +21,12 @@ testenv-setenv = [
     "ZOPE_INTERFACE_STRICT_IRO=1",
     ]
 additional-envlist = [
-    "py38-pure",
+    "py310-pure",
     ]
 testenv-additional = [
     "",
-    "[testenv:py38-pure]",
-    "basepython = python3.8",
+    "[testenv:py310-pure]",
+    "basepython = python3.10",
     "setenv =",
     "    PURE_PYTHON = 1",
     ]
@@ -67,8 +67,5 @@ additional-ignores = [
 
 [github-actions]
 additional-config = [
-    "- [\"3.8\",   \"py38-pure\"]",
-    ]
-additional-exclude = [
-    "- { os: windows, config: [\"pypy-2.7\", \"pypy\"] }",
+    "- [\"3.10\",   \"py310-pure\"]",
     ]

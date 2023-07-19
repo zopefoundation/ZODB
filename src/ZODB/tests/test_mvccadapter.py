@@ -23,7 +23,7 @@ class TestBase(unittest.TestCase):
         class TheException(Exception):
             pass
 
-        class RaisesOnAccess(object):
+        class RaisesOnAccess:
 
             @property
             def thing(self):
@@ -46,7 +46,7 @@ class TestBase(unittest.TestCase):
 class TestHistoricalStorageAdapter(unittest.TestCase):
 
     def test_forwards_release(self):
-        class Base(object):
+        class Base:
             released = False
 
             def release(self):

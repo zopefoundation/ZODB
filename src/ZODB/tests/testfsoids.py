@@ -57,8 +57,8 @@ Create a root object and try again:
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 1 revision
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='initial database creation'
+        tid user=b''
+        tid description=b'initial database creation'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
 oid 0x01 <unknown> 0 revisions
     this oid was not defined (no data record for it found)
@@ -83,18 +83,18 @@ Let's add a BTree and try again:
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='initial database creation'
+        tid user=b''
+        tid description=b'initial database creation'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='added an OOBTree'
+        tid user=b''
+        tid description=b'added an OOBTree'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
         references 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
 oid 0x01 BTrees.OOBTree.OOBTree... 1 revision
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='added an OOBTree'
+        tid user=b''
+        tid description=b'added an OOBTree'
         new revision BTrees.OOBTree.OOBTree... at <OFFSET>
         referenced by 0x00 persistent.mapping.PersistentMapping at <OFFSET>
 
@@ -111,27 +111,27 @@ One more, storing a reference in the BTree back to the root object:
 >>> t.run(); t.report() #doctest: +ELLIPSIS
 oid 0x00 persistent.mapping.PersistentMapping 2 revisions
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='initial database creation'
+        tid user=b''
+        tid description=b'initial database creation'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='added an OOBTree'
+        tid user=b''
+        tid description=b'added an OOBTree'
         new revision persistent.mapping.PersistentMapping at <OFFSET>
         references 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='circling back to the root'
+        tid user=b''
+        tid description=b'circling back to the root'
         referenced by 0x01 BTrees.OOBTree.OOBTree... at <OFFSET>
 oid 0x01 BTrees.OOBTree.OOBTree... 2 revisions
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='added an OOBTree'
+        tid user=b''
+        tid description=b'added an OOBTree'
         new revision BTrees.OOBTree.OOBTree... at <OFFSET>
         referenced by 0x00 persistent.mapping.PersistentMapping at <OFFSET>
     tid 0x... offset=<OFFSET> ...
-        tid user=''
-        tid description='circling back to the root'
+        tid user=b''
+        tid description=b'circling back to the root'
         new revision BTrees.OOBTree.OOBTree... at <OFFSET>
         references 0x00 persistent.mapping.PersistentMapping at <OFFSET>
 oid 0x02 <unknown> 0 revisions

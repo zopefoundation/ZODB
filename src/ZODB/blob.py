@@ -23,23 +23,19 @@ import stat
 import sys
 import tempfile
 import weakref
+from base64 import decodebytes
+from io import BytesIO
+from io import FileIO
 
 import persistent
 import zope.interface
 
 import ZODB.interfaces
 from ZODB import utils
-from ZODB._compat import PY3
-from ZODB._compat import BytesIO
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import ascii_bytes
-from ZODB._compat import decodebytes
 from ZODB.interfaces import BlobError
 from ZODB.POSException import POSKeyError
-
-
-if PY3:
-    from io import FileIO as file
 
 
 logger = logging.getLogger('ZODB.blob')
@@ -102,7 +98,7 @@ class Blob(persistent.Persistent):
         # Only ghostify if we are unopened.
         if self.readers or self.writers:
             return
-        super(Blob, self)._p_deactivate()
+        super()._p_deactivate()
 
     def _p_invalidate(self):
         # Force-close any open readers or writers,
@@ -117,7 +113,7 @@ class Blob(persistent.Persistent):
         if (self._p_blob_uncommitted):
             os.remove(self._p_blob_uncommitted)
 
-        super(Blob, self)._p_invalidate()
+        super()._p_invalidate()
 
     def opened(self):
         return bool(self.readers or self.writers)
@@ -316,7 +312,7 @@ class Blob(persistent.Persistent):
         return filename
 
 
-class BlobFile(file):
+class BlobFile(FileIO):
     """A BlobFile that holds a file handle to actual blob data.
 
     It is a file that can be used within a transaction boundary; a BlobFile is
@@ -330,21 +326,18 @@ class BlobFile(file):
     # the storage later puts them to avoid copying them ...
 
     def __init__(self, name, mode, blob):
-        super(BlobFile, self).__init__(name, mode+'b')
+        super().__init__(name, mode+'b')
         self.blob = blob
 
     def close(self):
         self.blob.closed(self)
-        super(BlobFile, self).close()
+        super().close()
 
     def __reduce__(self):
-        # Python 3 cannot pickle an open file with any pickle protocol
+        # Python cannot pickle an open file with any pickle protocol
         # because of the underlying _io.BufferedReader/Writer object.
-        # Python 2 cannot pickle a file with a protocol < 2, but
-        # protocol 2 *can* pickle an open file; the result of unpickling
-        # is a closed file object.
         # It's pointless to do that with a blob, so we make sure to
-        # prohibit it on all versions.
+        # prohibit it.
         raise TypeError("Pickling a BlobFile is not allowed")
 
 
@@ -352,11 +345,11 @@ _pid = str(os.getpid())
 
 
 def log(msg, level=logging.INFO, subsys=_pid, exc_info=False):
-    message = "(%s) %s" % (subsys, msg)
+    message = "({}) {}".format(subsys, msg)
     logger.log(level, message, exc_info=exc_info)
 
 
-class FilesystemHelper(object):
+class FilesystemHelper:
     # Storages that implement IBlobStorage can choose to use this
     # helper class to generate and parse blob filenames.  This is not
     # a set-in-stone interface for all filesystem operations dealing
@@ -391,7 +384,7 @@ class FilesystemHelper(object):
             with open(layout_marker_path, 'w') as layout_marker:
                 layout_marker.write(self.layout_name)
         else:
-            with open(layout_marker_path, 'r') as layout_marker:
+            with open(layout_marker_path) as layout_marker:
                 layout = layout_marker.read().strip()
             if layout != self.layout_name:
                 raise ValueError(
@@ -530,7 +523,7 @@ class FilesystemHelper(object):
             yield oid, path
 
 
-class NoBlobsFileSystemHelper(object):
+class NoBlobsFileSystemHelper:
 
     @property
     def temp_dir(self):
@@ -548,7 +541,7 @@ def auto_layout_select(path):
     # use.
     layout_marker = os.path.join(path, LAYOUT_MARKER)
     if os.path.exists(layout_marker):
-        with open(layout_marker, 'r') as fp:
+        with open(layout_marker) as fp:
             layout = fp.read().strip()
         log('Blob directory `%s` has layout marker set. '
             'Selected `%s` layout. ' % (path, layout), level=logging.DEBUG)
@@ -574,7 +567,7 @@ def auto_layout_select(path):
     return layout
 
 
-class BushyLayout(object):
+class BushyLayout:
     """A bushy directory layout for blob directories.
 
     Creates an 8-level directory structure (one level per byte) in
@@ -617,7 +610,7 @@ class BushyLayout(object):
 
         """
         oid_path = self.oid_to_path(oid)
-        filename = "%s%s" % (utils.tid_repr(tid), BLOB_SUFFIX)
+        filename = "{}{}".format(utils.tid_repr(tid), BLOB_SUFFIX)
         return os.path.join(oid_path, filename)
 
 
@@ -648,7 +641,7 @@ class LawnLayout(BushyLayout):
 LAYOUTS['lawn'] = LawnLayout()
 
 
-class BlobStorageMixin(object):
+class BlobStorageMixin:
     """A mix-in to help storages support blobs."""
 
     def _blob_init(self, blob_dir, layout='automatic'):
@@ -678,7 +671,7 @@ class BlobStorageMixin(object):
     def registerDB(self, db):
         self.__untransform_record_data = db.untransform_record_data
         try:
-            m = super(BlobStorageMixin, self).registerDB
+            m = super().registerDB
         except AttributeError:
             pass
         else:
@@ -772,8 +765,8 @@ class BlobStorage(BlobStorageMixin):
 
     def __repr__(self):
         normal_storage = self.__storage
-        return '<BlobStorage proxy for %r at %s>' % (normal_storage,
-                                                     hex(id(self)))
+        return '<BlobStorage proxy for {!r} at {}>'.format(normal_storage,
+                                                           hex(id(self)))
 
     def tpc_finish(self, *arg, **kw):
         # We need to override the base storage's tpc_finish instead of

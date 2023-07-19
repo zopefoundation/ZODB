@@ -12,6 +12,7 @@
 #
 ##############################################################################
 from time import sleep
+from types import SimpleNamespace
 from unittest import TestCase
 
 from .racetest import TestWorkGroup
@@ -107,12 +108,3 @@ def tg_test_function(tg, tx, mode=T_SUCCESS, waits=1, wait_time=0.2):
         if tg.failed():
             return
         sleep(wait_time)
-
-
-try:
-    from types import SimpleNamespace
-except ImportError:
-    # PY2
-    class SimpleNamespace(object):
-        def __init__(self, **kw):
-            self.__dict__.update(kw)

@@ -17,7 +17,7 @@ from ZODB.POSException import Unsupported
 from ZODB.utils import load_current
 
 
-class ReadOnlyStorage(object):
+class ReadOnlyStorage:
 
     def _create_data(self):
         # test a read-only storage that already has some data
@@ -32,7 +32,7 @@ class ReadOnlyStorage(object):
         self.open(read_only=True)
         self.assertTrue(self._storage.isReadOnly())
 
-    def checkReadMethods(self):
+    def testReadMethods(self):
         self._create_data()
         self._make_readonly()
         # Note that this doesn't check _all_ read methods.
@@ -46,7 +46,7 @@ class ReadOnlyStorage(object):
             except Unsupported:
                 pass
 
-    def checkWriteMethods(self):
+    def testWriteMethods(self):
         self._make_readonly()
         self.assertRaises(ReadOnlyError, self._storage.new_oid)
         t = TransactionMetaData()

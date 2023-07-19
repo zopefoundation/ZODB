@@ -13,7 +13,6 @@
 ##############################################################################
 """Database objects
 """
-from __future__ import print_function
 
 import datetime
 import logging
@@ -22,8 +21,6 @@ import time
 import warnings
 import weakref
 from itertools import chain
-
-import six
 
 import transaction
 from persistent.TimeStamp import TimeStamp
@@ -44,7 +41,7 @@ from ZODB.utils import z64
 logger = logging.getLogger('ZODB.DB')
 
 
-class AbstractConnectionPool(object):
+class AbstractConnectionPool:
     """Manage a pool of connections.
 
     CAUTION:  Methods should be called under the protection of a lock.
@@ -115,7 +112,7 @@ class AbstractConnectionPool(object):
 class ConnectionPool(AbstractConnectionPool):
 
     def __init__(self, size, timeout=1 << 31):
-        super(ConnectionPool, self).__init__(size, timeout)
+        super().__init__(size, timeout)
 
         # A stack of connections available to hand out.  This is a subset
         # of self.all.  push() and repush() add to this, and may remove
@@ -247,7 +244,7 @@ class KeyedConnectionPool(AbstractConnectionPool):
     # see the comments in ConnectionPool for method descriptions.
 
     def __init__(self, size, timeout=1 << 31):
-        super(KeyedConnectionPool, self).__init__(size, timeout)
+        super().__init__(size, timeout)
         self.pools = {}
 
     def __iter__(self):
@@ -324,7 +321,7 @@ def getTID(at, before):
 
 
 @implementer(IDatabase)
-class DB(object):
+class DB:
     """The Object Database
 
     The DB class coordinates the activities of multiple database
@@ -428,7 +425,7 @@ class DB(object):
         self._historical_cache_size_bytes = historical_cache_size_bytes
 
         # Setup storage
-        if isinstance(storage, six.string_types):
+        if isinstance(storage, str):
             from ZODB import FileStorage  # noqa: F401 import unused
             storage = ZODB.FileStorage.FileStorage(storage, **storage_args)
         elif storage is None:
@@ -469,7 +466,7 @@ class DB(object):
         self.large_record_size = large_record_size
 
         # Make sure we have a root:
-        with self.transaction(u'initial database creation') as conn:
+        with self.transaction('initial database creation') as conn:
             try:
                 conn.get(z64)
             except KeyError:
@@ -516,7 +513,7 @@ class DB(object):
             for oid, ob in con._cache.items():
                 module = getattr(ob.__class__, '__module__', '')
                 module = module and '%s.' % module or ''
-                c = "%s%s" % (module, ob.__class__.__name__)
+                c = "{}{}".format(module, ob.__class__.__name__)
                 if c in detail:
                     detail[c] += 1
                 else:
@@ -571,7 +568,7 @@ class DB(object):
                     'conn_no': cn,
                     'oid': oid,
                     'id': id,
-                    'klass': "%s%s" % (module, ob.__class__.__name__),
+                    'klass': "{}{}".format(module, ob.__class__.__name__),
                     'rc': (rc(ob) - 3 - (ob._p_changed is not None)
                            if rc else False),
                     'state': ob._p_changed,
@@ -621,7 +618,6 @@ class DB(object):
                       'ngsize': con._cache.cache_non_ghost_count,
                       'size': len(con._cache)})
         self._connectionMap(f)
-        # Py3: Simulate Python 2 m.sort() functionality.
         return sorted(
             m, key=lambda x: (x['connection'], x['ngsize'], x['size']))
 
@@ -643,7 +639,7 @@ class DB(object):
         @self._connectionMap
         def _(conn):
             if conn.transaction_manager is not None:
-                for c in six.itervalues(conn.connections):
+                for c in conn.connections.values():
                     # Prevent connections from implicitly starting new
                     # transactions.
                     c.explicit_transactions = True
@@ -743,7 +739,7 @@ class DB(object):
             raise ValueError(
                 'cannot open an historical connection in the future.')
 
-        if isinstance(transaction_manager, six.string_types):
+        if isinstance(transaction_manager, str):
             if transaction_manager:
                 raise TypeError("Versions aren't supported.")
             warnings.warn(
@@ -806,11 +802,11 @@ class DB(object):
                     d = d[0]
             else:
                 d = ''
-            d = "%s (%s)" % (d, len(c._cache))
+            d = "{} ({})".format(d, len(c._cache))
 
             # output UTC time with the standard Z time zone indicator
             result.append({
-                'opened': o and ("%s (%.2fs)" % (
+                'opened': o and ("{} ({:.2f}s)".format(
                     time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(o)),
                     t-o)),
                 'info': d,
@@ -960,7 +956,7 @@ class DB(object):
             raise NotImplementedError
         if txn is None:
             txn = transaction.get()
-        if isinstance(ids, six.string_types):
+        if isinstance(ids, str):
             ids = [ids]
         txn.join(TransactionalUndo(self, ids))
 
@@ -1013,7 +1009,7 @@ class DB(object):
         return conn
 
 
-class ContextManager(object):
+class ContextManager:
     """PEP 343 context manager
     """
 
@@ -1041,7 +1037,7 @@ resource_counter_lock = utils.Lock()
 resource_counter = 0
 
 
-class TransactionalUndo(object):
+class TransactionalUndo:
 
     def __init__(self, db, tids):
         self._db = db
@@ -1114,7 +1110,7 @@ class TransactionalUndo(object):
         # not open yet. Fortunately new_instances of a storage are
         # supposed to return the same sort key as the original storage
         # did.
-        return "%s:%s" % (self._db._mvcc_storage.sortKey(), id(self))
+        return "{}:{}".format(self._db._mvcc_storage.sortKey(), id(self))
 
 
 def connection(*args, **kw):

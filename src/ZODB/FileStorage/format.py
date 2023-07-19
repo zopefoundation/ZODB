@@ -86,7 +86,6 @@
 import logging
 import struct
 
-from ZODB._compat import PY3
 from ZODB.POSException import POSKeyError
 from ZODB.utils import as_bytes
 from ZODB.utils import oid_repr
@@ -106,8 +105,8 @@ class CorruptedDataError(CorruptedError):
 
     def __str__(self):
         if self.oid:
-            msg = "Error reading oid %s.  Found %r" % (oid_repr(self.oid),
-                                                       self.buf)
+            msg = "Error reading oid {}.  Found {!r}".format(
+                oid_repr(self.oid), self.buf)
         else:
             msg = "Error reading unknown oid.  Found %r" % self.buf
         if self.pos:
@@ -127,7 +126,7 @@ assert struct.calcsize(DATA_HDR) == DATA_HDR_LEN
 logger = logging.getLogger('ZODB.FileStorage.format')
 
 
-class FileStorageFormatter(object):
+class FileStorageFormatter:
     """Mixin class that can read and write the low-level format."""
 
     # subclasses must provide _file
@@ -243,7 +242,7 @@ def DataHeaderFromString(s):
     return DataHeader(*struct.unpack(DATA_HDR, s))
 
 
-class DataHeader(object):
+class DataHeader:
     """Header for a data record."""
 
     __slots__ = ("oid", "tid", "prev", "tloc", "plen", "back")
@@ -270,12 +269,11 @@ class DataHeader(object):
 
 def TxnHeaderFromString(s):
     res = TxnHeader(*struct.unpack(TRANS_HDR, s))
-    if PY3:
-        res.status = res.status.decode('ascii')
+    res.status = res.status.decode('ascii')
     return res
 
 
-class TxnHeader(object):
+class TxnHeader:
     """Header for a transaction record."""
 
     __slots__ = ("tid", "tlen", "status", "user", "descr", "ext",

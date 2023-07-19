@@ -12,6 +12,7 @@
 #
 ##############################################################################
 import doctest
+import io
 import os
 import random
 import re
@@ -38,14 +39,6 @@ from ZODB.blob import BushyLayout
 from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from ZODB.tests.testConfig import ConfigTestBase
-
-
-try:
-    file_type = file
-except NameError:
-    # Py3: Python 3 does not have a file type.
-    import io
-    file_type = io.BufferedReader
 
 from . import util
 
@@ -395,7 +388,7 @@ def commit_from_wrong_partition():
     Copied blob file ...
 
     >>> with root['blob'].open() as fp: fp.read()
-    'test'
+    b'test'
 
 Works with savepoints too:
 
@@ -409,7 +402,7 @@ Works with savepoints too:
     Copied blob file ...
 
     >>> with root['blob2'].open() as fp: fp.read()
-    'test2'
+    b'test2'
 
     >>> os.rename = os_rename
     >>> logger.propagate = True
@@ -590,7 +583,7 @@ def do_not_depend_on_cwd():
     >>> transaction.commit()
     >>> os.chdir(here)
     >>> with conn.root()['blob'].open() as fp: fp.read()
-    'data'
+    b'data'
 
     >>> db.close()
     """
@@ -613,14 +606,14 @@ def savepoint_isolation():
     ...     _ = file.write(b'2')
     >>> _ = tm.savepoint()
     >>> with conn.root.b.open() as fp: fp.read()
-    '1'
+    b'1'
     >>> with conn2.root.b.open() as fp: fp.read()
-    '2'
+    b'2'
     >>> transaction.abort()
     >>> tm.commit()
     >>> conn.sync()
     >>> with conn.root.b.open() as fp: fp.read()
-    '2'
+    b'2'
     >>> db.close()
     """
 
@@ -645,9 +638,9 @@ def savepoint_commits_without_invalidations_out_of_order():
     ...     _ = file.write(b'2')
     >>> _ = tm1.savepoint()
     >>> with conn1.root.b.open() as fp: fp.read()
-    '1'
+    b'1'
     >>> with conn2.root.b.open() as fp: fp.read()
-    '2'
+    b'2'
     >>> tm2.commit()
     >>> tm1.commit()  # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
@@ -699,7 +692,7 @@ def lp440234_Setting__p_changed_of_a_Blob_w_no_uncomitted_changes_is_noop():
     >>> old_serial = blob._p_serial
     >>> transaction.commit()
     >>> with blob.open() as fp: fp.read()
-    'blah'
+    b'blah'
     >>> old_serial == blob._p_serial
     True
 
@@ -754,7 +747,7 @@ def storage_reusable_suite(prefix, factory,
             return factory(name, blob_dir)
 
         test.globs['create_storage'] = create_storage
-        test.globs['file_type'] = file_type
+        test.globs['file_type'] = io.BufferedReader
 
     suite = unittest.TestSuite()
     suite.addTest(doctest.DocFileSuite(
@@ -763,18 +756,6 @@ def storage_reusable_suite(prefix, factory,
         "blob_transaction.txt",
         setUp=setup, tearDown=util.tearDown,
         checker=zope.testing.renormalizing.RENormalizing([
-            # Py3k renders bytes where Python2 used native strings...
-            (re.compile(r"^b'"), "'"),
-            (re.compile(r'^b"'), '"'),
-            # ...and native strings where Python2 used unicode.
-            (re.compile("^POSKeyError: u'No blob file"),
-             "POSKeyError: 'No blob file"),
-            # Py3k repr's exceptions with dotted names
-            (re.compile("^ZODB.interfaces.BlobError:"), "BlobError:"),
-            (re.compile("^ZODB.POSException.ConflictError:"),
-             "ConflictError:"),
-            (re.compile("^ZODB.POSException.POSKeyError:"), "POSKeyError:"),
-            (re.compile("^ZODB.POSException.Unsupported:"), "Unsupported:"),
             # Normalize out blobfile paths for sake of Windows
             (re.compile(
                 r'([a-zA-Z]:)?\%(sep)s.*\%(sep)s(server-)'
@@ -808,7 +789,8 @@ def storage_reusable_suite(prefix, factory,
             prefix+class_.__name__, (class_, ),
             dict(create_storage=create_storage),
         )
-        suite.addTest(unittest.makeSuite(new_class))
+        suite.addTest(
+            unittest.defaultTestLoader.loadTestsFromTestCase(new_class))
 
     if test_blob_storage_recovery:
         add_test_based_on_test_class(RecoveryBlobStorage)
@@ -823,9 +805,10 @@ def storage_reusable_suite(prefix, factory,
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(ZODBBlobConfigTest))
-    suite.addTest(unittest.makeSuite(BlobCloneTests))
-    suite.addTest(unittest.makeSuite(BushyLayoutTests))
+    loadTestsFromTestCase = unittest.defaultTestLoader.loadTestsFromTestCase
+    suite.addTest(loadTestsFromTestCase(ZODBBlobConfigTest))
+    suite.addTest(loadTestsFromTestCase(BlobCloneTests))
+    suite.addTest(loadTestsFromTestCase(BushyLayoutTests))
     suite.addTest(doctest.DocFileSuite(
         "blob_basic.txt",
         "blob_consume.txt",
@@ -852,7 +835,6 @@ def test_suite():
             (re.compile(r'\%(sep)s\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\%(sep)s' % dict(sep=os.path.sep)), '/'),
             (re.compile(r'\S+/((old|bushy|lawn)/\S+/foo[23456]?)'), r'\1'),
-            (re.compile(r"u('[^']*')"), r"\1"),
         ]),
     ))
     suite.addTest(storage_reusable_suite(

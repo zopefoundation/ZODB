@@ -42,7 +42,7 @@ class FileStorageCorruptTests(StorageTestBase):
             data, s_revid = load_current(self._storage, oid)
             self.assertEqual(s_revid, revid)
 
-    def checkTruncatedIndex(self):
+    def testTruncatedIndex(self):
         oids = self._do_stores()
         self._close()
 
@@ -58,7 +58,7 @@ class FileStorageCorruptTests(StorageTestBase):
         self._storage = ZODB.FileStorage.FileStorage('Data.fs')
         self._check_stores(oids)
 
-    def checkCorruptedIndex(self):
+    def testCorruptedIndex(self):
         oids = self._do_stores()
         self._close()
 

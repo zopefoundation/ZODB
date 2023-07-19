@@ -6,9 +6,7 @@ usage: netspace.py [-P | -v] data.fs
 -P: do a pack first
 -v: print info for all objects, even if a traversal path isn't found
 """
-from __future__ import print_function
 
-from six.moves import filter
 
 import ZODB
 from ZODB.FileStorage import FileStorage
@@ -49,7 +47,7 @@ def find_paths(root, maxdist):
                 continue
             for k, v in items:
                 oid = getattr(v, '_p_oid', None)
-                objs.append(("%s.%s" % (path, k), v, oid, dist + 1))
+                objs.append(("{}.{}".format(path, k), v, oid, dist + 1))
 
     return paths
 

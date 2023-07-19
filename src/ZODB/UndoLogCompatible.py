@@ -14,7 +14,7 @@
 """Provide backward compatibility with storages that only have undoLog()."""
 
 
-class UndoLogCompatible(object):
+class UndoLogCompatible:
 
     def undoInfo(self, first=0, last=-20, specification=None):
         if specification:

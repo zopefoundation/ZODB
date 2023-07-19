@@ -25,9 +25,9 @@ from ZODB.utils import p64
 from ZODB.utils import u64
 
 
-class RevisionStorage(object):
+class RevisionStorage:
 
-    def checkLoadSerial(self):
+    def testLoadSerial(self):
         oid = self._storage.new_oid()
         revid = ZERO
         revisions = {}
@@ -40,7 +40,7 @@ class RevisionStorage(object):
             self.assertEqual(zodb_unpickle(data), value)
 
     @time_monotonically_increases
-    def checkLoadBefore(self):
+    def testLoadBefore(self):
         # Store 10 revisions of one object and then make sure that we
         # can get all the non-current revisions back.
         oid = self._storage.new_oid()
@@ -71,7 +71,7 @@ class RevisionStorage(object):
             self.assertEqual(revs[i-1][0], data)
             self.assertEqual(tid, end)
 
-    def checkLoadBeforeEdges(self):
+    def testLoadBeforeEdges(self):
         # Check the edges cases for a non-current load.
         oid = self._storage.new_oid()
 
@@ -96,7 +96,7 @@ class RevisionStorage(object):
         self.assertEqual(end, revid2)
 
     @time_monotonically_increases
-    def checkLoadBeforeOld(self):
+    def testLoadBeforeOld(self):
         # Look for a very old revision.  With the BaseStorage implementation
         # this should require multple history() calls.
         oid = self._storage.new_oid()
@@ -114,7 +114,7 @@ class RevisionStorage(object):
     # Unsure:  Is it okay to assume everyone testing against RevisionStorage
     # implements undo?
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         # Do several transactions then undo them.
         oid = self._storage.new_oid()
         revid = None
@@ -142,7 +142,7 @@ class RevisionStorage(object):
             else:
                 self.assertEqual(None, t[2])
 
-    def checkLoadBeforeConsecutiveTids(self):
+    def testLoadBeforeConsecutiveTids(self):
         eq = self.assertEqual
         oid = self._storage.new_oid()
 
@@ -167,7 +167,7 @@ class RevisionStorage(object):
         eq(u64(start_tid), 1)
         eq(u64(end_tid), 2)
 
-    def checkLoadBeforeCreation(self):
+    def testLoadBeforeCreation(self):
         eq = self.assertEqual
         oid1 = self._storage.new_oid()
         oid2 = self._storage.new_oid()

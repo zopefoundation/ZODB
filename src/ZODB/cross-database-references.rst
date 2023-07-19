@@ -61,7 +61,7 @@ It isn't valid to create references outside a multi database:
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference:
+    ZODB.POSException.InvalidObjectReference:
       ('Attempt to store an object from a foreign database connection',
        <ZODB.Connection.Connection object at ...>,
        <ZODB.tests.testcrossdatabasereferences.MyClass...>)
@@ -89,7 +89,7 @@ reachable from multiple databases:
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference:
+    ZODB.POSException.InvalidObjectReference:
     ("A new object is reachable from multiple databases. Won't try to
     guess which one was correct!",
     <ZODB.Connection.Connection object at ...>,
@@ -117,7 +117,7 @@ This doesn't work with a savepoint:
     >>> tm.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference:
+    ZODB.POSException.InvalidObjectReference:
     ("A new object is reachable from multiple databases. Won't try to guess
     which one was correct!",
     <ZODB.Connection.Connection object at ...>,
@@ -165,7 +165,7 @@ the other way around.
     >>> transaction.commit() # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Traceback (most recent call last):
     ...
-    InvalidObjectReference:
+    ZODB.POSException.InvalidObjectReference:
     ("Database '2' doesn't allow implicit cross-database references",
     <ZODB.Connection.Connection object at ...>,
     {'x': {}})

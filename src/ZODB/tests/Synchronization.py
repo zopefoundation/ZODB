@@ -71,7 +71,7 @@ SERIALNO = "\000" * 8
 TID = "\000" * 8
 
 
-class SynchronizedStorage(object):
+class SynchronizedStorage:
 
     def verifyNotCommitting(self, callable, *args):
         self.assertRaises(StorageTransactionError, callable, *args)
@@ -82,37 +82,37 @@ class SynchronizedStorage(object):
         self.assertRaises(StorageTransactionError, callable, *args)
         self._storage.tpc_abort(t)
 
-    def checkStoreNotCommitting(self):
+    def testStoreNotCommitting(self):
         self.verifyNotCommitting(self._storage.store,
                                  OID, SERIALNO, b"", "", TransactionMetaData())
 
-    def checkStoreWrongTrans(self):
+    def testStoreWrongTrans(self):
         self.verifyWrongTrans(self._storage.store,
                               OID, SERIALNO, b"", "", TransactionMetaData())
 
-    def checkAbortNotCommitting(self):
+    def testAbortNotCommitting(self):
         self._storage.tpc_abort(TransactionMetaData())
 
-    def checkAbortWrongTrans(self):
+    def testAbortWrongTrans(self):
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_abort(TransactionMetaData())
         self._storage.tpc_abort(t)
 
-    def checkFinishNotCommitting(self):
+    def testFinishNotCommitting(self):
         t = TransactionMetaData()
         self.assertRaises(StorageTransactionError,
                           self._storage.tpc_finish, t)
         self._storage.tpc_abort(t)
 
-    def checkFinishWrongTrans(self):
+    def testFinishWrongTrans(self):
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self.assertRaises(StorageTransactionError,
                           self._storage.tpc_finish, TransactionMetaData())
         self._storage.tpc_abort(t)
 
-    def checkBeginCommitting(self):
+    def testBeginCommitting(self):
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_abort(t)

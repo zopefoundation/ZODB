@@ -84,7 +84,6 @@ Options for -V/--verify:
     -Q / --quick
         Verify file sizes only (skip md5 checksums).
 """
-from __future__ import print_function
 
 import errno
 import getopt
@@ -95,8 +94,6 @@ import shutil
 import sys
 import time
 from hashlib import md5
-
-from six.moves import filter
 
 from ZODB.FileStorage import FileStorage
 
@@ -128,7 +125,7 @@ class VerificationFail(RepozoError):
     pass
 
 
-class _GzipCloser(object):
+class _GzipCloser:
 
     def __init__(self, fqn, mode):
         self._opened = gzip.open(fqn, mode)
@@ -184,7 +181,7 @@ def parseargs(argv):
     except getopt.error as msg:
         usage(1, msg)
 
-    class Options(object):
+    class Options:
         mode = None         # BACKUP, RECOVER or VERIFY
         file = None         # name of input Data.fs file
         repository = None   # name of directory holding backups
@@ -473,7 +470,7 @@ def scandat(repofiles):
     fn = startpos = endpos = sum = None  # assume .dat file missing or empty
     try:
         fp = open(datfile)
-    except IOError as e:
+    except OSError as e:
         if e.errno != errno.ENOENT:
             raise
     else:
@@ -681,7 +678,7 @@ def do_recover(options):
     repofiles = find_files(options)
     if not repofiles:
         if options.date:
-            raise NoFiles('No files in repository before %s' % (options.date,))
+            raise NoFiles(f'No files in repository before {options.date}')
         else:
             raise NoFiles('No files in repository')
 
@@ -725,7 +722,7 @@ def do_recover(options):
                             repofile, reposz, expected_truth['size']))
                 if reposum != expected_truth['sum']:
                     raise VerificationFail(
-                        "%s has checksum %s instead of %s" % (
+                        "{} has checksum {} instead of {}".format(
                             repofile, reposum, expected_truth['sum']))
                 totalsz += reposz
                 log("Recovered chunk %s : %s bytes, md5: %s",
@@ -782,7 +779,7 @@ def do_verify(options):
                     actual_sum, size = get_checksum_and_size_of_file(
                         filename, options.quick)
                     when_uncompressed = ''
-            except IOError:
+            except OSError:
                 error("%s is missing", filename)
                 continue
             if size != expected_size:

@@ -1,5 +1,3 @@
-from __future__ import print_function
-
 import getopt
 import os
 import string
@@ -122,7 +120,7 @@ def main(args):
             jar.close()
             t = time.time()-t
             if detailed:
-                sys.stderr.write("%s\t%s\t%.4f\n" % (j, r, t))
+                sys.stderr.write("{}\t{}\t{:.4f}\n".format(j, r, t))
                 sys.stdout.flush()
             results[r] = results[r]+t
             rt = d = p = v = None  # release all references
@@ -134,7 +132,7 @@ def main(args):
         print('-'*24)
     for r in 1, 10, 100, 1000:
         t = results[r]/nrep
-        sys.stderr.write("mean:\t%s\t%.4f\t%.4f (s/o)\n" % (r, t, t/r))
+        sys.stderr.write("mean:\t{}\t{:.4f}\t{:.4f} (s/o)\n".format(r, t, t/r))
 
     db.close()
 

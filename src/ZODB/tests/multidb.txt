@@ -166,12 +166,7 @@ to test that here; this is ugly:
 
     >>> from ZODB.config import getDbSchema
     >>> import ZConfig
-    >>> try:
-    ...     from cStringIO import StringIO
-    ... except ImportError:
-    ...     # Py3
-    ...     from io import StringIO
-
+    >>> from io import StringIO
 
 Derive a new `config2` string from the `config` string, specifying a
 different database_name:

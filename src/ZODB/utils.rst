@@ -21,7 +21,7 @@ packed integers.
 Functions p64 and u64 pack and unpack integers as strings:
 
     >>> ZODB.utils.p64(250347764455111456)
-    '\x03yi\xf7"\xa8\xfb '
+    b'\x03yi\xf7"\xa8\xfb '
 
     >>> print(ZODB.utils.u64(b'\x03yi\xf7"\xa8\xfb '))
     250347764455111456
@@ -29,7 +29,7 @@ Functions p64 and u64 pack and unpack integers as strings:
 The constant z64 has zero packed as a 64-bit string:
 
     >>> ZODB.utils.z64
-    '\x00\x00\x00\x00\x00\x00\x00\x00'
+    b'\x00\x00\x00\x00\x00\x00\x00\x00'
 
 Transaction id generation
 =========================
@@ -54,7 +54,7 @@ time:
 
     >>> tid = ZODB.utils.newTid(None)
     >>> tid
-    '\x03yi\xf7"\xa54\x88'
+    b'\x03yi\xf7"\xa54\x88'
 
 newTid requires an old tid as an argument. The old tid may be None, if
 we don't have a previous transaction id.
@@ -139,13 +139,6 @@ attribute.
     ...     _lock = Lock()
     ...     _lock_acquire = _lock.acquire
     ...     _lock_release = _lock.release
-
-    # XXX: Py3: Pytohn 3 does not have the concept of an unbound method.
-    #>>> C.meth(C2()) # doctest: +NORMALIZE_WHITESPACE
-    #Traceback (most recent call last):
-    #...
-    #TypeError: unbound method meth() must be called with C instance
-    #as first argument (got C2 instance instead)
 
 Preconditions
 =============

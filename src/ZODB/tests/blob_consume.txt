@@ -29,7 +29,7 @@ We now can call open on the blob and read and write the data::
 
     >>> blob_read = blob.open('r')
     >>> blob_read.read()
-    "I'm a Blob and I feel fine."
+    b"I'm a Blob and I feel fine."
     >>> blob_read.close()
     >>> blob_write = blob.open('w')
     >>> _ = blob_write.write(b'I was changed.')
@@ -43,12 +43,12 @@ already::
     >>> blob_read = blob.open('r')
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
-    BlobError: Already opened for reading.
+    ZODB.interfaces.BlobError: Already opened for reading.
     >>> blob_read.close()
     >>> blob_write = blob.open('w')
     >>> blob.consumeFile('to_import')
     Traceback (most recent call last):
-    BlobError: Already opened for writing.
+    ZODB.interfaces.BlobError: Already opened for writing.
     >>> blob_write.close()
 
 Now, after closing all readers and writers we can consume files again::
@@ -56,7 +56,7 @@ Now, after closing all readers and writers we can consume files again::
     >>> blob.consumeFile('to_import')
     >>> blob_read = blob.open('r')
     >>> blob_read.read()
-    'I am another blob.'
+    b'I am another blob.'
 
     >>> blob_read.close()
 
@@ -85,7 +85,7 @@ back to try a copy/remove operation that is successfull::
 The blob did not have data before, so it shouldn't have data now::
 
     >>> with blob.open('r') as fp: fp.read()
-    'Some data.'
+    b'Some data.'
 
 Case 2: We don't have uncommitted data and both the link operation and the
 copy fail. The exception will be re-raised and the target file will not
@@ -108,7 +108,7 @@ exist::
 The blob did not have data before, so it shouldn't have data now::
 
     >>> with blob.open('r') as fp: fp.read()
-    ''
+    b''
 
 Case 3: We have uncommitted data, but the link and the copy operations fail.
 The exception will be re-raised and the target file will exist with the
@@ -126,7 +126,7 @@ The blob did existed before and had uncommitted data, this shouldn't have
 changed::
 
     >>> with blob.open('r') as fp: fp.read()
-    'Uncommitted data'
+    b'Uncommitted data'
 
     >>> os.rename = os_rename
     >>> ZODB.utils.cp = utils_cp

@@ -61,7 +61,7 @@ class PCounter4(PCounter):
         raise RuntimeError("Can't get here; not enough args")
 
 
-class ConflictResolvingStorage(object):
+class ConflictResolvingStorage:
 
     def checkResolve(self, resolvable=True):
         db = DB(self._storage)
@@ -93,15 +93,15 @@ class ConflictResolvingStorage(object):
 
         db.close()
 
-    def checkUnresolvable(self):
+    def testUnresolvable(self):
         self.checkResolve(False)
 
-    def checkZClassesArentResolved(self):
+    def testZClassesArentResolved(self):
         from ZODB.ConflictResolution import BadClassName
         from ZODB.ConflictResolution import find_global
         self.assertRaises(BadClassName, find_global, '*foobar', ())
 
-    def checkBuggyResolve1(self):
+    def testBuggyResolve1(self):
         obj = PCounter3()
         obj.inc()
 
@@ -119,7 +119,7 @@ class ConflictResolvingStorage(object):
                           self._dostoreNP,
                           oid, revid=revid1, data=zodb_pickle(obj))
 
-    def checkBuggyResolve2(self):
+    def testBuggyResolve2(self):
         obj = PCounter4()
         obj.inc()
 
@@ -138,9 +138,9 @@ class ConflictResolvingStorage(object):
                           oid, revid=revid1, data=zodb_pickle(obj))
 
 
-class ConflictResolvingTransUndoStorage(object):
+class ConflictResolvingTransUndoStorage:
 
-    def checkUndoConflictResolution(self):
+    def testUndoConflictResolution(self):
         # This test is based on checkNotUndoable in the
         # TransactionalUndoStorage test suite.  Except here, conflict
         # resolution should allow us to undo the transaction anyway.
@@ -162,7 +162,7 @@ class ConflictResolvingTransUndoStorage(object):
         self._storage.tpc_vote(t)
         self._storage.tpc_finish(t)
 
-    def checkUndoUnresolvable(self):
+    def testUndoUnresolvable(self):
         # This test is based on checkNotUndoable in the
         # TransactionalUndoStorage test suite.  Except here, conflict
         # resolution should allow us to undo the transaction anyway.

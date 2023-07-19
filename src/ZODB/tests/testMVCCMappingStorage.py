@@ -32,9 +32,9 @@ from ZODB.tests import Synchronization
 from ZODB.tests.MVCCMappingStorage import MVCCMappingStorage
 
 
-class MVCCTests(object):
+class MVCCTests:
 
-    def checkClosingNestedDatabasesWorks(self):
+    def testClosingNestedDatabasesWorks(self):
         # This tests for the error described in
         # https://github.com/zopefoundation/ZODB/issues/45
         db1 = DB(self._storage)
@@ -43,7 +43,7 @@ class MVCCTests(object):
         db1.close()
         db2.close()
 
-    def checkCrossConnectionInvalidation(self):
+    def testCrossConnectionInvalidation(self):
         # Verify connections see updated state at txn boundaries.
         # This will fail if the Connection doesn't poll for changes.
         db = DB(self._storage)
@@ -64,7 +64,7 @@ class MVCCTests(object):
         finally:
             db.close()
 
-    def checkCrossConnectionIsolation(self):
+    def testCrossConnectionIsolation(self):
         # Verify MVCC isolates connections.
         # This will fail if Connection doesn't poll for changes.
         db = DB(self._storage)
@@ -83,7 +83,7 @@ class MVCCTests(object):
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = u'isolation test 1'
+            t.description = 'isolation test 1'
             c1.tpc_begin(t)
             c1.commit(t)
             storage.tpc_vote(t.data(c1))
@@ -109,7 +109,7 @@ class MVCCTests(object):
 
             storage = c1._storage
             t = transaction.Transaction()
-            t.description = u'isolation test 2'
+            t.description = 'isolation test 2'
             c1.tpc_begin(t)
             c1.commit(t)
             storage.tpc_vote(t.data(c1))
@@ -153,11 +153,11 @@ class MVCCMappingStorageTests(
     def tearDown(self):
         self._storage.close()
 
-    def checkLoadBeforeUndo(self):
+    def testLoadBeforeUndo(self):
         pass  # we don't support undo yet
-    checkUndoZombie = checkLoadBeforeUndo
+    testUndoZombie = testLoadBeforeUndo
 
-    def checkTransactionIdIncreases(self):
+    def testTransactionIdIncreases(self):
         t = TransactionMetaData()
         self._storage.tpc_begin(t)
         self._storage.tpc_vote(t)
@@ -181,7 +181,8 @@ def create_blob_storage(name, blob_dir):
 
 
 def test_suite():
-    suite = unittest.makeSuite(MVCCMappingStorageTests, 'check')
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(
+        MVCCMappingStorageTests)
     # Note: test_packing doesn't work because even though MVCCMappingStorage
     # retains history, it does not provide undo methods, so the
     # BlobStorage wrapper calls _packNonUndoing instead of _packUndoing,

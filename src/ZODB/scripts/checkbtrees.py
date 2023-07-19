@@ -6,7 +6,6 @@ usage: checkbtrees.py data.fs
 Try to find all the BTrees in a Data.fs, call their _check() methods,
 and run them through BTrees.check.check().
 """
-from __future__ import print_function
 
 from BTrees.check import check
 
@@ -116,9 +115,9 @@ def main(fname=None):
         for k, v in get_subobjects(obj):
             if k.startswith('['):
                 # getitem
-                newpath = "%s%s" % (path, k)
+                newpath = "{}{}".format(path, k)
             else:
-                newpath = "%s.%s" % (path, k)
+                newpath = "{}.{}".format(path, k)
             add_if_new_persistent(todo, v, newpath)
 
     print("total", len(fs._index), "found", found)

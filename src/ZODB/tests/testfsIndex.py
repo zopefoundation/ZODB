@@ -15,20 +15,11 @@ import doctest
 import random
 import unittest
 
-import six
-
 from ZODB.fsIndex import fsIndex
 from ZODB.tests.util import setUp
 from ZODB.tests.util import tearDown
 from ZODB.utils import p64
 from ZODB.utils import z64
-
-
-try:
-    xrange
-except NameError:
-    # Py3: No xrange.
-    xrange = range
 
 
 class Test(unittest.TestCase):
@@ -106,7 +97,7 @@ class Test(unittest.TestCase):
         for i, k in enumerate(keys):
             self.assertEqual(k, p64(i * 1000))
 
-        keys = list(six.iterkeys(self.index))
+        keys = list(self.index.keys())
         keys.sort()
 
         for i, k in enumerate(keys):
@@ -119,7 +110,7 @@ class Test(unittest.TestCase):
             self.assertEqual(k, p64(i * 1000))
 
     def testValues(self):
-        values = list(six.itervalues(self.index))
+        values = list(self.index.values())
         values.sort()
 
         for i, v in enumerate(values):
@@ -132,7 +123,7 @@ class Test(unittest.TestCase):
             self.assertEqual(v, (i * 1000 + 1))
 
     def testItems(self):
-        items = list(six.iteritems(self.index))
+        items = list(self.index.items())
         items.sort()
 
         for i, item in enumerate(items):
@@ -208,7 +199,7 @@ format.  The fsIndex class has a load class method that can load data.
 Let's start by creating an fsIndex.  We'll bother to allocate the
 object ids to get multiple buckets:
 
-    >>> index = fsIndex(dict((p64(i), i) for i in xrange(0, 1<<28, 1<<15)))
+    >>> index = fsIndex(dict((p64(i), i) for i in range(0, 1<<28, 1<<15)))
     >>> len(index._data)
     4096
 
@@ -241,6 +232,6 @@ If we save the data in the old format, we can still read it:
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(Test))
+    suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(Test))
     suite.addTest(doctest.DocTestSuite(setUp=setUp, tearDown=tearDown))
     return suite

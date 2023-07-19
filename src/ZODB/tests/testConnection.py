@@ -12,22 +12,17 @@
 #
 ##############################################################################
 """Unit tests for the Connection class."""
-from __future__ import print_function
 
 import doctest
-import re
 import sys
 import unittest
 from contextlib import contextmanager
-
-import six
 
 import transaction
 from persistent import Persistent
 from transaction import Transaction
 from zope.interface.verify import verifyObject
 from zope.testing import loggingsupport
-from zope.testing import renormalizing
 
 import ZODB.tests.util
 from ZODB.config import databaseFromString
@@ -36,20 +31,6 @@ from ZODB.utils import u64
 from ZODB.utils import z64
 
 from .. import mvccadapter
-
-
-checker = renormalizing.RENormalizing([
-    # Python 3 bytes add a "b".
-    (re.compile("b('.*?')"), r"\1"),
-    # Python 3 removes empty list representation.
-    (re.compile(r"set\(\[\]\)"), r"set()"),
-    # Python 3 adds module name to exceptions.
-    (re.compile("ZODB.POSException.POSKeyError"), r"POSKeyError"),
-    (re.compile("ZODB.POSException.ReadConflictError"), r"ReadConflictError"),
-    (re.compile("ZODB.POSException.ConflictError"), r"ConflictError"),
-    (re.compile("ZODB.POSException.ConnectionStateError"),
-     r"ConnectionStateError"),
-])
 
 
 class ConnectionDotAdd(ZODB.tests.util.TestCase):
@@ -223,7 +204,7 @@ class UserMethodTests(unittest.TestCase):
         >>> type(root).__name__
         'PersistentMapping'
         >>> root._p_oid
-        '\x00\x00\x00\x00\x00\x00\x00\x00'
+        b'\x00\x00\x00\x00\x00\x00\x00\x00'
         >>> root._p_jar is cn
         True
         >>> db.close()
@@ -240,7 +221,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.cacheMinimize() # See fix84.rst
         >>> obj = cn.get(p64(0))
         >>> obj._p_oid
-        '\x00\x00\x00\x00\x00\x00\x00\x00'
+        b'\x00\x00\x00\x00\x00\x00\x00\x00'
 
         The object is a ghost.
 
@@ -284,7 +265,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.get(p64(1))
         Traceback (most recent call last):
           ...
-        POSKeyError: 0x01
+        ZODB.POSException.POSKeyError: 0x01
         """
 
     def doctest_close(self):
@@ -307,13 +288,13 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.get(p64(0))
         Traceback (most recent call last):
           ...
-        ConnectionStateError: The database connection is closed
+        ZODB.POSException.ConnectionStateError: The database connection is closed
         >>> p = Persistent()
         >>> cn.add(p)
         Traceback (most recent call last):
           ...
-        ConnectionStateError: The database connection is closed
-        """
+        ZODB.POSException.ConnectionStateError: The database connection is closed
+        """  # noqa: E501 line too long
 
     def doctest_close_with_pending_changes(self):
         r"""doctest to ensure close() w/ pending changes complains
@@ -343,7 +324,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.close()
         Traceback (most recent call last):
           ...
-        ConnectionStateError: Cannot close a connection joined to a transaction
+        ZODB.POSException.ConnectionStateError: Cannot close a connection joined to a transaction
 
         This leaves the connection as it was, so we can still commit
         the change.
@@ -354,7 +335,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.close(); cn2.close()
 
         >>> db.close()
-        """
+        """  # noqa: E501 line too long
 
     def doctest_onCloseCallbacks(self):
         r"""doctest of onCloseCallback() method
@@ -444,7 +425,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn.isReadOnly()
         Traceback (most recent call last):
           ...
-        ConnectionStateError: The database connection is closed
+        ZODB.POSException.ConnectionStateError: The database connection is closed
 
         >>> db.close()
 
@@ -455,7 +436,7 @@ class UserMethodTests(unittest.TestCase):
         >>> cn = db.open()
         >>> cn.isReadOnly()
         True
-        """
+        """  # noqa: E501 line too long
 
     def doctest_cache(self):
         r"""doctest of cacheMinimize().
@@ -500,7 +481,7 @@ def doctest_transaction_retry_convenience():
     >>> for attempt in transaction.manager.attempts():
     ...     with attempt as t:
     ...         t.note(u'test')
-    ...         six.print_(dm['ntry'], ntry)
+    ...         print(dm['ntry'], ntry)
     ...         ntry += 1
     ...         dm['ntry'] = ntry
     ...         if ntry % 3:
@@ -743,7 +724,7 @@ def doctest_readCurrent():
     >>> from ZODB.POSException import ReadConflictError
     >>> bad = set()
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
-    ...     six.print_('checkCurrentSerialInTransaction', repr(oid))
+    ...     print('checkCurrentSerialInTransaction', repr(oid))
     ...     if oid in bad:
     ...         raise ReadConflictError(oid=oid)
 
@@ -771,7 +752,7 @@ def doctest_readCurrent():
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x = 0
     >>> transaction.commit()
-    checkCurrentSerialInTransaction '\x00\x00\x00\x00\x00\x00\x00\x01'
+    checkCurrentSerialInTransaction b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
     It doesn't matter how often we call readCurrent,
     checkCurrentSerialInTransaction will be called only once:
@@ -782,7 +763,7 @@ def doctest_readCurrent():
     >>> conn.readCurrent(conn.root.a)
     >>> conn.root.b.x += 1
     >>> transaction.commit()
-    checkCurrentSerialInTransaction '\x00\x00\x00\x00\x00\x00\x00\x01'
+    checkCurrentSerialInTransaction b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
     checkCurrentSerialInTransaction won't be called if another object
     isn't modified:
@@ -807,7 +788,7 @@ def doctest_readCurrent():
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ReadConflictError: database read conflict error (oid 0x01)
+    ZODB.POSException.ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
@@ -819,7 +800,7 @@ def doctest_readCurrent():
 
     >>> def checkCurrentSerialInTransaction(oid, serial, trans):
     ...     if not trans == transaction.get(): print('oops')
-    ...     six.print_('checkCurrentSerialInTransaction', repr(oid))
+    ...     print('checkCurrentSerialInTransaction', repr(oid))
     ...     store.badness = ReadConflictError(oid=oid)
 
     >>> def tpc_vote(t):
@@ -840,7 +821,7 @@ def doctest_readCurrent():
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ReadConflictError: database read conflict error (oid 0x01)
+    ZODB.POSException.ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
@@ -863,7 +844,7 @@ def doctest_readCurrent():
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ReadConflictError: database read conflict error (oid 0x01)
+    ZODB.POSException.ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
 
@@ -873,11 +854,10 @@ def doctest_readCurrent():
     >>> transaction.commit()
     Traceback (most recent call last):
     ...
-    ReadConflictError: database read conflict error (oid 0x01)
+    ZODB.POSException.ReadConflictError: database read conflict error (oid 0x01)
 
     >>> transaction.abort()
-
-    """
+    """  # noqa: E501 line too long
 
 
 def doctest_cache_management_of_subconnections():
@@ -969,7 +949,7 @@ def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_b
     >>> conn.root.x = x = C_invalidations_of_new_objects_work_after_savepoint()
     >>> _ = transaction.savepoint()
     >>> x._p_oid
-    '\x00\x00\x00\x00\x00\x00\x00\x01'
+    b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
     >>> x._p_jar is conn
     True
@@ -986,7 +966,7 @@ def doctest_abort_of_savepoint_creating_new_objects_w_exotic_invalidate_doesnt_b
 
 class Clp9460655(Persistent):
     def __init__(self, word, id):
-        super(Clp9460655, self).__init__()
+        super().__init__()
         self.id = id
         self._word = word
 
@@ -1053,7 +1033,7 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     >>> conn = ZODB.connection(None)
     >>> oldstore = conn._storage.store
     >>> def store(oid, *args):
-    ...     six.print_('storing', repr(oid))
+    ...     print('storing', repr(oid))
     ...     return oldstore(oid, *args)
     >>> conn._storage.store = store
 
@@ -1061,8 +1041,8 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
 
     >>> conn.root.x = C()
     >>> transaction.commit()
-    storing '\x00\x00\x00\x00\x00\x00\x00\x00'
-    storing '\x00\x00\x00\x00\x00\x00\x00\x01'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x00'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
     Retry with the new object registered before its referrer.
 
@@ -1070,14 +1050,14 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
     >>> conn.add(z)
     >>> conn.root.z = z
     >>> transaction.commit()
-    storing '\x00\x00\x00\x00\x00\x00\x00\x02'
-    storing '\x00\x00\x00\x00\x00\x00\x00\x00'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x02'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x00'
 
     We still see updates:
 
     >>> conn.root.x.y = 1
     >>> transaction.commit()
-    storing '\x00\x00\x00\x00\x00\x00\x00\x01'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x01'
 
     Not not non-updates:
 
@@ -1090,22 +1070,22 @@ def doctest_lp485456_setattr_in_setstate_doesnt_cause_multiple_stores():
 
     >>> oldspstore = conn._storage.store
     >>> def store(oid, *args):
-    ...     six.print_('savepoint storing', repr(oid))
+    ...     print('savepoint storing', repr(oid))
     ...     return oldspstore(oid, *args)
     >>> conn._storage.store = store
 
     >>> conn.root.y = C()
     >>> _ = transaction.savepoint()
-    savepoint storing '\x00\x00\x00\x00\x00\x00\x00\x00'
-    savepoint storing '\x00\x00\x00\x00\x00\x00\x00\x03'
+    savepoint storing b'\x00\x00\x00\x00\x00\x00\x00\x00'
+    savepoint storing b'\x00\x00\x00\x00\x00\x00\x00\x03'
 
     >>> conn.root.y.x = 1
     >>> _  = transaction.savepoint()
-    savepoint storing '\x00\x00\x00\x00\x00\x00\x00\x03'
+    savepoint storing b'\x00\x00\x00\x00\x00\x00\x00\x03'
 
     >>> transaction.commit()
-    storing '\x00\x00\x00\x00\x00\x00\x00\x00'
-    storing '\x00\x00\x00\x00\x00\x00\x00\x03'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x00'
+    storing b'\x00\x00\x00\x00\x00\x00\x00\x03'
 
     >>> conn.close()
     """
@@ -1267,7 +1247,7 @@ class ModifyOnGetStateObject(Persistent):
         return Persistent.__getstate__(self)
 
 
-class StubStorage(object):
+class StubStorage:
     """Very simple in-memory storage that does *just* enough to support tests.
 
     Only one concurrent transaction is supported.
@@ -1430,7 +1410,7 @@ class TestConnection(unittest.TestCase):
         db.close()
 
 
-class StubDatabase(object):
+class StubDatabase:
 
     def __init__(self):
         self.storage = StubStorage()
@@ -1448,10 +1428,11 @@ class StubDatabase(object):
 
 
 def test_suite():
-    s = unittest.makeSuite(ConnectionDotAdd)
-    s.addTest(unittest.makeSuite(SetstateErrorLoggingTests))
-    s.addTest(doctest.DocTestSuite(checker=checker))
-    s.addTest(unittest.makeSuite(TestConnection))
-    s.addTest(unittest.makeSuite(EstimatedSizeTests))
-    s.addTest(unittest.makeSuite(InvalidationTests))
+    loadTestsFromTestCase = unittest.defaultTestLoader.loadTestsFromTestCase
+    s = loadTestsFromTestCase(ConnectionDotAdd)
+    s.addTest(loadTestsFromTestCase(SetstateErrorLoggingTests))
+    s.addTest(doctest.DocTestSuite())
+    s.addTest(loadTestsFromTestCase(TestConnection))
+    s.addTest(loadTestsFromTestCase(EstimatedSizeTests))
+    s.addTest(loadTestsFromTestCase(InvalidationTests))
     return s
