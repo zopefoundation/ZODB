@@ -123,7 +123,7 @@ class IPersistentReference(zope.interface.Interface):
 class PersistentReference:
 
     weak = False
-    oid = database_name = klass = None
+    oid = database_name = None
 
     def __init__(self, data):
         self.data = data
