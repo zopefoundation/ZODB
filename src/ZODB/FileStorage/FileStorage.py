@@ -535,8 +535,6 @@ class FileStorage(
         except TypeError:
             raise TypeError("invalid oid {!r}".format(oid))
 
-    load = load_current  # Keep load for now for old clients
-
     def load(self, oid, version=''):
         """Return pickle data and serial number."""
         assert not version
