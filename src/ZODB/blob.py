@@ -948,9 +948,9 @@ else:
     remove_committed_dir = shutil.rmtree
     try:
         link_or_copy = os.link
-    except AttributeError:    #pragma: no cover
+    except AttributeError: # pragma: no cover
         # FBO termux on Android.
-        #  See https://github.com/zopefoundation/ZODB/issues/257
+        # See https://github.com/zopefoundation/ZODB/issues/257
         link_or_copy = shutil.copy
 
 def find_global_Blob(module, class_):
