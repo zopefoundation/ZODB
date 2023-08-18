@@ -942,7 +942,6 @@ if sys.platform == 'win32':
                 filename = os.path.join(dirpath, filename)
                 remove_committed(filename)
         shutil.rmtree(path)
-        
     link_or_copy = shutil.copy
 else:
     remove_committed = os.remove
