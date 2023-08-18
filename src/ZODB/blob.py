@@ -946,6 +946,7 @@ if sys.platform == 'win32':
 else:
     remove_committed = os.remove
     remove_committed_dir = shutil.rmtree
+    
     try:
         link_or_copy = os.link
     except AttributeError:  # pragma: no cover
