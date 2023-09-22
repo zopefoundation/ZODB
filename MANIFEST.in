@@ -12,6 +12,7 @@ recursive-include docs *.txt
 recursive-include docs Makefile
 
 recursive-include src *.py
+include *.yaml
 include COPYING
 recursive-include docs *.ico
 recursive-include docs *.png
