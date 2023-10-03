@@ -9,6 +9,8 @@
 
 - Drop support for Python 2.7, 3.5, 3.6.
 
+- Fix sorting of dict items in script space (py3 not OK with py2 syntax)
+
 
 5.8.1 (2023-07-18)
 ==================
