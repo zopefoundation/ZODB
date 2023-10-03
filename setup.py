@@ -68,11 +68,11 @@ setup(
     extras_require={
         'test': tests_require,
         'docs': [
-            'Sphinx',
+            'Sphinx < 7',
             'ZODB',
             'j1m.sphinxautozconfig',
             'sphinx_rtd_theme',
-            'sphinxcontrib_zopeext < 0.4',
+            'sphinxcontrib_zopeext',
         ]
     },
     install_requires=[
