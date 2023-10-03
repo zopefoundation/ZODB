@@ -44,6 +44,7 @@ additional-config = [
 
 [manifest]
 additional-rules = [
+    "include *.yaml",
     "include COPYING",
     "recursive-include docs *.ico",
     "recursive-include docs *.png",
