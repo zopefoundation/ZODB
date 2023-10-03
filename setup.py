@@ -72,7 +72,7 @@ setup(
             'ZODB',
             'j1m.sphinxautozconfig',
             'sphinx_rtd_theme',
-            'sphinxcontrib_zopeext',
+            'sphinxcontrib_zopeext < 0.4',
         ]
     },
     install_requires=[
