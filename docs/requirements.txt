@@ -1,8 +1,12 @@
-Sphinx
+# sphinx_rtd_theme requires docutils < 0.19
+docutils < 0.19
+# sphinxcontrib_zopeext is not compatible with Sphinx 7
+Sphinx > 6, < 7
 # Silence dependabot claiming a security issue in older versions:
 pygments >= 2.7.4
 docutils
 ZODB
 sphinxcontrib_zopeext
 j1m.sphinxautozconfig
-sphinx_rtd_theme
+# Force a recent version
+sphinx_rtd_theme > 1
