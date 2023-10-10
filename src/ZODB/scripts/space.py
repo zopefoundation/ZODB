@@ -8,6 +8,8 @@ The current implementation only supports FileStorage.
 Current limitations / simplifications: Ignores revisions and versions.
 """
 
+from operator import itemgetter
+
 from ZODB.FileStorage import FileStorage
 from ZODB.utils import U64
 from ZODB.utils import get_pickle_metadata
@@ -32,9 +34,7 @@ def run(path, v=0):
         totals[key] = bytes, count
         if v:
             print("%8s %5d %s" % (U64(oid), len(data), key))
-    L = totals.items()
-    L.sort(key=lambda x: x[1])
-    L.reverse()
+    L = sorted(totals.items(), key=itemgetter(1), reverse=True)
     print("Totals per object class:")
     for key, (bytes, count) in L:
         print("%8d %8d %s" % (count, bytes, key))

@@ -9,6 +9,8 @@
 
 - Drop support for Python 2.7, 3.5, 3.6.
 
+- Fix sorting issue in ``scripts/space.py``.
+
 
 5.8.1 (2023-07-18)
 ==================
