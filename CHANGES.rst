@@ -11,6 +11,8 @@
 
 - Fix sorting issue in ``scripts/space.py``.
 
+- Fix exit code of ``repozo`` script in case of verification error.
+  For details see `#396 <https://github.com/zopefoundation/ZODB/pull/396>`_.
 
 5.8.1 (2023-07-18)
 ==================
