@@ -998,18 +998,8 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
 class Test_do_verify(OptionsTestBase, unittest.TestCase):
 
     def _callFUT(self, options):
-        from ZODB.scripts import repozo
-        errors = []
-        orig_error = repozo.error
-
-        def _error(msg, *args):
-            errors.append(msg % args)
-        repozo.error = _error
-        try:
-            repozo.do_verify(options)
-            return errors
-        finally:
-            repozo.error = orig_error
+        from ZODB.scripts.repozo import do_verify
+        do_verify(options)
 
     def _makeFile(self, hour, min, sec, ext, text=None):
         from ZODB.scripts.repozo import _GzipCloser
@@ -1040,7 +1030,7 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options), [])
+        self._callFUT(options)
 
     def test_all_is_fine_gzip(self):
         options = self._makeOptions(quick=False)
@@ -1050,31 +1040,40 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options), [])
+        self._callFUT(options)
 
     def test_missing_file(self):
+        from ZODB.scripts.repozo import VerificationFail
         options = self._makeOptions(quick=True)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options),
-                         [options.repository + os.path.sep +
-                          '2010-05-14-04-05-06.deltafs is missing'])
+        self.assertRaisesRegex(
+            VerificationFail,
+            '2010-05-14-04-05-06.deltafs is missing',
+            self._callFUT,
+            options,
+        )
 
     def test_missing_file_gzip(self):
+        from ZODB.scripts.repozo import VerificationFail
         options = self._makeOptions(quick=True)
         self._makeFile(2, 3, 4, '.fsz', 'AAA')
         self._makeFile(
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options),
-                         [options.repository + os.path.sep +
-                          '2010-05-14-04-05-06.deltafsz is missing'])
+        self.assertRaisesRegex(
+            VerificationFail,
+            '2010-05-14-04-05-06.deltafsz is missing',
+            self._callFUT,
+            options,
+        )
 
     def test_bad_size(self):
+        from ZODB.scripts.repozo import VerificationFail
         options = self._makeOptions(quick=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BBB')
@@ -1082,12 +1081,15 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options),
-                         [options.repository + os.path.sep +
-                          '2010-05-14-04-05-06.deltafs is 3 bytes,'
-                          ' should be 4 bytes'])
+        self.assertRaisesRegex(
+            VerificationFail,
+            '2010-05-14-04-05-06.deltafs is 3 bytes, should be 4 bytes',
+            self._callFUT,
+            options,
+        )
 
     def test_bad_size_gzip(self):
+        from ZODB.scripts.repozo import VerificationFail
         options = self._makeOptions(quick=False)
         self._makeFile(2, 3, 4, '.fsz', 'AAA')
         self._makeFile(4, 5, 6, '.deltafsz', 'BBB')
@@ -1095,13 +1097,18 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'   # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(
-            self._callFUT(options),
-            [options.repository + os.path.sep +
-             '2010-05-14-04-05-06.deltafsz is 3 bytes (when uncompressed),'
-             ' should be 4 bytes'])
+        self.assertRaisesRegex(
+            VerificationFail,
+            (
+                '2010-05-14-04-05-06.deltafsz is 3 bytes'
+                r' \(when uncompressed\), should be 4 bytes'
+            ),
+            self._callFUT,
+            options,
+        )
 
     def test_bad_checksum(self):
+        from ZODB.scripts.repozo import VerificationFail
         options = self._makeOptions(quick=False)
         self._makeFile(2, 3, 4, '.fs', 'AAA')
         self._makeFile(4, 5, 6, '.deltafs', 'BbBB')
@@ -1109,13 +1116,19 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafs 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options),
-                         [options.repository + os.path.sep +
-                          '2010-05-14-04-05-06.deltafs has checksum'
-                          ' 36486440db255f0ee6ab109d5d231406 instead of'
-                          ' f50881ced34c7d9e6bce100bf33dec60'])
+        self.assertRaisesRegex(
+            VerificationFail,
+            (
+                '2010-05-14-04-05-06.deltafs has checksum'
+                + ' 36486440db255f0ee6ab109d5d231406 instead of'
+                + ' f50881ced34c7d9e6bce100bf33dec60'
+            ),
+            self._callFUT,
+            options,
+        )
 
     def test_bad_checksum_gzip(self):
+        from ZODB.scripts.repozo import VerificationFail
         options = self._makeOptions(quick=False)
         self._makeFile(2, 3, 4, '.fsz', 'AAA')
         self._makeFile(4, 5, 6, '.deltafsz', 'BbBB')
@@ -1123,12 +1136,15 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fsz 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafsz 3 7 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
-        self.assertEqual(
-            self._callFUT(options),
-            [options.repository + os.path.sep +
-             '2010-05-14-04-05-06.deltafsz has checksum'
-             ' 36486440db255f0ee6ab109d5d231406 (when uncompressed) instead of'
-             ' f50881ced34c7d9e6bce100bf33dec60'])
+        self.assertRaisesRegex(
+            VerificationFail,
+            (
+                '2010-05-14-04-05-06.deltafsz has checksum'
+                + r' 36486440db255f0ee6ab109d5d231406 \(when uncompressed\)'
+                + ' instead of f50881ced34c7d9e6bce100bf33dec60'),
+            self._callFUT,
+            options,
+        )
 
     def test_quick_ignores_checksums(self):
         options = self._makeOptions(quick=True)
@@ -1138,7 +1154,7 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
                 2, 3, 4, '.dat',
                 '/backup/2010-05-14-02-03-04.fs 0 3 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'  # noqa: E501 line too long
                 '/backup/2010-05-14-04-05-06.deltafs 3 7 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options), [])
+        self._callFUT(options)
 
     def test_quick_ignores_checksums_gzip(self):
         options = self._makeOptions(quick=True)
@@ -1148,7 +1164,7 @@ class Test_do_verify(OptionsTestBase, unittest.TestCase):
             2, 3, 4, '.dat',
             '/backup/2010-05-14-02-03-04.fsz 0 3 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n'  # noqa: E501 line too long
             '/backup/2010-05-14-04-05-06.deltafsz 3 7 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n')  # noqa: E501 line too long
-        self.assertEqual(self._callFUT(options), [])
+        self._callFUT(options)
 
 
 class MonteCarloTests(unittest.TestCase):
