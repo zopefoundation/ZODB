@@ -242,6 +242,23 @@ class FileStorageTests(
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
 
+    def testRestorePrevTxnNotExists(self):
+        t = TransactionMetaData()
+        oid = b'\1' * 8
+        self._storage.tpc_begin(t)
+        self._storage.store(oid, b'\0' * 8, b'data1a', b'', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        # restore with a transaction not existing in the storage
+        tid_not_exist = b'\0\0\0\0\0\1\2\3'
+        t = TransactionMetaData()
+        self._storage.tpc_begin(t)
+        self._storage.restore(oid, b'\0' * 8, b'data1b', b'', tid_not_exist, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        self.assertEqual(self._storage.load(oid)[0], b'data1b')
+
     def testCorruptionInPack(self):
         # This sets up a corrupt .fs file, with a redundant transaction
         # length mismatch.  The implementation of pack in many releases of
