@@ -672,7 +672,7 @@ class FileStorage(
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         status = as_text(status)
         self._file.read(ul + dl + el)
-        tend = tpos + tl + 8
+        tend = tpos + tl
         pos = self._file.tell()
         while pos < tend:
             h = self._read_data_header(pos)

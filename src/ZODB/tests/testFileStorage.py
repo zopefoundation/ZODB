@@ -259,6 +259,30 @@ class FileStorageTests(
         self._storage.tpc_finish(t)
         self.assertEqual(self._storage.load(oid)[0], b'data1b')
 
+    def testRestorePrevTxnWithoutOid(self):
+        t = TransactionMetaData()
+        self._storage.tpc_begin(t)
+        self._storage.store(b'\1' * 8, b'\0' * 8, b'data1', b'', t)
+        self._storage.tpc_vote(t)
+        tid1 = self._storage.tpc_finish(t)
+
+        # this transaction is also here to detect problems if restore reads
+        # below the end of tid1
+        t = TransactionMetaData()
+        self._storage.tpc_begin(t)
+        self._storage.store(b'\2' * 8, b'\0' * 8, b'data2a', b'', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+
+        # restore with a transaction not containing the oid
+        t = TransactionMetaData()
+        self._storage.tpc_begin(t)
+        self._storage.restore(b'\2' * 8, b'\0' * 8, b'data2b', b'', tid1, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        self.assertEqual(self._storage.load(b'\1' * 8)[0], b'data1')
+        self.assertEqual(self._storage.load(b'\2' * 8)[0], b'data2b')
+
     def testCorruptionInPack(self):
         # This sets up a corrupt .fs file, with a redundant transaction
         # length mismatch.  The implementation of pack in many releases of

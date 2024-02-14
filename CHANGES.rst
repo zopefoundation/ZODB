@@ -11,6 +11,9 @@
 
 - Fix sorting issue in ``scripts/space.py``.
 
+- Fix behavior of ``FileStorage.restore`` when provided wrong ``prev_txn``.
+  For details see `#397 <https://github.com/zopefoundation/ZODB/pull/397>`_.
+
 
 5.8.1 (2023-07-18)
 ==================
