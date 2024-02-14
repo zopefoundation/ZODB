@@ -780,15 +780,16 @@ def do_verify(options):
                         filename, options.quick)
                     when_uncompressed = ''
             except OSError:
-                error("%s is missing", filename)
-                continue
+                raise VerificationFail("%s is missing" % filename)
             if size != expected_size:
-                error("%s is %d bytes%s, should be %d bytes", filename,
-                      size, when_uncompressed, expected_size)
+                raise VerificationFail(
+                    "%s is %d bytes%s, should be %d bytes" % (
+                        filename, size, when_uncompressed, expected_size))
             elif not options.quick:
                 if actual_sum != sum:
-                    error("%s has checksum %s%s instead of %s", filename,
-                          actual_sum, when_uncompressed, sum)
+                    raise VerificationFail(
+                        "%s has checksum %s%s instead of %s" % (
+                            filename, actual_sum, when_uncompressed, sum))
 
 
 def get_checksum_and_size_of_gzipped_file(filename, quick):
