@@ -11,6 +11,9 @@
 
 - Fix sorting issue in ``scripts/space.py``.
 
+- FileStorage: fix a rare data corruption when using restore after multiple undos.
+  For details see `#395 <https://github.com/zopefoundation/ZODB/pull/395>`_.
+
 - Fix exit code of ``repozo`` script in case of verification error.
   For details see `#396 <https://github.com/zopefoundation/ZODB/pull/396>`_.
 

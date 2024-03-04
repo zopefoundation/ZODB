@@ -456,6 +456,10 @@ class FileStorageNoRestoreRecoveryTest(FileStorageRecoveryTest):
         # Skip this check as it calls restore directly.
         pass
 
+    def testRestoreWithMultipleUndoRedo(self):
+        # This case is only supported with restore, not with store "emulation"
+        pass
+
 
 class AnalyzeDotPyTest(StorageTestBase.StorageTestBase):
 

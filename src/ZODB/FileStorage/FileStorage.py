@@ -663,6 +663,10 @@ class FileStorage(
         # Else oid's data record contains the data, and the file offset of
         # oid's data record is returned.  This data record should contain
         # a pickle identical to the 'data' argument.
+        # When looking for oid's data record we scan all data records in
+        # the transaction till the end looking for the latest record with oid,
+        # even if there are multiple such records. This matches load behaviour
+        # which uses the data record created by last store.
 
         # Unclear:  If the length of the stored data doesn't match len(data),
         # an exception is raised.  If the lengths match but the data isn't
@@ -672,28 +676,38 @@ class FileStorage(
         tid, tl, status, ul, dl, el = unpack(TRANS_HDR, h)
         status = as_text(status)
         self._file.read(ul + dl + el)
-        tend = tpos + tl + 8
+        tend = tpos + tl
         pos = self._file.tell()
+        data_hdr = None
+        data_pos = 0
+        # scan all data records in this transaction looking for the latest
+        # record with our oid
         while pos < tend:
             h = self._read_data_header(pos)
             if h.oid == oid:
-                # Make sure this looks like the right data record
-                if h.plen == 0:
-                    # This is also a backpointer.  Gotta trust it.
-                    return pos
-                if h.plen != len(data):
-                    # The expected data doesn't match what's in the
-                    # backpointer.  Something is wrong.
-                    logger.error("Mismatch between data and"
-                                 " backpointer at %d", pos)
-                    return 0
-                _data = self._file.read(h.plen)
-                if data != _data:
-                    return 0
-                return pos
+                data_hdr = h
+                data_pos = pos
             pos += h.recordlen()
             self._file.seek(pos)
-        return 0
+        if data_hdr is None:
+            return 0
+
+        # return position of found data record, but make sure this looks like
+        # the right data record to return.
+        if data_hdr.plen == 0:
+            # This is also a backpointer,  Gotta trust it.
+            return data_pos
+        else:
+            if data_hdr.plen != len(data):
+                # The expected data doesn't match what's in the
+                # backpointer.  Something is wrong.
+                logger.error("Mismatch between data and"
+                             " backpointer at %d", pos)
+                return 0
+            _data = self._file.read(data_hdr.plen)
+            if data != _data:
+                return 0
+            return data_pos
 
     def restore(self, oid, serial, data, version, prev_txn, transaction):
         # A lot like store() but without all the consistency checks.  This
