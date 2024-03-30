@@ -2,7 +2,7 @@
  Change History
 ================
 
-6.0 (unreleased)
+6.0 (2024-03-20)
 ================
 
 - Add support for Python 3.12.
