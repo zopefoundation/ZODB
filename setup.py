@@ -65,7 +65,6 @@ setup(
     ],
     description=long_description.split('\n', 2)[1],
     long_description=long_description,
-    tests_require=tests_require,
     extras_require={
         'test': tests_require,
         'docs': [
