@@ -942,12 +942,17 @@ if sys.platform == 'win32':
                 filename = os.path.join(dirpath, filename)
                 remove_committed(filename)
         shutil.rmtree(path)
-
     link_or_copy = shutil.copy
 else:
     remove_committed = os.remove
     remove_committed_dir = shutil.rmtree
-    link_or_copy = os.link
+
+    try:
+        link_or_copy = os.link
+    except AttributeError:  # pragma: no cover
+        # FBO termux on Android.
+        # See https://github.com/zopefoundation/ZODB/issues/257
+        link_or_copy = shutil.copy
 
 
 def find_global_Blob(module, class_):
