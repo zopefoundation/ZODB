@@ -5,9 +5,16 @@
 6.0.1 (unreleased)
 ==================
 
- - repozo: fix restoring on stdout.
+- repozo: Change restoration to be incremental by default, unless ``--full`` is
+  provided.
+  Repozo now tries to append the new incremental deltafs on previously restored
+  filestorage, if the file's sizes and the checksum of the last restored increment
+  match, otherwise it will fallback to a full recover.
+  For details see `#403 <https://github.com/zopefoundation/ZODB/pull/403>`_.
 
- - repozo: prevent an incorrect "option ignored" warning when running backup or verify.
+- repozo: fix restoring on stdout.
+
+- repozo: prevent an incorrect "option ignored" warning when running backup or verify.
 
 
 6.0 (2024-03-20)
