@@ -396,6 +396,42 @@ def concat(files, ofp=None):
     return bytesread, sum.hexdigest()
 
 
+def recover_repofiles(options, repofiles, outfp):
+    if options.withverify:
+        datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+        with open(datfile) as fp:
+            truth_dict = {}
+            for line in fp:
+                fn, startpos, endpos, sum = line.split()
+                startpos = int(startpos)
+                endpos = int(endpos)
+                filename = os.path.join(options.repository,
+                                        os.path.basename(fn))
+                truth_dict[filename] = {
+                    'size': endpos - startpos,
+                    'sum': sum,
+                }
+        totalsz = 0
+        for repofile in repofiles:
+            reposz, reposum = concat([repofile], outfp)
+            expected_truth = truth_dict[repofile]
+            if reposz != expected_truth['size']:
+                raise VerificationFail(
+                    "%s is %d bytes, should be %d bytes" % (
+                        repofile, reposz, expected_truth['size']))
+            if reposum != expected_truth['sum']:
+                raise VerificationFail(
+                    "{} has checksum {} instead of {}".format(
+                        repofile, reposum, expected_truth['sum']))
+            totalsz += reposz
+            log("Recovered chunk %s : %s bytes, md5: %s",
+                repofile, reposz, reposum)
+        log("Recovered a total of %s bytes", totalsz)
+    else:
+        reposz, reposum = concat(repofiles, outfp)
+        log('Recovered %s bytes, md5: %s', reposz, reposum)
+
+
 def gen_filedate(options):
     return getattr(options, 'test_now', time.gmtime()[:6])
 
@@ -698,40 +734,7 @@ def do_recover(options):
         files_to_close += (outfp,)
 
     try:
-        if options.withverify:
-            datfile = os.path.splitext(repofiles[0])[0] + '.dat'
-            with open(datfile) as fp:
-                truth_dict = {}
-                for line in fp:
-                    fn, startpos, endpos, sum = line.split()
-                    startpos = int(startpos)
-                    endpos = int(endpos)
-                    filename = os.path.join(options.repository,
-                                            os.path.basename(fn))
-                    truth_dict[filename] = {
-                        'size': endpos - startpos,
-                        'sum': sum,
-                    }
-            totalsz = 0
-            for repofile in repofiles:
-                reposz, reposum = concat([repofile], outfp)
-                expected_truth = truth_dict[repofile]
-                if reposz != expected_truth['size']:
-                    raise VerificationFail(
-                        "%s is %d bytes, should be %d bytes" % (
-                            repofile, reposz, expected_truth['size']))
-                if reposum != expected_truth['sum']:
-                    raise VerificationFail(
-                        "{} has checksum {} instead of {}".format(
-                            repofile, reposum, expected_truth['sum']))
-                totalsz += reposz
-                log("Recovered chunk %s : %s bytes, md5: %s",
-                    repofile, reposz, reposum)
-            log("Recovered a total of %s bytes", totalsz)
-        else:
-            reposz, reposum = concat(repofiles, outfp)
-            log('Recovered %s bytes, md5: %s', reposz, reposum)
-
+        recover_repofiles(options, repofiles, outfp)
         if options.output is not None:
             last_base = os.path.splitext(repofiles[-1])[0]
             source_index = '%s.index' % last_base
