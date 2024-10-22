@@ -766,11 +766,11 @@ def do_incremental_recover(options, repofiles):
                     'doing nothing.')
                 return
             else:
-                log('Target file is longer than latest backup, '
+                log('Target file is larger than latest backup, '
                     'falling back to a full recover.')
                 return do_full_recover(options, repofiles)
         if previous_chunk is None:
-            log('Target file shorter than full backup, '
+            log('Target file smaller than full backup, '
                 'falling back to a full recover.')
             return do_full_recover(options, repofiles)
         check_startpos = int(previous_chunk[1])
