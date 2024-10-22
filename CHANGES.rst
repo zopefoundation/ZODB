@@ -5,6 +5,9 @@
 6.0.1 (unreleased)
 ==================
 
+- Support incremental recovery in repozo.
+  It makes it much faster in a day-to-day scenario.
+
 
 6.0 (2024-03-20)
 ================
