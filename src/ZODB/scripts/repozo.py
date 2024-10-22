@@ -815,7 +815,7 @@ def do_recover(options):
         else:
             raise NoFiles('No files in repository')
 
-    if options.full or not os.path.exists(options.output):
+    if options.full or options.output is not None or not os.path.exists(options.output):
         do_full_recover(options, repofiles)
     else:
         do_incremental_recover(options, repofiles)
