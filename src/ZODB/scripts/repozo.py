@@ -749,9 +749,10 @@ def do_full_recover(options, repofiles):
 def do_incremental_recover(options, repofiles):
     datfile = os.path.splitext(repofiles[0])[0] + '.dat'
     log('Recovering (incrementally) file to %s', options.output)
-    with open(datfile) as fp, open(options.output, 'r+b') as outfp:
+    with open(options.output, 'r+b') as outfp:
         outfp.seek(0, 2)
         initial_length = outfp.tell()
+    with open(datfile) as fp:
         previous_chunk = None
         for line in fp:
             fn, startpos, endpos, _ = chunk = line.split()
@@ -760,27 +761,30 @@ def do_incremental_recover(options, repofiles):
             if endpos > initial_length:
                 break
             previous_chunk = chunk
+
+    if previous_chunk == chunk:
+        if endpos == initial_length:
+            log('Target file is same size as latest backup, '
+                'doing nothing.')
+            return
         else:
-            if endpos == initial_length:
-                log('Target file is same size as latest backup, '
-                    'doing nothing.')
-                return
-            else:
-                log('Target file is larger than latest backup, '
-                    'falling back to a full recover.')
-                return do_full_recover(options, repofiles)
-        if previous_chunk is None:
-            log('Target file smaller than full backup, '
+            log('Target file is larger than latest backup, '
                 'falling back to a full recover.')
             return do_full_recover(options, repofiles)
-        check_startpos = int(previous_chunk[1])
-        check_endpos = int(previous_chunk[2])
+    if previous_chunk is None:
+        log('Target file smaller than full backup, '
+            'falling back to a full recover.')
+        return do_full_recover(options, repofiles)
+    check_startpos = int(previous_chunk[1])
+    check_endpos = int(previous_chunk[2])
+    with open(options.output, 'r+b') as outfp:
         outfp.seek(check_startpos)
-        if previous_chunk[3] != checksum(outfp, check_endpos - check_startpos):
-            log('Last whole common chunk checksum did not match with backup, '
-                'falling back to a full recover.')
-            return do_full_recover(options, repofiles)
+        check_sum = checksum(outfp, check_endpos - check_startpos)
         assert outfp.tell() == startpos, (outfp.tell(), startpos)
+    if previous_chunk[3] != check_sum:
+        log('Last whole common chunk checksum did not match with backup, '
+            'falling back to a full recover.')
+        return do_full_recover(options, repofiles)
 
     if startpos < initial_length:
         log('Truncating target file %i bytes before its end',

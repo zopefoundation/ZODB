@@ -1200,7 +1200,7 @@ class Test_do_incremental_recover(
         self.assertEqual(_read_file(output), b'CCDD')
         self.assertFalse(os.path.exists(output + '.part'))
         self.assertIn(
-            'Target file is longer than latest backup, falling back to a full recover.',  # noqa: E501 line too long
+            'Target file is larger than latest backup, falling back to a full recover.',  # noqa: E501 line too long
             sys.stderr.getvalue())
 
 
