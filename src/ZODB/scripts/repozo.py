@@ -416,7 +416,7 @@ def recover_repofiles(options, repofiles, datfile, outfp):
                     'size': endpos - startpos,
                     'sum': sum,
                 }
-                totalsz = 0
+        totalsz = 0
         for repofile in repofiles:
             reposz, reposum = concat([repofile], outfp)
             expected_truth = truth_dict[repofile]
@@ -431,7 +431,7 @@ def recover_repofiles(options, repofiles, datfile, outfp):
             totalsz += reposz
             log("Recovered chunk %s : %s bytes, md5: %s",
                 repofile, reposz, reposum)
-            log("Recovered a total of %s bytes", totalsz)
+        log("Recovered a total of %s bytes", totalsz)
     else:
         reposz, reposum = concat(repofiles, outfp)
         log('Recovered %s bytes, md5: %s', reposz, reposum)
