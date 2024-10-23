@@ -764,9 +764,17 @@ def do_incremental_recover(options, repofiles):
 
     if previous_chunk == chunk:
         if endpos == initial_length:
-            log('Target file is same size as latest backup, '
-                'doing nothing.')
-            return
+            with open(options.output, 'r+b') as outfp:
+                outfp.seek(startpos)
+                check_sum = checksum(outfp, endpos - startpos)
+            if chunk[3] == check_sum:
+                log('Target file is same size as latest backup, '
+                    'doing nothing.')
+                return
+            else:
+                log('Target file is not consistent with latest backup, '
+                    'falling back to a full recover.')
+                return do_full_recover(options, repofiles)
         else:
             log('Target file is larger than latest backup, '
                 'falling back to a full recover.')
