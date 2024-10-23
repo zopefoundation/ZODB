@@ -762,25 +762,12 @@ def do_incremental_recover(options, repofiles):
                 break
             previous_chunk = chunk
 
-    if previous_chunk == chunk:
-        if endpos == initial_length:
-            with open(options.output, 'r+b') as outfp:
-                outfp.seek(startpos)
-                check_sum = checksum(outfp, endpos - startpos)
-            if chunk[3] == check_sum:
-                log('Target file is same size as latest backup, '
-                    'doing nothing.')
-                return
-            else:
-                log('Target file is not consistent with latest backup, '
-                    'falling back to a full recover.')
-                return do_full_recover(options, repofiles)
-        else:
-            log('Target file is larger than latest backup, '
-                'falling back to a full recover.')
-            return do_full_recover(options, repofiles)
     if previous_chunk is None:
         log('Target file smaller than full backup, '
+            'falling back to a full recover.')
+        return do_full_recover(options, repofiles)
+    if endpos < initial_length:
+        log('Target file is larger than latest backup, '
             'falling back to a full recover.')
         return do_full_recover(options, repofiles)
     check_startpos = int(previous_chunk[1])
@@ -788,11 +775,19 @@ def do_incremental_recover(options, repofiles):
     with open(options.output, 'r+b') as outfp:
         outfp.seek(check_startpos)
         check_sum = checksum(outfp, check_endpos - check_startpos)
-        assert outfp.tell() == startpos, (outfp.tell(), startpos)
-    if previous_chunk[3] != check_sum:
-        log('Last whole common chunk checksum did not match with backup, '
-            'falling back to a full recover.')
-        return do_full_recover(options, repofiles)
+    if endpos == initial_length and chunk[3] == check_sum:
+        log('Target file is same size as latest backup, '
+            'doing nothing.')
+        return
+    elif previous_chunk[3] != check_sum:
+        if endpos == initial_length:
+            log('Target file is not consistent with latest backup, '
+                'falling back to a full recover.')
+            return do_full_recover(options, repofiles)
+        else:
+            log('Last whole common chunk checksum did not match with backup, '
+                'falling back to a full recover.')
+            return do_full_recover(options, repofiles)
 
     if startpos < initial_length:
         log('Truncating target file %i bytes before its end',
