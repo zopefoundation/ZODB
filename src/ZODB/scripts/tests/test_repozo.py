@@ -1068,7 +1068,9 @@ class Test_do_incremental_recover(
             '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
             '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n'  # noqa: E501 line too long
             '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
-        os.unlink(os.path.join(self._repository_directory, '2010-05-14-04-05-06.deltafs'))
+        os.unlink(
+            os.path.join(self._repository_directory,
+                         '2010-05-14-04-05-06.deltafs'))
         self._callFUT(options)
         self.assertNotIn('falling back to a full recover.',
                          sys.stderr.getvalue())
