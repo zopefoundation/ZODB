@@ -685,7 +685,7 @@ def do_recover(options):
     files_to_close = ()
     if options.output is None:
         log('Recovering file to stdout')
-        outfp = sys.stdout
+        outfp = sys.stdout.buffer
     else:
         # Delete old ZODB before recovering backup as size of
         # old ZODB + full partial file may be superior to free disk space

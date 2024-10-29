@@ -5,6 +5,8 @@
 6.0.1 (unreleased)
 ==================
 
+- repozo: fix restoring on stdout.
+
 
 6.0 (2024-03-20)
 ================
