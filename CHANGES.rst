@@ -8,6 +8,8 @@
 - Support incremental recovery in repozo.
   It makes it much faster in a day-to-day scenario.
 
+- repozo: prevent an incorrect "option ignored" warning when running backup or verify.
+
 
 6.0 (2024-03-20)
 ================
