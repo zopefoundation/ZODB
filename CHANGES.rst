@@ -5,7 +5,9 @@
 6.0.1 (unreleased)
 ==================
 
-- repozo: fix restoring on stdout.
+ - repozo: fix restoring on stdout.
+
+ - repozo: prevent an incorrect "option ignored" warning when running backup or verify.
 
 
 6.0 (2024-03-20)

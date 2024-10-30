@@ -189,6 +189,7 @@ class Test_parseargs(unittest.TestCase):
     def test_backup_ignored_args(self):
         from ZODB.scripts import repozo
         options = repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-v',
+                                    '--with-verify',
                                     '-f', '/tmp/Data.fs',
                                     '-o', '/tmp/ignored.fs',
                                     '-D', '2011-12-13'])
@@ -198,12 +199,22 @@ class Test_parseargs(unittest.TestCase):
         self.assertEqual(options.output, None)
         self.assertIn('--output option is ignored in backup mode',
                       sys.stderr.getvalue())
+        self.assertEqual(options.withverify, False)
+        self.assertIn(
+            '--with-verify option is ignored in backup mode',
+            sys.stderr.getvalue())
 
     def test_backup_required_args(self):
         from ZODB.scripts import repozo
         self.assertRaises(SystemExit, repozo.parseargs,
                           ['-B', '-r', '/tmp/nosuchdir'])
         self.assertIn('--file is required', sys.stderr.getvalue())
+
+    def test_backup_no_ignored_args_warning(self):
+        from ZODB.scripts import repozo
+        repozo.parseargs(['-B', '-r', '/tmp/nosuchdir', '-v',
+                          '-f', '/tmp/Data.fs',])
+        self.assertNotIn('option is ignored', sys.stderr.getvalue())
 
     def test_recover_ignored_args(self):
         from ZODB.scripts import repozo
@@ -220,6 +231,7 @@ class Test_parseargs(unittest.TestCase):
     def test_verify_ignored_args(self):
         from ZODB.scripts import repozo
         options = repozo.parseargs(['-V', '-r', '/tmp/nosuchdir', '-v',
+                                    '--with-verify',
                                     '-o', '/tmp/ignored.fs',
                                     '-D', '2011-12-13',
                                     '-f', '/tmp/ignored.fs',
@@ -241,6 +253,9 @@ class Test_parseargs(unittest.TestCase):
                       sys.stderr.getvalue())
         self.assertEqual(options.killold, False)
         self.assertIn('--kill-old-on-full option is ignored in verify mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.withverify, False)
+        self.assertIn('--with-verify option is ignored in verify mode',
                       sys.stderr.getvalue())
 
 
