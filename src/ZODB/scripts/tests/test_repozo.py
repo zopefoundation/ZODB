@@ -220,12 +220,15 @@ class Test_parseargs(unittest.TestCase):
         from ZODB.scripts import repozo
         options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir', '-v',
                                     '-f', '/tmp/ignored.fs',
-                                    '-k'])
+                                    '-k', '--full', '--quick'])
         self.assertEqual(options.file, None)
         self.assertIn('--file option is ignored in recover mode',
                       sys.stderr.getvalue())
         self.assertEqual(options.killold, False)
         self.assertIn('--kill-old-on-full option is ignored in recover mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.quick, None)
+        self.assertIn('--quick option is ignored if --full option is used',
                       sys.stderr.getvalue())
 
     def test_verify_ignored_args(self):
@@ -1040,6 +1043,7 @@ class Test_do_incremental_recover(
     def _makeOptions(self, **kw):
         options = super()._makeOptions(**kw)
         options.full = False
+        options.quick = kw.get('quick', False)
         return options
 
     def _createRecoveredDataFS(self, output, options):
@@ -1072,6 +1076,33 @@ class Test_do_incremental_recover(
         output = os.path.join(dd, 'Data.fs')
         options = self._makeOptions(date='2010-05-15-13-30-57',
                                     output=output,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        # Create 2 more .deltafs, to prove the code knows where to pick up
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(8, 9, 10, '.deltafs', 'DDD')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
+        os.unlink(
+            os.path.join(self._repository_directory,
+                         '2010-05-14-04-05-06.deltafs'))
+        self._callFUT(options)
+        self.assertNotIn('falling back to a full recover.',
+                         sys.stderr.getvalue())
+        self.assertEqual(_read_file(output), b'AAABBBCCCDDD')
+        self.assertFalse(os.path.exists(output + '.part'))
+
+    def test_w_quick_incr_recover_from_incr_backup(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    quick=True,
                                     withverify=False)
         self._createRecoveredDataFS(output, options)
         # Create 2 more .deltafs, to prove the code knows where to pick up
@@ -1192,14 +1223,14 @@ class Test_do_incremental_recover(
         self._makeFile(6, 7, 8, '.deltafs', 'CCC')
         self._makeFile(
             2, 3, 4, '.dat',
-            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
-            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a4\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b8\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
             '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
         self._callFUT(options)
         self.assertEqual(_read_file(output), b'AAABBBCCC')
         self.assertFalse(os.path.exists(output + '.part'))
         self.assertIn(
-            "Last whole common chunk checksum did not match with backup, falling back to a full recover.",  # noqa: E501 line too long
+            "Target file is not consistent with backup /backup/2010-05-14-02-03-04.fs, falling back to a full recover.",  # noqa: E501 line too long
             sys.stderr.getvalue())
 
     def test_w_incr_backup_switch_auto_to_full_recover_after_pack(self):
@@ -1226,8 +1257,54 @@ class Test_do_incremental_recover(
         self.assertEqual(_read_file(output), b'CCDD')
         self.assertFalse(os.path.exists(output + '.part'))
         self.assertIn(
-            'Target file is larger than latest backup, falling back to a full recover.',  # noqa: E501 line too long
+            "Target file is not consistent with backup /backup/2010-05-14-06-07-08.fs, falling back to a full recover.",  # noqa: E501 line too long
             sys.stderr.getvalue())
+
+    def test_w_quick_incr_backup_switch_auto_to_full_recover_if_last_chunk_is_wrong(self):  # noqa: E501 line too long
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    quick=True,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a4\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBBCCC')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertIn(
+            "Target file is not consistent with backup /backup/2010-05-14-04-05-06.deltafs, falling back to a full recover.",  # noqa: E501 line too long
+            sys.stderr.getvalue())
+
+    def test_w_quick_incr_backup_dont_see_old_inconsistencies(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    quick=True,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
+        # The ZODB is longer than announced in the .dat file
+        with open(output, 'r+b') as f:
+            f.write(b'ZZZBBBCCC')
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'ZZZBBBCCC')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertNotIn(
+            "falling back to a full recover", sys.stderr.getvalue())
 
 
 class Test_do_verify(OptionsTestBase, unittest.TestCase):

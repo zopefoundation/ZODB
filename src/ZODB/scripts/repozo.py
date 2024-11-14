@@ -79,6 +79,13 @@ Options for -R/--recover:
         ZODB file. A full recover will always be done if a pack has occured
         since the last incremental backup.
 
+    -Q / --quick
+        Verify via md5 checksum only the last incremental recovered of the
+        output file.  This reduces the disk i/o at the (theoretical) cost of
+        inconsistency.  This is a probabilistic way of determining whether a
+        full recover is necessary.  This argument is ignored when -F / --full
+        is used.
+
     -w
     --with-verify
         Verify on the fly the backup files on recovering. This option runs
@@ -267,6 +274,9 @@ def parseargs(argv):
         if options.killold:
             log('--kill-old-on-full option is ignored in recover mode')
             options.killold = False
+        if options.full and options.quick:
+            log('--quick option is ignored if --full option is used')
+            options.quick = None
     else:
         assert options.mode == VERIFY
         if options.date is not None:
@@ -752,42 +762,49 @@ def do_incremental_recover(options, repofiles):
     with open(options.output, 'r+b') as outfp:
         outfp.seek(0, 2)
         initial_length = outfp.tell()
-    with open(datfile) as fp:
-        previous_chunk = None
+
+    error = ''
+    previous_chunk = None
+    with open(datfile) as fp, open(options.output, 'r+b') as outfp:
         for line in fp:
-            fn, startpos, endpos, _ = chunk = line.split()
+            fn, startpos, endpos, check_sum = chunk = line.split()
             startpos = int(startpos)
             endpos = int(endpos)
             if endpos > initial_length:
                 break
+            if not options.quick:
+                if check_sum != checksum(outfp, endpos - startpos):
+                    error = ('Target file is not consistent with backup %s, '
+                             'falling back to a full recover.') % fn
+                    break
             previous_chunk = chunk
-
-    if previous_chunk is None:
+    if error:
+        log(error)
+        return do_full_recover(options, repofiles)
+    elif previous_chunk is None:
         log('Target file smaller than full backup, '
             'falling back to a full recover.')
         return do_full_recover(options, repofiles)
-    if endpos < initial_length:
+    elif endpos < initial_length:
         log('Target file is larger than latest backup, '
             'falling back to a full recover.')
         return do_full_recover(options, repofiles)
-    check_startpos = int(previous_chunk[1])
-    check_endpos = int(previous_chunk[2])
-    with open(options.output, 'r+b') as outfp:
-        outfp.seek(check_startpos)
-        check_sum = checksum(outfp, check_endpos - check_startpos)
-    if endpos == initial_length and chunk[3] == check_sum:
+    if options.quick:
+        check_startpos = int(previous_chunk[1])
+        check_endpos = int(previous_chunk[2])
+        with open(options.output, 'r+b') as outfp:
+            outfp.seek(check_startpos)
+            if previous_chunk[3] != checksum(
+                    outfp, check_endpos - check_startpos):
+                error = ('Target file is not consistent with backup %s, '
+                         'falling back to a full recover.' % previous_chunk[0])
+        if error:
+            log(error)
+            return do_full_recover(options, repofiles)
+    if endpos == initial_length:
         log('Target file is same size as latest backup, '
             'doing nothing.')
         return
-    elif previous_chunk[3] != check_sum:
-        if endpos == initial_length:
-            log('Target file is not consistent with latest backup, '
-                'falling back to a full recover.')
-            return do_full_recover(options, repofiles)
-        else:
-            log('Last whole common chunk checksum did not match with backup, '
-                'falling back to a full recover.')
-            return do_full_recover(options, repofiles)
 
     filename = os.path.join(options.repository,
                             os.path.basename(fn))
