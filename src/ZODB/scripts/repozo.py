@@ -760,7 +760,10 @@ def do_incremental_recover(options, repofiles):
     datfile = os.path.splitext(repofiles[0])[0] + '.dat'
     log('Recovering (incrementally) file to %s', options.output)
     with open(options.output, 'r+b') as outfp:
-        outfp.seek(0, 2)
+        # Note that we do not open the FileStorage to use getSize here,
+        # we really want the actual file size, even if there is invalid
+        # transaction data at the end.
+        outfp.seek(0, os.SEEK_END)
         initial_length = outfp.tell()
 
     error = ''
