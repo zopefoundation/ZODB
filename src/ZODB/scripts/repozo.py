@@ -814,6 +814,9 @@ def do_incremental_recover(options, repofiles):
     first_file_to_restore = repofiles.index(filename)
     assert first_file_to_restore > 0, (
         first_file_to_restore, options.repository, fn, filename, repofiles)
+    log('remaining files needed to recover incrementally onto target file:')
+    for f in repofiles[first_file_to_restore:]:
+        log('\t%s', f)
 
     temporary_output_file = options.output + '.part'
     os.rename(options.output, temporary_output_file)
