@@ -35,6 +35,7 @@ from ZODB._compat import dump
 from ZODB._compat import dumps
 from ZODB.Connection import TransactionMetaData
 from ZODB.fsIndex import fsIndex
+from ZODB.interfaces import IStorageWrapper
 from ZODB.tests import BasicStorage
 from ZODB.tests import ConflictResolution
 from ZODB.tests import Corruption
@@ -241,6 +242,46 @@ class FileStorageTests(
         self._storage.tpc_finish(t)
         # Before ZODB 3.2.6, this failed, with ._oid == z64.
         self.assertEqual(self._storage._oid, giant_oid)
+
+    def testRestoreCopy(self):
+        # Verify that restore with prev_txn restores data record with
+        # backpointer to prev_txn.
+        oid = p64(1)
+
+        t = TransactionMetaData()
+        self._storage.tpc_begin(t)
+        self._storage.store(oid, z64, b'data rev 1', b'', t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        rev1 = self._storage.lastTransaction()
+
+        rev2 = p64(U64(rev1)+1)
+        t = TransactionMetaData()
+        self._storage.tpc_begin(t, rev2)
+        # restore should write data record with backpointer to rev1
+        self._storage.restore(oid, rev2, b'data rev 1', b'', rev1, t)
+        self._storage.tpc_vote(t)
+        self._storage.tpc_finish(t)
+        self.assertEqual(self._storage.lastTransaction(), rev2)
+
+        # locate rev2 data record and verify it is backpointer to rev1
+        pos2 = self._storage._lookup_pos(oid)
+        h2 = self._storage._read_data_header(pos2, oid)
+        self.assertEqual(h2.oid, oid)
+        self.assertEqual(h2.tid, rev2)
+        self.assertEqual(h2.plen, 0)
+        self.assertNotEqual(h2.back, 0)
+
+        h1 = self._storage._read_data_header(h2.back, oid)
+        self.assertEqual(h1.oid, oid)
+        self.assertEqual(h1.tid, rev1)
+        self.assertNotEqual(h1.plen, 0)
+        self.assertEqual(h1.back, 0)
+
+        data1 = self._storage._file.read(h1.plen)
+        if IStorageWrapper.providedBy(self._storage):
+            data1 = self._storage.untransform_record_data(data1)
+        self.assertEqual(data1, b'data rev 1')
 
     def testCorruptionInPack(self):
         # This sets up a corrupt .fs file, with a redundant transaction
