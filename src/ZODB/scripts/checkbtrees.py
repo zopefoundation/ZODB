@@ -24,8 +24,6 @@ oids_seen = {}
 
 
 def add_if_new_persistent(L, obj, path):
-    global oids_seen
-
     getattr(obj, '_', None)  # unghostify
     if hasattr(obj, '_p_oid'):
         oid = obj._p_oid
