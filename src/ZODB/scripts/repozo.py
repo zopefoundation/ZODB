@@ -73,6 +73,19 @@ Options for -R/--recover:
         Note:  for the stdout case, the index file will **not** be restored
         automatically.
 
+    -F / --full
+        Force a full recover. By default, an incremental recover is made
+        if possible, by only copying the latest backup delta to the recovered
+        ZODB file. A full recover will always be done if a pack has occured
+        since the last incremental backup.
+
+    -Q / --quick
+        Verify via md5 checksum only the last incremental recovered of the
+        output file.  This reduces the disk i/o at the (theoretical) cost of
+        inconsistency.  This is a probabilistic way of determining whether a
+        full recover is necessary.  This argument is ignored when -F / --full
+        is used.
+
     -w
     --with-verify
         Verify on the fly the backup files on recovering. This option runs
@@ -185,7 +198,7 @@ def parseargs(argv):
         mode = None         # BACKUP, RECOVER or VERIFY
         file = None         # name of input Data.fs file
         repository = None   # name of directory holding backups
-        full = False        # True forces full backup
+        full = False        # True forces full backup or full recovery
         date = None         # -D argument, if any
         output = None       # where to write recovered data; None = stdout
         quick = False       # -Q flag state
@@ -261,6 +274,9 @@ def parseargs(argv):
         if options.killold:
             log('--kill-old-on-full option is ignored in recover mode')
             options.killold = False
+        if options.full and options.quick:
+            log('--quick option is ignored if --full option is used')
+            options.quick = None
     else:
         assert options.mode == VERIFY
         if options.date is not None:
@@ -394,6 +410,41 @@ def concat(files, ofp=None):
         bytesread += dofile(func, ifp)
         ifp.close()
     return bytesread, sum.hexdigest()
+
+
+def recover_repofiles(options, repofiles, datfile, outfp):
+    if options.withverify:
+        with open(datfile) as fp:
+            truth_dict = {}
+            for line in fp:
+                fn, startpos, endpos, sum = line.split()
+                startpos = int(startpos)
+                endpos = int(endpos)
+                filename = os.path.join(options.repository,
+                                        os.path.basename(fn))
+                truth_dict[filename] = {
+                    'size': endpos - startpos,
+                    'sum': sum,
+                }
+        totalsz = 0
+        for repofile in repofiles:
+            reposz, reposum = concat([repofile], outfp)
+            expected_truth = truth_dict[repofile]
+            if reposz != expected_truth['size']:
+                raise VerificationFail(
+                    "%s is %d bytes, should be %d bytes" % (
+                        repofile, reposz, expected_truth['size']))
+            if reposum != expected_truth['sum']:
+                raise VerificationFail(
+                    "{} has checksum {} instead of {}".format(
+                        repofile, reposum, expected_truth['sum']))
+            totalsz += reposz
+            log("Recovered chunk %s : %s bytes, md5: %s",
+                repofile, reposz, reposum)
+        log("Recovered a total of %s bytes", totalsz)
+    else:
+        reposz, reposum = concat(repofiles, outfp)
+        log('Recovered %s bytes, md5: %s', reposz, reposum)
 
 
 def gen_filedate(options):
@@ -673,15 +724,7 @@ def do_backup(options):
     do_full_backup(options)
 
 
-def do_recover(options):
-    # Find the first full backup at or before the specified date
-    repofiles = find_files(options)
-    if not repofiles:
-        if options.date:
-            raise NoFiles(f'No files in repository before {options.date}')
-        else:
-            raise NoFiles('No files in repository')
-
+def do_full_recover(options, repofiles):
     files_to_close = ()
     if options.output is None:
         log('Recovering file to stdout')
@@ -698,50 +741,8 @@ def do_recover(options):
         files_to_close += (outfp,)
 
     try:
-        if options.withverify:
-            datfile = os.path.splitext(repofiles[0])[0] + '.dat'
-            with open(datfile) as fp:
-                truth_dict = {}
-                for line in fp:
-                    fn, startpos, endpos, sum = line.split()
-                    startpos = int(startpos)
-                    endpos = int(endpos)
-                    filename = os.path.join(options.repository,
-                                            os.path.basename(fn))
-                    truth_dict[filename] = {
-                        'size': endpos - startpos,
-                        'sum': sum,
-                    }
-            totalsz = 0
-            for repofile in repofiles:
-                reposz, reposum = concat([repofile], outfp)
-                expected_truth = truth_dict[repofile]
-                if reposz != expected_truth['size']:
-                    raise VerificationFail(
-                        "%s is %d bytes, should be %d bytes" % (
-                            repofile, reposz, expected_truth['size']))
-                if reposum != expected_truth['sum']:
-                    raise VerificationFail(
-                        "{} has checksum {} instead of {}".format(
-                            repofile, reposum, expected_truth['sum']))
-                totalsz += reposz
-                log("Recovered chunk %s : %s bytes, md5: %s",
-                    repofile, reposz, reposum)
-            log("Recovered a total of %s bytes", totalsz)
-        else:
-            reposz, reposum = concat(repofiles, outfp)
-            log('Recovered %s bytes, md5: %s', reposz, reposum)
-
-        if options.output is not None:
-            last_base = os.path.splitext(repofiles[-1])[0]
-            source_index = '%s.index' % last_base
-            target_index = '%s.index' % options.output
-            if os.path.exists(source_index):
-                log('Restoring index file %s to %s',
-                    source_index, target_index)
-                shutil.copyfile(source_index, target_index)
-            else:
-                log('No index file to restore: %s', source_index)
+        datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+        recover_repofiles(options, repofiles, datfile, outfp)
     finally:
         for f in files_to_close:
             f.close()
@@ -753,6 +754,106 @@ def do_recover(options):
             log("ZODB has been fully recovered as %s, but it cannot be renamed"
                 " into : %s", temporary_output_file, options.output)
             raise
+
+
+def do_incremental_recover(options, repofiles):
+    datfile = os.path.splitext(repofiles[0])[0] + '.dat'
+    log('Recovering (incrementally) file to %s', options.output)
+    with open(options.output, 'r+b') as outfp:
+        # Note that we do not open the FileStorage to use getSize here,
+        # we really want the actual file size, even if there is invalid
+        # transaction data at the end.
+        outfp.seek(0, os.SEEK_END)
+        initial_length = outfp.tell()
+
+    error = ''
+    previous_chunk = None
+    with open(datfile) as fp, open(options.output, 'r+b') as outfp:
+        for line in fp:
+            fn, startpos, endpos, check_sum = chunk = line.split()
+            startpos = int(startpos)
+            endpos = int(endpos)
+            if endpos > initial_length:
+                break
+            if not options.quick:
+                if check_sum != checksum(outfp, endpos - startpos):
+                    error = ('Target file is not consistent with backup %s, '
+                             'falling back to a full recover.') % fn
+                    break
+            previous_chunk = chunk
+    if error:
+        log(error)
+        return do_full_recover(options, repofiles)
+    elif previous_chunk is None:
+        log('Target file smaller than full backup, '
+            'falling back to a full recover.')
+        return do_full_recover(options, repofiles)
+    elif endpos < initial_length:
+        log('Target file is larger than latest backup, '
+            'falling back to a full recover.')
+        return do_full_recover(options, repofiles)
+    if options.quick:
+        check_startpos = int(previous_chunk[1])
+        check_endpos = int(previous_chunk[2])
+        with open(options.output, 'r+b') as outfp:
+            outfp.seek(check_startpos)
+            if previous_chunk[3] != checksum(
+                    outfp, check_endpos - check_startpos):
+                error = ('Target file is not consistent with backup %s, '
+                         'falling back to a full recover.' % previous_chunk[0])
+        if error:
+            log(error)
+            return do_full_recover(options, repofiles)
+    if endpos == initial_length:
+        log('Target file is same size as latest backup, '
+            'doing nothing.')
+        return
+
+    filename = os.path.join(options.repository,
+                            os.path.basename(fn))
+    first_file_to_restore = repofiles.index(filename)
+    assert first_file_to_restore > 0, (
+        first_file_to_restore, options.repository, fn, filename, repofiles)
+    log('remaining files needed to recover incrementally onto target file:')
+    for f in repofiles[first_file_to_restore:]:
+        log('\t%s', f)
+
+    temporary_output_file = options.output + '.part'
+    os.rename(options.output, temporary_output_file)
+    with open(temporary_output_file, 'r+b') as outfp:
+        outfp.seek(startpos)
+        recover_repofiles(options,
+                          repofiles[first_file_to_restore:],
+                          datfile,
+                          outfp)
+    os.rename(temporary_output_file, options.output)
+
+
+def do_recover(options):
+    # Find the first full backup at or before the specified date
+    repofiles = find_files(options)
+    if not repofiles:
+        if options.date:
+            raise NoFiles(f'No files in repository before {options.date}')
+        else:
+            raise NoFiles('No files in repository')
+
+    if (options.full or options.output is None
+            or not os.path.exists(options.output)):
+        do_full_recover(options, repofiles)
+    else:
+        do_incremental_recover(options, repofiles)
+
+    if options.output is not None:
+        last_base = os.path.splitext(repofiles[-1])[0]
+        source_index = '%s.index' % last_base
+        target_index = '%s.index' % options.output
+        if os.path.exists(source_index):
+            log('Restoring index file %s to %s',
+                source_index, target_index)
+            shutil.copyfile(source_index, target_index)
+        else:
+            log('No index file to restore: %s', source_index)
 
 
 def do_verify(options):
