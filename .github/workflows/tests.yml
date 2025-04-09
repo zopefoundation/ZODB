@@ -21,6 +21,7 @@ jobs:
         - ["windows", "windows-latest"]
         config:
         # [Python version, tox env]
+        - ["3.9",   "release-check"]
         - ["3.9",   "lint"]
         - ["3.7",   "py37"]
         - ["3.8",   "py38"]
@@ -28,11 +29,12 @@ jobs:
         - ["3.10",  "py310"]
         - ["3.11",  "py311"]
         - ["3.12",  "py312"]
-        - ["pypy-3.9", "pypy3"]
+        - ["pypy-3.10", "pypy3"]
         - ["3.9",   "docs"]
         - ["3.9",   "coverage"]
         - ["3.10",   "py310-pure"]
         exclude:
+          - { os: ["windows", "windows-latest"], config: ["3.9",   "release-check"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "lint"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "docs"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "coverage"] }
@@ -41,13 +43,13 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     name: ${{ matrix.os[0] }}-${{ matrix.config[1] }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.config[0] }}
     - name: Pip cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ matrix.config[0] }}-${{ hashFiles('setup.*', 'tox.ini') }}

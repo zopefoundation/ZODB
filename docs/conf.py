@@ -26,6 +26,13 @@ import datetime
 sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath(".."))
 
+# Define the canonical URL to use custom domain on Read the Docs
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
+
+html_context = {}
+# Tell Jinja2 templates the build is running on Read the Docs
+if os.environ.get("READTHEDOCS", "") == "True":
+    html_context["READTHEDOCS"] = True
 
 # General configuration
 # ---------------------

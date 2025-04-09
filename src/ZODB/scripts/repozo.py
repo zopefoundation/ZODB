@@ -249,9 +249,9 @@ def parseargs(argv):
         if options.output is not None:
             log('--output option is ignored in backup mode')
             options.output = None
-        if options.withverify is not None:
+        if options.withverify:
             log('--with-verify option is ignored in backup mode')
-            options.withverify = None
+            options.withverify = False
         if not options.file:
             usage(1, '--file is required in backup mode')
     elif options.mode == RECOVER:
@@ -281,9 +281,9 @@ def parseargs(argv):
         if options.killold:
             log('--kill-old-on-full option is ignored in verify mode')
             options.killold = False
-        if options.withverify is not None:
+        if options.withverify:
             log('--with-verify option is ignored in verify mode')
-            options.withverify = None
+            options.withverify = False
     return options
 
 
@@ -685,7 +685,7 @@ def do_recover(options):
     files_to_close = ()
     if options.output is None:
         log('Recovering file to stdout')
-        outfp = sys.stdout
+        outfp = sys.stdout.buffer
     else:
         # Delete old ZODB before recovering backup as size of
         # old ZODB + full partial file may be superior to free disk space

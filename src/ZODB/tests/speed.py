@@ -79,7 +79,6 @@ def main(args):
         elif o == '-M':
             detailed = 0
         elif o == '-D':
-            global debug
             os.environ['STUPID_LOG_FILE'] = ''
             os.environ['STUPID_LOG_SEVERITY'] = '-999'
 

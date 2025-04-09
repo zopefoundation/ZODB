@@ -15,7 +15,7 @@ from setuptools import find_packages
 from setuptools import setup
 
 
-version = '6.0.dev0'
+version = '6.0.1.dev0'
 
 
 def read(path):
@@ -65,7 +65,6 @@ setup(
     ],
     description=long_description.split('\n', 2)[1],
     long_description=long_description,
-    tests_require=tests_require,
     extras_require={
         'test': tests_require,
         'docs': [
