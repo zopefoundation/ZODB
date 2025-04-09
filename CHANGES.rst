@@ -9,6 +9,12 @@
 
  - repozo: prevent an incorrect "option ignored" warning when running backup or verify.
 
+ - FileStorage: fix `restore` regression introduced in ZODB 6.0 in `#395
+   <https://github.com/zopefoundation/ZODB/pull/395>`_: when restoring data
+   records with undo the `restore` was no longer emitting backpointers and was
+   emitting duplicate data copies instead. `#409 <https://github.com/zopefoundation/ZODB/pull/409>`_
+   fixes `restore` back to emit data records with backpointers for undo again.
+
 
 6.0 (2024-03-20)
 ================
