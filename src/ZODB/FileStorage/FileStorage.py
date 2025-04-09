@@ -1062,6 +1062,8 @@ class FileStorage(
             tid = decodebytes(transaction_id + b'\n')
             assert len(tid) == 8
             tpos = self._txn_find(tid, 1)
+            if not tpos:
+                raise UndoError("Invalid transaction id")
             tindex = self._txn_undo_write(tpos)
             self._tindex.update(tindex)
             return self._tid, tindex.keys()
@@ -1080,7 +1082,7 @@ class FileStorage(
                 # check the status field of the transaction header
                 if h[16] == b'p':
                     break
-        raise UndoError("Invalid transaction id")
+        return None
 
     def _txn_undo_write(self, tpos):
         # a helper function to write the data records for transactional undo
