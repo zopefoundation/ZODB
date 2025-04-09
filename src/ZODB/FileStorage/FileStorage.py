@@ -704,6 +704,7 @@ class FileStorage(
                 logger.error("Mismatch between data and"
                              " backpointer at %d", pos)
                 return 0
+            self._file.seek(data_pos + DATA_HDR_LEN)
             _data = self._file.read(data_hdr.plen)
             if data != _data:
                 return 0
