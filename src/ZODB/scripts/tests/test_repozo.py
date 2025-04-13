@@ -220,12 +220,15 @@ class Test_parseargs(unittest.TestCase):
         from ZODB.scripts import repozo
         options = repozo.parseargs(['-R', '-r', '/tmp/nosuchdir', '-v',
                                     '-f', '/tmp/ignored.fs',
-                                    '-k'])
+                                    '-k', '--full', '--quick'])
         self.assertEqual(options.file, None)
         self.assertIn('--file option is ignored in recover mode',
                       sys.stderr.getvalue())
         self.assertEqual(options.killold, False)
         self.assertIn('--kill-old-on-full option is ignored in recover mode',
+                      sys.stderr.getvalue())
+        self.assertEqual(options.quick, None)
+        self.assertIn('--quick option is ignored if --full option is used',
                       sys.stderr.getvalue())
 
     def test_verify_ignored_args(self):
@@ -864,8 +867,7 @@ class Test_do_incremental_backup(OptionsTestBase, unittest.TestCase):
         self.assertEqual(index.maxKey(), db.maxkey)
 
 
-class Test_do_recover(OptionsTestBase, unittest.TestCase):
-
+class Mixin_do_recover:
     def _callFUT(self, options):
         from ZODB.scripts.repozo import do_recover
         return do_recover(options)
@@ -901,6 +903,17 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
                            ]:
             files.append(self._makeFile(h, m, s, e))
         self.assertRaises(NoFiles, self._callFUT, options)
+
+
+class Test_do_full_recover(
+        Mixin_do_recover,
+        OptionsTestBase,
+        unittest.TestCase
+):
+    def _makeOptions(self, **kw):
+        options = super()._makeOptions(**kw)
+        options.full = True
+        return options
 
     def test_w_full_backup_latest_no_index(self):
         import tempfile
@@ -1008,6 +1021,290 @@ class Test_do_recover(OptionsTestBase, unittest.TestCase):
             '/backup/2010-05-14-04-05-06.deltafs 3 8 f50881ced34c7d9e6bce100bf33dec60\n')  # noqa: E501 line too long
         self.assertRaises(VerificationFail, self._callFUT, options)
         self.assertTrue(os.path.exists(output + '.part'))
+
+
+class Test_do_incremental_recover(
+        Mixin_do_recover,
+        OptionsTestBase,
+        unittest.TestCase
+):
+    def setUp(self):
+        from ZODB.scripts import repozo
+        self._old_verbosity = repozo.VERBOSE
+        self._old_stderr = sys.stderr
+        repozo.VERBOSE = True
+        sys.stderr = StringIO()
+
+    def tearDown(self):
+        from ZODB.scripts import repozo
+        sys.stderr = self._old_stderr
+        repozo.VERBOSE = self._old_verbosity
+
+    def _makeOptions(self, **kw):
+        options = super()._makeOptions(**kw)
+        options.full = False
+        options.quick = kw.get('quick', False)
+        return options
+
+    def _createRecoveredDataFS(self, output, options):
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBB')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n')  # noqa: E501 line too long
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBB')
+        self.assertFalse(os.path.exists(output + '.part'))
+        return output
+
+    def test_do_nothing(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._callFUT(options)
+        self.assertIn(
+            "doing nothing", sys.stderr.getvalue())
+
+    def test_w_incr_recover_from_incr_backup(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        # Create 2 more .deltafs, to prove the code knows where to pick up
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(8, 9, 10, '.deltafs', 'DDD')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
+        os.unlink(
+            os.path.join(self._repository_directory,
+                         '2010-05-14-04-05-06.deltafs'))
+        self._callFUT(options)
+        self.assertNotIn('falling back to a full recover.',
+                         sys.stderr.getvalue())
+        self.assertEqual(_read_file(output), b'AAABBBCCCDDD')
+        self.assertFalse(os.path.exists(output + '.part'))
+
+    def test_w_quick_incr_recover_from_incr_backup(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    quick=True,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        # Create 2 more .deltafs, to prove the code knows where to pick up
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(8, 9, 10, '.deltafs', 'DDD')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
+        os.unlink(
+            os.path.join(self._repository_directory,
+                         '2010-05-14-04-05-06.deltafs'))
+        self._callFUT(options)
+        self.assertNotIn('falling back to a full recover.',
+                         sys.stderr.getvalue())
+        self.assertEqual(_read_file(output), b'AAABBBCCCDDD')
+        self.assertFalse(os.path.exists(output + '.part'))
+
+    def test_w_incr_backup_with_verify_sum_inconsistent(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(8, 9, 10, '.deltafs', 'DDD')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166af\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
+        from ZODB.scripts.repozo import VerificationFail
+        self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertNotIn('falling back to a full recover.',
+                         sys.stderr.getvalue())
+        self.assertTrue(os.path.exists(output + '.part'))
+
+    def test_w_incr_backup_with_verify_size_inconsistent_too_small(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(8, 9, 10, '.deltafs', 'DDD')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 8 defb99e69a9f1f6e06f15006b1f166ae\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
+        from ZODB.scripts.repozo import VerificationFail
+        self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertNotIn('falling back to a full recover.',
+                         sys.stderr.getvalue())
+        self.assertTrue(os.path.exists(output + '.part'))
+
+    def test_w_incr_backup_with_verify_size_inconsistent_too_big(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=True)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(8, 9, 10, '.deltafs', 'DDD')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 10 defb99e69a9f1f6e06f15006b1f166ae\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-08-09-10.deltafs 9 12 45054f47ac3305a2a33e9bcceadff712\n')  # noqa: E501 line too long
+        from ZODB.scripts.repozo import VerificationFail
+        self.assertRaises(VerificationFail, self._callFUT, options)
+        self.assertNotIn('falling back to a full recover.',
+                         sys.stderr.getvalue())
+        self.assertTrue(os.path.exists(output + '.part'))
+
+    def test_w_incr_backup_switch_auto_to_full_recover_if_output_larger_than_dat(self):  # noqa: E501 line too long
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
+        # The ZODB is longer than announced in the .dat file
+        with open(output, 'r+b') as f:
+            f.write(b'AAABBBCCCDDD')
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBBCCC')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertIn(
+            "falling back to a full recover", sys.stderr.getvalue())
+
+    def test_w_incr_backup_switch_auto_to_full_recover_if_chunk_is_wrong(self):  # noqa: E501 line too long
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b8\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBBCCC')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertIn(
+            "Target file is not consistent with backup /backup/2010-05-14-02-03-04.fs, falling back to a full recover.",  # noqa: E501 line too long
+            sys.stderr.getvalue())
+
+    def test_w_incr_backup_switch_auto_to_full_recover_after_pack(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    withverify=False)
+        self._makeFile(2, 3, 4, '.fs', 'AAA')
+        self._makeFile(4, 5, 6, '.deltafs', 'BBB')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n')  # noqa: E501 line too long
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBB')
+
+        self._makeFile(6, 7, 8, '.fs', 'CCDD')
+        self._makeFile(
+            6, 7, 8, '.dat',
+            '/backup/2010-05-14-06-07-08.fs 0 4 dc0ee37408176d839c13f291a4d588de\n')  # noqa: E501 line too long
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'CCDD')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertIn(
+            "Target file is not consistent with backup /backup/2010-05-14-06-07-08.fs, falling back to a full recover.",  # noqa: E501 line too long
+            sys.stderr.getvalue())
+
+    def test_w_quick_incr_backup_switch_auto_to_full_recover_if_last_chunk_is_wrong(self):  # noqa: E501 line too long
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    quick=True,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a4\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'AAABBBCCC')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertIn(
+            "Target file is not consistent with backup /backup/2010-05-14-04-05-06.deltafs, falling back to a full recover.",  # noqa: E501 line too long
+            sys.stderr.getvalue())
+
+    def test_w_quick_incr_backup_dont_see_old_inconsistencies(self):
+        import tempfile
+        dd = self._data_directory = tempfile.mkdtemp(prefix='zodb-test-')
+        output = os.path.join(dd, 'Data.fs')
+        options = self._makeOptions(date='2010-05-15-13-30-57',
+                                    output=output,
+                                    quick=True,
+                                    withverify=False)
+        self._createRecoveredDataFS(output, options)
+        self._makeFile(6, 7, 8, '.deltafs', 'CCC')
+        self._makeFile(
+            2, 3, 4, '.dat',
+            '/backup/2010-05-14-02-03-04.fs 0 3 e1faffb3e614e6c2fba74296962386b7\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-04-05-06.deltafs 3 6 2bb225f0ba9a58930757a868ed57d9a3\n'  # noqa: E501 line too long
+            '/backup/2010-05-14-06-07-08.deltafs 6 9 defb99e69a9f1f6e06f15006b1f166ae\n')  # noqa: E501 line too long
+        # The ZODB is longer than announced in the .dat file
+        with open(output, 'r+b') as f:
+            f.write(b'ZZZBBBCCC')
+        self._callFUT(options)
+        self.assertEqual(_read_file(output), b'ZZZBBBCCC')
+        self.assertFalse(os.path.exists(output + '.part'))
+        self.assertNotIn(
+            "falling back to a full recover", sys.stderr.getvalue())
 
 
 class Test_do_verify(OptionsTestBase, unittest.TestCase):
@@ -1296,7 +1593,8 @@ def test_suite():
         loadTestsFromTestCase(Test_do_full_backup),
         loadTestsFromTestCase(Test_do_incremental_backup),
         # unittest.makeSuite(Test_do_backup),  #TODO
-        loadTestsFromTestCase(Test_do_recover),
+        loadTestsFromTestCase(Test_do_full_recover),
+        loadTestsFromTestCase(Test_do_incremental_recover),
         loadTestsFromTestCase(Test_do_verify),
         # N.B.:  this test take forever to run (~40sec on a fast laptop),
         # *and* it is non-deterministic.
