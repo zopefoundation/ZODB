@@ -15,9 +15,6 @@ from setuptools import find_packages
 from setuptools import setup
 
 
-version = '6.0.1.dev0'
-
-
 def read(path):
     with open(path) as f:
         return f.read()
@@ -25,15 +22,10 @@ def read(path):
 
 long_description = read("README.rst") + "\n\n" + read("CHANGES.rst")
 
-tests_require = [
-    'manuel',
-    'zope.testing',
-    'zope.testrunner >= 4.4.6',
-]
 
 setup(
     name="ZODB",
-    version=version,
+    version='6.0.1',
     author="Jim Fulton",
     author_email="jim@zope.com",
     maintainer="Zope Foundation and Contributors",
@@ -65,15 +57,20 @@ setup(
     ],
     description=long_description.split('\n', 2)[1],
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     extras_require={
-        'test': tests_require,
+        'test': [
+            'manuel',
+            'zope.testing',
+            'zope.testrunner >= 4.4.6',
+        ],
         'docs': [
             'Sphinx < 7',
             'ZODB',
             'j1m.sphinxautozconfig',
             'sphinx_rtd_theme',
             'sphinxcontrib_zopeext',
-        ]
+        ],
     },
     install_requires=[
         'persistent >= 4.4.0',

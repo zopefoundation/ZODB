@@ -2,7 +2,7 @@
  Change History
 ================
 
-6.0.1 (unreleased)
+6.0.1 (2025-04-13)
 ==================
 
  - repozo: fix restoring on stdout.
