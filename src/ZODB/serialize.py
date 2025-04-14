@@ -425,7 +425,7 @@ class ObjectWriter:
                 meta = klass, newargs()
         elif newargs is None:
             # Pickle format #1.
-            meta = klass
+            meta = klass, None
         else:
             # Pickle format #2.
             meta = klass, newargs()
