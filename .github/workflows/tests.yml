@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-        - ["ubuntu", "ubuntu-20.04"]
+        - ["ubuntu", "ubuntu-24.04"]
         - ["windows", "windows-latest"]
         config:
         # [Python version, tox env]
