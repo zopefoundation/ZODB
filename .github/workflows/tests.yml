@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-        - ["ubuntu", "ubuntu-20.04"]
+        - ["ubuntu", "ubuntu-24.04"]
         - ["windows", "windows-latest"]
         config:
         # [Python version, tox env]
@@ -38,6 +38,8 @@ jobs:
           - { os: ["windows", "windows-latest"], config: ["3.9",   "lint"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "docs"] }
           - { os: ["windows", "windows-latest"], config: ["3.9",   "coverage"] }
+          - { os: ["ubuntu", "ubuntu-24.04"], config: ["3.7",   "py37"] }
+
 
     runs-on: ${{ matrix.os[1] }}
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
