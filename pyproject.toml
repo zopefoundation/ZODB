@@ -1,12 +1,79 @@
 # Generated with zope.meta (https://zopemeta.readthedocs.io/) from:
 # https://github.com/zopefoundation/meta/tree/master/src/zope/meta/pure-python
-
 [build-system]
 requires = [
     "setuptools >= 78.1.1,< 81",
     "wheel",
 ]
 build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "ZODB"
+version = "6.2.dev0"
+license = "ZPL-2.1"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Unix",
+    "Framework :: ZODB",
+]
+dynamic = ["readme"]
+requires-python = ">=3.10"
+authors = [
+    {name = "Jim Fulton",email = "jim@zope.com"},
+]
+maintainers = [
+    {name = "Plone Foundation and contributors",email = "zope-dev@zope.dev"},
+]
+dependencies = [
+    "persistent >= 4.4.0",
+    "BTrees >= 4.2.0",
+    "ZConfig",
+    "transaction >= 2.4",
+    "zc.lockfile",
+    "zope.interface",
+    "zodbpickle >= 1.0.1",
+]
+keywords = ["database", "nosql", "python", "zope"]
+
+[project.scripts]
+fsdump = "ZODB.FileStorage.fsdump:main"
+fsoids = "ZODB.scripts.fsoids:main"
+fsrefs = "ZODB.scripts.fsrefs:main"
+fstail = "ZODB.scripts.fstail:Main"
+repozo = "ZODB.scripts.repozo:main"
+
+[project.optional-dependencies]
+test = [
+    "manuel",
+    "zope.testing",
+    "zope.testrunner >= 4.4.6",
+]
+docs = [
+    "Sphinx < 7",
+    "ZODB",
+    "j1m.sphinxautozconfig",
+    "sphinx_rtd_theme",
+    "sphinxcontrib_zopeext",
+]
+
+[project.urls]
+Documentation = "http://zodb-docs.readthedocs.io"
+Issues = "https://github.com/zopefoundation/ZODB/issues"
+Source = "https://github.com/zopefoundation/ZODB"
+Changelog = "https://github.com/zopefoundation/ZODB/blob/master/CHANGES.rst"
 
 [tool.coverage.run]
 branch = true
@@ -30,3 +97,7 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "parts/htmlcov"
+
+[tool.setuptools.dynamic]
+readme = {file = ["README.rst", "CHANGES.rst"]}
+
