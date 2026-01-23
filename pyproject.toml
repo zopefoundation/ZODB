@@ -10,7 +10,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ZODB"
-version = "6.2"
+version = "6.3.dev0"
 license = "ZPL-2.1"
 classifiers = [
     "Intended Audience :: Developers",
