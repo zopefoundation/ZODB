@@ -1,9 +1,9 @@
-# Generated from:
-# https://github.com/zopefoundation/meta/tree/master/config/pure-python
+# Generated with zope.meta (https://zopemeta.readthedocs.io/) from:
+# https://github.com/zopefoundation/meta/tree/master/src/zope/meta/pure-python
 minimum_pre_commit_version: '3.6'
 repos:
   - repo: https://github.com/pycqa/isort
-    rev: "6.0.1"
+    rev: "7.0.0"
     hooks:
     - id: isort
   - repo: https://github.com/hhatto/autopep8
@@ -12,10 +12,10 @@ repos:
     - id: autopep8
       args: [--in-place, --aggressive, --aggressive]
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.20.0
+    rev: v3.21.2
     hooks:
     - id: pyupgrade
-      args: [--py39-plus]
+      args: [--py310-plus]
   - repo: https://github.com/isidentical/teyit
     rev: 0.4.3
     hooks:
