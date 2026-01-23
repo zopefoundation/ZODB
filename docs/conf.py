@@ -17,8 +17,7 @@
 import datetime
 import os
 import sys
-
-import pkg_resources
+from importlib.metadata import version as get_version
 
 
 # If your extensions are in another directory, add it here. If the directory
@@ -39,7 +38,7 @@ if os.environ.get("READTHEDOCS", "") == "True":
 # General configuration
 # ---------------------
 
-rqmt = pkg_resources.require('ZODB')[0]
+version_str = get_version('ZODB')
 
 # Add any Sphinx extension module names here as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -73,7 +72,7 @@ copyright = f'2009-{datetime.date.today().year}, Zope Foundation'
 # built documents.
 #
 # The short X.Y version.
-version = '%s.%s' % tuple(map(int, rqmt.version.split('.')[:2]))
+version = '%s.%s' % tuple(map(int, version_str.split('.')[:2]))
 # The full version, including alpha/beta/rc tags.
 # release = '3.10.3'
 
