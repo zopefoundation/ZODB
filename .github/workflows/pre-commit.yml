@@ -1,5 +1,5 @@
-# Generated from:
-# https://github.com/zopefoundation/meta/tree/master/config/pure-python
+# Generated with zope.meta (https://zopemeta.readthedocs.io/) from:
+# https://github.com/zopefoundation/meta/tree/master/src/zope/meta/pure-python
 name: pre-commit
 
 on:
@@ -21,10 +21,10 @@ jobs:
     name: linting
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v6
       with:
-        python-version: 3.x
+        python-version: '3.13'
     - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd  #v3.0.1
       with:
         extra_args: --all-files --show-diff-on-failure

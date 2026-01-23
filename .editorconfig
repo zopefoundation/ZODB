@@ -1,8 +1,8 @@
-# Generated from:
-# https://github.com/zopefoundation/meta/tree/master/config/pure-python
+# Generated with zope.meta (https://zopemeta.readthedocs.io/) from:
+# https://github.com/zopefoundation/meta/tree/master/src/zope/meta/pure-python
 #
 # EditorConfig Configuration file, for more details see:
-# http://EditorConfig.org
+# https://EditorConfig.org
 # EditorConfig is a convention description, that could be interpreted
 # by multiple editors to enforce common coding conventions for specific
 # file types
@@ -12,7 +12,7 @@
 root = true
 
 
-[*]  # For All Files
+[*]
 # Unix-style newlines with a newline ending every file
 end_of_line = lf
 insert_final_newline = true
