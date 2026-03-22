@@ -128,6 +128,56 @@ def database_xrefs_config():
     """
 
 
+def dummy_class_factory(connection, module_name, global_name):
+    """Helper function for database_class_factory_config
+    """
+
+
+def database_class_factory_config():
+    r"""The class-factory option sets the class factory used for
+    deserializing persistent objects.
+
+    Without it, the default DB.classFactory method is used:
+
+    >>> db = ZODB.config.databaseFromString(
+    ...    "<zodb>\n<mappingstorage>\n</mappingstorage>\n</zodb>\n")
+    >>> import types
+    >>> isinstance(db.classFactory, types.MethodType)
+    True
+    >>> db.close()
+
+    With a dotted name, the specified callable is used:
+
+    >>> db = ZODB.config.databaseFromString(
+    ...    "<zodb>\nclass-factory ZODB.tests.testConfig.dummy_class_factory\n"
+    ...    "<mappingstorage>\n</mappingstorage>\n</zodb>\n")
+    >>> db.classFactory is dummy_class_factory
+    True
+
+    The factory is available to connections, including the one
+    pooled during __init__:
+
+    >>> conn = db.open()
+    >>> conn._reader._factory is dummy_class_factory
+    True
+    >>> conn.close()
+    >>> db.close()
+
+    When the class factory is set to a non-existent callable, a detailed
+    error is raised:
+    >>> db = ZODB.config.databaseFromString(
+    ...    "<zodb>\n"
+    ...     "class-factory ZODB.tests.testConfig.non_existent_class_factory\n"
+    ...    "<mappingstorage>\n</mappingstorage>\n</zodb>\n"
+    ... )  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
+    Traceback (most recent call last):
+    ...
+    ZConfig.DataConversionError: The object named by 'ZODB.tests.testConfig.non_existent_class_factory' could not be imported
+    Traceback (most recent call last):
+    ...
+    """  # noqa: E501
+
+
 def multi_atabases():
     r"""If there are multiple codb sections -> multidatabase
 

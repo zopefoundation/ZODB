@@ -13,11 +13,36 @@
 ##############################################################################
 """Open database and storage from a configuration."""
 import os
+import traceback
 from io import StringIO
 
 import ZConfig
 
 import ZODB
+
+
+def importable_name(name):
+    # A datatype that converts a Python dotted-path-name to an object
+    try:
+        components = name.split('.')
+        start = components[0]
+        g = globals()
+        package = __import__(start, g, g)
+        modulenames = [start]
+        for component in components[1:]:
+            modulenames.append(component)
+            try:
+                package = getattr(package, component)
+            except AttributeError:
+                n = '.'.join(modulenames)
+                package = __import__(n, g, g, component)
+        return package
+    except ImportError:
+        IO = StringIO()
+        traceback.print_exc(file=IO)
+        raise ValueError(
+            f'The object named by {name!r} could not be imported\n'
+            f'{IO.getvalue()}')
 
 
 db_schema_path = os.path.join(ZODB.__path__[0], "config.xml")
@@ -150,6 +175,7 @@ class ZODBDatabase(BaseConfig):
         _option('pool_timeout')
         _option('allow_implicit_cross_references', 'xrefs')
         _option('large_record_size')
+        _option('class_factory')
 
         try:
             return ZODB.DB(
