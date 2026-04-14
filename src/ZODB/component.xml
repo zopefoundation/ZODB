@@ -324,6 +324,16 @@
         currently possible) are disallowed.
       </description>
     </key>
+    <key name="class-factory" datatype=".importable_name">
+      <description>
+        A callable used to resolve persistent object classes during
+        deserialization. The database-level class factory is called as
+        ``class_factory(connection, module_name, global_name)``.
+        Specify a Python dotted-path name.
+        If not provided, the database uses its default class factory,
+        which delegates to ``ZODB.broken.find_global``.
+      </description>
+    </key>
 
   </sectiontype>
 

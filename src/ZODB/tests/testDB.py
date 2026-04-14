@@ -324,6 +324,38 @@ def passing_None_to_DB():
     """
 
 
+def class_factory_parameter():
+    """The class_factory parameter lets you set a custom class resolver
+    at construction time, before any connection is created.
+
+    >>> from ZODB.broken import find_global
+    >>> calls = []
+    >>> def my_factory(conn, module, name):
+    ...     calls.append((module, name))
+    ...     return find_global(module, name)
+
+    >>> db = ZODB.DB(None, class_factory=my_factory)
+    >>> db.classFactory is my_factory
+    True
+
+    The connection pooled during __init__ has the custom factory:
+
+    >>> conn = db.open()
+    >>> conn._reader._factory is my_factory
+    True
+    >>> conn.close()
+
+    Reused connections also have the custom factory:
+
+    >>> conn2 = db.open()
+    >>> conn2._reader._factory is my_factory
+    True
+    >>> conn2.close()
+
+    >>> db.close()
+    """
+
+
 def open_convenience():
     """Often, we just want to open a single connection.
 

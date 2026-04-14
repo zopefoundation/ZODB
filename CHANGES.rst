@@ -5,6 +5,10 @@
 6.3 (unreleased)
 ----------------
 
+- Add ``class_factory`` parameter to ``DB.__init__()`` and
+  ``class-factory`` option to ZConfig database configuration.
+  See `issue #420 <https://github.com/zopefoundation/ZODB/issues/420>`_.
+
 
 6.2 (2026-01-23)
 ================

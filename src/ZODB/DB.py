@@ -360,6 +360,7 @@ class DB:
                  databases=None,
                  xrefs=True,
                  large_record_size=1 << 24,
+                 class_factory=None,
                  **storage_args):
         """Create an object database.
 
@@ -407,6 +408,13 @@ class DB:
         :param int large_record_size: When object records are saved
              that are larger than this, a warning is issued,
              suggesting that blobs should be used instead.
+        :param callable class_factory: A callable
+             ``class_factory(connection, module_name, global_name)``
+             used to resolve persistent object classes during
+             deserialization. If not provided, the default
+            ``DB.classFactory`` method is used; it wraps
+             :func:`ZODB.broken.find_global` to provide this
+             three-argument interface.
         :param storage_args: Extra keywork arguments passed to a
              storage constructor if a path name or None is passed as
              the storage argument.
@@ -464,6 +472,9 @@ class DB:
         self.xrefs = xrefs
 
         self.large_record_size = large_record_size
+
+        if class_factory is not None:
+            self.classFactory = class_factory
 
         # Make sure we have a root:
         with self.transaction('initial database creation') as conn:
@@ -847,7 +858,6 @@ class DB:
         self._activity_monitor = am
 
     def classFactory(self, connection, modulename, globalname):
-        # Zope will rebind this method to arbitrary user code at runtime.
         return find_global(modulename, globalname)
 
     def setCacheSize(self, size):
