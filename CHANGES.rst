@@ -2,7 +2,7 @@
  Change History
 ================
 
-6.3 (unreleased)
+6.3 (2026-04-14)
 ----------------
 
 - Add ``class_factory`` parameter to ``DB.__init__()`` and

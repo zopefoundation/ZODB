@@ -7,11 +7,10 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
-
 [project]
 name = "ZODB"
 description = "ZODB, a Python object-oriented database"
-version = "6.3.dev0"
+version = "6.3"
 license = "ZPL-2.1"
 classifiers = [
     "Intended Audience :: Developers",
