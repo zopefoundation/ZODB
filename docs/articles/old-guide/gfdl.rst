@@ -354,4 +354,3 @@ Cover Texts.
 If your document contains nontrivial examples of program code, we recommend
 releasing these examples in parallel under your choice of free software license,
 such as the GNU General Public License, to permit their use in free software.
-

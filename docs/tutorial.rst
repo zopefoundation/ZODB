@@ -215,7 +215,7 @@ two simple transaction commands: ``commit`` and ``abort``. The
 reference documentation contains sections with more information on the
 individual topics.
 
-.. [#changed] 
+.. [#changed]
    You can manually mark an object as changed by setting its
    ``_p_changed`` attribute to ``True``. You might do this if you
    update a subobject, such as a standard Python ``list`` or ``set``,

@@ -177,4 +177,3 @@ in production in thousands of applications for many years.
 ZODB is in heavy use in the `Pyramid <http://www.pylonsproject.org/>`_
 and `Plone <https://plone.org/>`_ communities and in many other
 applications.
-

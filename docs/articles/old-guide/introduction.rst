@@ -76,7 +76,7 @@ Mapping these structures to a relational database is straightforward::
 
    CREATE TABLE operations (
      int      run_id,
-     int      step_num, 
+     int      step_num,
      varchar  process_id,
      PRIMARY KEY(run_id, step_num),
      FOREIGN KEY(run_id) REFERENCES runs(run_id),
@@ -84,13 +84,13 @@ Mapping these structures to a relational database is straightforward::
 
    CREATE TABLE parameters (
      int      run_id,
-     int      step_num, 
-     varchar  param_name, 
+     int      step_num,
+     varchar  param_name,
      varchar  param_value,
      PRIMARY KEY(run_id, step_num, param_name)
-     FOREIGN KEY(run_id, step_num) 
+     FOREIGN KEY(run_id, step_num)
         REFERENCES operations(run_id, step_num),
-   );  
+   );
 
 In Python, you would write three classes named :class:`Run`, :class:`Operation`,
 and :class:`Parameter`.  I won't present code for defining these classes, since
@@ -183,4 +183,3 @@ been updated over time by Jeremy Hylton and Tim Peters.
 I'd like to thank the people who've pointed out inaccuracies and bugs, offered
 suggestions on the text, or proposed new topics that should be covered: Jeff
 Bauer, Willem Broekema, Thomas Guettler, Chris McDonough, George Runyan.
-

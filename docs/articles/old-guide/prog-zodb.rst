@@ -195,7 +195,7 @@ a new key/value pair for your application's root object.  We'll insert an
 
    dbroot = conn.root()
 
-   # Ensure that a 'userdb' key is present 
+   # Ensure that a 'userdb' key is present
    # in the root
    if not dbroot.has_key('userdb'):
        from BTrees.OOBTree import OOBTree
@@ -210,10 +210,10 @@ data, insert it into the :class:`BTree` instance, and commit this transaction.
    # Create new User instance
    import transaction
 
-   newuser = User() 
+   newuser = User()
 
    # Add whatever attributes you want to track
-   newuser.id = 'amk' 
+   newuser.id = 'amk'
    newuser.first_name = 'Andrew' ; newuser.last_name = 'Kuchling'
    ...
 
@@ -248,7 +248,7 @@ with transactions at the Python interpreter's prompt::
    >>> newuser
    <User instance at 81b1f40>
    >>> newuser.first_name           # Print initial value
-   'Andrew'         
+   'Andrew'
    >>> newuser.first_name = 'Bob'   # Change first name
    >>> newuser.first_name           # Verify the change
    'Bob'
@@ -447,4 +447,3 @@ instances of a given class, no matter where they are in the object graph;
 unfortunately the ZODB doesn't offer extents as a feature.
 
 .. % XXX Rest of section not written yet: __getstate__/__setstate__
-

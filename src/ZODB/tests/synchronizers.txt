@@ -93,4 +93,3 @@ called:
 
     >>> cn.close()
     >>> db.close()
-

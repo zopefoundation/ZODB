@@ -429,4 +429,3 @@ usually suffices.  If object identity needs to be preserved, ::
    self.data.update(acopy)
 
 does the same, but leaves *self.data* bound to the same object.
-

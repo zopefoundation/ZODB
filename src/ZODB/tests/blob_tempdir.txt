@@ -50,4 +50,3 @@ writing and expect the file to be in the blob temporary directory::
 
   >>> w.close()
   >>> database.close()
-

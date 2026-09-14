@@ -84,7 +84,7 @@ database with the 'root()' method.
 The 'root' object is the dictionary that holds all of your
 persistent objects.  For example, you can store a simple list of
 strings in the root object::
-   
+
       >>> root['employees'] = ['Mary', 'Jo', 'Bob']
 
 Now, you have changed the persistent database by adding a new
@@ -119,7 +119,7 @@ connect to the database you just created::
 Now, let's see what's in the root::
 
       >>> root.items()
-      [('employees', ['Mary', 'Jo', 'Bob'])]  
+      [('employees', ['Mary', 'Jo', 'Bob'])]
 
 There's your list.  If you had used a relational database, you
 would have had to issue a SQL query to save even a simple Python
@@ -145,7 +145,7 @@ One thing that makes ZODB so easy to use is that it doesn't
 require you to keep track of your changes. All you have to do is
 to make changes to persistent objects and then commit a
 transaction. Anything that has changed will be stored in the
-database. 
+database.
 
 There is one exception to this rule when it comes to simple
 mutable Python types like lists and dictionaries.  If you change a
@@ -154,7 +154,7 @@ the change will *not* take effect.  Consider this example::
 
       >>> root['employees'].append('Bill')
       >>> transaction.commit()
-    
+
 You would expect this to work, but it doesn't.  The reason for
 this is that ZODB cannot detect that the 'employees' list
 changed. The 'employees' list is a mutable object that does not
@@ -177,7 +177,7 @@ Later in this article, we'll show you another technique for
 notifying the ZODB that your objects have changed.  Also, in a
 later article, we'll show you how to use simple, ZODB-aware list
 and dictionary classes that come pre-packaged with ZODB for your
-convenience. 
+convenience.
 
 Persistent Classes
 ------------------
@@ -191,7 +191,7 @@ consider a class that represents a employee::
       from Persistence import Persistent
 
       class Employee(Persistent):
-        
+
           def setName(self, name):
               self.name = name
 
@@ -246,7 +246,7 @@ consider this class::
 
           def __init__(self):
               self.tasks = []
-        
+
           def setName(self, name):
               self.name = name
 
@@ -382,7 +382,7 @@ to start storing Python objects in ZODB, with no need to write SQL
 queries.  In the next article on ZODB, we'll show you some more
 advanced techniques for using ZODB, like using ZODB's distributed
 object protocol to distribute your persistent objects across many
-machines.  
+machines.
 
 ZODB Resources
 
@@ -391,11 +391,3 @@ ZODB Resources
 - `Zope.org "ZODB Wiki" <http://www.zope.org/Wikis/ZODB/FrontPage>`_
 
 - `Jim Fulton's "Introduction to the Zope Object Database" <http://www.python.org/workshops/2000-01/proceedings/papers/fulton/zodb3.html>`_
-
-
-
-
-
-
-
-

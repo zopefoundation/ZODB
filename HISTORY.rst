@@ -1071,7 +1071,7 @@ Blobs
 BTrees
 ------
 
-- (3.8a1) Added support for 64-bit integer BTrees as separate types.  
+- (3.8a1) Added support for 64-bit integer BTrees as separate types.
 
   (For now, we're retaining compile-time support for making the regular
   integer BTrees 64-bit.)
@@ -1102,7 +1102,7 @@ Packaging
 
 - (3.7.0b3) ZODB is now packaged without it's dependencies
 
-  ZODB no longer includes copies of dependencies such as 
+  ZODB no longer includes copies of dependencies such as
   ZConfig, zope.interface and so on.  It now treats these as
   dependencies.  If ZODB is installed with easy_install or
   zc.buildout, the dependencies will be installed automatically.
@@ -1115,7 +1115,7 @@ Packaging
 - (3.7b4) Added logic to avoid spurious errors from the logging system
   on exit.
 
-- (3.7b2) Removed the "sync" mode for ClientStorage.  
+- (3.7b2) Removed the "sync" mode for ClientStorage.
 
   Previously, a ClientStorage could be in either "sync" mode or "async"
   mode.  Now there is just "async" mode.  There is now a dedicicated
@@ -1124,7 +1124,7 @@ Packaging
   Applications no-longer need to run an asyncore main loop to cause
   client storages to run in async mode.  Even if an application runs an
   asyncore main loop, it is independent of the loop used by client
-  storages. 
+  storages.
 
   This addresses a test failure on Mac OS X,
   http://www.zope.org/Collectors/Zope3-dev/650, that I believe was due

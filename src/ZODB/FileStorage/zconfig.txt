@@ -201,8 +201,3 @@ pack-keep-old
     42 True True False
 
     >>> fs.close()
-
-
-
-
-

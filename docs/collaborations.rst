@@ -200,4 +200,3 @@ Scenario
                 C2._flush_invalidations()
             C3.afterCompletion(T)
                 C3._flush_invalidations()
-

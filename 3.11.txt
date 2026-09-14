@@ -56,4 +56,3 @@ These aren't promises, but things I'd like to do:
 - Remove silly ZEO connection backooff by default.
 
 - Rewrite ZEO connection logic using async IO rather than threads.
-

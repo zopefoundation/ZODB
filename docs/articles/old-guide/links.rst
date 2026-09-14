@@ -14,4 +14,3 @@ Persistent Programing with ZODB, by Jeremy Hylton and Barry Warsaw:  ---  Slides
 for a tutorial presented at the 10th Python conference.  Covers much of the same
 ground as this guide, with more details in some areas and less in others.  ---
 `<http://www.zope.org/Members/bwarsaw/ipc10-slides>`_
-

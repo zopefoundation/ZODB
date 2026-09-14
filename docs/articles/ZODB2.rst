@@ -30,7 +30,7 @@ the following advanced features in this article:
     conflicting writes to your data.
 
 -   Transactions -- When you want your changes to be "all or nothing"
-    transactions come to the rescue.  
+    transactions come to the rescue.
 
 Persistent-Aware Types
 ----------------------
@@ -46,7 +46,7 @@ object types:
 
 -     PersistentMapping -- A persistent aware dictionary, much like
       PersistentList.
-      
+
 -     BTree -- A dictionary-like object that can hold large
       collections of objects in an ordered, fast, efficient way.
 
@@ -54,7 +54,7 @@ BTrees offer a very powerful facility to the Python programmer:
 
 -   BTrees can hold a large collection of information in an
     efficient way; more objects than your computer has enough
-    memory to hold at one time.  
+    memory to hold at one time.
 
 -   BTrees are integrated into the persistence machinery to work
     effectively with ZODB's object cache.  Recently, or heavily
@@ -87,16 +87,16 @@ can only look at where your employees were during certain times::
 
           def __init__(self):
               self.movements = IOBTree()
-        
+
           def fix(self, coords):
               "get a fix on the employee"
               self.movements[int(time())] = coords
 
-          def trackToday(self): 
+          def trackToday(self):
               "return all the movements of the
               employee in the last 24 hours"
               current_time = int(time())
-              return self.movements.items(current_time - 86400, 
+              return self.movements.items(current_time - 86400,
                                           current_time)
 
 
@@ -153,8 +153,8 @@ call, the image will be cached in a volatile attribute.  If the
 object is removed from memory, the '_v_image' attribute is not
 saved, so the cached image is thrown away, only to be recalculated
 the next time you call 'image'.
- 
-ZODB and Concurrency 
+
+ZODB and Concurrency
 --------------------
 
 Different, threads, processes, and computers on a network can open
@@ -209,7 +209,7 @@ code creates a database connection and gets the root object for a
 
 In the rare event that two processes (or threads) modify the same
 object at the same time, ZODB provides you with the ability to
-retry or resolve these conflicts yourself. 
+retry or resolve these conflicts yourself.
 
 Resolving Conflicts
 -------------------
@@ -263,7 +263,7 @@ To resolve a conflict, a class should define an
    'oldState'.
 
 The method should return the state of the object after resolving
-the differences.  
+the differences.
 
 Here is an example of a '_p_resolveConflict' in the 'Counter'
 class::
@@ -296,7 +296,7 @@ they were all one big change.  Imagine software that did online
 banking and allowed you to transfer money from one account to
 another.  You would do this by deducting the amount of the
 transfer from one account, and adding  that amount onto the
-other.  
+other.
 
 If an error happened while you were adding the money to the
 receiving account (say, the bank's computers were unavailable),
@@ -360,6 +360,3 @@ needs, like storing information in large sets, using the database
 concurrently, and maintaining transactional integrity.  For more
 information on ZODB, join the discussion list at zodb-dev@zope.org
 where you can find out more about this powerful component of Zope.
-
-
-

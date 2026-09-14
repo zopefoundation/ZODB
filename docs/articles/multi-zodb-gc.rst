@@ -16,17 +16,17 @@ persistent object(s) that point to the lost object.
     ZODB are not supported, as they lack the fast storage iteration API's required
     by ``zc.zodbdgc``.
 
-.. note:: 
+.. note::
     Unless you're using multi-databases, this documentation does not apply to
     `RelStorage <https://pypi.org/project/RelStorage/>`_ which has the same
     features built-in, but accessible in different ways. Look at the options for
     the ``zodbpack`` script. The ``--prepack`` option creates a table containing the
-    same information as we are creating in the reference database. 
-    
-    If you *are* using multi-databases, be aware that RelStorage 2.0 is needed to 
+    same information as we are creating in the reference database.
+
+    If you *are* using multi-databases, be aware that RelStorage 2.0 is needed to
     perform packing and garbage collection with ``zc.zodbdgc``, and those features only
-    work in history-free databases. 
-    
+    work in history-free databases.
+
     It's important to realize that there is currently no way to perform garbage collection
     in a history-preserving multi-database RelStorage.
 

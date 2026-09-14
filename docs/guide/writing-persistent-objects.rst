@@ -272,12 +272,12 @@ the value ``None`` rather than a dictionary for :ref:`ghosts
 Volatile Attributes
 -------------------
 
-Attributes with names starting with ``_v_`` are volatile, 
+Attributes with names starting with ``_v_`` are volatile,
 they are never serialized and not saved to the database.
 They are useful for caching data that can be computed from other data[#cache]_.
 
 Volatile attributes are local to a specific active object in memory and
-thus to a specific connection. If an object is removed from the connection 
+thus to a specific connection. If an object is removed from the connection
 cache the volatile attribute is lost.
 
 Setting a volatile attribute does not cause an object to be considered to

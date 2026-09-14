@@ -173,8 +173,8 @@ attribute containing a B-tree::
    class ChatSession(Persistent):
        def __init__(self, name):
            self.name = name
-           # Internal attribute: _messages holds all the chat messages.        
-           self._messages = BTrees.OOBTree.OOBTree()        
+           # Internal attribute: _messages holds all the chat messages.
+           self._messages = BTrees.OOBTree.OOBTree()
 
 :meth:`add_message` has to add a message to the ``_messages`` B-tree.  A
 complication is that it's possible that some other client is trying to add a
@@ -218,7 +218,7 @@ other client called :meth:`new_messages`, which isn't what we want. ::
        "Return new messages."
 
        # self._v_last_time is the time of the most recent message
-       # returned to the user of this class. 
+       # returned to the user of this class.
        if not hasattr(self, '_v_last_time'):
            self._v_last_time = 0
 
@@ -250,4 +250,3 @@ applications using ZEO in this way:
   This avoids the need to write and maintain specialized I/O code that reads in
   your objects and writes them out; instead you can concentrate on the problem
   domain, writing objects that represent cheques, stock portfolios, or whatever.
-

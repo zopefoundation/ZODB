@@ -185,4 +185,3 @@ as long as individual :class:`Connection` instances are created for each thread.
    Most of the storages that ship with ZODB use the transactional form of undo
    described in the main text.  Some storages may use a non-transactional undo
    makes changes visible immediately.
-
