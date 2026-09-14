@@ -43,12 +43,12 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     name: ${{ matrix.os[0] }}-${{ matrix.config[1] }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
     - name: Install uv + caching
-      # astral/setup-uv@8.0.0
-      uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57
+      # astral/setup-uv@10.0.1
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
       with:
         enable-cache: true
         cache-dependency-glob: |
@@ -64,3 +64,31 @@ jobs:
         uvx coveralls --service=github
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build package artifacts
+      if: >
+        matrix.os[0] == 'ubuntu'
+        && matrix.config[1] == 'py314'
+      run: |
+        rm -f dist/*
+        pip install -U packaging "setuptools >= 78.1.1,< 82" wheel twine
+        python setup.py sdist
+        python setup.py bdist_wheel
+
+    - name: Upload package wheel
+      if: >
+        matrix.os[0] == 'ubuntu'
+        && matrix.config[1] == 'py314'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ZODB.whl
+        path: dist/*whl
+
+    - name: Upload package source distribution
+      if: >
+        matrix.os[0] == 'ubuntu'
+        && matrix.config[1] == 'py314'
+      uses: actions/upload-artifact@v7
+      with:
+        name: ZODB.tar.gz
+        path: dist/*gz
