@@ -67,8 +67,8 @@ Atomicity
    Either all the changes are applied, or none of them are.  If a program makes a
    bunch of modifications and then crashes, the database won't be partially
    modified, potentially leaving the data in an inconsistent state; instead all the
-   changes will be forgotten.  That's bad, but it's better than having a partially-
-   applied modification put the database into an inconsistent state.
+   changes will be forgotten.  That's bad, but it's better than having a
+   partially-applied modification put the database into an inconsistent state.
 
 Consistency
    means that each transaction executes a valid transformation of the database

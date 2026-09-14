@@ -98,21 +98,21 @@ that code is uninteresting at this point. Each class would contain a single
 method to begin with, an :meth:`__init__` method that assigns default values,
 such as 0 or ``None``, to each attribute of the class.
 
-It's not difficult to write Python code that will create a :class:`Run` instance
-and populate it with the data from the relational tables; with a little more
-effort, you can build a straightforward tool, usually called an object-
-relational mapper, to do this automatically. (See
+It's not difficult to write Python code that will create a :class:`Run`
+instance and populate it with the data from the relational tables; with a
+little more effort, you can build a straightforward tool, usually called an
+object-relational mapper, to do this automatically. (See
 `<http://www.amk.ca/python/unmaintained/ordb.html>`_ for a quick hack at a
 Python object-relational mapper, and
 `<http://www.python.org/workshops/1997-10/proceedings/shprentz.html>`_ for Joel
 Shprentz's more successful implementation of the same idea; Unlike mine,
 Shprentz's system has been used for actual work.)
 
-However, it is difficult to make an object-relational mapper reasonably quick; a
-simple-minded implementation like mine is quite slow because it has to do
-several queries to access all of an object's data.  Higher performance object-
-relational mappers cache objects to improve performance, only performing SQL
-queries when they actually need to.
+However, it is difficult to make an object-relational mapper reasonably
+quick; a simple-minded implementation like mine is quite slow because it has
+to do several queries to access all of an object's data.  Higher performance
+object-relational mappers cache objects to improve performance, only
+performing SQL queries when they actually need to.
 
 That helps if you want to access run number 123 all of a sudden.  But what if
 you want to find all runs where a step has a parameter named 'thickness' with a

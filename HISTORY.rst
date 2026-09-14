@@ -1286,7 +1286,7 @@ ZODB 3.4 release.  These include:
   to ``DB.open()``.  ``DB.open()`` no longer blocks (there's no longer
   a fixed limit on the number of open connections).
 
-- The ``transaction`` and ``txn_mgr``arguments to ``DB.open()``.  Use
+- The ``transaction`` and ``txn_mgr`` arguments to ``DB.open()``.  Use
   the ``transaction_manager`` argument instead.
 
 - The ``getCacheDeactivateAfter``, ``setCacheDeactivateAfter``,
@@ -2227,9 +2227,10 @@ so ``ConflictError`` is now raised in such cases.
 ZEO
 ---
 
-Repaired subtle race conditions in establishing ZEO connections, both client-
-and server-side.  These account for intermittent cases where ZEO failed
-to make a connection (or reconnection), accompanied by a log message showing
+Repaired subtle race conditions in establishing ZEO connections, both
+client- and server-side.  These account for intermittent cases where ZEO
+failed to make a connection (or reconnection), accompanied by a log message
+showing
 an error caught in ``asyncore`` and having a traceback ending with:
 
     ``UnpicklingError: invalid load key, 'Z'.``

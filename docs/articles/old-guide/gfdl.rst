@@ -59,9 +59,9 @@ The "Invariant Sections" are certain Secondary Sections whose titles are
 designated, as being those of Invariant Sections, in the notice that says that
 the Document is released under this License.
 
-The "Cover Texts" are certain short passages of text that are listed, as Front-
-Cover Texts or Back-Cover Texts, in the notice that says that the Document is
-released under this License.
+The "Cover Texts" are certain short passages of text that are listed, as
+Front-Cover Texts or Back-Cover Texts, in the notice that says that the
+Document is released under this License.
 
 A "Transparent" copy of the Document means a machine-readable copy, represented
 in a format whose specification is available to the general public, whose
@@ -219,11 +219,12 @@ endorsements of your Modified Version by various parties -- for example,
 statements of peer review or that the text has been approved by an organization
 as the authoritative definition of a standard.
 
-You may add a passage of up to five words as a Front-Cover Text, and a passage
-of up to 25 words as a Back-Cover Text, to the end of the list of Cover Texts in
-the Modified Version.  Only one passage of Front-Cover Text and one of Back-
-Cover Text may be added by (or through arrangements made by) any one entity.  If
-the Document already includes a cover text for the same cover, previously added
+You may add a passage of up to five words as a Front-Cover Text, and a
+passage of up to 25 words as a Back-Cover Text, to the end of the list of
+Cover Texts in the Modified Version.  Only one passage of Front-Cover Text
+and one of Back-Cover Text may be added by (or through arrangements made by)
+any one entity.  If the Document already includes a cover text for the same
+cover, previously added
 by you or by arrangement made by the same entity you are acting on behalf of,
 you may not add another; but you may replace the old one, on explicit permission
 from the previous publisher that added the old one.
@@ -346,10 +347,10 @@ after the title page:
    License".
 
 
-If you have no Invariant Sections, write "with no Invariant Sections" instead of
-saying which ones are invariant.  If you have no Front-Cover Texts, write "no
-Front-Cover Texts" instead of "Front-Cover Texts being LIST"; likewise for Back-
-Cover Texts.
+If you have no Invariant Sections, write "with no Invariant Sections" instead
+of saying which ones are invariant.  If you have no Front-Cover Texts, write
+"no Front-Cover Texts" instead of "Front-Cover Texts being LIST"; likewise
+for Back-Cover Texts.
 
 If your document contains nontrivial examples of program code, we recommend
 releasing these examples in parallel under your choice of free software license,

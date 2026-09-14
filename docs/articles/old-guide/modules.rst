@@ -82,9 +82,9 @@ should use a BTree or TreeSet. Like Python lists, Buckets and Sets are allocated
 in one contiguous piece, and insertions and deletions can take time proportional
 to the number of existing elements.  Also like Python lists, a Bucket or Set is
 a single object, and is pickled and unpickled in its entirety.  BTrees and
-TreeSets are multi-level tree structures with much better (logarithmic) worst-
-case time bounds, and the tree structure is built out of multiple objects, which
-ZODB can load individually as needed.
+TreeSets are multi-level tree structures with much better (logarithmic)
+worst-case time bounds, and the tree structure is built out of multiple
+objects, which ZODB can load individually as needed.
 
 The five modules are named :mod:`OOBTree`, :mod:`IOBTree`, :mod:`OIBTree`,
 :mod:`IIBTree`, and (new in ZODB 3.4) :mod:`IFBTree`.  The two letter prefixes
@@ -231,9 +231,10 @@ strings both supply total orderings, but mixing the two loses trichotomy; e.g.,
 it can be dangerous to use keys with multiple types in a single BTree-based
 structure.  Don't try to do that, and you don't have to worry about it.
 
-Another potential problem is mutability:  when a key is inserted in a BTree-
-based structure, it must retain the same order relative to the other keys over
-time.  This is easy to run afoul of if you use mutable objects as keys.  For
+Another potential problem is mutability:  when a key is inserted in a
+BTree-based structure, it must retain the same order relative to the other
+keys over time.  This is easy to run afoul of if you use mutable objects as
+keys.  For
 example, lists supply a total ordering, and then ::
 
    >>> L1, L2, L3 = [1], [2], [3]
@@ -398,10 +399,10 @@ of the keys.  Example::
 BTree Diagnostic Tools
 ^^^^^^^^^^^^^^^^^^^^^^
 
-A BTree (or TreeSet) is a complex data structure, really a graph of variable-
-size nodes, connected in multiple ways via three distinct kinds of C pointers.
-There are some tools available to help check internal consistency of a BTree as
-a whole.
+A BTree (or TreeSet) is a complex data structure, really a graph of
+variable-size nodes, connected in multiple ways via three distinct kinds of
+C pointers. There are some tools available to help check internal
+consistency of a BTree as a whole.
 
 Most generally useful is the :mod:`BTrees.check` module.  The
 :func:`check.check` function examines a BTree (or Bucket, Set, or TreeSet) for

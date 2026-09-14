@@ -25,7 +25,7 @@ ITransaction
              addAfterCommitHook, getAfterCommitHooks
 
 
-.. [#transaction-package-can-be-used-wo-ZODB] The :mod:transaction
+.. [#transaction-package-can-be-used-wo-ZODB] The :mod:`transaction`
    package is a general purpose package for managing `distributed
    transactions
    <https://en.wikipedia.org/wiki/Distributed_transaction>`_ with a
