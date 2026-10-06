@@ -367,3 +367,12 @@ class ConnectionStateError(POSError):
       still joined to a transaction (for example, a transaction is in
       progress, with uncommitted modifications in the connection).
     """
+
+
+class StateLoadError(POSError):
+    """Error when loading an object state.
+
+    When loading a class from the database, if an error calling the class
+    ``__setstate__``, a  ``StateLoadError``  is raised, chained with the
+    original exception.
+    """

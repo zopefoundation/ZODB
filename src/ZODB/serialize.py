@@ -146,6 +146,8 @@ from ZODB._compat import PersistentPickler
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import _protocol
 from ZODB.POSException import InvalidObjectReference
+from ZODB.POSException import POSError
+from ZODB.POSException import StateLoadError
 
 
 _oidtypes = bytes, type(None)
@@ -633,10 +635,19 @@ class ObjectReader:
             log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
+        except POSError:
+            raise
+        except Exception as e:
+            raise StateLoadError() from e
 
     def setGhostState(self, obj, pickle):
         state = self.getState(pickle)
-        obj.__setstate__(state)
+        try:
+            obj.__setstate__(state)
+        except POSError:
+            raise
+        except Exception as e:
+            raise StateLoadError() from e
 
 
 def referencesf(p, oids=None):

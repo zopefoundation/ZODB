@@ -24,6 +24,8 @@ from ZODB import serialize
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import Pickler
 from ZODB._compat import _protocol
+from ZODB.POSException import StateLoadError
+from ZODB.POSException import StorageError
 
 
 class PersistentObject(Persistent):
@@ -41,6 +43,35 @@ class ClassWithNewargs(int):
 class ClassWithoutNewargs:
     def __init__(self, value):
         self.value = value
+
+
+class UserError(Exception):
+    pass
+
+
+class ClassWithState:
+    def __init__(self):
+        self.state = "something"
+
+
+class ClassWithBrokenSetStateUserError(ClassWithState):
+    def __setstate__(self, state):
+        raise UserError
+
+
+class ClassWithBrokenSetStateStorageError(ClassWithState):
+    def __setstate__(self, state):
+        raise StorageError
+
+
+class PersistentClassWithBrokenSetStateUserError(
+        ClassWithBrokenSetStateUserError, Persistent):
+    pass
+
+
+class PersistentClassWithBrokenSetStateStorageError(
+        ClassWithBrokenSetStateStorageError, Persistent):
+    pass
 
 
 def make_pickle(ob):
@@ -169,6 +200,41 @@ class SerializerTestCase(unittest.TestCase):
         self.assertIn(b'C\x03o.o', pickle)
 
 
+class StateLoadErrorTests(unittest.TestCase):
+
+    def setUp(self):
+        self.reader = serialize.ObjectReader(factory=_factory)
+        self.writer = serialize.ObjectWriter()
+
+    def test_load_error_on_persistent_object(self):
+        o = PersistentClassWithBrokenSetStateUserError()
+        record = self.writer.serialize(o)
+        with self.assertRaises(StateLoadError) as exc:
+            self.reader.setGhostState(o, record)
+        self.assertIsInstance(exc.exception.__cause__, UserError)
+
+    def test_load_error_on_non_persistent_object(self):
+        o = PersistentObject()
+        o.o = ClassWithBrokenSetStateUserError()
+        record = self.writer.serialize(o)
+        with self.assertRaises(StateLoadError) as exc:
+            self.reader.setGhostState(o, record)
+        self.assertIsInstance(exc.exception.__cause__, UserError)
+
+    def test_poserror_on_persistent_object(self):
+        o = PersistentClassWithBrokenSetStateStorageError()
+        record = self.writer.serialize(o)
+        with self.assertRaises(StorageError):
+            self.reader.setGhostState(o, record)
+
+    def test_poserror_on_non_persistent_object(self):
+        o = PersistentObject()
+        o.o = ClassWithBrokenSetStateStorageError()
+        record = self.writer.serialize(o)
+        with self.assertRaises(StorageError):
+            self.reader.setGhostState(o, record)
+
+
 class SerializerFunctestCase(unittest.TestCase):
 
     def setUp(self):
@@ -250,6 +316,7 @@ def test_suite():
         unittest.defaultTestLoader.loadTestsFromTestCase(SerializerTestCase),
         unittest.defaultTestLoader.loadTestsFromTestCase(
             SerializerFunctestCase),
+        unittest.defaultTestLoader.loadTestsFromTestCase(StateLoadErrorTests),
         doctest.DocTestSuite("ZODB.serialize",
                              checker=ZODB.tests.util.checker),
     ))
