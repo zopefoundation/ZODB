@@ -139,6 +139,7 @@ from io import BytesIO
 from persistent import Persistent
 from persistent.wref import WeakRef
 from persistent.wref import WeakRefMarker
+from transaction.interfaces import TransientError
 from zodbpickle import binary
 
 from ZODB import broken
@@ -635,7 +636,7 @@ class ObjectReader:
             log = logging.getLogger("ZODB.serialize")
             log.exception("Unpickling error: %r", pickle)
             raise
-        except POSError:
+        except (POSError, TransientError):
             raise
         except Exception as e:
             raise StateLoadError() from e
@@ -644,7 +645,7 @@ class ObjectReader:
         state = self.getState(pickle)
         try:
             obj.__setstate__(state)
-        except POSError:
+        except (POSError, TransientError):
             raise
         except Exception as e:
             raise StateLoadError() from e

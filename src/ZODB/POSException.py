@@ -370,9 +370,10 @@ class ConnectionStateError(POSError):
 
 
 class StateLoadError(POSError):
-    """Error when loading an object state.
+    """Error when loading an object's state.
 
-    When loading a class from the database, if an error calling the class
-    ``__setstate__``, a  ``StateLoadError``  is raised, chained with the
-    original exception.
+    Raised when the state of an object can not be loaded, for example
+    when calling the object's ``__setstate__`` raises an error, or when
+    unpickling the record fails.  The original exception is chained as
+    ``__cause__``.
     """

@@ -18,6 +18,7 @@ from io import BytesIO
 
 from persistent import Persistent
 from persistent.wref import WeakRef
+from transaction.interfaces import TransientError
 
 import ZODB.tests.util
 from ZODB import serialize
@@ -64,6 +65,11 @@ class ClassWithBrokenSetStateStorageError(ClassWithState):
         raise StorageError
 
 
+class ClassWithBrokenSetStateTransientError(ClassWithState):
+    def __setstate__(self, state):
+        raise TransientError()
+
+
 class PersistentClassWithBrokenSetStateUserError(
         ClassWithBrokenSetStateUserError, Persistent):
     pass
@@ -71,6 +77,11 @@ class PersistentClassWithBrokenSetStateUserError(
 
 class PersistentClassWithBrokenSetStateStorageError(
         ClassWithBrokenSetStateStorageError, Persistent):
+    pass
+
+
+class PersistentClassWithBrokenSetStateTransientError(
+        ClassWithBrokenSetStateTransientError, Persistent):
     pass
 
 
@@ -232,6 +243,19 @@ class StateLoadErrorTests(unittest.TestCase):
         o.o = ClassWithBrokenSetStateStorageError()
         record = self.writer.serialize(o)
         with self.assertRaises(StorageError):
+            self.reader.setGhostState(o, record)
+
+    def test_transient_error_on_persistent_object(self):
+        o = PersistentClassWithBrokenSetStateTransientError()
+        record = self.writer.serialize(o)
+        with self.assertRaises(TransientError):
+            self.reader.setGhostState(o, record)
+
+    def test_transient_error_on_non_persistent_object(self):
+        o = PersistentObject()
+        o.o = ClassWithBrokenSetStateTransientError()
+        record = self.writer.serialize(o)
+        with self.assertRaises(TransientError):
             self.reader.setGhostState(o, record)
 
 
