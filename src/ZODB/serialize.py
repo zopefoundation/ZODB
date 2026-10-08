@@ -632,13 +632,12 @@ class ObjectReader:
         try:
             unpickler.load()  # skip the class metadata
             return unpickler.load()
-        except EOFError:
-            log = logging.getLogger("ZODB.serialize")
-            log.exception("Unpickling error: %r", pickle)
-            raise
         except (POSError, TransientError):
             raise
         except Exception as e:
+            if isinstance(e, EOFError):
+                log = logging.getLogger("ZODB.serialize")
+                log.exception("Unpickling error: %r", pickle)
             raise StateLoadError() from e
 
     def setGhostState(self, obj, pickle):
