@@ -139,6 +139,7 @@ from io import BytesIO
 from persistent import Persistent
 from persistent.wref import WeakRef
 from persistent.wref import WeakRefMarker
+from transaction.interfaces import TransientError
 from zodbpickle import binary
 
 from ZODB import broken
@@ -146,6 +147,8 @@ from ZODB._compat import PersistentPickler
 from ZODB._compat import PersistentUnpickler
 from ZODB._compat import _protocol
 from ZODB.POSException import InvalidObjectReference
+from ZODB.POSException import POSError
+from ZODB.POSException import StateLoadError
 
 
 _oidtypes = bytes, type(None)
@@ -629,14 +632,22 @@ class ObjectReader:
         try:
             unpickler.load()  # skip the class metadata
             return unpickler.load()
-        except EOFError:
-            log = logging.getLogger("ZODB.serialize")
-            log.exception("Unpickling error: %r", pickle)
+        except (POSError, TransientError):
             raise
+        except Exception as e:
+            if isinstance(e, EOFError):
+                log = logging.getLogger("ZODB.serialize")
+                log.exception("Unpickling error: %r", pickle)
+            raise StateLoadError() from e
 
     def setGhostState(self, obj, pickle):
         state = self.getState(pickle)
-        obj.__setstate__(state)
+        try:
+            obj.__setstate__(state)
+        except (POSError, TransientError):
+            raise
+        except Exception as e:
+            raise StateLoadError() from e
 
 
 def referencesf(p, oids=None):

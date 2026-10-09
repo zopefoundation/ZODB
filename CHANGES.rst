@@ -5,6 +5,8 @@
 6.4 (unreleased)
 ----------------
 
+- Add ``StateLoadError``, raised when an object's state cannot be loaded.
+
 
 6.3 (2026-04-14)
 ----------------
