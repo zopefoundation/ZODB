@@ -3,13 +3,15 @@
 ================
 
 6.4 (unreleased)
-----------------
+================
+
+- Add support for Python 3.15.
 
 - Add ``StateLoadError``, raised when an object's state cannot be loaded.
 
 
 6.3 (2026-04-14)
-----------------
+================
 
 - Add ``class_factory`` parameter to ``DB.__init__()`` and
   ``class-factory`` option to ZConfig database configuration.
