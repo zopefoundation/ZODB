@@ -2,7 +2,7 @@
  Change History
 ================
 
-6.4 (unreleased)
+6.4 (2026-10-12)
 ================
 
 - Add ``StateLoadError``, raised when an object's state cannot be loaded.
