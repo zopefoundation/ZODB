@@ -5,9 +5,9 @@
 6.4 (unreleased)
 ================
 
-- Add support for Python 3.15.
-
 - Add ``StateLoadError``, raised when an object's state cannot be loaded.
+
+- Add support for Python 3.15.
 
 
 6.3 (2026-04-14)
