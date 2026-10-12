@@ -64,7 +64,7 @@ class ZODBConfigTest(ConfigTestBase):
             """)
 
     def test_file_config1(self):
-        path = tempfile.mktemp()
+        _, path = tempfile.mkstemp()
         self._test(
             """
             <zodb>
@@ -75,7 +75,7 @@ class ZODBConfigTest(ConfigTestBase):
             """ % path)
 
     def test_file_config2(self):
-        path = tempfile.mktemp()
+        _, path = tempfile.mkstemp()
         # first pass to actually create database file
         self._test(
             """
