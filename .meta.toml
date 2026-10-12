@@ -75,3 +75,6 @@ additional-config = [
 [pre-commit]
 teyit-exclude = "docs/articles/old-guide"
 whitespace-exclude = "docs/zodb\\.svg$|test-checker\\.fs$"
+
+[pypi]
+trusted-publishing = true
