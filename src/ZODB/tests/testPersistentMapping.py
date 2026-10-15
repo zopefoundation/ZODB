@@ -107,7 +107,7 @@ class PMTests(unittest.TestCase):
             self.assertEqual(keylist, ['a', 'b', 'name', 'x'])
 
         check(list(m))
-        check([key for key in m])
+        check([*m])
 
         i = iter(m)
         keylist = []

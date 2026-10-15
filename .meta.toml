@@ -2,7 +2,7 @@
 # https://github.com/zopefoundation/meta/tree/master/src/zope/meta/pure-python
 [meta]
 template = "pure-python"
-commit-id = "cf94e416"
+commit-id = "f63da99d"
 
 [python]
 with-windows = true
@@ -22,12 +22,12 @@ testenv-setenv = [
     "ZOPE_INTERFACE_STRICT_IRO=1",
     ]
 additional-envlist = [
-    "py310-pure",
+    "py311-pure",
     ]
 testenv-additional = [
     "",
-    "[testenv:py310-pure]",
-    "basepython = python3.10",
+    "[testenv:py311-pure]",
+    "basepython = python3.11",
     "setenv =",
     "    PURE_PYTHON = 1",
     ]
@@ -69,7 +69,7 @@ additional-ignores = [
 
 [github-actions]
 additional-config = [
-    "- [\"3.10\",   \"py310-pure\"]",
+    "- [\"3.11\",   \"py311-pure\"]",
     ]
 
 [pre-commit]
