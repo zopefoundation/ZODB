@@ -788,7 +788,14 @@ class DB:
             self.pool.availableGC()
             self.historical_pool.availableGC()
 
-        result.open(transaction_manager)
+        try:
+            result.open(transaction_manager)
+        except Exception:
+            # Connection.open failed after the connection was taken from
+            # the pool. Put it back so it is not stranded in pool.all as
+            # a half-opened connection. See issue #427.
+            self._returnToPool(result)
+            raise
         return result
 
     def connectionDebugInfo(self):

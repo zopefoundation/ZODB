@@ -1444,3 +1444,33 @@ def test_suite():
     s.addTest(loadTestsFromTestCase(EstimatedSizeTests))
     s.addTest(loadTestsFromTestCase(InvalidationTests))
     return s
+
+
+class OpenFailureDoesNotLeaveHalfOpenedConnection(ZODB.tests.util.TestCase):
+    """Connection.open must roll back state if newTransaction fails.
+
+    See https://github.com/zopefoundation/ZODB/issues/427
+    """
+
+    def test_poll_invalidations_failure_allows_db_close(self):
+        import ZODB
+        from ZODB.mvccadapter import MVCCAdapterInstance
+
+        db = ZODB.DB(None)
+        orig = MVCCAdapterInstance.poll_invalidations
+
+        def failing_poll(self):
+            raise ConnectionError("storage unavailable")
+
+        MVCCAdapterInstance.poll_invalidations = failing_poll
+        try:
+            with self.assertRaises(ConnectionError):
+                db.open()
+        finally:
+            MVCCAdapterInstance.poll_invalidations = orig
+
+        # No connection should remain marked open, and DB.close must not
+        # KeyError when unregistering synchronizers.
+        self.assertEqual([c.opened for c in db.pool.all], [None])
+        self.assertEqual([c.transaction_manager for c in db.pool.all], [None])
+        db.close()

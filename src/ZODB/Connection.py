@@ -893,27 +893,38 @@ class Connection(ExportImport):
             # New code is in place.  Start a new cache.
             self._resetCache()
 
-        if not self.explicit_transactions:
-            # This newTransaction is to deal with some pathalogical cases:
-            #
-            # a) Someone opens a connection when a transaction isn't
-            #    active and proceeeds without calling begin on a
-            #    transaction manager. We initialize the transaction for
-            #    the connection, but we don't do a storage sync, since
-            #    this will be done if a well-nehaved application calls
-            #    begin, and we don't want to penalize well-behaved
-            #    transactions by syncing twice, as storage syncs might be
-            #    expensive.
-            # b) Lots of tests assume that connection transaction
-            #    information is set on open.
-            #
-            # Fortunately, this is a cheap operation.  It doesn't
-            # really cost much, if anything.  Well, except for
-            # RelStorage, in which case it adds a server round
-            # trip.
-            self.newTransaction(None, False)
+        try:
+            if not self.explicit_transactions:
+                # This newTransaction is to deal with some pathalogical cases:
+                #
+                # a) Someone opens a connection when a transaction isn't
+                #    active and proceeeds without calling begin on a
+                #    transaction manager. We initialize the transaction for
+                #    the connection, but we don't do a storage sync, since
+                #    this will be done if a well-nehaved application calls
+                #    begin, and we don't want to penalize well-behaved
+                #    transactions by syncing twice, as storage syncs might be
+                #    expensive.
+                # b) Lots of tests assume that connection transaction
+                #    information is set on open.
+                #
+                # Fortunately, this is a cheap operation.  It doesn't
+                # really cost much, if anything.  Well, except for
+                # RelStorage, in which case it adds a server round
+                # trip.
+                self.newTransaction(None, False)
 
-        transaction_manager.registerSynch(self)
+            transaction_manager.registerSynch(self)
+        except Exception:
+            # newTransaction (e.g. storage.poll_invalidations) or
+            # registerSynch can fail after opened/transaction_manager
+            # were already set. Roll that half-open state back so
+            # close()/DB.close() do not KeyError on unregisterSynch,
+            # and so DB.open can safely return the connection to the pool.
+            # See https://github.com/zopefoundation/ZODB/issues/427
+            self.opened = None
+            self.transaction_manager = None
+            raise
 
         self._cache.incrgc()  # This is a good time to do some GC
 
