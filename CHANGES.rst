@@ -5,7 +5,8 @@
 6.5 (unreleased)
 ================
 
-- Nothing changed yet.
+- Fix ``fsrecover`` skipping the intact transaction that follows a
+  transaction whose data records could not be copied.
 
 
 6.4 (2026-10-12)
