@@ -366,7 +366,8 @@ def recover(inp, outp, verbose=0, partial=False, force=False, pack=None):
             print("error copying transaction:", err)
             if not verbose:
                 progress(prog1)
-            pos = scan(f, pos)
+            # The transaction header and its redundant length were valid,
+            # so pos already points at the next transaction header.
             if verbose > 1:
                 print("looking for valid txn header at", pos)
         else:

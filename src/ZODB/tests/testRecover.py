@@ -26,6 +26,7 @@ import ZODB
 import ZODB.fsrecover
 import ZODB.tests.util
 from ZODB.FileStorage import FileStorage
+from ZODB.utils import p64
 
 
 class RecoverTest(ZODB.tests.util.TestCase):
@@ -189,6 +190,35 @@ class RecoverTest(ZODB.tests.util.TestCase):
         self.assertIn('error', output, output)
         self.recovered = FileStorage(self.dest)
         self.recovered.close()
+
+    def testBadDataRecordKeepsNextTransaction(self):
+        # When copying a transaction fails because one of its data records
+        # cannot be read, but the transaction header and its redundant
+        # length are intact, recovery must resume at the very next
+        # transaction instead of scanning past it.
+        tids = []
+        for i, txn in enumerate(self.storage.iterator()):
+            tids.append(txn.tid)
+            if i == 10:
+                record_pos = next(iter(txn)).pos
+        bad_tid, following_tid = tids[10], tids[11]
+        self.storage.close()
+
+        # Turn the first data record into a backpointer record whose
+        # backpointer points past the end of the file.  The record (and
+        # hence the transaction) keeps its length.
+        with open(self.path, "r+b") as f:
+            f.seek(record_pos + 34)
+            f.write(p64(0))
+            f.write(p64(1 << 40))
+
+        output = self.recover()
+        self.assertIn('error copying transaction', output, output)
+        self.recovered = FileStorage(self.dest)
+        recovered = [txn.tid for txn in self.recovered.iterator()]
+        self.assertNotIn(bad_tid, recovered)
+        self.assertIn(following_tid, recovered)
+        self.assertEqual(len(recovered), len(tids) - 1)
 
     # Issue 1846:  When a transaction had 'c' status (not yet committed),
     # the attempt to open a temp file to write the trailing bytes fell
